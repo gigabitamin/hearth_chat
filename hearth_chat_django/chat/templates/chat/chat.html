@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Smart Gate Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+        }
+        .graphs {
+            flex: 1;
+        }
+        .graphs canvas {
+            margin-bottom: 30px;
+            width: 100% !important;
+            height: 250px !important;
+        }
+        .table-wrapper {
+            flex: 1;
+            overflow-x: auto;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            min-width: 600px;
+        }
+        th, td {
+            border: 1px solid #999;
+            padding: 8px 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #eee;
+        }
+        .gate-control {
+            margin: 20px;
+        }
+        .gate-control button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .gate-control button:disabled {
+            background-color: #aaa;
+            cursor: not-allowed;
+        }
+        .husky-section {
+            margin: 20px;
+            font-size: 14px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Sensor Data Dashboard</h1>
+
+    <!-- ✅ 차단기 제어 버튼 -->
+    <div class="gate-control">
+        <form action="/toggle_gate" method="post">
+            {% csrf_token %}
+            {% if data and data.0.gate_status == "STOP" %}
+                <button type="submit">🚦 차단기 열기</button>
+            {% else %}
+                <button type="submit" disabled>차단기 열려있음</button>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- ✨ 허스키렌즈 인식 정보 -->
+    <div class="husky-section">
+        <strong>허스키렌즈 상태:</strong>
+        {% if husky_detected %}
+            <span style="color: green;">허용된 타겟 인식됨 (ID: {{ husky_id }})</span>
+        {% else %}
+            <span style="color: red;">인식된 타겟 없음 또는 허용되지 않음</span>
+        {% endif %}
+    </div>
+
+    <div class="container">
+        <!-- 왼쪽: 그래프 영역 -->
+        <div class="graphs">
+            <canvas id="temperatureChart"></canvas>
+            <canvas id="humidityChart"></canvas>
+            <canvas id="distanceChart"></canvas>
+        </div>
+
+        <!-- 오른쪽: 데이터 테이블 -->
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Distance (cm)</th>
+                        <th>Temperature (°C)</th>
+                        <th>Humidity (%)</th>
+                        <th>Accel X</th>
+                        <th>Accel Y</th>
+                        <th>Accel Z</th>
+                        <th>Gate Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in data %}
+                    <tr>
+                        <td>{{ entry.timestamp }}</td>
+                        <td>{{ entry.distance }}</td>
+                        <td>{{ entry.temperature }}</td>
+                        <td>{{ entry.humidity }}</td>
+                        <td>{{ entry.accel_x }}</td>
+                        <td>{{ entry.accel_y }}</td>
+                        <td>{{ entry.accel_z }}</td>
+                        <td>{{ entry.gate_status }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+<script>
+    const sensorData = JSON.parse('{{ data_json|escapejs }}');
+
+    const timestamps = sensorData.map(entry => entry.timestamp);
+    const temperature = sensorData.map(entry => entry.temperature);
+    const humidity = sensorData.map(entry => entry.humidity);
+    const distance = sensorData.map(entry => entry.distance);
+
+    function createChart(ctx, label, labels, data, borderColor) {
+        return new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: label,
+                    data: data,
+                    borderColor: borderColor,
+                    backgroundColor: 'rgba(0,0,0,0)',
+                    fill: false,
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Time'
+                        }
+                    },
+                    y: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: label
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    window.onload = function() {
+        const tempCtx = document.getElementById('temperatureChart').getContext('2d');
+        const humidityCtx = document.getElementById('humidityChart').getContext('2d');
+        const distanceCtx = document.getElementById('distanceChart').getContext('2d');
+
+        createChart(tempCtx, 'Temperature (°C)', timestamps, temperature, 'red');
+        createChart(humidityCtx, 'Humidity (%)', timestamps, humidity, 'blue');
+        createChart(distanceCtx, 'Distance (cm)', timestamps, distance, 'green');
+    }
+</script>
+
+</body>
+</html>
