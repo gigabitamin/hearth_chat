@@ -4,7 +4,11 @@
 
 ==========================================
 
+## 250705  
+- open ai api -> google gemini api 로 변경  
+- gemini api 채팅 응답 확인  
+- LLM AI 채팅 베이스 완성성
+
 ## 250704  
 - django 보일러 세팅  
-- open ai api -> google gemini api 로 변경 예정  
-
+- open ai api 사용  
