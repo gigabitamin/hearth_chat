@@ -56,7 +56,7 @@ function AvatarModel({ avatarUrl, isTalking, emotion, mouthTrigger }) {
                 setEyeBlink(0); // 눈 뜨기
                 console.log('눈 깜빡임: 뜨기');
                 if (running) setTimeout(blinkLoop, 4000 + Math.random() * 8000);
-            }, 20 + Math.random() * 80); // 더 빠른 눈 깜빡임 (100-150ms)
+            }, 30 + Math.random() * 90); // 더 빠른 눈 깜빡임 (100-150ms)
         }
         setTimeout(blinkLoop, 2000 + Math.random() * 3000);
         return () => { running = false; };
@@ -161,7 +161,6 @@ function AvatarModel({ avatarUrl, isTalking, emotion, mouthTrigger }) {
                             if (!child.userData.originalY) {
                                 child.userData.originalY = child.position.y;
                             }
-
                             // 눈꺼풀
                             if (eyeBlink > 0.5) {
                                 child.rotation.x = Math.PI * 0.2; // 아래로 내림
@@ -181,15 +180,14 @@ function AvatarModel({ avatarUrl, isTalking, emotion, mouthTrigger }) {
                             }
 
 
-
                         } else if (isEyeball) {
                             // 눈알: Z축 스케일링으로 눈 깜빡임 효과
                             console.log('Eyeball found:', child.name);
-                            if (eyeBlink < 0.5) {
-                                // Z축 확장으로 눈을 감는 효과 (반대 방향)
+                            if (eyeBlink > 0.5) {
+                                // Z축 확장으로 눈을 감는 효과
                                 child.scale.x = 1; // 가로는 그대로
                                 child.scale.y = 1; // 세로는 그대로
-                                child.scale.z = 2.0; // 깊이로 확장 (반대 방향)
+                                child.scale.z = 2.0; // 깊이로 확장
 
                                 // 투명도로 더 자연스럽게
                                 if (child.material) {
@@ -231,7 +229,7 @@ function AvatarModel({ avatarUrl, isTalking, emotion, mouthTrigger }) {
 
                         // 방법 4: 투명도 조절 (재질이 있는 경우)
                         if (child.material && !isEyeball) {
-                            if (eyeBlink < 0.5) {
+                            if (eyeBlink > 0.5) {
                                 child.material.opacity = 0.05; // 더 투명하게
                                 child.material.transparent = true;
                             } else {
