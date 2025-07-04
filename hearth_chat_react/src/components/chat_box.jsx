@@ -13,6 +13,9 @@ const ChatBox = () => {
   const [userEmotion, setUserEmotion] = useState('neutral');
   const [aiEmotion, setAiEmotion] = useState('neutral');
   const ws = useRef(null);
+  const [displayedAiText, setDisplayedAiText] = useState('');
+  const [mouthTrigger, setMouthTrigger] = useState(0);
+  const [currentAiMessage, setCurrentAiMessage] = useState('');
 
   useEffect(() => {
     console.log('ChatBox 컴포넌트 마운트됨');
@@ -30,10 +33,10 @@ const ChatBox = () => {
     ws.current.onmessage = (e) => {
       const data = JSON.parse(e.data);
       setMessages((prev) => [...prev, { type: 'recv', text: data.message }]);
+      setCurrentAiMessage(data.message); // 타이핑 효과용
 
-      // AI가 응답할 때 애니메이션
+      // AI가 응답할 때 애니메이션 (타이핑이 끝날 때까지 유지)
       setIsAiTalking(true);
-      setTimeout(() => setIsAiTalking(false), 3000);
 
       // AI 감정 분석 (간단한 키워드 기반)
       const emotion = analyzeEmotion(data.message);
@@ -48,6 +51,35 @@ const ChatBox = () => {
       ws.current.close();
     };
   }, []);
+
+  useEffect(() => {
+    if (!isAiTalking || !currentAiMessage) {
+      // 타이핑이 끝나면 mouthTrigger를 0으로 리셋
+      setMouthTrigger(0);
+      return;
+    }
+
+    let i = 0;
+    setDisplayedAiText('');
+    const interval = setInterval(() => {
+      setDisplayedAiText(currentAiMessage.slice(0, i + 1));
+      setMouthTrigger(prev => {
+        const newValue = prev + 1;
+        console.log('mouthTrigger 증가:', newValue);
+        return newValue;
+      }); // 트리거 값 증가
+      i++;
+      if (i >= currentAiMessage.length) {
+        clearInterval(interval);
+        // 타이핑이 완전히 끝나면 mouthTrigger를 0으로 리셋하고 isAiTalking을 false로 설정
+        setTimeout(() => {
+          setMouthTrigger(0);
+          setIsAiTalking(false); // 타이핑이 끝나면 말하는 상태를 false로
+        }, 200);
+      }
+    }, 30); // 30ms마다 한 글자씩 (빠른 타이핑)
+    return () => clearInterval(interval);
+  }, [isAiTalking, currentAiMessage]);
 
   // 아바타 초기화
   const initializeAvatars = async () => {
@@ -126,7 +158,9 @@ const ChatBox = () => {
                   key={idx}
                   className={`chat-bubble ${msg.type === 'send' ? 'sent' : 'received'}`}
                 >
-                  {msg.text}
+                  {msg.type === 'recv' && idx === messages.length - 1 && isAiTalking
+                    ? displayedAiText
+                    : msg.text}
                 </div>
               ))}
             </div>
@@ -149,6 +183,7 @@ const ChatBox = () => {
             avatarUrl={aiAvatar}
             isTalking={isAiTalking}
             emotion={aiEmotion}
+            mouthTrigger={mouthTrigger} // 반드시 추가!
             position="right"
             size={250}
           />
@@ -173,6 +208,7 @@ const ChatBox = () => {
               avatarUrl={aiAvatar}
               isTalking={isAiTalking}
               emotion={aiEmotion}
+              mouthTrigger={mouthTrigger} // 반드시 추가!
               position="right"
               size={200}
             />
@@ -188,7 +224,9 @@ const ChatBox = () => {
                   key={idx}
                   className={`chat-bubble ${msg.type === 'send' ? 'sent' : 'received'}`}
                 >
-                  {msg.text}
+                  {msg.type === 'recv' && idx === messages.length - 1 && isAiTalking
+                    ? displayedAiText
+                    : msg.text}
                 </div>
               ))}
             </div>
