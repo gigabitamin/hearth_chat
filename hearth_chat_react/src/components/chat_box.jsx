@@ -11,7 +11,7 @@ const ChatBox = () => {
     ws.current = new WebSocket('ws://localhost:8000/ws/chat/');
 
     ws.current.onopen = () => {
-      console.log('✅ WebSocket 연결 성공');
+      console.log('WebSocket 연결 성공');
     };
 
     ws.current.onmessage = (e) => {
@@ -20,7 +20,7 @@ const ChatBox = () => {
     };
 
     ws.current.onclose = () => {
-      console.log('❌ WebSocket 연결 종료');
+      console.log('WebSocket 연결 종료');
     };
 
     return () => {
@@ -50,7 +50,7 @@ const ChatBox = () => {
       <div className="chat-input-area">
         <input
           type="text"
-          placeholder="메시지를 입력하세요..."
+          placeholder="메시지를 입력하세요"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && sendMessage()}

@@ -6,4 +6,5 @@
 
 ## 250704  
 - django 보일러 세팅  
+- open ai api -> google gemini api 로 변경 예정  
 
