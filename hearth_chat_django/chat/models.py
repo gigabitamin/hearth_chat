@@ -17,6 +17,9 @@ class Chat(models.Model):
     # 세션 관리 (나중에 사용자별 구분을 위해)
     session_id = models.CharField(max_length=100, blank=True, null=True, verbose_name='세션 ID')
     
+    # 감정 정보 (사용자 메시지에만 적용)
+    emotion = models.CharField(max_length=20, blank=True, null=True, verbose_name='감정 상태')
+    
     # 메타 정보
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='생성 시간')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='수정 시간')
@@ -31,12 +34,13 @@ class Chat(models.Model):
         return f"{self.get_message_type_display()} - {self.content[:50]}..."
     
     @classmethod
-    def save_user_message(cls, content, session_id=None):
-        """사용자 메시지 저장"""
+    def save_user_message(cls, content, session_id=None, emotion=None):
+        """사용자 메시지 저장 (감정 정보 포함)"""
         return cls.objects.create(
             message_type='user',
             content=content,
-            session_id=session_id
+            session_id=session_id,
+            emotion=emotion
         )
     
     @classmethod

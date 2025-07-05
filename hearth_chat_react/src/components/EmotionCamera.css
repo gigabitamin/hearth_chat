@@ -1,0 +1,448 @@
+.emotion-camera {
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    transition: all 0.3s ease;
+}
+
+.camera-container {
+    position: relative;
+    width: 100%;
+    height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+}
+
+.camera-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+/* 카메라 위쪽 감정 표시 (작은 크기) */
+.emotion-indicator-top {
+    /* position: absolute; */
+    /* top: -45px; */
+    left: 50%;
+    /* transform: translateX(-50%); */
+    background: rgba(0, 0, 0, 0.95);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 25px;
+    font-size: 14px;
+    font-weight: 700;
+    backdrop-filter: blur(15px);
+    /* animation: emotionPulse 2s ease-in-out infinite; */
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 9999;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    min-width: 160px;
+    justify-content: center;
+}
+
+@keyframes emotionPulse {
+    0%, 100% { 
+        transform: translateX(-50%) scale(1);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+    }
+    50% { 
+        transform: translateX(-50%) scale(1.05);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.8);
+    }
+}
+
+.emotion-label-small {
+    font-size: 18px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.emotion-text-small {
+    font-size: 13px;
+    opacity: 1;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.emotion-stability-small {
+    font-size: 11px;
+    opacity: 0.9;
+    margin-left: 8px;
+    font-weight: 500;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* 감정 표시 호버 효과 */
+.emotion-indicator-top:hover {
+    background: rgba(0, 0, 0, 0.9);
+    transform: translateX(-50%) translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    transition: all 0.3s ease;
+}
+
+/* 기존 감정 표시 (카메라 내부) - 숨김 처리 */
+.emotion-indicator {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;
+    backdrop-filter: blur(10px);
+    animation: fadeIn 0.3s ease;
+    display: none;
+    /* 숨김 처리 */
+}
+
+.emotion-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.emotion-stability {
+    font-size: 12px;
+    opacity: 0.8;
+    margin-left: 8px;
+}
+
+.analyzing-indicator {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 25px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    backdrop-filter: blur(10px);
+}
+
+.analyzing-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid transparent;
+    border-top: 2px solid #fff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.error-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(220, 53, 69, 0.9);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+    text-align: center;
+    max-width: 280px;
+    backdrop-filter: blur(10px);
+}
+
+.retry-button {
+    margin-top: 10px;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.retry-button:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* 위쪽 버튼 컨트롤 */
+.camera-controls-top {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 15px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+}
+
+.camera-controls {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+}
+
+.camera-toggle {
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.camera-toggle:hover {
+    background: rgba(0, 0, 0, 0.8);
+    transform: translateY(-2px);
+}
+
+.camera-toggle.active {
+    background: rgba(40, 167, 69, 0.8);
+}
+
+.camera-toggle.active:hover {
+    background: rgba(40, 167, 69, 0.9);
+}
+
+/* 모드 토글 버튼 스타일 */
+.mode-toggle {
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    margin-left: 10px;
+}
+
+.mode-toggle:hover:not(:disabled) {
+    background: rgba(0, 0, 0, 0.8);
+    transform: translateY(-2px);
+}
+
+.mode-toggle:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.mode-toggle.realtime {
+    background: rgba(255, 193, 7, 0.8);
+    color: #000;
+}
+
+.mode-toggle.realtime:hover:not(:disabled) {
+    background: rgba(255, 193, 7, 0.9);
+}
+
+.mode-toggle.stable {
+    background: rgba(40, 167, 69, 0.8);
+    color: white;
+}
+
+.mode-toggle.stable:hover:not(:disabled) {
+    background: rgba(40, 167, 69, 0.9);
+}
+
+/* 감정별 색상 테마 */
+.emotion-camera.emotion-happy {
+    box-shadow: 0 4px 20px rgba(255, 193, 7, 0.3);
+}
+
+.emotion-camera.emotion-happy .emotion-indicator-top {
+    background: rgba(255, 193, 7, 0.9);
+    color: #000;
+}
+
+.emotion-camera.emotion-happy .emotion-indicator {
+    background: rgba(255, 193, 7, 0.8);
+    color: #000;
+}
+
+.emotion-camera.emotion-sad {
+    box-shadow: 0 4px 20px rgba(108, 117, 125, 0.3);
+}
+
+.emotion-camera.emotion-sad .emotion-indicator-top {
+    background: rgba(108, 117, 125, 0.9);
+    color: white;
+}
+
+.emotion-camera.emotion-sad .emotion-indicator {
+    background: rgba(108, 117, 125, 0.8);
+}
+
+.emotion-camera.emotion-neutral {
+    box-shadow: 0 4px 20px rgba(52, 58, 64, 0.3);
+}
+
+.emotion-camera.emotion-neutral .emotion-indicator-top {
+    background: rgba(52, 58, 64, 0.9);
+    color: white;
+}
+
+.emotion-camera.emotion-neutral .emotion-indicator {
+    background: rgba(52, 58, 64, 0.8);
+}
+
+.emotion-camera.emotion-surprised {
+    box-shadow: 0 4px 20px rgba(255, 152, 0, 0.3);
+}
+
+.emotion-camera.emotion-surprised .emotion-indicator-top {
+    background: rgba(255, 152, 0, 0.9);
+    color: #000;
+}
+
+.emotion-camera.emotion-surprised .emotion-indicator {
+    background: rgba(255, 152, 0, 0.8);
+    color: #000;
+}
+
+.emotion-camera.emotion-angry {
+    box-shadow: 0 4px 20px rgba(220, 53, 69, 0.3);
+}
+
+.emotion-camera.emotion-angry .emotion-indicator-top {
+    background: rgba(220, 53, 69, 0.9);
+    color: white;
+}
+
+.emotion-camera.emotion-angry .emotion-indicator {
+    background: rgba(220, 53, 69, 0.8);
+}
+
+.emotion-camera.emotion-fearful {
+    box-shadow: 0 4px 20px rgba(111, 66, 193, 0.3);
+}
+
+.emotion-camera.emotion-fearful .emotion-indicator-top {
+    background: rgba(111, 66, 193, 0.9);
+    color: white;
+}
+
+.emotion-camera.emotion-fearful .emotion-indicator {
+    background: rgba(111, 66, 193, 0.8);
+}
+
+.emotion-camera.emotion-disgusted {
+    box-shadow: 0 4px 20px rgba(102, 187, 106, 0.3);
+}
+
+.emotion-camera.emotion-disgusted .emotion-indicator-top {
+    background: rgba(102, 187, 106, 0.9);
+    color: #000;
+}
+
+.emotion-camera.emotion-disgusted .emotion-indicator {
+    background: rgba(102, 187, 106, 0.8);
+    color: #000;
+}
+
+/* 애니메이션 */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+    .emotion-camera {
+        max-width: 100%;
+        margin: 10px;
+    }
+
+    .camera-container {
+        height: 200px;
+    }
+
+    .emotion-indicator-top {
+        top: -40px;
+        padding: 8px 14px;
+        font-size: 11px;
+        min-width: 120px;
+    }
+
+    .emotion-label-small {
+        font-size: 12px;
+    }
+
+    .emotion-text-small {
+        font-size: 10px;
+    }
+
+    .emotion-stability-small {
+        font-size: 9px;
+        margin-left: 4px;
+    }
+
+    .emotion-indicator {
+        font-size: 12px;
+        padding: 6px 10px;
+    }
+
+    .camera-toggle,
+    .mode-toggle {
+        font-size: 11px;
+        padding: 6px 12px;
+    }
+
+    .camera-controls-top {
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 10px;
+        padding: 8px;
+    }
+
+    .camera-controls {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .mode-toggle {
+        margin-left: 0;
+    }
+}
+
+/* 다크 모드 지원 */
+@media (prefers-color-scheme: dark) {
+    .emotion-camera {
+        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    }
+}
