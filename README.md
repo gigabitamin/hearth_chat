@@ -8,7 +8,10 @@
 - open ai api -> google gemini api 로 변경  
 - gemini api 채팅 응답 확인  
 - LLM AI 채팅 베이스 완성
-- 실시간 대화 내역 DB에 저장 추가 
+- 실시간 대화 내역 DB에 저장 추가
+- Ready Play Me API, 3D 아바타 생성, User 와 Ai 에 연동
+- AI, Cam 화상채팅 연동, 유저의 표정 상태에 따른 감정 포착 -> 적절한 피드백
+- 정확도가 너무 떨어지는 관계로 해당 기능은 이 정도로 마무리
 
 ## 250704  
 - django 보일러 세팅  
