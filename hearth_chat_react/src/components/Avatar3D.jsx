@@ -5,7 +5,13 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 
 function AvatarModel({ avatarUrl, isTalking, emotion, mouthTrigger }) {
-    // console.log('AvatarModel props:', { avatarUrl, isTalking, emotion, mouthTrigger });
+    // props 변경 시에만 로그 출력
+    const prevPropsRef = useRef({ avatarUrl, isTalking, emotion, mouthTrigger });
+    const hasChanged = JSON.stringify(prevPropsRef.current) !== JSON.stringify({ avatarUrl, isTalking, emotion, mouthTrigger });
+    if (hasChanged) {
+        console.log('AvatarModel props changed:', { avatarUrl, isTalking, emotion, mouthTrigger });
+        prevPropsRef.current = { avatarUrl, isTalking, emotion, mouthTrigger };
+    }
     const [gltf, setGltf] = useState(null);
     const [error, setError] = useState(null);
     const avatarRef = useRef();
@@ -14,10 +20,7 @@ function AvatarModel({ avatarUrl, isTalking, emotion, mouthTrigger }) {
     const [currentEmotion, setCurrentEmotion] = useState('neutral');
     const [emotionIntensity, setEmotionIntensity] = useState(0);
 
-    // 눈 상태 디버깅 및 초기화
-    useEffect(() => {
-        console.log('eyeBlink state changed:', eyeBlink);
-    }, [eyeBlink]);
+
 
     // 컴포넌트 마운트 시 눈 상태 초기화
     useEffect(() => {
@@ -93,13 +96,11 @@ function AvatarModel({ avatarUrl, isTalking, emotion, mouthTrigger }) {
                     blinkTimeout = null;
                 }
                 setEyeBlink(1); // 대화 중에는 항상 눈을 뜨게 함
-                console.log('대화 중: 눈을 강제로 뜨게 함, isTalking:', isTalking);
                 nextBlinkTimeout = setTimeout(blinkLoop, 1000); // 1초마다 체크
                 return;
             }
 
             setEyeBlink(0); // 눈 감기
-            console.log('눈 깜빡임: 감기 (대화 중 아님), isTalking:', isTalking);
 
             // 눈을 감는 시간을 짧게 (100-200ms)
             blinkTimeout = setTimeout(() => {
@@ -109,7 +110,6 @@ function AvatarModel({ avatarUrl, isTalking, emotion, mouthTrigger }) {
                     return;
                 }
                 setEyeBlink(1); // 눈 뜨기
-                console.log('눈 깜빡임: 뜨기 (대화 중 아님)');
 
                 // 다음 깜빡임 예약 (대화 중이 아닐 때만, 더 긴 간격)
                 if (!isTalking && running) {
@@ -127,11 +127,9 @@ function AvatarModel({ avatarUrl, isTalking, emotion, mouthTrigger }) {
 
         // 첫 번째 깜빡임 시작 (대화 중이 아닐 때만)
         if (!isTalking) {
-            console.log('눈 깜빡임 타이머 시작 (대화 중 아님)');
             nextBlinkTimeout = setTimeout(blinkLoop, 1500 + Math.random() * 2000);
         } else {
             // 대화 중이면 1초마다 체크
-            console.log('눈 깜빡임 타이머 시작 (대화 중)');
             nextBlinkTimeout = setTimeout(blinkLoop, 1000);
         }
 
@@ -174,7 +172,7 @@ function AvatarModel({ avatarUrl, isTalking, emotion, mouthTrigger }) {
             setEyeBlink(1);
         }, 300);
 
-        console.log('대화 상태 변경: 눈을 강제로 뜨게 함, isTalking:', isTalking);
+
 
         return () => {
             clearTimeout(resetTimeout1);
@@ -185,12 +183,8 @@ function AvatarModel({ avatarUrl, isTalking, emotion, mouthTrigger }) {
 
     // 대화 중일 때 눈 상태 강제 모니터링
     useEffect(() => {
-        if (isTalking) {
-            console.log('대화 중: eyeBlink 상태 강제 조정, 현재 값:', eyeBlink);
-            if (eyeBlink < 0.5) {
-                console.log('대화 중 눈이 감겨있음 - 강제로 뜨게 함');
-                setEyeBlink(1);
-            }
+        if (isTalking && eyeBlink < 0.5) {
+            setEyeBlink(1);
         }
     }, [isTalking, eyeBlink]);
 
@@ -278,7 +272,7 @@ function AvatarModel({ avatarUrl, isTalking, emotion, mouthTrigger }) {
 
                     if (isEyelid || isEyeball || isGeneralEye) {
                         eyeMeshesFound.push(child.name);
-                        console.log('Eye mesh found:', child.name, 'Type:', isEyelid ? 'Eyelid' : isEyeball ? 'Eyeball' : 'General Eye');
+
 
                         if (isEyelid) {
                             // 눈꺼풀: 위에서 아래로 내려오는 움직임
@@ -290,15 +284,15 @@ function AvatarModel({ avatarUrl, isTalking, emotion, mouthTrigger }) {
                                 // 대화 중일 때는 강제로 눈꺼풀을 올림
                                 child.rotation.x = 0;
                                 child.position.y = child.userData.originalY; // 원래 위치로 복원
-                                console.log('대화 중: Eyelid 강제로 뜨게 함:', child.name, 'rotation:', child.rotation.x, 'position:', child.position.y);
+
                             } else if (eyeBlink < 0.5) {
                                 child.rotation.x = Math.PI * 0.2; // 아래로 내림
                                 child.position.y = child.userData.originalY - 0.03; // 아래로 이동
-                                console.log('Eyelid closed:', child.name, 'rotation:', child.rotation.x, 'position:', child.position.y);
+
                             } else {
                                 child.rotation.x = 0;
                                 child.position.y = child.userData.originalY; // 원래 위치로 복원
-                                console.log('Eyelid opened:', child.name, 'rotation:', child.rotation.x, 'position:', child.position.y);
+
                             }
 
                         } else if (isEyeball) {
@@ -319,7 +313,7 @@ function AvatarModel({ avatarUrl, isTalking, emotion, mouthTrigger }) {
                                         child.material.opacity = 1;
                                         child.material.transparent = false;
                                     }
-                                    console.log('대화 중: Eyeball 강제로 보이게 함:', child.name, 'scale:', child.scale);
+
                                 } else if (eyeBlink < 0.5) {
                                     // Z축 확장으로 눈을 감는 효과
                                     child.scale.x = 1;
@@ -330,7 +324,7 @@ function AvatarModel({ avatarUrl, isTalking, emotion, mouthTrigger }) {
                                         child.material.opacity = 0.3;
                                         child.material.transparent = true;
                                     }
-                                    console.log('Eyeball closed:', child.name, 'scale:', child.scale);
+
                                 } else {
                                     // 원래 상태로 복원
                                     child.scale.x = 1;
@@ -340,7 +334,7 @@ function AvatarModel({ avatarUrl, isTalking, emotion, mouthTrigger }) {
                                         child.material.opacity = 1;
                                         child.material.transparent = false;
                                     }
-                                    console.log('Eyeball opened:', child.name, 'scale:', child.scale);
+
                                 }
                             }
                         } else if (isGeneralEye) {
@@ -364,7 +358,7 @@ function AvatarModel({ avatarUrl, isTalking, emotion, mouthTrigger }) {
                                     child.rotation.y = 0;
                                     child.rotation.z = 0;
                                     child.position.y = child.userData.originalY;
-                                    console.log('대화 중: General eye 강제로 뜨게 함:', child.name, 'scale:', child.scale, 'rotation:', child.rotation);
+
                                 } else if (eyeBlink < 0.5) {
                                     // 세로 압축으로 눈을 감는 효과
                                     if (!child.userData.originalY) {
@@ -376,7 +370,7 @@ function AvatarModel({ avatarUrl, isTalking, emotion, mouthTrigger }) {
 
                                     child.rotation.x = -Math.PI * 0.3; // X축 회전
                                     child.position.y = child.userData.originalY - 0.02; // 아래로 이동
-                                    console.log('General eye closed:', child.name, 'scale:', child.scale, 'rotation:', child.rotation.x);
+
                                 } else {
                                     // 원래 상태로 복원
                                     child.scale.x = 1;
@@ -384,7 +378,7 @@ function AvatarModel({ avatarUrl, isTalking, emotion, mouthTrigger }) {
                                     child.scale.z = 1;
                                     child.rotation.x = 0;
                                     child.position.y = child.userData.originalY || child.position.y; // 원래 위치로 복원
-                                    console.log('General eye opened:', child.name, 'scale:', child.scale, 'rotation:', child.rotation.x);
+
                                 }
                             }
                         }
@@ -402,7 +396,7 @@ function AvatarModel({ avatarUrl, isTalking, emotion, mouthTrigger }) {
                                     // 대화 중일 때는 강제로 불투명하게
                                     child.material.opacity = 1;
                                     child.material.transparent = false;
-                                    console.log('대화 중: 눈 투명도 강제로 불투명하게:', child.name);
+
                                 } else if (eyeBlink < 0.5) {
                                     child.material.opacity = 0.05;
                                     child.material.transparent = true;
@@ -416,11 +410,7 @@ function AvatarModel({ avatarUrl, isTalking, emotion, mouthTrigger }) {
                 }
             });
 
-            if (eyeMeshesFound.length > 0) {
-                console.log('Eye meshes found and manipulated:', eyeMeshesFound);
-            } else {
-                console.log('No eye meshes found. All meshes:', allMeshes);
-            }
+
         };
 
         gltf.scene.traverse((child) => {
@@ -494,30 +484,7 @@ function AvatarModel({ avatarUrl, isTalking, emotion, mouthTrigger }) {
                     }
                 }
 
-                // 디버깅: morph target 이름들 출력 (한 번만 출력)
-                if (child.morphTargetDictionary && Object.keys(child.morphTargetDictionary).length > 0) {
-                    console.log('Available morph targets:', Object.keys(child.morphTargetDictionary));
-                    console.log('Blink morph targets found:', { blinkL, blinkR });
-                    console.log('Dynamic eye targets found:', dynamicEyeTargets);
-                    console.log('Final blink targets:', { finalBlinkL, finalBlinkR });
 
-                    // 눈 관련 morph target들 찾기
-                    const eyeRelatedTargets = Object.keys(child.morphTargetDictionary).filter(name =>
-                        name.toLowerCase().includes('eye') ||
-                        name.toLowerCase().includes('blink') ||
-                        name.toLowerCase().includes('squint') ||
-                        name.toLowerCase().includes('wide')
-                    );
-                    if (eyeRelatedTargets.length > 0) {
-                        // console.log('Eye-related morph targets found:', eyeRelatedTargets);
-                    }
-
-                    // 전체 morph target dictionary 출력
-                    // console.log('Full morph target dictionary:', child.morphTargetDictionary);
-
-                    // morph target 개수 확인
-                    // console.log('Total morph targets count:', child.morphTargetInfluences?.length || 0);
-                }
 
                 // 감정별 morph target을 동적으로 찾는 함수
                 const findEmotionMorphTargets = (morphTargetDictionary) => {
@@ -547,15 +514,7 @@ function AvatarModel({ avatarUrl, isTalking, emotion, mouthTrigger }) {
                         )
                     };
 
-                    // 디버깅: 찾은 입 morph target들 출력
-                    console.log('입 morph target 찾기 결과:', {
-                        allTargets,
-                        mouthTargets,
-                        foundSmile: mouthTargets.smile,
-                        foundSad: mouthTargets.sad,
-                        foundAngry: mouthTargets.angry,
-                        foundSurprise: mouthTargets.surprise
-                    });
+
 
                     // 눈썹 관련 morph target들
                     const browTargets = {
@@ -606,82 +565,56 @@ function AvatarModel({ avatarUrl, isTalking, emotion, mouthTrigger }) {
 
                 // 감정별 복합 표정 적용 (눈은 제외하고 입과 눈썹만 조작)
                 const applyEmotion = (targets, emotionType, intensity = 1.0) => {
-                    console.log(`감정 적용 시작: ${emotionType}, intensity: ${intensity}`);
-
                     if (emotionType === 'happy') {
                         if (targets.mouth.smile) {
                             child.morphTargetInfluences[targets.mouth.smile] = intensity;
-                            console.log(`Happy 감정 적용: smile morph target ${targets.mouth.smile} = ${intensity}`);
                         }
                         if (targets.brow.innerUp) {
                             child.morphTargetInfluences[targets.brow.innerUp] = intensity * 0.5;
-                            console.log(`Happy 감정 적용: brow.innerUp morph target ${targets.brow.innerUp} = ${intensity * 0.5}`);
                         }
-                        // 눈 관련 morph target은 제거 (morph target과 충돌 방지)
                     } else if (emotionType === 'sad') {
                         if (targets.mouth.sad) {
                             child.morphTargetInfluences[targets.mouth.sad] = intensity;
-                            console.log(`Sad 감정 적용: sad morph target ${targets.mouth.sad} = ${intensity}`);
                         }
                         if (targets.brow.innerUp) {
                             child.morphTargetInfluences[targets.brow.innerUp] = intensity * 0.8;
-                            console.log(`Sad 감정 적용: brow.innerUp morph target ${targets.brow.innerUp} = ${intensity * 0.8}`);
                         }
                         if (targets.brow.down) {
                             child.morphTargetInfluences[targets.brow.down] = intensity * 0.4;
-                            console.log(`Sad 감정 적용: brow.down morph target ${targets.brow.down} = ${intensity * 0.4}`);
                         }
-                        // 눈 관련 morph target은 제거
                     } else if (emotionType === 'angry') {
                         if (targets.mouth.angry) {
                             child.morphTargetInfluences[targets.mouth.angry] = intensity * 0.8;
-                            console.log(`Angry 감정 적용: angry morph target ${targets.mouth.angry} = ${intensity * 0.8}`);
                         }
                         if (targets.brow.down) {
                             child.morphTargetInfluences[targets.brow.down] = intensity;
-                            console.log(`Angry 감정 적용: brow.down morph target ${targets.brow.down} = ${intensity}`);
                         }
-                        // 눈 관련 morph target은 제거
                     } else if (emotionType === 'surprise') {
                         if (targets.mouth.surprise) {
                             child.morphTargetInfluences[targets.mouth.surprise] = intensity;
-                            console.log(`Surprise 감정 적용: surprise morph target ${targets.mouth.surprise} = ${intensity}`);
                         }
                         if (targets.brow.up) {
                             child.morphTargetInfluences[targets.brow.up] = intensity;
-                            console.log(`Surprise 감정 적용: brow.up morph target ${targets.brow.up} = ${intensity}`);
                         }
-                        // 눈 관련 morph target은 제거
                     } else {
                         // neutral - 입과 눈썹 morph target만 0으로 설정
                         Object.values(targets.mouth).forEach(target => {
                             if (target) {
                                 child.morphTargetInfluences[target] = 0;
-                                console.log(`Neutral 감정 적용: mouth morph target ${target} = 0`);
                             }
                         });
                         Object.values(targets.brow).forEach(target => {
                             if (target) {
                                 child.morphTargetInfluences[target] = 0;
-                                console.log(`Neutral 감정 적용: brow morph target ${target} = 0`);
                             }
                         });
-                        // 눈 관련 morph target은 제거
                     }
                 };
 
                 // 현재 감정 적용 (부드러운 전환을 위해 intensity 사용)
                 applyEmotion(emotionTargets, currentEmotion, emotionIntensity);
 
-                // 디버깅: 감정 morph target 정보 출력
-                if (emotion !== 'neutral') {
-                    console.log(`감정 적용: ${emotion}`, {
-                        emotionTargets,
-                        currentEmotion,
-                        emotionIntensity,
-                        availableTargets: Object.keys(child.morphTargetDictionary)
-                    });
-                }
+
 
                 // 입(mouthOpen)은 오직 mouthOpen state로만 제어
                 if (mouthOpenIdx !== undefined && child.morphTargetInfluences) {
@@ -694,29 +627,23 @@ function AvatarModel({ avatarUrl, isTalking, emotion, mouthTrigger }) {
                         // 대화 중일 때는 강제로 눈을 뜨게 함 (morph target 값 1로 설정)
                         if (finalBlinkL !== undefined) {
                             child.morphTargetInfluences[finalBlinkL] = 1; // 강제로 뜨게 함
-                            console.log('대화 중: Morph target blink L 강제로 뜨게 함');
                         }
                         if (finalBlinkR !== undefined) {
                             child.morphTargetInfluences[finalBlinkR] = 1; // 강제로 뜨게 함
-                            console.log('대화 중: Morph target blink R 강제로 뜨게 함');
                         }
                         if (fallbackBlinkTarget !== undefined) {
                             child.morphTargetInfluences[fallbackBlinkTarget] = 1; // 강제로 뜨게 함
-                            console.log('대화 중: Fallback morph target blink 강제로 뜨게 함');
                         }
                     } else {
                         // 대화 중이 아닐 때는 정상적인 깜빡임 적용
                         if (finalBlinkL !== undefined) {
                             child.morphTargetInfluences[finalBlinkL] = eyeBlink; // 눈 깜빡임 적용
-                            console.log('Morph target blink L applied:', eyeBlink);
                         }
                         if (finalBlinkR !== undefined) {
                             child.morphTargetInfluences[finalBlinkR] = eyeBlink;
-                            console.log('Morph target blink R applied:', eyeBlink);
                         }
                         if (fallbackBlinkTarget !== undefined) {
                             child.morphTargetInfluences[fallbackBlinkTarget] = eyeBlink;
-                            console.log('Fallback morph target blink applied:', eyeBlink);
                         }
                     }
                 }
@@ -734,18 +661,13 @@ function AvatarModel({ avatarUrl, isTalking, emotion, mouthTrigger }) {
         );
 
         if (!hasEyeMorphTargets) {
-            console.log('No eye morph targets found, using direct eye manipulation');
             manipulateEyesDirectly(gltf.scene);
-        } else {
-            console.log('Eye morph targets found, using morph target animation');
         }
     }, [mouthOpen, eyeBlink, emotion, gltf]);
 
     // 감정 전환 애니메이션
     useEffect(() => {
         if (emotion !== currentEmotion) {
-            console.log(`감정 변경: ${currentEmotion} → ${emotion}`);
-
             // 감정 강도를 0으로 리셋
             setEmotionIntensity(0);
 
@@ -756,7 +678,6 @@ function AvatarModel({ avatarUrl, isTalking, emotion, mouthTrigger }) {
             const animateEmotion = () => {
                 setEmotionIntensity(prev => {
                     const newIntensity = Math.min(prev + 0.1, 1.0);
-                    console.log(`감정 애니메이션: ${emotion}, intensity: ${newIntensity}`);
                     if (newIntensity < 1.0) {
                         requestAnimationFrame(animateEmotion);
                     }
@@ -802,8 +723,16 @@ function Avatar3D({
     emotion = 'neutral',
     position = 'right',
     size = 300,
-    mouthTrigger // 추가
+    mouthTrigger, // 추가
+    showEmotionIndicator = true, // 감정 상태 표시 여부
+    emotionCaptureStatus = false // 감정 포착 상태
 }) {
+    // 디버깅: 감정 prop 확인 (변경 시에만 로그)
+    const prevEmotionRef = useRef(emotion);
+    if (emotion !== prevEmotionRef.current) {
+        console.log(`Avatar3D (${position}) - 감정 변경: ${prevEmotionRef.current} → ${emotion}`);
+        prevEmotionRef.current = emotion;
+    }
     const containerStyle = {
         width: `${size}px`,
         height: `${size}px`,
@@ -830,12 +759,49 @@ function Avatar3D({
         zIndex: 10
     };
 
+    // 감정 상태 표시 스타일
+    const emotionIndicatorStyle = {
+        position: 'absolute',
+        top: '10px',
+        right: '10px',
+        background: 'rgba(0,0,0,0.8)',
+        color: 'white',
+        padding: '8px 12px',
+        borderRadius: '20px',
+        fontSize: '11px',
+        fontWeight: 'bold',
+        zIndex: 10,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        minWidth: '120px',
+        justifyContent: 'space-between'
+    };
+
+    // 감정별 이모지와 텍스트
+    const getEmotionDisplay = (emotion) => {
+        const emotionData = {
+            'happy': { emoji: '😊', text: '기쁨' },
+            'sad': { emoji: '😢', text: '슬픔' },
+            'neutral': { emoji: '😐', text: '무표정' },
+            'surprised': { emoji: '😲', text: '놀람' },
+            'angry': { emoji: '😠', text: '분노' },
+            'fearful': { emoji: '😨', text: '두려움' },
+            'disgusted': { emoji: '🤢', text: '혐오' }
+        };
+        return emotionData[emotion] || { emoji: '😐', text: '분석 중...' };
+    };
+
+    const emotionDisplay = getEmotionDisplay(emotion);
+
     return (
         <div style={containerStyle}>
             <div style={labelStyle}>
                 {position === 'left' ? '사용자' : 'AI'} 아바타
                 {isTalking && ' (말하는 중)'}
             </div>
+
+
             <Canvas
                 camera={{ position: [0, 0.3, 2.2], fov: 30 }}
                 style={{ width: '100%', height: '100%' }}

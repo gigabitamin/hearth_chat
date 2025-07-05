@@ -17,10 +17,13 @@ const ChatBox = () => {
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [isRealTimeMode, setIsRealTimeMode] = useState(false); // 실시간 모드 상태 추가
   const ws = useRef(null);
+  const chatLogRef = useRef(null); // 데스크톱 채팅 로그 영역 참조
+  const mobileChatLogRef = useRef(null); // 모바일 채팅 로그 영역 참조
   const [displayedAiText, setDisplayedAiText] = useState('');
   const [mouthTrigger, setMouthTrigger] = useState(0);
   const [currentAiMessage, setCurrentAiMessage] = useState('');
   const [emotionDisplay, setEmotionDisplay] = useState({ user: 'neutral', ai: 'neutral' }); // 감정 표시 상태
+  const [emotionCaptureStatus, setEmotionCaptureStatus] = useState({ user: false, ai: false }); // 감정 포착 상태
 
   useEffect(() => {
     console.log('ChatBox 컴포넌트 마운트됨');
@@ -50,11 +53,13 @@ const ChatBox = () => {
       // AI 아바타 감정 설정
       setAiEmotion(aiEmotionResponse.primary);
       setEmotionDisplay(prev => ({ ...prev, ai: aiEmotionResponse.primary })); // 감정 표시 업데이트
+      setEmotionCaptureStatus(prev => ({ ...prev, ai: true })); // AI 감정 포착 상태 활성화
 
       // 감정 지속 시간 후 neutral로 복귀
       setTimeout(() => {
         setAiEmotion('neutral');
         setEmotionDisplay(prev => ({ ...prev, ai: 'neutral' }));
+        setEmotionCaptureStatus(prev => ({ ...prev, ai: false })); // AI 감정 포착 상태 비활성화
       }, aiEmotionResponse.duration);
     };
 
@@ -66,6 +71,33 @@ const ChatBox = () => {
       ws.current.close();
     };
   }, []);
+
+  // 감정 포착 상태 자동 리셋 (3초 후)
+  useEffect(() => {
+    const resetUserEmotionCapture = setTimeout(() => {
+      setEmotionCaptureStatus(prev => ({ ...prev, user: false }));
+    }, 3000);
+
+    return () => clearTimeout(resetUserEmotionCapture);
+  }, [emotionCaptureStatus.user]);
+
+  useEffect(() => {
+    const resetAiEmotionCapture = setTimeout(() => {
+      setEmotionCaptureStatus(prev => ({ ...prev, ai: false }));
+    }, 3000);
+
+    return () => clearTimeout(resetAiEmotionCapture);
+  }, [emotionCaptureStatus.ai]);
+
+  // 새로운 메시지가 추가될 때마다 자동으로 스크롤을 맨 아래로 이동
+  useEffect(() => {
+    if (chatLogRef.current) {
+      chatLogRef.current.scrollTop = chatLogRef.current.scrollHeight;
+    }
+    if (mobileChatLogRef.current) {
+      mobileChatLogRef.current.scrollTop = mobileChatLogRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   useEffect(() => {
     if (!isAiTalking || !currentAiMessage) {
@@ -260,10 +292,15 @@ const ChatBox = () => {
 
   // 카메라 감정 감지 핸들러
   const handleEmotionDetected = (emotion) => {
+    // 감정이 실제로 변경되었을 때만 로그 출력
+    if (emotion !== userEmotion) {
+      console.log(`감정 변경: ${userEmotion} → ${emotion}`);
+    }
+
     setCameraEmotion(emotion);
     setUserEmotion(emotion); // 카메라 감정을 사용자 감정으로 설정
     setEmotionDisplay(prev => ({ ...prev, user: emotion })); // 감정 표시 업데이트
-    console.log('카메라에서 감지된 감정:', emotion);
+    setEmotionCaptureStatus(prev => ({ ...prev, user: true })); // 감정 포착 상태 활성화
 
     // 감정 기반 대화 시작 (카메라가 활성화되어 있고 감정이 변화했을 때)
     if (isCameraActive && emotion !== 'neutral') {
@@ -372,54 +409,107 @@ const ChatBox = () => {
       <div className="chat-container-with-avatars">
         {/* 데스크톱 레이아웃 */}
         <div className="desktop-layout">
-          {/* 사용자 아바타/카메라 (왼쪽) */}
-          <div className="avatar-section left">
-            {!isCameraActive ? (
-              // 카메라가 꺼져있을 때 아바타 표시
-              <Avatar3D
-                avatarUrl={userAvatar}
-                isTalking={isUserTalking}
-                emotion={userEmotion}
-                position="left"
-                size={250}
-              />
-            ) : (
-              // 카메라가 켜져있을 때 카메라 표시
-              <div className="camera-replacement">
-                <EmotionCamera
-                  onEmotionDetected={handleEmotionDetected}
-                  isActive={isCameraActive}
-                  hideControls={true}
-                  isRealTimeMode={isRealTimeMode} // 모드 상태 전달
-                />
-              </div>
-            )}
-
-            {/* 카메라 토글 버튼 */}
-            <div className="camera-toggle-section">
-              <button
-                onClick={toggleCamera}
-                className={`camera-toggle-btn ${isCameraActive ? 'active' : ''}`}
-              >
-                {isCameraActive ? '👤 아바타로 전환' : '📷 감정 분석 켜기'}
-              </button>
-
-              {/* 실시간 모드 토글 버튼 (카메라가 활성화되어 있을 때만 표시) */}
-              {isCameraActive && (
+          {/* 아바타들을 위쪽에 배치 */}
+          <div className="avatar-container-desktop">
+            {/* 사용자 아바타/카메라 (왼쪽) */}
+            <div className="avatar-section left">
+              {/* 카메라 토글 버튼 - 사용자 아바타창 안쪽 오른쪽 위 */}
+              <div className="avatar-controls">
                 <button
-                  onClick={toggleRealTimeMode}
-                  className={`mode-toggle-btn ${isRealTimeMode ? 'realtime' : 'stable'}`}
+                  onClick={toggleCamera}
+                  className={`camera-toggle-btn ${isCameraActive ? 'active' : ''}`}
                 >
-                  {isRealTimeMode ? '⚡ 실시간 모드' : '🛡️ 안정화 모드'}
+                  {isCameraActive ? '👤 아바타' : '📷 카메라'}
                 </button>
+
+                {/* 실시간 모드 토글 버튼 (카메라가 활성화되어 있을 때만 표시) */}
+                {isCameraActive && (
+                  <button
+                    onClick={toggleRealTimeMode}
+                    className={`mode-toggle-btn ${isRealTimeMode ? 'realtime' : 'stable'}`}
+                  >
+                    {isRealTimeMode ? '⚡ 실시간' : '🛡️ 안정'}
+                  </button>
+                )}
+              </div>
+              {/* 카메라가 켜져있을 때 카메라 표시 */}
+              {isCameraActive && (
+                <div className="camera-replacement" style={{ position: 'relative' }}>
+                  <EmotionCamera
+                    onEmotionDetected={handleEmotionDetected}
+                    isActive={isCameraActive}
+                    hideControls={true}
+                    isRealTimeMode={isRealTimeMode} // 모드 상태 전달
+                  />
+
+                  {/* 카메라 내부에 아바타 오버레이 배치 - PC */}
+                  <div className="avatar-overlay" style={{
+                    position: 'absolute',
+                    top: '5px',
+                    left: '5px',
+                    width: '100px',
+                    height: '100px',
+                    zIndex: 1,
+                    pointerEvents: 'none',
+                    opacity: 0.3
+                  }}>
+                    <Avatar3D
+                      avatarUrl={userAvatar}
+                      isTalking={isUserTalking}
+                      emotion={userEmotion}
+                      position="left"
+                      size={100}
+                      showEmotionIndicator={true}
+                      emotionCaptureStatus={emotionCaptureStatus.user}
+                    />
+                  </div>
+                </div>
               )}
+
+              {/* 카메라가 꺼져있을 때 아바타 표시 */}
+              {!isCameraActive && (
+                <div className="avatar-overlay" style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  zIndex: 0,
+                  pointerEvents: 'auto',
+                  opacity: 1
+                }}>
+                  <Avatar3D
+                    avatarUrl={userAvatar}
+                    isTalking={isUserTalking}
+                    emotion={userEmotion}
+                    position="left"
+                    size={235}
+                    showEmotionIndicator={true}
+                    emotionCaptureStatus={emotionCaptureStatus.user}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* AI 아바타 (오른쪽) */}
+            <div className="avatar-section right">
+              <Avatar3D
+                avatarUrl={aiAvatar}
+                isTalking={isAiTalking}
+                emotion={aiEmotion}
+                mouthTrigger={mouthTrigger} // 반드시 추가!
+                position="right"
+                size={235}
+                showEmotionIndicator={true}
+                emotionCaptureStatus={emotionCaptureStatus.ai}
+              />
             </div>
           </div>
 
-          {/* 채팅창 (중앙) */}
+          {/* 채팅창 (아래쪽) */}
           <div className="chat-section">
             <div className="chat-container">
-              <div className="chat-log">
+              <div className="chat-log" ref={chatLogRef}>
                 {messages.map((msg, idx) => (
                   <div
                     key={idx}
@@ -443,18 +533,6 @@ const ChatBox = () => {
               </div>
             </div>
           </div>
-
-          {/* AI 아바타 (오른쪽) */}
-          <div className="avatar-section right">
-            <Avatar3D
-              avatarUrl={aiAvatar}
-              isTalking={isAiTalking}
-              emotion={aiEmotion}
-              mouthTrigger={mouthTrigger} // 반드시 추가!
-              position="right"
-              size={250}
-            />
-          </div>
         </div>
 
         {/* 모바일 레이아웃 */}
@@ -462,29 +540,8 @@ const ChatBox = () => {
           {/* 아바타들을 위쪽에 좌우로 배치 */}
           <div className="avatar-container">
             <div className="avatar-section left">
-              {!isCameraActive ? (
-                // 카메라가 꺼져있을 때 아바타 표시
-                <Avatar3D
-                  avatarUrl={userAvatar}
-                  isTalking={isUserTalking}
-                  emotion={userEmotion}
-                  position="left"
-                  size={200}
-                />
-              ) : (
-                // 카메라가 켜져있을 때 카메라 표시
-                <div className="camera-replacement mobile">
-                  <EmotionCamera
-                    onEmotionDetected={handleEmotionDetected}
-                    isActive={isCameraActive}
-                    hideControls={true}
-                    isRealTimeMode={isRealTimeMode} // 모드 상태 전달
-                  />
-                </div>
-              )}
-
-              {/* 모바일 카메라 토글 버튼 */}
-              <div className="camera-toggle-section mobile">
+              {/* 카메라 토글 버튼 - 사용자 아바타창 안쪽 오른쪽 위 */}
+              <div className="avatar-controls">
                 <button
                   onClick={toggleCamera}
                   className={`camera-toggle-btn ${isCameraActive ? 'active' : ''}`}
@@ -492,7 +549,7 @@ const ChatBox = () => {
                   {isCameraActive ? '👤 아바타' : '📷 카메라'}
                 </button>
 
-                {/* 모바일 실시간 모드 토글 버튼 */}
+                {/* 실시간 모드 토글 버튼 (카메라가 활성화되어 있을 때만 표시) */}
                 {isCameraActive && (
                   <button
                     onClick={toggleRealTimeMode}
@@ -502,6 +559,63 @@ const ChatBox = () => {
                   </button>
                 )}
               </div>
+              {/* 카메라가 켜져있을 때 카메라 표시 */}
+              {isCameraActive && (
+                <div className="camera-replacement mobile" style={{ position: 'relative' }}>
+                  <EmotionCamera
+                    onEmotionDetected={handleEmotionDetected}
+                    isActive={isCameraActive}
+                    hideControls={true}
+                    isRealTimeMode={isRealTimeMode} // 모드 상태 전달
+                  />
+
+                  {/* 카메라 내부에 아바타 오버레이 배치 - 모바일 */}
+                  <div className="avatar-overlay" style={{
+                    position: 'absolute',
+                    top: '5px',
+                    left: '5px',
+                    width: '100px',
+                    height: '100px',
+                    zIndex: 1,
+                    pointerEvents: 'none',
+                    opacity: 0.3
+                  }}>
+                    <Avatar3D
+                      avatarUrl={userAvatar}
+                      isTalking={isUserTalking}
+                      emotion={userEmotion}
+                      position="left"
+                      size={100}
+                      showEmotionIndicator={true}
+                      emotionCaptureStatus={emotionCaptureStatus.user}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* 카메라가 꺼져있을 때 아바타 표시 */}
+              {!isCameraActive && (
+                <div className="avatar-overlay" style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  zIndex: 0,
+                  pointerEvents: 'auto',
+                  opacity: 1
+                }}>
+                  <Avatar3D
+                    avatarUrl={userAvatar}
+                    isTalking={isUserTalking}
+                    emotion={userEmotion}
+                    position="left"
+                    size={235}
+                    showEmotionIndicator={true}
+                    emotionCaptureStatus={emotionCaptureStatus.user}
+                  />
+                </div>
+              )}
             </div>
             <div className="avatar-section right">
               <Avatar3D
@@ -510,7 +624,9 @@ const ChatBox = () => {
                 emotion={aiEmotion}
                 mouthTrigger={mouthTrigger} // 반드시 추가!
                 position="right"
-                size={200}
+                size={235}
+                showEmotionIndicator={true}
+                emotionCaptureStatus={emotionCaptureStatus.ai}
               />
             </div>
           </div>
@@ -518,7 +634,7 @@ const ChatBox = () => {
           {/* 채팅창 (아래쪽) */}
           <div className="chat-section">
             <div className="chat-container">
-              <div className="chat-log">
+              <div className="chat-log" ref={mobileChatLogRef}>
                 {messages.map((msg, idx) => (
                   <div
                     key={idx}
