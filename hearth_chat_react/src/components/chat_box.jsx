@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Avatar3D from './Avatar3D';
+import RealisticAvatar3D from './RealisticAvatar3D';
 import EmotionCamera from './EmotionCamera';
+import ttsService from '../services/ttsService';
 import readyPlayerMeService from '../services/readyPlayerMe';
 import './chat_box.css';
 
@@ -15,21 +16,31 @@ const ChatBox = () => {
   const [aiEmotion, setAiEmotion] = useState('neutral');
   const [cameraEmotion, setCameraEmotion] = useState('neutral');
   const [isCameraActive, setIsCameraActive] = useState(false);
-  const [isRealTimeMode, setIsRealTimeMode] = useState(false); // 실시간 모드 상태 추가
+  const [isRealTimeMode, setIsRealTimeMode] = useState(false);
+
+  // TTS 관련 상태
+  const [isTTSEnabled, setIsTTSEnabled] = useState(true);
+  const [ttsVoice, setTtsVoice] = useState(null);
+  const [ttsRate, setTtsRate] = useState(1.0);
+  const [ttsPitch, setTtsPitch] = useState(1.0);
+
   const ws = useRef(null);
-  const chatLogRef = useRef(null); // 데스크톱 채팅 로그 영역 참조
-  const mobileChatLogRef = useRef(null); // 모바일 채팅 로그 영역 참조
+  const chatLogRef = useRef(null);
+  const mobileChatLogRef = useRef(null);
   const [displayedAiText, setDisplayedAiText] = useState('');
   const [mouthTrigger, setMouthTrigger] = useState(0);
   const [currentAiMessage, setCurrentAiMessage] = useState('');
-  const [emotionDisplay, setEmotionDisplay] = useState({ user: 'neutral', ai: 'neutral' }); // 감정 표시 상태
-  const [emotionCaptureStatus, setEmotionCaptureStatus] = useState({ user: false, ai: false }); // 감정 포착 상태
+  const [emotionDisplay, setEmotionDisplay] = useState({ user: 'neutral', ai: 'neutral' });
+  const [emotionCaptureStatus, setEmotionCaptureStatus] = useState({ user: false, ai: false });
 
   useEffect(() => {
     console.log('ChatBox 컴포넌트 마운트됨');
 
     // 아바타 초기화
     initializeAvatars();
+
+    // TTS 서비스 초기화
+    initializeTTSService();
 
     // 웹소켓 연결
     ws.current = new WebSocket('ws://localhost:8000/ws/chat/');
@@ -41,10 +52,15 @@ const ChatBox = () => {
     ws.current.onmessage = (e) => {
       const data = JSON.parse(e.data);
       setMessages((prev) => [...prev, { type: 'recv', text: data.message }]);
-      setCurrentAiMessage(data.message); // 타이핑 효과용
+      setCurrentAiMessage(data.message);
 
-      // AI가 응답할 때 애니메이션 (타이핑이 끝날 때까지 유지)
+      // AI가 응답할 때 애니메이션
       setIsAiTalking(true);
+
+      // TTS로 AI 메시지 재생
+      if (isTTSEnabled) {
+        speakAIMessage(data.message);
+      }
 
       // AI 감정 반응 시스템 적용
       const aiEmotionResponse = getAIEmotionResponse(userEmotion, data.message);
@@ -52,14 +68,14 @@ const ChatBox = () => {
 
       // AI 아바타 감정 설정
       setAiEmotion(aiEmotionResponse.primary);
-      setEmotionDisplay(prev => ({ ...prev, ai: aiEmotionResponse.primary })); // 감정 표시 업데이트
-      setEmotionCaptureStatus(prev => ({ ...prev, ai: true })); // AI 감정 포착 상태 활성화
+      setEmotionDisplay(prev => ({ ...prev, ai: aiEmotionResponse.primary }));
+      setEmotionCaptureStatus(prev => ({ ...prev, ai: true }));
 
       // 감정 지속 시간 후 neutral로 복귀
       setTimeout(() => {
         setAiEmotion('neutral');
         setEmotionDisplay(prev => ({ ...prev, ai: 'neutral' }));
-        setEmotionCaptureStatus(prev => ({ ...prev, ai: false })); // AI 감정 포착 상태 비활성화
+        setEmotionCaptureStatus(prev => ({ ...prev, ai: false }));
       }, aiEmotionResponse.duration);
     };
 
@@ -69,8 +85,10 @@ const ChatBox = () => {
 
     return () => {
       ws.current.close();
+      // TTS 중지
+      ttsService.stop();
     };
-  }, []);
+  }, [isTTSEnabled]);
 
   // 감정 포착 상태 자동 리셋 (3초 후)
   useEffect(() => {
@@ -128,23 +146,72 @@ const ChatBox = () => {
     return () => clearInterval(interval);
   }, [isAiTalking, currentAiMessage]);
 
+  // TTS 서비스 초기화
+  const initializeTTSService = () => {
+    try {
+      console.log('TTS 서비스 초기화 시작...');
+
+      // TTS 이벤트 리스너 설정
+      ttsService.on('start', (text) => {
+        console.log('TTS 시작:', text.substring(0, 50) + '...');
+        setIsAiTalking(true);
+      });
+
+      ttsService.on('end', () => {
+        console.log('TTS 종료');
+        setIsAiTalking(false);
+        setMouthTrigger(0);
+      });
+
+      ttsService.on('error', (error) => {
+        console.error('TTS 오류:', error);
+        setIsAiTalking(false);
+      });
+
+      // 기본 음성 설정
+      const voices = ttsService.getVoices();
+      if (voices.length > 0) {
+        setTtsVoice(voices[0]);
+      }
+
+      console.log('TTS 서비스 초기화 완료');
+    } catch (error) {
+      console.error('TTS 서비스 초기화 실패:', error);
+    }
+  };
+
+  // AI 메시지 TTS 재생
+  const speakAIMessage = async (message) => {
+    try {
+      if (!isTTSEnabled || !message) return;
+
+      await ttsService.speak(message, {
+        voice: ttsVoice,
+        rate: ttsRate,
+        pitch: ttsPitch
+      });
+    } catch (error) {
+      console.error('TTS 재생 실패:', error);
+    }
+  };
+
   // 아바타 초기화
   const initializeAvatars = async () => {
     try {
       console.log('아바타 초기화 시작');
 
-      // 샘플 아바타 URL 사용 (실제로는 API 호출)
-      const sampleAvatars = readyPlayerMeService.getSampleAvatars();
-      console.log('샘플 아바타:', sampleAvatars);
+      // Ready Player Me 아바타 파일 경로 설정
+      // RealisticAvatar3D -> 162, 아바타 모델 크기 조절 라인인
+      // const userAvatarUrl = '/avatar_glb/rpm_m_half_6868236a3a108058018aa554.glb'; // 여성 아바타 half
+      // const aiAvatarUrl = '/avatar_glb/rpm_f_half_6868261ba6e60aed0c1d79ad.glb';   // 남성 아바타 half
+      const userAvatarUrl = '/avatar_glb/rpm_m_full_6868236a3a108058018aa554.glb'; // 여성 아바타 full
+      const aiAvatarUrl = '/avatar_glb/rpm_f_full_6868261ba6e60aed0c1d79ad.glb';   // 남성 아바타 full
+      
+      console.log('사용자 아바타 URL:', userAvatarUrl);
+      console.log('AI 아바타 URL:', aiAvatarUrl);
 
-      setUserAvatar(sampleAvatars.user);
-      setAiAvatar(sampleAvatars.ai);
-
-      // 실제 API 호출 시:
-      // const userAvatarUrl = await readyPlayerMeService.createRandomAvatar('male');
-      // const aiAvatarUrl = await readyPlayerMeService.createRandomAvatar('female');
-      // setUserAvatar(userAvatarUrl);
-      // setAiAvatar(aiAvatarUrl);
+      setUserAvatar(userAvatarUrl);
+      setAiAvatar(aiAvatarUrl);
     } catch (error) {
       console.error('아바타 초기화 실패:', error);
     }
@@ -290,24 +357,7 @@ const ChatBox = () => {
     return response;
   };
 
-  // 카메라 감정 감지 핸들러
-  const handleEmotionDetected = (emotion) => {
-    // 감정이 실제로 변경되었을 때만 로그 출력
-    if (emotion !== userEmotion) {
-      console.log(`감정 변경: ${userEmotion} → ${emotion}`);
-    }
-
-    setCameraEmotion(emotion);
-    setUserEmotion(emotion); // 카메라 감정을 사용자 감정으로 설정
-    setEmotionDisplay(prev => ({ ...prev, user: emotion })); // 감정 표시 업데이트
-    setEmotionCaptureStatus(prev => ({ ...prev, user: true })); // 감정 포착 상태 활성화
-
-    // 감정 기반 대화 시작 (카메라가 활성화되어 있고 감정이 변화했을 때)
-    if (isCameraActive && emotion !== 'neutral') {
-      startEmotionBasedConversation(emotion);
-    }
-  };
-
+  // 얼굴 추적 콜백 함수들
   // 감정 기반 대화 시작 함수
   const startEmotionBasedConversation = (emotion) => {
     const emotionStarters = {
@@ -372,37 +422,7 @@ const ChatBox = () => {
     setInput('');
   };
 
-  // 감정 상태 표시 UI 컴포넌트
-  const EmotionIndicator = ({ emotion, label, position }) => {
-    const emotionIcons = {
-      'happy': '😊',
-      'sad': '😔',
-      'angry': '😠',
-      'fearful': '😰',
-      'surprised': '😲',
-      'disgusted': '😕',
-      'neutral': '😐'
-    };
 
-    const emotionColors = {
-      'happy': '#FFD700',
-      'sad': '#87CEEB',
-      'angry': '#FF6B6B',
-      'fearful': '#9370DB',
-      'surprised': '#FFA500',
-      'disgusted': '#8FBC8F',
-      'neutral': '#D3D3D3'
-    };
-
-    return (
-      <div className={`emotion-indicator ${position} ${emotion}`}>
-        <div className="emotion-icon" style={{ backgroundColor: emotionColors[emotion] }}>
-          {emotionIcons[emotion]}
-        </div>
-        <div className="emotion-label">{label}</div>
-      </div>
-    );
-  };
 
   return (
     <>
@@ -436,10 +456,8 @@ const ChatBox = () => {
               {isCameraActive && (
                 <div className="camera-replacement" style={{ position: 'relative' }}>
                   <EmotionCamera
-                    onEmotionDetected={handleEmotionDetected}
                     isActive={isCameraActive}
                     hideControls={true}
-                    isRealTimeMode={isRealTimeMode} // 모드 상태 전달
                   />
 
                   {/* 카메라 내부에 아바타 오버레이 배치 - PC */}
@@ -453,7 +471,7 @@ const ChatBox = () => {
                     pointerEvents: 'none',
                     opacity: 0.3
                   }}>
-                    <Avatar3D
+                    <RealisticAvatar3D
                       avatarUrl={userAvatar}
                       isTalking={isUserTalking}
                       emotion={userEmotion}
@@ -478,7 +496,7 @@ const ChatBox = () => {
                   pointerEvents: 'auto',
                   opacity: 1
                 }}>
-                  <Avatar3D
+                  <RealisticAvatar3D
                     avatarUrl={userAvatar}
                     isTalking={isUserTalking}
                     emotion={userEmotion}
@@ -493,11 +511,11 @@ const ChatBox = () => {
 
             {/* AI 아바타 (오른쪽) */}
             <div className="avatar-section right">
-              <Avatar3D
+              <RealisticAvatar3D
                 avatarUrl={aiAvatar}
                 isTalking={isAiTalking}
                 emotion={aiEmotion}
-                mouthTrigger={mouthTrigger} // 반드시 추가!
+                mouthTrigger={mouthTrigger}
                 position="right"
                 size={235}
                 showEmotionIndicator={true}
@@ -522,14 +540,25 @@ const ChatBox = () => {
                 ))}
               </div>
               <div className="chat-input-area">
-                <input
-                  type="text"
-                  placeholder="메시지를 입력하세요"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-                />
-                <button onClick={sendMessage}>전송</button>
+                <div className="input-controls">
+                  <input
+                    type="text"
+                    placeholder="메시지를 입력하세요"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                  />
+                  <div className="control-buttons">
+                    <button
+                      onClick={() => setIsTTSEnabled(!isTTSEnabled)}
+                      className={`tts-toggle ${isTTSEnabled ? 'active' : ''}`}
+                      title={isTTSEnabled ? 'TTS 끄기' : 'TTS 켜기'}
+                    >
+                      {isTTSEnabled ? '🔊' : '🔇'}
+                    </button>
+                    <button onClick={sendMessage}>전송</button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -563,13 +592,11 @@ const ChatBox = () => {
               {isCameraActive && (
                 <div className="camera-replacement mobile" style={{ position: 'relative' }}>
                   <EmotionCamera
-                    onEmotionDetected={handleEmotionDetected}
                     isActive={isCameraActive}
                     hideControls={true}
-                    isRealTimeMode={isRealTimeMode} // 모드 상태 전달
                   />
 
-                  {/* 카메라 내부에 아바타 오버레이 배치 - 모바일 */}
+                  {/* 카메라 내부에 아바타 오버레이 배치 - PC */}
                   <div className="avatar-overlay" style={{
                     position: 'absolute',
                     top: '5px',
@@ -580,7 +607,7 @@ const ChatBox = () => {
                     pointerEvents: 'none',
                     opacity: 0.3
                   }}>
-                    <Avatar3D
+                    <RealisticAvatar3D
                       avatarUrl={userAvatar}
                       isTalking={isUserTalking}
                       emotion={userEmotion}
@@ -605,7 +632,7 @@ const ChatBox = () => {
                   pointerEvents: 'auto',
                   opacity: 1
                 }}>
-                  <Avatar3D
+                  <RealisticAvatar3D
                     avatarUrl={userAvatar}
                     isTalking={isUserTalking}
                     emotion={userEmotion}
@@ -618,11 +645,11 @@ const ChatBox = () => {
               )}
             </div>
             <div className="avatar-section right">
-              <Avatar3D
+              <RealisticAvatar3D
                 avatarUrl={aiAvatar}
                 isTalking={isAiTalking}
                 emotion={aiEmotion}
-                mouthTrigger={mouthTrigger} // 반드시 추가!
+                mouthTrigger={mouthTrigger}
                 position="right"
                 size={235}
                 showEmotionIndicator={true}
@@ -647,14 +674,25 @@ const ChatBox = () => {
                 ))}
               </div>
               <div className="chat-input-area">
-                <input
-                  type="text"
-                  placeholder="메시지를 입력하세요"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-                />
-                <button onClick={sendMessage}>전송</button>
+                <div className="input-controls">
+                  <input
+                    type="text"
+                    placeholder="메시지를 입력하세요"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                  />
+                  <div className="control-buttons">
+                    <button
+                      onClick={() => setIsTTSEnabled(!isTTSEnabled)}
+                      className={`tts-toggle ${isTTSEnabled ? 'active' : ''}`}
+                      title={isTTSEnabled ? 'TTS 끄기' : 'TTS 켜기'}
+                    >
+                      {isTTSEnabled ? '🔊' : '🔇'}
+                    </button>
+                    <button onClick={sendMessage}>전송</button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
