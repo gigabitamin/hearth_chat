@@ -21,8 +21,8 @@ const ChatBox = () => {
   // TTS 관련 상태
   const [isTTSEnabled, setIsTTSEnabled] = useState(true);
   const [ttsVoice, setTtsVoice] = useState(null);
-  const [ttsRate, setTtsRate] = useState(1.0);
-  const [ttsPitch, setTtsPitch] = useState(1.0);
+  const [ttsRate, setTtsRate] = useState(1.7);
+  const [ttsPitch, setTtsPitch] = useState(1.7);
 
   const ws = useRef(null);
   const chatLogRef = useRef(null);
@@ -33,62 +33,27 @@ const ChatBox = () => {
   const [emotionDisplay, setEmotionDisplay] = useState({ user: 'neutral', ai: 'neutral' });
   const [emotionCaptureStatus, setEmotionCaptureStatus] = useState({ user: false, ai: false });
 
+  // 컴포넌트 마운트 시 실행
   useEffect(() => {
     console.log('ChatBox 컴포넌트 마운트됨');
 
-    // 아바타 초기화
-    initializeAvatars();
+    // WebSocket 연결
+    connectWebSocket();
 
     // TTS 서비스 초기화
     initializeTTSService();
 
-    // 웹소켓 연결
-    ws.current = new WebSocket('ws://localhost:8000/ws/chat/');
+    // 아바타 초기화
+    initializeAvatars();
 
-    ws.current.onopen = () => {
-      console.log('WebSocket 연결 성공');
-    };
-
-    ws.current.onmessage = (e) => {
-      const data = JSON.parse(e.data);
-      setMessages((prev) => [...prev, { type: 'recv', text: data.message }]);
-      setCurrentAiMessage(data.message);
-
-      // AI가 응답할 때 애니메이션
-      setIsAiTalking(true);
-
-      // TTS로 AI 메시지 재생
-      if (isTTSEnabled) {
-        speakAIMessage(data.message);
-      }
-
-      // AI 감정 반응 시스템 적용
-      const aiEmotionResponse = getAIEmotionResponse(userEmotion, data.message);
-      console.log('AI 감정 반응:', aiEmotionResponse.description);
-
-      // AI 아바타 감정 설정
-      setAiEmotion(aiEmotionResponse.primary);
-      setEmotionDisplay(prev => ({ ...prev, ai: aiEmotionResponse.primary }));
-      setEmotionCaptureStatus(prev => ({ ...prev, ai: true }));
-
-      // 감정 지속 시간 후 neutral로 복귀
-      setTimeout(() => {
-        setAiEmotion('neutral');
-        setEmotionDisplay(prev => ({ ...prev, ai: 'neutral' }));
-        setEmotionCaptureStatus(prev => ({ ...prev, ai: false }));
-      }, aiEmotionResponse.duration);
-    };
-
-    ws.current.onclose = () => {
-      console.log('WebSocket 연결 종료');
-    };
-
+    // 컴포넌트 언마운트 시 정리
     return () => {
-      ws.current.close();
-      // TTS 중지
+      if (ws.current) {
+        ws.current.close();
+      }
       ttsService.stop();
     };
-  }, [isTTSEnabled]);
+  }, []);
 
   // 감정 포착 상태 자동 리셋 (3초 후)
   useEffect(() => {
@@ -180,6 +145,52 @@ const ChatBox = () => {
     }
   };
 
+
+  // TTS 테스트 함수
+  const testTTS = async () => {
+    try {
+      const testMessage = "안녕하세요! TTS 테스트입니다. 음성이 정상적으로 작동하는지 확인해보세요.";
+
+      console.log('=== TTS 테스트 시작 ===');
+      console.log('테스트 메시지:', testMessage);
+      console.log('선택된 음성:', ttsVoice?.name);
+      console.log('음성 언어:', ttsVoice?.lang);
+      console.log('TTS 속도:', ttsRate);
+      console.log('TTS 음조:', ttsPitch);
+
+      // 크롬 자동 재생 정책 우회를 위한 사용자 상호작용 확인
+      if (!document.hasFocus()) {
+        console.warn('페이지가 포커스되지 않았습니다. TTS가 차단될 수 있습니다.');
+      }
+
+      // 오디오 컨텍스트 재개 (크롬 호환성)
+      if (window.AudioContext || window.webkitAudioContext) {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioContext.state === 'suspended') {
+          await audioContext.resume();
+          console.log('오디오 컨텍스트 재개됨');
+        }
+      }
+
+      await ttsService.speak(testMessage, {
+        voice: ttsVoice,
+        rate: ttsRate,
+        pitch: ttsPitch
+      });
+
+      console.log('TTS 테스트 완료');
+    } catch (error) {
+      console.error('TTS 테스트 실패:', error);
+
+      // 크롬 특정 오류 안내
+      if (error.message.includes('not-allowed')) {
+        alert('크롬에서 TTS가 차단되었습니다. 페이지를 새로고침하고 다시 시도해주세요.');
+      } else if (error.message.includes('interrupted')) {
+        alert('크롬에서 TTS가 중단되었습니다. 엣지나 파이어폭스 브라우저 사용을 권장합니다.');
+      }
+    }
+  };
+  
   // AI 메시지 TTS 재생
   const speakAIMessage = async (message) => {
     try {
@@ -200,13 +211,11 @@ const ChatBox = () => {
     try {
       console.log('아바타 초기화 시작');
 
-      // Ready Player Me 아바타 파일 경로 설정
-      // RealisticAvatar3D -> 162, 아바타 모델 크기 조절 라인인
-      // const userAvatarUrl = '/avatar_glb/rpm_m_half_6868236a3a108058018aa554.glb'; // 여성 아바타 half
-      // const aiAvatarUrl = '/avatar_glb/rpm_f_half_6868261ba6e60aed0c1d79ad.glb';   // 남성 아바타 half
-      const userAvatarUrl = '/avatar_glb/rpm_m_full_6868236a3a108058018aa554.glb'; // 여성 아바타 full
-      const aiAvatarUrl = '/avatar_glb/rpm_f_full_6868261ba6e60aed0c1d79ad.glb';   // 남성 아바타 full
-      
+      // VRM 아바타 파일 경로 설정
+      // VRM 파일은 avatar_vrm 폴더에 저장
+      const userAvatarUrl = '/avatar_vrm/gb_m_v1.vrm'; // 사용자 VRM 아바타 (남성)
+      const aiAvatarUrl = '/avatar_vrm/gb_f_v1.vrm';   // AI VRM 아바타 (여성)
+
       console.log('사용자 아바타 URL:', userAvatarUrl);
       console.log('AI 아바타 URL:', aiAvatarUrl);
 
@@ -422,12 +431,91 @@ const ChatBox = () => {
     setInput('');
   };
 
+  // WebSocket 연결
+  const connectWebSocket = () => {
+    // 현재 호스트의 IP 주소를 사용하여 WebSocket 연결
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.hostname;
+    const port = '8000'; // Django 백엔드 포트
+    ws.current = new WebSocket(`${protocol}//${host}:${port}/ws/chat/`);
+
+    ws.current.onopen = () => {
+      console.log('WebSocket 연결 성공');
+    };
+
+    ws.current.onmessage = (e) => {
+      const data = JSON.parse(e.data);
+      setMessages((prev) => [...prev, { type: 'recv', text: data.message }]);
+      setCurrentAiMessage(data.message);
+
+      // AI가 응답할 때 애니메이션
+      setIsAiTalking(true);
+
+      // TTS로 AI 메시지 재생
+      if (isTTSEnabled) {
+        speakAIMessage(data.message);
+      }
+
+      // AI 감정 반응 시스템 적용
+      const aiEmotionResponse = getAIEmotionResponse(userEmotion, data.message);
+      console.log('AI 감정 반응:', aiEmotionResponse.description);
+
+      // AI 아바타 감정 설정
+      setAiEmotion(aiEmotionResponse.primary);
+      setEmotionDisplay(prev => ({ ...prev, ai: aiEmotionResponse.primary }));
+      setEmotionCaptureStatus(prev => ({ ...prev, ai: true }));
+
+      // 감정 지속 시간 후 neutral로 복귀
+      setTimeout(() => {
+        setAiEmotion('neutral');
+        setEmotionDisplay(prev => ({ ...prev, ai: 'neutral' }));
+        setEmotionCaptureStatus(prev => ({ ...prev, ai: false }));
+      }, aiEmotionResponse.duration);
+    };
+
+    ws.current.onclose = () => {
+      console.log('WebSocket 연결 종료');
+    };
+  };
 
 
   return (
     <>
       <div className="chat-container-with-avatars">
-        {/* 데스크톱 레이아웃 */}
+        {/* TTS 상태창 + 음성 선택 오버레이 */}
+        <div style={{
+          position: 'fixed',
+          bottom: '20px',
+          right: '20px',
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          border: '1px solid #ddd',
+          borderRadius: '8px',
+          padding: '15px',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+          zIndex: 1000,          
+          backdropFilter: 'blur(5px)'
+        }}>
+          
+          {/* TTS 테스트 버튼 */}
+          <button
+            onClick={testTTS}
+            disabled={!isTTSEnabled}
+            style={{
+              width: '100%',
+              padding: '8px',
+              backgroundColor: isTTSEnabled ? '#007bff' : '#6c757d',
+              color: 'white',
+              border: 'none',
+              borderRadius: '3px',
+              cursor: isTTSEnabled ? 'pointer' : 'not-allowed',
+              fontSize: '12px'
+            }}
+          >
+            🎤 TTS 테스트
+          </button>
+        </div>
+
+        {/* PC 레이아웃 */}
         <div className="desktop-layout">
           {/* 아바타들을 위쪽에 배치 */}
           <div className="avatar-container-desktop">
@@ -556,6 +644,14 @@ const ChatBox = () => {
                     >
                       {isTTSEnabled ? '🔊' : '🔇'}
                     </button>
+                    <button
+                      onClick={testTTS}
+                      className="tts-test-btn"
+                      title="TTS 테스트"
+                      disabled={!isTTSEnabled}
+                    >
+                      🎤
+                    </button>
                     <button onClick={sendMessage}>전송</button>
                   </div>
                 </div>
@@ -590,7 +686,7 @@ const ChatBox = () => {
               </div>
               {/* 카메라가 켜져있을 때 카메라 표시 */}
               {isCameraActive && (
-                <div className="camera-replacement mobile" style={{ position: 'relative' }}>
+                <div className="camera-replacement" style={{ position: 'relative' }}>
                   <EmotionCamera
                     isActive={isCameraActive}
                     hideControls={true}
@@ -644,6 +740,8 @@ const ChatBox = () => {
                 </div>
               )}
             </div>
+
+            {/* AI 아바타 (오른쪽) */}
             <div className="avatar-section right">
               <RealisticAvatar3D
                 avatarUrl={aiAvatar}
@@ -689,6 +787,14 @@ const ChatBox = () => {
                       title={isTTSEnabled ? 'TTS 끄기' : 'TTS 켜기'}
                     >
                       {isTTSEnabled ? '🔊' : '🔇'}
+                    </button>
+                    <button
+                      onClick={testTTS}
+                      className="tts-test-btn"
+                      title="TTS 테스트"
+                      disabled={!isTTSEnabled}
+                    >
+                      🎤
                     </button>
                     <button onClick={sendMessage}>전송</button>
                   </div>

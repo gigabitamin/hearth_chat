@@ -31,7 +31,7 @@ SECRET_KEY = db_settings.SECRET_KEY
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = db_settings.ALLOWED_HOSTS
 
 
 # Application definition
@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     'chat',
     'channels',
+    'corsheaders',
 ]
 
 ASGI_APPLICATION = 'hearth_chat.asgi.application'
@@ -57,6 +58,7 @@ CHANNEL_LAYERS = {
 
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -137,3 +139,15 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# CORS 설정
+CORS_ALLOW_ALL_ORIGINS = True  # 개발 환경에서만 사용
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = db_settings.CORS_ALLOWED_ORIGINS + [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://192.168.44.9:3000",
+]
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^http://192\.168\.\d+\.\d+:\d+$",  # 내부 IP 허용
+]
