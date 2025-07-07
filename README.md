@@ -6,6 +6,7 @@
 
 ## 250707  
 - vrm 모델 세팅 - vroid, vmagicmirror, warudo 작동법 숙지 -> hearth chat 에 모델 컨버팅  
+- tts 글자 수 별 립싱크, 음성 선택 드롭다운 메뉴
 
 ## 250706 
 - glb 모델 아바타 적용 -> 표정 인식 확인  
