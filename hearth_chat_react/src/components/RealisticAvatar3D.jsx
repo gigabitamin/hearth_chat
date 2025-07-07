@@ -31,8 +31,134 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
                     if (onLoadError) onLoadError('VRM 변환 실패');
                     return;
                 }
+
+                // VRM 초기화 개선 (안전한 방식)
+                try {
+                    // 새로운 방식으로 스켈레톤 최적화
+                    if (VRMUtils.combineSkeletons) {
+                        VRMUtils.combineSkeletons(vrmInstance.scene);
+                    } else {
+                        // fallback: deprecated 함수 사용
                 VRMUtils.removeUnnecessaryJoints(vrmInstance.scene);
-                // vrmInstance.scene.rotation.y = Math.PI; // 좌우 반전, 180도 회전
+                    }
+                } catch (e) {
+                    console.warn('VRM 스켈레톤 최적화 실패:', e);
+                }
+
+                // VRM 내부 업데이트 활성화
+                if (vrmInstance.update) {
+                    vrmInstance.update(1 / 60);
+                }
+
+                // 헤어 물리 시뮬레이션 활성화 (안전한 방식)
+                if (vrmInstance.humanoid) {
+                    try {
+                        // 새로운 방식으로 본 노드 가져오기
+                        const headBone = vrmInstance.humanoid.getNormalizedBoneNode ?
+                            vrmInstance.humanoid.getNormalizedBoneNode('head') :
+                            vrmInstance.humanoid.getBoneNode('head');
+
+                        if (headBone) {
+                            // 헤어 관련 본들에 물리 적용
+                            vrmInstance.scene.traverse((child) => {
+                                if (child.isBone && child.name.toLowerCase().includes('hair')) {
+                                    child.visible = true;
+                                    // 헤어 본들의 물리 속성 활성화
+                                    if (child.userData && child.userData.springBone) {
+                                        child.userData.springBone.enabled = true;
+                                    }
+                                }
+                            });
+                        }
+                    } catch (e) {
+                        console.warn('헤어 본 활성화 실패:', e);
+                    }
+                }
+
+                // 스프링 본 매니저 초기화 및 활성화 (안전한 방식)
+                if (vrmInstance.springBoneManager) {
+                    try {
+                        vrmInstance.springBoneManager.reset();
+                        // 스프링 본 그룹이 존재하는지 확인 후 활성화
+                        if (vrmInstance.springBoneManager.springBoneGroups &&
+                            Array.isArray(vrmInstance.springBoneManager.springBoneGroups)) {
+                            vrmInstance.springBoneManager.springBoneGroups.forEach(group => {
+                                if (group && group.springBones && Array.isArray(group.springBones)) {
+                                    group.springBones.forEach(springBone => {
+                                        if (springBone) {
+                                            springBone.enabled = true;
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    } catch (e) {
+                        console.warn('스프링 본 매니저 초기화 실패:', e);
+                    }
+                }
+
+                // 기본 포즈 설정 (T-pose에서 자연스러운 자세로) - 안전한 방식
+                if (vrmInstance.humanoid) {
+                    try {
+                        // 새로운 방식으로 본 노드들 가져오기
+                        const getBoneNode = (boneName) => {
+                            return vrmInstance.humanoid.getNormalizedBoneNode ?
+                                vrmInstance.humanoid.getNormalizedBoneNode(boneName) :
+                                vrmInstance.humanoid.getBoneNode(boneName);
+                        };
+
+                        const leftArm = getBoneNode('leftUpperArm');
+                        const rightArm = getBoneNode('rightUpperArm');
+                        const leftForeArm = getBoneNode('leftLowerArm');
+                        const rightForeArm = getBoneNode('rightLowerArm');
+
+                        console.log('포즈 설정 시작:', {
+                            leftArm: !!leftArm,
+                            rightArm: !!rightArm,
+                            leftForeArm: !!leftForeArm,
+                            rightForeArm: !!rightForeArm
+                        });
+
+                        // T자 모양에서 팔을 더 많이 내린 상태로 설정
+                        if (leftArm) {
+                            // 왼팔을 T자에서 더 많이 내리기
+                            leftArm.rotation.set(0, 0, -Math.PI / 3);
+                            console.log('왼팔 포즈 설정 완료 (T자에서 더 내림)');
+                        }
+                        if (rightArm) {
+                            // 오른팔을 T자에서 더 많이 내리기
+                            rightArm.rotation.set(0, 0, Math.PI / 3);
+                            console.log('오른팔 포즈 설정 완료 (T자에서 더 내림)');
+                        }
+                        if (leftForeArm) {
+                            // 왼팔꿈치를 T자에서 더 많이 내리기
+                            leftForeArm.rotation.set(0, 0, -Math.PI / 6);
+                        }
+                        if (rightForeArm) {
+                            // 오른팔꿈치를 T자에서 더 많이 내리기
+                            rightForeArm.rotation.set(0, 0, Math.PI / 6);
+                        }
+
+                        console.log('포즈 설정 완료');
+                    } catch (e) {
+                        console.warn('포즈 설정 실패:', e);
+                    }
+                }
+
+                // 표정 매니저 초기화
+                if (vrmInstance.expressionManager) {
+                    // 모든 표정을 0으로 초기화
+                    const expressions = vrmInstance.expressionManager.expressions;
+                    Object.keys(expressions).forEach(expressionName => {
+                        vrmInstance.expressionManager.setValue(expressionName, 0);
+                    });
+                    // 기본 표정 설정
+                    vrmInstance.expressionManager.setValue('neutral', 1.0);
+                }
+
+
+
+                // 위치 및 회전 설정
                 vrmInstance.scene.rotation.y = 0;
                     if (position === 'left') {
                     vrmInstance.scene.position.set(0, 0, 0);
@@ -40,8 +166,15 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
                     vrmInstance.scene.position.set(0, 0, 0);
                     }
                     vrmInstance.scene.scale.set(1.2, 1.2, 1.2);
+
                     setVrm(vrmInstance);
                     if (onLoadSuccess) onLoadSuccess();
+
+                console.log('VRM 모델 초기화 완료:', {
+                    hasHumanoid: !!vrmInstance.humanoid,
+                    hasExpressionManager: !!vrmInstance.expressionManager,
+                    hasSpringBoneManager: !!vrmInstance.springBoneManager
+                });
             },
             undefined,
             (e) => {
@@ -51,13 +184,14 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
         );
     }, [avatarUrl, onLoadSuccess, onLoadError, position]);
 
-    // 립싱크: mouthTrigger가 바뀔 때마다 입을 잠깐 열었다 닫음
+    // 립싱크: mouthTrigger가 바뀔 때마다 입을 잠깐 열었다 닫음 (TTS 속도에 맞춤)
     useEffect(() => {
         if (mouthTrigger === undefined) return;
         if (mouthTrigger === 0) {
             setMouthOpen(0);
         } else {
-            if (mouthTrigger % 9 < 4) {
+            // TTS 속도에 맞춰 더 자연스러운 립싱크 패턴
+            if (mouthTrigger % 6 < 3) {
                 setMouthOpen(1);
             } else {
                 setMouthOpen(0);
@@ -130,15 +264,44 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
     useFrame(() => {
         if (!vrm) return;
 
-        // VRM 내부 애니메이션 업데이트
+        // VRM 내부 애니메이션 업데이트 (헤어 물리 포함)
         if (vrm.update) {
             vrm.update(1 / 60); // 60fps로 복원
         }
 
-        // 표정 설정
+        // 스프링 본 매니저 업데이트 (헤어 물리 시뮬레이션) - 안전한 방식
+        if (vrm.springBoneManager && vrm.springBoneManager.update) {
+            try {
+                vrm.springBoneManager.update(1 / 60);
+            } catch (e) {
+                console.warn('스프링 본 업데이트 실패:', e);
+            }
+        }
+
+        // 표정 설정 - 안전한 방식
         if (vrm.expressionManager) {
+            try {
+                // 모든 표정을 0으로 초기화
+                const expressions = vrm.expressionManager.expressions;
+                if (expressions && typeof expressions === 'object') {
+                    Object.keys(expressions).forEach(expressionName => {
+                        vrm.expressionManager.setValue(expressionName, 0);
+                    });
+                }
+
             // 기본 표정 설정
             vrm.expressionManager.setValue('neutral', 1.0);
+
+                // 감정에 따른 표정 적용
+                if (currentEmotion === 'happy') {
+                    vrm.expressionManager.setValue('happy', 0.8);
+                } else if (currentEmotion === 'sad') {
+                    vrm.expressionManager.setValue('sad', 0.6);
+                } else if (currentEmotion === 'angry') {
+                    vrm.expressionManager.setValue('angry', 0.7);
+                } else if (currentEmotion === 'surprised') {
+                    vrm.expressionManager.setValue('surprised', 0.5);
+                }
 
             // 립싱크 (더 명확하게)
             if (mouthOpen > 0) {
@@ -151,6 +314,46 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
 
             // 눈깜빡임
             vrm.expressionManager.setValue('blink', 1.0 - eyeBlink);
+            } catch (e) {
+                console.warn('표정 설정 실패:', e);
+            }
+        }
+
+        // 헤어 본들 활성화 유지 - 안전한 방식
+        if (vrm.humanoid) {
+            try {
+                vrm.scene.traverse((child) => {
+                    if (child.isBone && child.name.toLowerCase().includes('hair')) {
+                        child.visible = true;
+                    }
+                });
+            } catch (e) {
+                console.warn('헤어 본 활성화 유지 실패:', e);
+            }
+        }
+
+        // 포즈 유지 (필요시)
+        if (vrm.humanoid) {
+            try {
+                const getBoneNode = (boneName) => {
+                    return vrm.humanoid.getNormalizedBoneNode ?
+                        vrm.humanoid.getNormalizedBoneNode(boneName) :
+                        vrm.humanoid.getBoneNode(boneName);
+                };
+
+                const leftArm = getBoneNode('leftUpperArm');
+                const rightArm = getBoneNode('rightUpperArm');
+
+                // T자 모양에서 팔이 올라가면 더 많이 내리기
+                if (leftArm && leftArm.rotation.z > Math.PI / 6) {
+                    leftArm.rotation.set(0, 0, -Math.PI / 3);
+                }
+                if (rightArm && rightArm.rotation.z < -Math.PI / 6) {
+                    rightArm.rotation.set(0, 0, Math.PI / 3);
+                }
+            } catch (e) {
+                // 포즈 유지 실패는 무시 (주요 기능이 아니므로)
+            }
         }
     });
 
@@ -164,8 +367,8 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
         <primitive
             ref={avatarRef}
             object={vrm.scene}
-            scale={[14, 14, 14]}
-            position={position === 'left' ? [0, -22, 0] : [0, -20, 0]}
+            scale={[12, 12, 12]}
+            position={position === 'left' ? [0, -18, 0] : [0, -16, 0]}
         />
     );
 }

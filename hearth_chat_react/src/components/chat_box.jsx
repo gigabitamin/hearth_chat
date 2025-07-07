@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import RealisticAvatar3D from './RealisticAvatar3D';
 import EmotionCamera from './EmotionCamera';
+import VoiceRecognition from './VoiceRecognition';
 import ttsService from '../services/ttsService';
 import readyPlayerMeService from '../services/readyPlayerMe';
 import './chat_box.css';
@@ -33,6 +34,14 @@ const ChatBox = () => {
   const [currentAiMessage, setCurrentAiMessage] = useState('');
   const [emotionDisplay, setEmotionDisplay] = useState({ user: 'neutral', ai: 'neutral' });
   const [emotionCaptureStatus, setEmotionCaptureStatus] = useState({ user: false, ai: false });
+  const [isVoiceRecognitionEnabled, setIsVoiceRecognitionEnabled] = useState(true);
+  const [voiceInterimText, setVoiceInterimText] = useState('');
+  const [autoSend, setAutoSend] = useState(false); // 자동전송 모드 (기본값: false)
+  const [isContinuousRecognition, setIsContinuousRecognition] = useState(false); // 연속 음성인식 모드
+  const [accumulatedVoiceText, setAccumulatedVoiceText] = useState(''); // 누적된 음성인식 텍스트
+  const [silenceTimer, setSilenceTimer] = useState(null); // 묵음 타이머
+
+  const voiceRecognitionRef = useRef(null);
 
   // 컴포넌트 마운트 시 실행
   useEffect(() => {
@@ -83,6 +92,10 @@ const ChatBox = () => {
     }
   }, [messages]);
 
+  // TTS 기반 립싱크를 위한 상태
+  const [ttsSpeaking, setTtsSpeaking] = useState(false);
+  const [lipSyncInterval, setLipSyncInterval] = useState(null);
+
   useEffect(() => {
     if (!isAiTalking || !currentAiMessage) {
       // 타이핑이 끝나면 mouthTrigger를 0으로 리셋
@@ -94,23 +107,51 @@ const ChatBox = () => {
     setDisplayedAiText('');
     const interval = setInterval(() => {
       setDisplayedAiText(currentAiMessage.slice(0, i + 1));
-      setMouthTrigger(prev => {
-        const newValue = prev + 1;
-        console.log('mouthTrigger 증가:', newValue);
-        return newValue;
-      }); // 트리거 값 증가
       i++;
       if (i >= currentAiMessage.length) {
         clearInterval(interval);
-        // 타이핑이 완전히 끝나면 mouthTrigger를 0으로 리셋하고 isAiTalking을 false로 설정
+        // 타이핑이 완전히 끝나면 isAiTalking을 false로 설정
         setTimeout(() => {
-          setMouthTrigger(0);
           setIsAiTalking(false); // 타이핑이 끝나면 말하는 상태를 false로
         }, 200);
       }
     }, 30); // 30ms마다 한 글자씩 (빠른 타이핑)
     return () => clearInterval(interval);
   }, [isAiTalking, currentAiMessage]);
+
+  // TTS 기반 립싱크 제어
+  useEffect(() => {
+    if (ttsSpeaking) {
+      // TTS 속도에 따라 립싱크 속도 조정
+      const baseInterval = 200; // 기본 200ms
+      const rateMultiplier = ttsRate || 1.0; // TTS 속도 (기본값 1.0)
+      const lipSyncInterval = Math.max(100, Math.min(400, baseInterval / rateMultiplier)); // 100ms~400ms 범위로 제한
+
+      console.log('립싱크 간격 설정:', lipSyncInterval, 'ms (TTS 속도:', rateMultiplier, ')');
+
+      const interval = setInterval(() => {
+        setMouthTrigger(prev => {
+          const newValue = prev + 1;
+          return newValue;
+        });
+      }, lipSyncInterval);
+
+      setLipSyncInterval(interval);
+
+      return () => {
+        if (interval) {
+          clearInterval(interval);
+        }
+      };
+    } else {
+      // TTS가 끝나면 립싱크 중지
+      setMouthTrigger(0);
+      if (lipSyncInterval) {
+        clearInterval(lipSyncInterval);
+        setLipSyncInterval(null);
+      }
+    }
+  }, [ttsSpeaking, ttsRate]);
 
   // TTS 서비스 초기화
   const initializeTTSService = () => {
@@ -121,17 +162,21 @@ const ChatBox = () => {
       ttsService.on('start', (text) => {
         console.log('TTS 시작:', text.substring(0, 50) + '...');
         setIsAiTalking(true);
+        setTtsSpeaking(true); // TTS 재생 시작 시 립싱크 시작
       });
 
       ttsService.on('end', () => {
         console.log('TTS 종료');
         setIsAiTalking(false);
+        setTtsSpeaking(false); // TTS 재생 종료 시 립싱크 중지
         setMouthTrigger(0);
       });
 
       ttsService.on('error', (error) => {
         console.error('TTS 오류:', error);
         setIsAiTalking(false);
+        setTtsSpeaking(false); // TTS 오류 시 립싱크 중지
+        setMouthTrigger(0);
       });
 
       // 기본 음성 설정
@@ -146,8 +191,8 @@ const ChatBox = () => {
     }
   };
 
-   // 음성 설정 상태 확인을 위한 useEffect
-   useEffect(() => {
+  // 음성 설정 상태 확인을 위한 useEffect
+  useEffect(() => {
     if (ttsVoice) {
       console.log('TTS 음성 상태 업데이트됨:', ttsVoice.name, '(', ttsVoice.lang, ')');
     }
@@ -171,51 +216,8 @@ const ChatBox = () => {
     };
   }, []);
 
-  // TTS 테스트 함수
-  const testTTS = async () => {
-    try {
-      const testMessage = "안녕하세요! TTS 테스트입니다. 음성이 정상적으로 작동하는지 확인해보세요.";
 
-      console.log('=== TTS 테스트 시작 ===');
-      console.log('테스트 메시지:', testMessage);
-      console.log('선택된 음성:', ttsVoice?.name);
-      console.log('음성 언어:', ttsVoice?.lang);
-      console.log('TTS 속도:', ttsRate);
-      console.log('TTS 음조:', ttsPitch);
 
-      // 크롬 자동 재생 정책 우회를 위한 사용자 상호작용 확인
-      if (!document.hasFocus()) {
-        console.warn('페이지가 포커스되지 않았습니다. TTS가 차단될 수 있습니다.');
-      }
-
-      // 오디오 컨텍스트 재개 (크롬 호환성)
-      if (window.AudioContext || window.webkitAudioContext) {
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        if (audioContext.state === 'suspended') {
-          await audioContext.resume();
-          console.log('오디오 컨텍스트 재개됨');
-        }
-      }
-
-      await ttsService.speak(testMessage, {
-        voice: ttsVoice,
-        rate: ttsRate,
-        pitch: ttsPitch
-      });
-
-      console.log('TTS 테스트 완료');
-    } catch (error) {
-      console.error('TTS 테스트 실패:', error);
-
-      // 크롬 특정 오류 안내
-      if (error.message.includes('not-allowed')) {
-        alert('크롬에서 TTS가 차단되었습니다. 페이지를 새로고침하고 다시 시도해주세요.');
-      } else if (error.message.includes('interrupted')) {
-        alert('크롬에서 TTS가 중단되었습니다. 엣지나 파이어폭스 브라우저 사용을 권장합니다.');
-      }
-    }
-  };
-  
   // AI 메시지 TTS 재생
   const speakAIMessage = async (message) => {
     try {
@@ -435,6 +437,104 @@ const ChatBox = () => {
     console.log(`모드 변경: ${!isRealTimeMode ? '실시간' : '안정화'} 모드`);
   };
 
+  // 음성인식 결과 처리
+  const handleVoiceResult = (finalText) => {
+    console.log('음성인식 최종 결과:', finalText);
+
+    // 최종 결과를 누적 텍스트에 추가
+    const newAccumulatedText = accumulatedVoiceText + finalText;
+    setAccumulatedVoiceText(newAccumulatedText);
+    setInput(newAccumulatedText);
+
+    // 묵음 타이머 리셋
+    if (silenceTimer) {
+      clearTimeout(silenceTimer);
+    }
+
+    // 자동 전송이 활성화된 경우에만 자동 전송 타이머 설정
+    if (autoSend) {
+      // 1초 후 자동 전송 타이머 설정
+      const timer = setTimeout(() => {
+        if (newAccumulatedText.trim()) {
+          console.log('묵음 1초 경과, 자동 전송:', newAccumulatedText);
+          setInput(newAccumulatedText);
+          sendMessage();
+          setAccumulatedVoiceText('');
+        }
+      }, 1000);
+
+      setSilenceTimer(timer);
+    }
+  };
+
+  // 음성인식 중간 결과 처리
+  const handleVoiceInterimResult = (interimText) => {
+    // 사용자가 말하기 시작하면 TTS 중단
+    ttsService.stop();
+    console.log('음성인식 중간 결과:', interimText);
+
+    // 중간 결과는 실시간으로만 표시 (누적하지 않음)
+    const displayText = accumulatedVoiceText + interimText;
+    setInput(displayText);
+
+    // 묵음 타이머 리셋
+    if (silenceTimer) {
+      clearTimeout(silenceTimer);
+    }
+  };
+
+  // 음성인식 토글
+  const toggleVoiceRecognition = () => {
+    setIsVoiceRecognitionEnabled(!isVoiceRecognitionEnabled);
+  };
+
+  // 스페이스바 이벤트 리스너 추가
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.code === 'Space' && isContinuousRecognition) {
+        e.preventDefault(); // 스페이스바 기본 동작 방지
+        stopContinuousRecognition();
+      }
+    };
+
+    if (isContinuousRecognition) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isContinuousRecognition]);
+
+  // 연속 음성인식 시작
+  const startContinuousRecognition = async () => {
+    if (!isVoiceRecognitionEnabled) return;
+
+    setIsContinuousRecognition(true);
+    if (voiceRecognitionRef.current) {
+      await voiceRecognitionRef.current.start();
+    }
+  };
+
+  // 연속 음성인식 중지
+  const stopContinuousRecognition = () => {
+    setIsContinuousRecognition(false);
+    if (voiceRecognitionRef.current) {
+      voiceRecognitionRef.current.stop();
+    }
+  };
+
+  // 음성인식 버튼 클릭 핸들러
+  const handleVoiceRecognitionClick = async () => {
+    if (!isVoiceRecognitionEnabled) return;
+
+    if (isContinuousRecognition) {
+      stopContinuousRecognition();
+    } else {
+      await startContinuousRecognition();
+    }
+  };
+
   const sendMessage = () => {
     if (input.trim() === '') return;
 
@@ -502,6 +602,15 @@ const ChatBox = () => {
       console.log('WebSocket 연결 종료');
     };
   };
+
+  // 컴포넌트 언마운트 시 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (silenceTimer) {
+        clearTimeout(silenceTimer);
+      }
+    };
+  }, [silenceTimer]);
 
 
   return (
@@ -577,24 +686,7 @@ const ChatBox = () => {
               )}
             </select>
           </div>
-          
-          {/* TTS 테스트 버튼 */}
-          <button
-            onClick={testTTS}
-            disabled={!isTTSEnabled}
-            style={{
-              width: '100%',
-              padding: '8px',
-              backgroundColor: isTTSEnabled ? '#007bff' : '#6c757d',
-              color: 'white',
-              border: 'none',
-              borderRadius: '3px',
-              cursor: isTTSEnabled ? 'pointer' : 'not-allowed',
-              fontSize: '12px'
-            }}
-          >
-            🎤 TTS 테스트
-          </button>
+
         </div>
 
         {/* PC 레이아웃 */}
@@ -727,16 +819,47 @@ const ChatBox = () => {
                       {isTTSEnabled ? '🔊' : '🔇'}
                     </button>
                     <button
-                      onClick={testTTS}
-                      className="tts-test-btn"
-                      title="TTS 테스트"
-                      disabled={!isTTSEnabled}
+                      onClick={toggleVoiceRecognition}
+                      className={`mic-toggle ${isVoiceRecognitionEnabled ? 'active' : ''}`}
+                      title={isVoiceRecognitionEnabled ? '음성인식 끄기' : '음성인식 켜기'}
                     >
-                      🎤
+                      {isVoiceRecognitionEnabled ? '🎤' : '🔇'}
+                    </button>
+                    <button
+                      onClick={handleVoiceRecognitionClick}
+                      className={`voice-recognition-btn ${isContinuousRecognition ? 'active' : ''}`}
+                      title={isContinuousRecognition ? '음성인식 중지 (스페이스바)' : '음성인식 시작'}
+                      disabled={!isVoiceRecognitionEnabled}
+                    >
+                      {isContinuousRecognition ? '⏹️' : '🎙️'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        // 자동 전송을 끌 때 기존 타이머 정리
+                        if (autoSend && silenceTimer) {
+                          clearTimeout(silenceTimer);
+                          setSilenceTimer(null);
+                          console.log('자동 전송 비활성화: 기존 타이머 정리됨');
+                        }
+                        setAutoSend(!autoSend);
+                      }}
+                      className={`auto-send-toggle ${autoSend ? 'active' : ''}`}
+                      title={autoSend ? '자동전송 끄기' : '자동전송 켜기'}
+                    >
+                      {autoSend ? '🚀' : '✏️'}
                     </button>
                     <button onClick={sendMessage}>전송</button>
                   </div>
                 </div>
+                <VoiceRecognition
+                  ref={voiceRecognitionRef}
+                  enabled={isVoiceRecognitionEnabled}
+                  continuous={isContinuousRecognition}
+                  onResult={handleVoiceResult}
+                  onInterimResult={handleVoiceInterimResult}
+                  onStart={() => setIsContinuousRecognition(true)}
+                  onStop={() => setIsContinuousRecognition(false)}
+                />
               </div>
             </div>
           </div>
@@ -871,16 +994,47 @@ const ChatBox = () => {
                       {isTTSEnabled ? '🔊' : '🔇'}
                     </button>
                     <button
-                      onClick={testTTS}
-                      className="tts-test-btn"
-                      title="TTS 테스트"
-                      disabled={!isTTSEnabled}
+                      onClick={toggleVoiceRecognition}
+                      className={`mic-toggle ${isVoiceRecognitionEnabled ? 'active' : ''}`}
+                      title={isVoiceRecognitionEnabled ? '음성인식 끄기' : '음성인식 켜기'}
                     >
-                      🎤
+                      {isVoiceRecognitionEnabled ? '🎤' : '🔇'}
+                    </button>
+                    <button
+                      onClick={handleVoiceRecognitionClick}
+                      className={`voice-recognition-btn ${isContinuousRecognition ? 'active' : ''}`}
+                      title={isContinuousRecognition ? '음성인식 중지 (스페이스바)' : '음성인식 시작'}
+                      disabled={!isVoiceRecognitionEnabled}
+                    >
+                      {isContinuousRecognition ? '⏹️' : '🎙️'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        // 자동 전송을 끌 때 기존 타이머 정리
+                        if (autoSend && silenceTimer) {
+                          clearTimeout(silenceTimer);
+                          setSilenceTimer(null);
+                          console.log('자동 전송 비활성화: 기존 타이머 정리됨');
+                        }
+                        setAutoSend(!autoSend);
+                      }}
+                      className={`auto-send-toggle ${autoSend ? 'active' : ''}`}
+                      title={autoSend ? '자동전송 끄기' : '자동전송 켜기'}
+                    >
+                      {autoSend ? '🚀' : '✏️'}
                     </button>
                     <button onClick={sendMessage}>전송</button>
                   </div>
                 </div>
+                <VoiceRecognition
+                  ref={voiceRecognitionRef}
+                  enabled={isVoiceRecognitionEnabled}
+                  continuous={isContinuousRecognition}
+                  onResult={handleVoiceResult}
+                  onInterimResult={handleVoiceInterimResult}
+                  onStart={() => setIsContinuousRecognition(true)}
+                  onStop={() => setIsContinuousRecognition(false)}
+                />
               </div>
             </div>
           </div>
