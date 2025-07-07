@@ -23,6 +23,7 @@ const ChatBox = () => {
   const [ttsVoice, setTtsVoice] = useState(null);
   const [ttsRate, setTtsRate] = useState(1.7);
   const [ttsPitch, setTtsPitch] = useState(1.7);
+  const [voiceList, setVoiceList] = useState([]);
 
   const ws = useRef(null);
   const chatLogRef = useRef(null);
@@ -145,6 +146,30 @@ const ChatBox = () => {
     }
   };
 
+   // 음성 설정 상태 확인을 위한 useEffect
+   useEffect(() => {
+    if (ttsVoice) {
+      console.log('TTS 음성 상태 업데이트됨:', ttsVoice.name, '(', ttsVoice.lang, ')');
+    }
+  }, [ttsVoice]);
+
+  // 음성 목록 불러오기
+  useEffect(() => {
+    const updateVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      setVoiceList(voices);
+      // 기본값: 첫 번째 한국어 음성, 없으면 첫 번째 음성
+      if (!ttsVoice) {
+        const koVoice = voices.find(v => v.lang.includes('ko'));
+        setTtsVoice(koVoice || voices[0] || null);
+      }
+    };
+    window.speechSynthesis.onvoiceschanged = updateVoices;
+    updateVoices();
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
+    };
+  }, []);
 
   // TTS 테스트 함수
   const testTTS = async () => {
@@ -492,9 +517,66 @@ const ChatBox = () => {
           borderRadius: '8px',
           padding: '15px',
           boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-          zIndex: 1000,          
+          zIndex: 1000,
+          maxWidth: '150px',
+          maxHeight: '200px',
           backdropFilter: 'blur(5px)'
         }}>
+
+          {/* TTS 상태 */}
+          <div style={{ marginBottom: '10px', fontSize: '12px' }}>
+            <div style={{ marginBottom: '5px' }}>
+              상태: <span style={{ color: isTTSEnabled ? '#28a745' : '#dc3545' }}>
+                {isTTSEnabled ? '활성화' : '비활성화'}
+              </span>
+            </div>
+            <div style={{ marginBottom: '5px' }}>
+              속도: {ttsRate}x | 음조: {ttsPitch}
+            </div>
+            {ttsVoice && (
+              <div style={{ color: '#666' }}>
+                현재: {ttsVoice.name}
+              </div>
+            )}
+          </div>
+
+          {/* 음성 선택 드롭다운 */}
+          <div style={{ marginBottom: '10px' }}>
+            <label htmlFor="voice-select-overlay" style={{
+              display: 'block',
+              marginBottom: '5px',
+              fontSize: '12px',
+              fontWeight: 'bold'
+            }}>
+              음성 선택:
+            </label>
+            <select
+              id="voice-select-overlay"
+              value={ttsVoice ? ttsVoice.name : ''}
+              onChange={e => {
+                const selected = voiceList.find(v => v.name === e.target.value);
+                setTtsVoice(selected);
+                console.log('선택된 음성:', selected?.name, '(', selected?.lang, ')');
+              }}
+              style={{
+                width: '100%',
+                padding: '5px',
+                borderRadius: '3px',
+                border: '1px solid #ccc',
+                fontSize: '12px'
+              }}
+            >
+              {voiceList.length === 0 ? (
+                <option value="">음성 목록 로딩 중...</option>
+              ) : (
+                voiceList.map((voice, idx) => (
+                  <option key={voice.name + idx} value={voice.name}>
+                    {voice.name} ({voice.lang})
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
           
           {/* TTS 테스트 버튼 */}
           <button
