@@ -37,6 +37,10 @@ MANIFEST
 /node_modules/
 /node_modules
 node_modules/
+/hearth_chat_react_backup/
+
+# Django
+/hearth_chat_django_backup/
 
 # React Router
 /.react-router/

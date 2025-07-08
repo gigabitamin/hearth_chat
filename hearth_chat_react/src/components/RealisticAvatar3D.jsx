@@ -5,15 +5,48 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 import SimpleTestAvatar from './SimpleTestAvatar';
+import faceTrackingService from '../services/faceTrackingService';
 
 // VRM 아바타 컴포넌트
-function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess, onLoadError, position }) {
+function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess, onLoadError, position, enableTracking = false }) {
+    // console.log('=== [TEST 1] ===');
+
     const [vrm, setVrm] = useState(null);
     const [error, setError] = useState(null);
     const avatarRef = useRef();
     const [mouthOpen, setMouthOpen] = useState(0);
     const [eyeBlink, setEyeBlink] = useState(0);
     const [currentEmotion, setCurrentEmotion] = useState('neutral');
+
+    // 트래킹 데이터 상태
+    const [trackingData, setTrackingData] = useState({
+        headRotation: { x: 0, y: 0, z: 0 },
+        eyeBlink: { left: 0, right: 0 },
+        mouthOpen: 0,
+        eyebrowRaise: { left: 0, right: 0 },
+        smile: 0,
+        isDetected: false
+    });
+
+    // === state 추가 ===
+    const [headRotationOffset, setHeadRotationOffset] = useState(null);
+    const prevDetectedRef = useRef(false);
+
+    // === 눈 깜빡임 보간 및 임계값 수치 선언 ===
+    const BLINK_LERP_SPEED = 0.1; // 보간 속도 (0.05~0.3 추천)
+    const BLINK_THRESHOLD = 0.03; // 임계값 (0.01~0.05 추천)
+    const prevBlinkRef = useRef(0);
+    const prevBlinkLeftRef = useRef(0);
+    const prevBlinkRightRef = useRef(0);
+
+    // === 눈 깜빡임 오프셋(눈 뜬 상태 기준점) ===
+    const BLINK_SHAPE_MAX = 0.7;
+    const [blinkOffset, setBlinkOffset] = useState(null);
+    useEffect(() => {
+        if (blinkOffset === null && trackingData.isDetected) {
+            setBlinkOffset(Math.max(trackingData.eyeBlink.left, trackingData.eyeBlink.right));
+        }
+    }, [trackingData.isDetected, trackingData.eyeBlink.left, trackingData.eyeBlink.right, blinkOffset]);
 
     // VRM 모델 로딩
     useEffect(() => {
@@ -39,7 +72,7 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
                         VRMUtils.combineSkeletons(vrmInstance.scene);
                     } else {
                         // fallback: deprecated 함수 사용
-                VRMUtils.removeUnnecessaryJoints(vrmInstance.scene);
+                        VRMUtils.removeUnnecessaryJoints(vrmInstance.scene);
                     }
                 } catch (e) {
                     console.warn('VRM 스켈레톤 최적화 실패:', e);
@@ -160,15 +193,15 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
 
                 // 위치 및 회전 설정
                 vrmInstance.scene.rotation.y = 0;
-                    if (position === 'left') {
+                if (position === 'left') {
                     vrmInstance.scene.position.set(0, 0, 0);
-                    } else {
+                } else {
                     vrmInstance.scene.position.set(0, 0, 0);
-                    }
-                    vrmInstance.scene.scale.set(1.2, 1.2, 1.2);
+                }
+                vrmInstance.scene.scale.set(1.2, 1.2, 1.2);
 
-                    setVrm(vrmInstance);
-                    if (onLoadSuccess) onLoadSuccess();
+                setVrm(vrmInstance);
+                if (onLoadSuccess) onLoadSuccess();
 
                 console.log('VRM 모델 초기화 완료:', {
                     hasHumanoid: !!vrmInstance.humanoid,
@@ -184,10 +217,52 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
         );
     }, [avatarUrl, onLoadSuccess, onLoadError, position]);
 
+    // 트래킹 서비스 연동
+    useEffect(() => {
+        if (!enableTracking) return;
+
+        console.log('트래킹 활성화됨 - VRMAvatar');
+
+        const handleTrackingUpdate = (data) => {
+            // 트래킹이 처음 감지될 때 오프셋 저장
+            if (data.isDetected && !prevDetectedRef.current) {
+                setHeadRotationOffset({
+                    x: data.headRotation.x,
+                    y: data.headRotation.y,
+                    z: data.headRotation.z
+                });
+            }
+            prevDetectedRef.current = data.isDetected;
+            setTrackingData(data);
+        };
+
+        const handleFaceDetected = () => {
+            console.log('얼굴이 감지되었습니다.');
+        };
+
+        const handleFaceLost = () => {
+            console.log('얼굴이 감지되지 않습니다.');
+        };
+
+        faceTrackingService.on('trackingUpdate', handleTrackingUpdate);
+        faceTrackingService.on('faceDetected', handleFaceDetected);
+        faceTrackingService.on('faceLost', handleFaceLost);
+
+        return () => {
+            faceTrackingService.on('trackingUpdate', null);
+            faceTrackingService.on('faceDetected', null);
+            faceTrackingService.on('faceLost', null);
+        };
+    }, [enableTracking]);
+
     // 립싱크: mouthTrigger가 바뀔 때마다 입을 잠깐 열었다 닫음 (TTS 속도에 맞춤)
     useEffect(() => {
-        if (mouthTrigger === undefined) return;
-        if (mouthTrigger === 0) {
+        if (enableTracking && trackingData.isDetected) {
+            // 트래킹 데이터에서 입 벌림 사용
+            setMouthOpen(trackingData.mouthOpen);
+        } else if (mouthTrigger === undefined) {
+            return;
+        } else if (mouthTrigger === 0) {
             setMouthOpen(0);
         } else {
             // TTS 속도에 맞춰 더 자연스러운 립싱크 패턴
@@ -197,7 +272,7 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
                 setMouthOpen(0);
             }
         }
-    }, [mouthTrigger, isTalking]);
+    }, [mouthTrigger, isTalking, enableTracking, trackingData.mouthOpen, trackingData.isDetected]);
 
     // isTalking이 false가 되면 입을 닫고 눈을 뜨게 함
     useEffect(() => {
@@ -278,6 +353,49 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
             }
         }
 
+        // 트래킹 데이터 적용
+        if (enableTracking && trackingData.isDetected && vrm.humanoid) {
+            console.log('트래킹 데이터 아바타에 적용:', trackingData.headRotation);
+
+            // 머리 회전 적용
+            const headBone = vrm.humanoid.getNormalizedBoneNode ?
+                vrm.humanoid.getNormalizedBoneNode('head') :
+                vrm.humanoid.getBoneNode('head');
+
+            if (headBone) {
+                // 오프셋 보정 적용
+                let targetX = trackingData.headRotation.x;
+                let targetY = trackingData.headRotation.y;
+                let targetZ = trackingData.headRotation.z;
+                if (headRotationOffset) {
+                    targetX = trackingData.headRotation.x - headRotationOffset.x;
+                    targetY = trackingData.headRotation.y - headRotationOffset.y;
+                    targetZ = trackingData.headRotation.z - headRotationOffset.z;
+                }
+                // === 증폭(스케일) 적용 ===
+                const HEAD_PITCH_SCALE = 3.0; // 고개 끄덕임 증폭 (1.5~3.0 사이에서 실험)
+                targetX = -targetX * HEAD_PITCH_SCALE;
+                // === (필요시) 라디안 변환 ===
+                // targetX = THREE.MathUtils.degToRad(targetX); // 트래킹 데이터가 도(degree)라면 주석 해제
+
+                headBone.rotation.x = THREE.MathUtils.lerp(
+                    headBone.rotation.x,
+                    targetX,
+                    0.1
+                );
+                headBone.rotation.y = THREE.MathUtils.lerp(
+                    headBone.rotation.y,
+                    targetY,
+                    0.1
+                );
+                headBone.rotation.z = THREE.MathUtils.lerp(
+                    headBone.rotation.z,
+                    targetZ,
+                    0.1
+                );
+            }
+        }
+
         // 표정 설정 - 안전한 방식
         if (vrm.expressionManager) {
             try {
@@ -289,31 +407,71 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
                     });
                 }
 
-            // 기본 표정 설정
-            vrm.expressionManager.setValue('neutral', 1.0);
+                // 기본 표정 설정
+                vrm.expressionManager.setValue('neutral', 1.0);
 
-                // 감정에 따른 표정 적용
-                if (currentEmotion === 'happy') {
-                    vrm.expressionManager.setValue('happy', 0.8);
-                } else if (currentEmotion === 'sad') {
-                    vrm.expressionManager.setValue('sad', 0.6);
-                } else if (currentEmotion === 'angry') {
-                    vrm.expressionManager.setValue('angry', 0.7);
-                } else if (currentEmotion === 'surprised') {
-                    vrm.expressionManager.setValue('surprised', 0.5);
+                // 트래킹 데이터 우선 적용
+                if (enableTracking && trackingData.isDetected) {
+                    // === 눈 트래킹(깜빡임) 표준 적용 ===
+                    const blinkValue = Math.max(trackingData.eyeBlink.left, trackingData.eyeBlink.right);
+                    const blinkLeft = trackingData.eyeBlink.left;
+                    const blinkRight = trackingData.eyeBlink.right;
+                    // === 오프셋 보정 적용 ===
+                    const adjustedBlink = Math.max(0, blinkValue - (blinkOffset ?? 0));
+                    const adjustedBlinkLeft = Math.max(0, blinkLeft - (blinkOffset ?? 0));
+                    const adjustedBlinkRight = Math.max(0, blinkRight - (blinkOffset ?? 0));
+                    // === 정규화 구간 ===
+                    let minBlink = 0.0;
+                    let maxBlink = 0.01;
+                    let normalizedBlink = (adjustedBlink - minBlink) / (maxBlink - minBlink);
+                    normalizedBlink = Math.min(Math.max(normalizedBlink, 0), 1);
+                    let normalizedBlinkLeft = (adjustedBlinkLeft - minBlink) / (maxBlink - minBlink);
+                    normalizedBlinkLeft = Math.min(Math.max(normalizedBlinkLeft, 0), 1);
+                    let normalizedBlinkRight = (adjustedBlinkRight - minBlink) / (maxBlink - minBlink);
+                    normalizedBlinkRight = Math.min(Math.max(normalizedBlinkRight, 0), 1);
+                    // === lerp(보간) 및 임계값 적용(기존 유지) ===
+                    let lerpedBlink = prevBlinkRef.current + (normalizedBlink - prevBlinkRef.current) * BLINK_LERP_SPEED;
+                    if (Math.abs(lerpedBlink - prevBlinkRef.current) < BLINK_THRESHOLD) {
+                        lerpedBlink = prevBlinkRef.current;
+                    }
+                    prevBlinkRef.current = lerpedBlink;
+                    let lerpedBlinkLeft = prevBlinkLeftRef.current + (normalizedBlinkLeft - prevBlinkLeftRef.current) * BLINK_LERP_SPEED;
+                    if (Math.abs(lerpedBlinkLeft - prevBlinkLeftRef.current) < BLINK_THRESHOLD) {
+                        lerpedBlinkLeft = prevBlinkLeftRef.current;
+                    }
+                    prevBlinkLeftRef.current = lerpedBlinkLeft;
+                    let lerpedBlinkRight = prevBlinkRightRef.current + (normalizedBlinkRight - prevBlinkRightRef.current) * BLINK_LERP_SPEED;
+                    if (Math.abs(lerpedBlinkRight - prevBlinkRightRef.current) < BLINK_THRESHOLD) {
+                        lerpedBlinkRight = prevBlinkRightRef.current;
+                    }
+                    prevBlinkRightRef.current = lerpedBlinkRight;
+                    const BLINK_OFFSET = -0.2;
+                    vrm.expressionManager.setValue('blink', lerpedBlink * BLINK_SHAPE_MAX + BLINK_OFFSET);
+                    vrm.expressionManager.setValue('blinkLeft', lerpedBlinkLeft * BLINK_SHAPE_MAX + BLINK_OFFSET);
+                    vrm.expressionManager.setValue('blinkRight', lerpedBlinkRight * BLINK_SHAPE_MAX + BLINK_OFFSET);
+                    console.log('[EYE BLINK] blink:', blinkValue, 'offset:', blinkOffset, 'adjusted:', adjustedBlink, 'normalized:', normalizedBlink, 'lerped:', lerpedBlink, 'blinkLeft:', blinkLeft, 'blinkRight:', blinkRight);
                 }
 
-            // 립싱크 (더 명확하게)
-            if (mouthOpen > 0) {
-                vrm.expressionManager.setValue('aa', 0.8);
-                vrm.expressionManager.setValue('ih', 0.6);
-            } else {
-            vrm.expressionManager.setValue('aa', 0);
-            vrm.expressionManager.setValue('ih', 0);
-            }
-
-            // 눈깜빡임
-            vrm.expressionManager.setValue('blink', 1.0 - eyeBlink);
+                // 립싱크 (트래킹 데이터 우선)
+                if (enableTracking && trackingData.isDetected) {
+                    // 트래킹 데이터에서 입 벌림 사용
+                    if (trackingData.mouthOpen > 0.1) {
+                        vrm.expressionManager.setValue('aa', trackingData.mouthOpen * 0.8);
+                        vrm.expressionManager.setValue('ih', trackingData.mouthOpen * 0.6);
+                    } else {
+                        vrm.expressionManager.setValue('aa', 0);
+                        vrm.expressionManager.setValue('ih', 0);
+                    }
+                } else {
+                    // 기존 립싱크
+                    if (mouthOpen > 0) {
+                        vrm.expressionManager.setValue('aa', 0.8);
+                        vrm.expressionManager.setValue('ih', 0.6);
+                    } else {
+                        vrm.expressionManager.setValue('aa', 0);
+                        vrm.expressionManager.setValue('ih', 0);
+                    }
+                }
             } catch (e) {
                 console.warn('표정 설정 실패:', e);
             }
@@ -357,6 +515,16 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
         }
     });
 
+    // VRM 표정(BlendShape/Expression) 목록 출력
+    useEffect(() => {
+        if (vrm && vrm.expressionManager && vrm.expressionManager.expressions) {
+            console.log('[VRM 표정(BlendShape/Expression) 목록]');
+            Object.keys(vrm.expressionManager.expressions).forEach(name => {
+                console.log('표정 이름:', name);
+            });
+        }
+    }, [vrm]);
+
     if (error) {
         return null;
     }
@@ -383,7 +551,8 @@ function RealisticAvatar3D({
     size = 640,
     showEmotionIndicator = true,
     emotionCaptureStatus = false,
-    onAvatarClick = null
+    onAvatarClick = null,
+    enableTracking = false
 }) {
     const [isHovered, setIsHovered] = useState(false);
     const [gltfLoaded, setGltfLoaded] = useState(false);
@@ -416,14 +585,22 @@ function RealisticAvatar3D({
         return emotionMap[emotion] || '😐';
     };
 
+    // === 눈 깜빡임 보간 및 임계값 수치 상단에 선언 ===
+    const BLINK_LERP_SPEED = 0.2; // 보간 속도 (0.05~0.3 추천)
+    const BLINK_THRESHOLD = 0.03; // 임계값 (0.01~0.05 추천)
+    const prevBlinkRef = useRef(0);
+    const prevBlinkLeftRef = useRef(0);
+    const prevBlinkRightRef = useRef(0);
+    // === 눈 깜빡임 BlendShape 최대치 제한 ===
+    const BLINK_SHAPE_MAX = 0.7; // 0.5~0.8 사이에서 직접 실험 가능
 
 
     return (
         <div
             className="realistic-avatar-3d"
             style={{
-                width: `${size}px`,
-                height: `${size}px`,
+                width: typeof size === "number" ? `${size}px` : size,
+                height: typeof size === "number" ? `${size}px` : size,
                 position: 'relative',
                 cursor: onAvatarClick ? 'pointer' : 'default'
             }}
@@ -470,6 +647,7 @@ function RealisticAvatar3D({
                             onLoadSuccess={handleLoadSuccess}
                             onLoadError={handleLoadError}
                             position={position}
+                            enableTracking={enableTracking}
                         />
                     ) : (
                         <SimpleTestAvatar

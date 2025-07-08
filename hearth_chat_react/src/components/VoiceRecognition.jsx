@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } f
 import './VoiceRecognition.css';
 import speechRecognitionService from '../services/speechRecognitionService';
 
-const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true, continuous = false, onStart, onStop }, ref) => {
+const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true, continuous = false, onStart, onStop, onAutoSend }, ref) => {
     const [isListening, setIsListening] = useState(false);
     const [isSupported, setIsSupported] = useState(false);
     const [currentLanguage, setCurrentLanguage] = useState('ko-KR');
@@ -81,6 +81,8 @@ const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true
     const buttonRef = useRef(null);
     const silenceTimerRef = useRef(null);
     const lastFinalTextRef = useRef('');
+    const lastRecognizedTextRef = useRef(''); // 마지막 인식된 텍스트 저장
+    const interimTextRef = useRef(''); // 마지막 interim(중간) 텍스트 저장
 
     // 외부에서 호출할 수 있는 메서드들
     useImperativeHandle(ref, () => ({
@@ -129,10 +131,14 @@ const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true
         });
 
         // 최종 결과 저장
-        const minWords = 2; // 최소 단어 수
-        const minConfidence = 0.6; // 최소 신뢰도
+        const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
+        const minWords = isMobile ? 1 : 2; // 모바일에서는 1단어도 허용
+        const minConfidence = isMobile ? 0.3 : 0.6; // 모바일에서는 더 낮은 신뢰도 허용
+        
         speechRecognitionService.on('result', (finalText, additionalInfo) => {
             lastFinalTextRef.current = finalText;
+            lastRecognizedTextRef.current = finalText; // 항상 최신 텍스트 저장
+            interimTextRef.current = ''; // 최종 결과가 나오면 interim은 초기화
 
             // 마침표 자동 추가 방지
             let cleanText = finalText.trim();
@@ -140,11 +146,21 @@ const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true
                 cleanText = cleanText.slice(0, -1);
             }
 
-            // 단어 수/신뢰도 기준 적용
+            // 단어 수/신뢰도 기준 적용 (모바일에서는 더 관대하게)
             const wordCount = cleanText.split(/\s+/).length;
             const confidence = additionalInfo?.confidence ?? 1.0;
+            console.log('음성인식 결과 검증:', { 
+                text: cleanText, 
+                wordCount, 
+                confidence, 
+                minWords, 
+                minConfidence, 
+                isMobile 
+            });
+            
             if (wordCount < minWords || confidence < minConfidence) {
                 // 너무 짧거나 신뢰도 낮으면 무시
+                console.log('품질 기준 미달로 무시됨');
                 return;
             }
 
@@ -161,6 +177,7 @@ const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true
         speechRecognitionService.on('interim', (interimText, qualityInfo) => {
             console.log('중간 음성인식 결과:', interimText, qualityInfo);
             setInterimText(interimText);
+            interimTextRef.current = interimText; // interim 결과도 ref에 저장
             if (onInterimResult) {
                 onInterimResult(interimText, qualityInfo);
             }
@@ -199,10 +216,17 @@ const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true
 
         // 침묵 감지 시 타이머 시작
         speechRecognitionService.on('silence-detected', () => {
+            console.log('침묵 감지! (VoiceRecognition.jsx)', lastRecognizedTextRef.current, interimTextRef.current);
             setIsVoiceDetected(false);
             setCurrentRecognitionInfo(prev => ({ ...prev, status: '침묵 감지됨' }));
             if (silenceTimerRef.current) {
                 clearTimeout(silenceTimerRef.current);
+            }
+            // 자동전송 트리거 (interim이 있으면 interim, 아니면 lastRecognized)
+            let textToSend = interimTextRef.current && interimTextRef.current.trim() ? interimTextRef.current : lastRecognizedTextRef.current;
+            if (typeof onAutoSend === 'function') {
+                console.log('onAutoSend 호출 (VoiceRecognition.jsx)', textToSend);
+                onAutoSend(textToSend);
             }
             silenceTimerRef.current = setTimeout(() => {
                 if (lastFinalTextRef.current && lastFinalTextRef.current.trim()) {
@@ -247,28 +271,47 @@ const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true
                 clearTimeout(silenceTimerRef.current);
             }
         };
-    }, [onResult, onInterimResult, isListening, continuous, enabled, onStart]);
+    }, [onResult, onInterimResult, isListening, continuous, enabled, onStart, onAutoSend]);
 
-    // 음성인식 시작/중지 토글
-    const toggleListening = () => {
-        if (!isSupported || !enabled) {
-            return;
-        }
-
-        if (isListening) {
-            speechRecognitionService.stop();
-            if (onStop) {
-                onStop();
-            }
-        } else {
-            const success = speechRecognitionService.start();
-            if (success && onStart) {
-                onStart();
+    // enabled prop이 변경될 때 자동으로 start/stop
+    useEffect(() => {
+        if (isSupported) {
+            if (enabled) {
+                // 모바일 브라우저에서 권한 요청을 위한 지연
+                const startRecognition = async () => {
+                    try {
+                        const success = await speechRecognitionService.start();
+                        if (success) {
+                            setIsListening(true);
+                            setError(null);
+                            setInterimText('');
+                            if (onStart) onStart();
+                        } else {
+                            setError('음성인식을 시작할 수 없습니다. 마이크 권한을 확인해주세요.');
+                        }
+                    } catch (error) {
+                        console.error('음성인식 시작 오류:', error);
+                        setError('음성인식을 시작할 수 없습니다: ' + error.message);
+                    }
+                };
+                
+                startRecognition();
             } else {
-                setError('음성인식을 시작할 수 없습니다.');
+                // 자동 재시작/연속 옵션 강제 OFF
+                if (speechRecognitionService.setContinuous) speechRecognitionService.setContinuous(false);
+                if (speechRecognitionService.setAutoRestart) speechRecognitionService.setAutoRestart(false);
+                Promise.resolve(speechRecognitionService.stop()).finally(() => {
+                    setIsListening(false);
+                    setInterimText('');
+                    setError(null);
+                    if (onStop) onStop();
+                });
             }
         }
-    };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [enabled]);
+
+    // 음성인식 시작/중지 토글 함수 및 버튼, 관련 UI 제거
 
     // 언어 변경
     const handleLanguageChange = (event) => {
@@ -351,7 +394,16 @@ const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true
                 document.activeElement.tagName !== 'INPUT' &&
                 document.activeElement.tagName !== 'TEXTAREA') {
                 event.preventDefault();
-                toggleListening();
+                // 현재 음성인식 상태에 따라 토글
+                if (isListening) {
+                    speechRecognitionService.stop();
+                    if (onStop) onStop();
+                } else {
+                    const success = speechRecognitionService.start();
+                    if (success && onStart) {
+                        onStart();
+                    }
+                }
             }
         };
 
@@ -359,7 +411,7 @@ const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true
         return () => {
             document.removeEventListener('keydown', handleKeyPress);
         };
-    }, [isListening, isSupported, enabled]);
+    }, [isListening, isSupported, enabled, onStart, onStop]);
 
     if (!isSupported) {
         return (
@@ -389,7 +441,6 @@ const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true
                     ))}
                 </select>
             </div>
-
             {/* 3단계: 고급 설정 토글 버튼 */}
             <div className="voice-advanced-toggle">
                 <button
@@ -400,34 +451,8 @@ const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true
                     <i className="fas fa-cog"></i>
                     <span>고급 설정</span>
                 </button>
-
-
             </div>
-
-            {/* 음성인식 버튼 */}
-            <button
-                ref={buttonRef}
-                className={`voice-recognition-button ${isListening ? 'listening' : ''} ${!enabled ? 'disabled' : ''}`}
-                onClick={toggleListening}
-                disabled={!enabled}
-                title={isListening ? '음성인식 중지 (Space)' : '음성인식 시작 (Space)'}
-            >
-                <div className="voice-button-icon">
-                    {isListening ? (
-                        <i className="fas fa-microphone-slash"></i>
-                    ) : (
-                        <i className="fas fa-microphone"></i>
-                    )}
-                </div>
-                <div className="voice-button-text">
-                    {isListening ? '음성인식 중지' : '음성인식 시작'}
-                </div>
-                {isListening && (
-                    <div className="voice-listening-indicator">
-                        <div className="pulse-ring"></div>
-                    </div>
-                )}
-            </button>
+            {/* 음성인식 버튼(동그라미) 및 관련 UI 완전 제거됨 */}
 
             {/* 중간 결과 표시 */}
             {interimText && (

@@ -118,6 +118,15 @@ class SpeechRecognitionService {
             this.recognition.interimResults = true; // 중간 결과 포함
             this.recognition.maxAlternatives = 1; // 최대 대안 수
 
+            // 모바일 브라우저 최적화 설정
+            if (this.isMobileBrowser()) {
+                console.log('모바일 브라우저 감지 - 음성인식 설정 최적화');
+                // 모바일에서는 더 관대한 설정 사용
+                this.recognitionQuality.minConfidence = 0.1; // 더 낮은 신뢰도 임계값
+                this.recognitionQuality.minWords = 1; // 최소 1단어
+                this.recognitionQuality.silenceTimeout = 3000; // 더 긴 침묵 시간
+            }
+
             // 이벤트 리스너 설정
             this.recognition.onstart = () => {
                 console.log('음성인식 시작');
@@ -149,6 +158,11 @@ class SpeechRecognitionService {
                     } else {
                         interimTranscript += transcript;
                     }
+                }
+
+                // 음성 결과가 있을 때마다 음성 감지 처리
+                if (finalTranscript || interimTranscript) {
+                    this.handleVoiceDetection();
                 }
 
                 // 3단계: 품질 메트릭 업데이트
@@ -226,6 +240,16 @@ class SpeechRecognitionService {
 
             this.recognition.onerror = (event) => {
                 console.error('음성인식 오류:', event.error);
+                console.error('오류 상세 정보:', {
+                    error: event.error,
+                    message: event.message,
+                    isMobile: this.isMobileBrowser(),
+                    userAgent: navigator.userAgent
+                });
+
+                if (event.error === 'no-speech') {
+                    console.error('[speechRecognitionService] no-speech 오류 발생: 음성이 감지되지 않음.');
+                }
                 this.isListening = false;
 
                 if (event.error === 'not-allowed') {
@@ -233,15 +257,35 @@ class SpeechRecognitionService {
                     alert('마이크 권한이 필요합니다. 브라우저 설정에서 마이크 권한을 허용해주세요.');
                 } else if (event.error === 'no-speech') {
                     console.log('음성이 감지되지 않았습니다.');
+                    // 모바일에서는 no-speech 오류를 더 자주 발생할 수 있음
+                    if (this.isMobileBrowser()) {
+                        console.log('모바일 브라우저에서 no-speech 오류 - 정상적인 상황일 수 있음');
+                    }
                 } else if (event.error === 'audio-capture') {
                     console.error('마이크를 찾을 수 없습니다.');
                     alert('마이크를 찾을 수 없습니다. 마이크가 연결되어 있는지 확인해주세요.');
+                } else if (event.error === 'network') {
+                    console.error('네트워크 오류가 발생했습니다.');
+                    alert('네트워크 연결을 확인해주세요.');
+                } else if (event.error === 'service-not-allowed') {
+                    console.error('음성인식 서비스가 허용되지 않습니다.');
+                    alert('브라우저에서 음성인식 서비스를 허용해주세요.');
+                } else {
+                    console.error('알 수 없는 음성인식 오류:', event.error);
+                    alert(`음성인식 오류가 발생했습니다: ${event.error}`);
                 }
 
                 if (this.onError) this.onError(event.error);
 
-                // 오류 후에도 연속 모드일 때 재시작 시도 (권한 오류 제외)
-                if (this.continuousMode && event.error !== 'no-speech' && event.error !== 'not-allowed') {
+                // 모바일에서는 오류 후 재시작을 더 적극적으로 시도
+                if (this.continuousMode && this.isMobileBrowser()) {
+                    setTimeout(() => {
+                        if (!this.isListening) {
+                            console.log('모바일 오류 후 재시작 시도');
+                            this.start();
+                        }
+                    }, 1000);
+                } else if (this.continuousMode && event.error !== 'no-speech' && event.error !== 'not-allowed') {
                     setTimeout(() => {
                         if (!this.isListening) {
                             console.log('오류 후 연속 모드: 음성인식 재시작 시도');
@@ -259,7 +303,7 @@ class SpeechRecognitionService {
     }
 
     // 음성인식 시작
-    start() {
+    async start() {
         if (!this.isSupported) {
             console.error('음성인식이 지원되지 않습니다.');
             return false;
@@ -271,7 +315,25 @@ class SpeechRecognitionService {
         }
 
         try {
+            // 모바일 브라우저에서 마이크 권한 확인 및 요청
+            if (this.isMobileBrowser()) {
+                console.log('모바일 브라우저에서 음성인식 시작 시도');
+                const permissionGranted = await this.requestMicrophonePermission();
+                if (!permissionGranted) {
+                    console.error('마이크 권한이 거부되었습니다.');
+                    if (this.onError) {
+                        this.onError(new Error('마이크 권한이 필요합니다. 브라우저 설정에서 마이크 권한을 허용해주세요.'));
+                    }
+                    return false;
+                }
+
+                // 모바일에서는 약간의 지연 후 시작
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            console.log('음성인식 시작 시도...');
             this.recognition.start();
+            console.log('음성인식 start() 호출 완료');
 
             // 4-2단계: 음성 품질 모니터링 자동 시작
             this.startQualityMonitoring();
@@ -279,6 +341,15 @@ class SpeechRecognitionService {
             return true;
         } catch (error) {
             console.error('음성인식 시작 실패:', error);
+
+            // 권한 관련 오류 처리
+            if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                console.error('마이크 권한이 거부되었습니다.');
+                if (this.onError) {
+                    this.onError(new Error('마이크 권한이 필요합니다. 브라우저 설정에서 마이크 권한을 허용해주세요.'));
+                }
+            }
+
             return false;
         }
     }
@@ -291,7 +362,7 @@ class SpeechRecognitionService {
 
         try {
             this.recognition.stop();
-            
+
             // 4-2단계: 음성 품질 모니터링 중지
             this.stopQualityMonitoring();
         } catch (error) {
@@ -331,6 +402,58 @@ class SpeechRecognitionService {
     // 브라우저 지원 확인
     isBrowserSupported() {
         return this.isSupported;
+    }
+
+    // 모바일 브라우저 감지
+    isMobileBrowser() {
+        const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+        return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+    }
+
+    // 마이크 권한 요청
+    async requestMicrophonePermission() {
+        try {
+            // navigator.permissions API 지원 확인
+            if (navigator.permissions && navigator.permissions.query) {
+                const permission = await navigator.permissions.query({ name: 'microphone' });
+
+                if (permission.state === 'granted') {
+                    console.log('마이크 권한이 이미 허용되어 있습니다.');
+                    return true;
+                }
+
+                if (permission.state === 'denied') {
+                    console.log('마이크 권한이 거부되어 있습니다.');
+                    return false;
+                }
+            }
+
+            // getUserMedia를 사용하여 권한 요청
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream.getTracks().forEach(track => track.stop()); // 스트림 즉시 중지
+            console.log('마이크 권한이 허용되었습니다.');
+            return true;
+
+        } catch (error) {
+            console.error('마이크 권한 요청 실패:', error);
+
+            if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                console.log('사용자가 마이크 권한을 거부했습니다.');
+                return false;
+            }
+
+            if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+                console.log('마이크 장치를 찾을 수 없습니다.');
+                return false;
+            }
+
+            if (error.name === 'NotSupportedError' || error.name === 'ConstraintNotSatisfiedError') {
+                console.log('지원되지 않는 오디오 제약 조건입니다.');
+                return false;
+            }
+
+            return false;
+        }
     }
 
     // 이벤트 리스너 설정
@@ -471,33 +594,31 @@ class SpeechRecognitionService {
 
     // 4-1단계: 음성 감지 처리
     handleVoiceDetection() {
-        if (!this.recognitionQuality.isVoiceDetected) {
-            this.recognitionQuality.isVoiceDetected = true;
-            this.enhancedStats.voiceDetectionCount++;
-            this.clearSilenceTimer();
-
-            if (this.onVoiceDetected) {
-                this.onVoiceDetected();
-            }
+        this.recognitionQuality.isVoiceDetected = true;
+        this.enhancedStats.voiceDetectionCount++;
+        this.clearSilenceTimer();
+        if (this.onVoiceDetected) {
+            this.onVoiceDetected();
         }
     }
 
     // 4-1단계: 침묵 감지 처리
     handleSilenceDetection() {
-        if (this.recognitionQuality.isVoiceDetected) {
-            this.recognitionQuality.isVoiceDetected = false;
-            this.enhancedStats.silenceDetectionCount++;
-
-            if (this.onSilenceDetected) {
-                this.onSilenceDetected();
-            }
+        console.log('[speechRecognitionService] handleSilenceDetection 호출, isVoiceDetected:', this.recognitionQuality.isVoiceDetected);
+        // 무조건 콜백 호출 (테스트 목적)
+        if (this.onSilenceDetected) {
+            console.log('[speechRecognitionService] onSilenceDetected 콜백 호출 (강제)');
+            this.onSilenceDetected();
         }
+        this.recognitionQuality.isVoiceDetected = false;
     }
 
     // 4-1단계: 침묵 타이머 시작
     startSilenceTimer() {
         this.clearSilenceTimer();
+        console.log('[speechRecognitionService] startSilenceTimer 호출');
         this.recognitionQuality.silenceTimer = setTimeout(() => {
+            console.log('[speechRecognitionService] 침묵 타이머 만료, handleSilenceDetection 호출');
             this.handleSilenceDetection();
         }, this.recognitionQuality.silenceTimeout);
     }

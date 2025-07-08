@@ -1,6 +1,15 @@
 class TTSService {
     constructor() {
-        this.synthesis = window.speechSynthesis;
+        // speechSynthesis 지원 확인
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+            this.synthesis = window.speechSynthesis;
+            this.isSupported = true;
+        } else {
+            this.synthesis = null;
+            this.isSupported = false;
+            console.warn('TTS가 지원되지 않는 브라우저입니다.');
+        }
+        
         this.utterance = null;
         this.isSpeaking = false;
         this.onSpeakStart = null;
@@ -17,49 +26,74 @@ class TTSService {
             voice: null       // 음성 (시스템에서 선택)
         };
 
-        this.initializeVoice();
+        if (this.isSupported) {
+            this.initializeVoice();
+        }
     }
 
     // 음성 초기화
     initializeVoice() {
-        // 음성 목록 로드 대기
-        if (this.synthesis.onvoiceschanged !== undefined) {
-            this.synthesis.onvoiceschanged = () => {
-                this.setDefaultVoice();
-            };
+        if (!this.isSupported || !this.synthesis) {
+            console.warn('TTS가 지원되지 않아 초기화를 건너뜁니다.');
+            return;
         }
 
-        // 기본 음성 설정
-        this.setDefaultVoice();
+        try {
+            // 음성 목록 로드 대기
+            if (this.synthesis.onvoiceschanged !== undefined) {
+                this.synthesis.onvoiceschanged = () => {
+                    this.setDefaultVoice();
+                };
+            }
+
+            // 기본 음성 설정
+            this.setDefaultVoice();
+        } catch (error) {
+            console.error('TTS 초기화 중 오류 발생:', error);
+            this.isSupported = false;
+        }
     }
 
     // 기본 음성 설정
     setDefaultVoice() {
-        const voices = this.synthesis.getVoices();
+        if (!this.isSupported || !this.synthesis) {
+            console.warn('TTS가 지원되지 않아 음성 설정을 건너뜁니다.');
+            return;
+        }
 
-        // 한국어 음성 우선 선택
-        let koreanVoice = voices.find(voice =>
-            voice.lang.includes('ko') || voice.lang.includes('ko-KR')
-        );
+        try {
+            const voices = this.synthesis.getVoices();
 
-        // 한국어가 없으면 영어 음성 선택
-        let englishVoice = voices.find(voice =>
-            voice.lang.includes('en') || voice.lang.includes('en-US')
-        );
+            // 한국어 음성 우선 선택
+            let koreanVoice = voices.find(voice =>
+                voice.lang.includes('ko') || voice.lang.includes('ko-KR')
+            );
 
-        // 기본 음성 설정
-        this.voiceSettings.voice = koreanVoice || englishVoice || voices[0];
+            // 한국어가 없으면 영어 음성 선택
+            let englishVoice = voices.find(voice =>
+                voice.lang.includes('en') || voice.lang.includes('en-US')
+            );
 
-        console.log('TTS 음성 설정:', {
-            selectedVoice: this.voiceSettings.voice?.name,
-            availableVoices: voices.length,
-            koreanVoice: !!koreanVoice,
-            englishVoice: !!englishVoice
-        });
+            // 기본 음성 설정
+            this.voiceSettings.voice = koreanVoice || englishVoice || voices[0];
+
+            console.log('TTS 음성 설정:', {
+                selectedVoice: this.voiceSettings.voice?.name,
+                availableVoices: voices.length,
+                koreanVoice: !!koreanVoice,
+                englishVoice: !!englishVoice
+            });
+        } catch (error) {
+            console.error('TTS 음성 설정 중 오류 발생:', error);
+        }
     }
 
     // 음성 목록 가져오기
     getVoices() {
+        if (!this.isSupported || !this.synthesis) {
+            console.warn('TTS가 지원되지 않습니다.');
+            return [];
+        }
         return this.synthesis.getVoices();
     }
 
@@ -85,6 +119,11 @@ class TTSService {
 
     // 텍스트를 음성으로 변환
     speak(text, options = {}) {
+        if (!this.isSupported || !this.synthesis) {
+            console.warn('TTS가 지원되지 않습니다.');
+            return Promise.reject(new Error('TTS가 지원되지 않는 브라우저입니다.'));
+        }
+
         if (!text || this.isSpeaking) {
             return Promise.reject(new Error('이미 재생 중이거나 텍스트가 없습니다.'));
         }
@@ -146,7 +185,7 @@ class TTSService {
 
     // 음성 중지
     stop() {
-        if (this.isSpeaking) {
+        if (this.isSupported && this.synthesis && this.isSpeaking) {
             this.synthesis.cancel();
             this.isSpeaking = false;
             console.log('TTS 중지됨');
@@ -155,21 +194,26 @@ class TTSService {
 
     // 음성 일시정지
     pause() {
-        if (this.isSpeaking) {
+        if (this.isSupported && this.synthesis && this.isSpeaking) {
             this.synthesis.pause();
         }
     }
 
     // 음성 재개
     resume() {
-        if (this.isSpeaking) {
+        if (this.isSupported && this.synthesis && this.isSpeaking) {
             this.synthesis.resume();
         }
     }
 
     // 현재 재생 상태 확인
     isCurrentlySpeaking() {
-        return this.isSpeaking;
+        return this.isSupported && this.isSpeaking;
+    }
+
+    // TTS 지원 여부 확인
+    isSupported() {
+        return this.isSupported;
     }
 
     // 이벤트 리스너 설정
