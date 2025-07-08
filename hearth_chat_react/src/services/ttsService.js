@@ -9,7 +9,7 @@ class TTSService {
             this.isSupported = false;
             console.warn('TTS가 지원되지 않는 브라우저입니다.');
         }
-        
+
         this.utterance = null;
         this.isSpeaking = false;
         this.onSpeakStart = null;
@@ -28,6 +28,8 @@ class TTSService {
 
         if (this.isSupported) {
             this.initializeVoice();
+            // 전역 이벤트 리스너 추가
+            this.setupGlobalEventListeners();
         }
     }
 
@@ -185,9 +187,11 @@ class TTSService {
 
     // 음성 중지
     stop() {
-        if (this.isSupported && this.synthesis && this.isSpeaking) {
+        if (this.isSupported && this.synthesis) {
+            // 모든 진행 중인 음성 중지
             this.synthesis.cancel();
             this.isSpeaking = false;
+            this.utterance = null;
             console.log('TTS 중지됨');
         }
     }
@@ -216,6 +220,34 @@ class TTSService {
         return this.isSupported;
     }
 
+    // 전역 이벤트 리스너 설정
+    setupGlobalEventListeners() {
+        if (typeof window === 'undefined') return;
+
+        const handleBeforeUnload = () => {
+            console.log('TTS 서비스: 페이지 언로드 시 TTS 중지');
+            this.stop();
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                console.log('TTS 서비스: 페이지 숨김 시 TTS 중지');
+                this.stop();
+            }
+        };
+
+        // 페이지 언로드 이벤트
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        // 페이지 숨김/보임 이벤트
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        // 이벤트 리스너 정리를 위한 참조 저장
+        this._cleanupListeners = () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }
+
     // 이벤트 리스너 설정
     on(event, callback) {
         switch (event) {
@@ -238,9 +270,36 @@ class TTSService {
                 console.warn('알 수 없는 TTS 이벤트:', event);
         }
     }
+
+    // 이벤트 리스너 제거
+    off(event, callback) {
+        switch (event) {
+            case 'start':
+                this.onSpeakStart = null;
+                break;
+            case 'end':
+                this.onSpeakEnd = null;
+                break;
+            case 'pause':
+                this.onSpeakPause = null;
+                break;
+            case 'resume':
+                this.onSpeakResume = null;
+                break;
+            case 'error':
+                this.onSpeakError = null;
+                break;
+            default:
+                console.warn('알 수 없는 TTS 이벤트:', event);
+        }
+    }
 }
 
 // 싱글톤 인스턴스 생성
 const ttsService = new TTSService();
+
+ttsService.isSupported = function () {
+    return typeof window !== 'undefined' && !!window.speechSynthesis;
+};
 
 export default ttsService; 

@@ -536,7 +536,7 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
             ref={avatarRef}
             object={vrm.scene}
             scale={[12, 12, 12]}
-            position={position === 'left' ? [0, -18, 0] : [0, -16, 0]}
+            position={position === 'left' ? [0, -16.7, 0] : [0, -18.7, 0]}
         />
     );
 }
@@ -597,12 +597,10 @@ function RealisticAvatar3D({
 
     return (
         <div
-            className="realistic-avatar-3d"
+            className={`realistic-avatar-3d${onAvatarClick ? ' clickable' : ''}`}
             style={{
                 width: typeof size === "number" ? `${size}px` : size,
-                height: typeof size === "number" ? `${size}px` : size,
-                position: 'relative',
-                cursor: onAvatarClick ? 'pointer' : 'default'
+                height: typeof size === "number" ? `${size}px` : size
             }}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
@@ -621,14 +619,7 @@ function RealisticAvatar3D({
                 }}
                 frameloop="always"
                 dpr={[1, 2]}
-                style={{
-                    width: '100%',
-                    height: '100%',
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    borderRadius: '15px',
-                    border: isHovered ? '3px solid #4A90E2' : '3px solid transparent',
-                    transition: 'all 0.3s ease'
-                }}
+                className={`avatar-canvas${isHovered ? ' hovered' : ''}`}
             >
                 {/* 조명 */}
                 <ambientLight intensity={0.8} />
@@ -669,65 +660,27 @@ function RealisticAvatar3D({
 
             {/* 로딩/에러 메시지 (Canvas 바깥) */}
             {!avatarUrl && (
-                <div style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    color: '#ffffff',
-                    fontSize: '16px',
-                    textAlign: 'center',
-                    zIndex: 10
-                }}>
+                <div className="avatar-error-message">
                     아바타 URL이 설정되지 않았습니다.
                 </div>
             )}
 
             {loadError && (
-                <div style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    color: '#ff6b6b',
-                    fontSize: '14px',
-                    textAlign: 'center',
-                    zIndex: 10,
-                    background: 'rgba(0,0,0,0.7)',
-                    padding: '10px',
-                    borderRadius: '5px'
-                }}>
+                <div className="avatar-load-error">
                     {loadError}
                 </div>
             )}
 
-            {/* 감정 표시 (Canvas 바깥) */}
+            {/* 감정 표시 (Canvas 바닥) */}
             {showEmotionIndicator && emotion !== 'neutral' && (
-                <div style={{
-                    position: 'absolute',
-                    top: '10px',
-                    right: '10px',
-                    fontSize: '24px',
-                    zIndex: 10,
-                    animation: emotionCaptureStatus ? 'pulse 1s infinite' : 'none'
-                }}>
+                <div className={`avatar-emotion-indicator${emotionCaptureStatus ? ' pulse' : ''}`}>
                     {getEmotionDisplay(emotion)}
                 </div>
             )}
 
             {/* 호버 효과 */}
             {isHovered && (
-                <div style={{
-                    position: 'absolute',
-                    top: '0',
-                    left: '0',
-                    right: '0',
-                    bottom: '0',
-                    background: 'rgba(74, 144, 226, 0.1)',
-                    borderRadius: '15px',
-                    pointerEvents: 'none',
-                    zIndex: 5
-                }} />
+                <div className="avatar-hover-overlay" />
             )}
         </div>
     );

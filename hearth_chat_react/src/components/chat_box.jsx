@@ -183,55 +183,97 @@ const ChatBox = () => {
   const [ttsSpeaking, setTtsSpeaking] = useState(false);
   const [lipSyncInterval, setLipSyncInterval] = useState(null);
 
+  // 타이핑 효과 interval ref 추가
+  const typingIntervalRef = useRef(null);
+
+  // 1. TTS 이벤트 리스너 등록 useEffect로 최초 1회만 등록
   useEffect(() => {
-    if (!isAiTalking || !currentAiMessage) {
-      // 타이핑이 끝나면 mouthTrigger를 0으로 리셋
+    if (!ttsService.isSupported()) return;
+    const handleStart = (text) => {
+      console.log('TTS 시작(이벤트):', text.substring(0, 50) + '...');
+      setIsAiTalking(true);
+      setTtsSpeaking(true);
+      // 타이핑 효과 시작
+      if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
+      let i = 0;
+      setDisplayedAiText('');
+      typingIntervalRef.current = setInterval(() => {
+        setDisplayedAiText(text.slice(0, i + 1));
+        i++;
+        if (i >= text.length) {
+          clearInterval(typingIntervalRef.current);
+          typingIntervalRef.current = null;
+        }
+      }, 30); // 타이핑 속도 조절
+    };
+    const handleEnd = (text) => {
+      console.log('TTS 종료(이벤트)');
+      setIsAiTalking(false);
+      setTtsSpeaking(false);
       setMouthTrigger(0);
-      return;
-    }
-
-    let i = 0;
-    setDisplayedAiText('');
-    const interval = setInterval(() => {
-      setDisplayedAiText(currentAiMessage.slice(0, i + 1));
-      i++;
-      if (i >= currentAiMessage.length) {
-        clearInterval(interval);
-        // 타이핑이 완전히 끝나면 isAiTalking을 false로 설정
-        setTimeout(() => {
-          setIsAiTalking(false); // 타이핑이 끝나면 말하는 상태를 false로
-        }, 200);
+      // 타이핑 효과 종료 및 전체 메시지 표시
+      if (typingIntervalRef.current) {
+        clearInterval(typingIntervalRef.current);
+        typingIntervalRef.current = null;
       }
-    }, 30); // 30ms마다 한 글자씩 (빠른 타이핑)
-    return () => clearInterval(interval);
-  }, [isAiTalking, currentAiMessage]);
+      setDisplayedAiText(text); // 전체 메시지 한 번에 표시
+    };
+    const handleError = (error) => {
+      console.error('TTS 오류(이벤트):', error);
+      setIsAiTalking(false);
+      setTtsSpeaking(false);
+      setMouthTrigger(0);
+      if (typingIntervalRef.current) {
+        clearInterval(typingIntervalRef.current);
+        typingIntervalRef.current = null;
+      }
+    };
+    ttsService.on('start', handleStart);
+    ttsService.on('end', handleEnd);
+    ttsService.on('error', handleError);
+    return () => {
+      ttsService.off('start', handleStart);
+      ttsService.off('end', handleEnd);
+      ttsService.off('error', handleError);
+      if (typingIntervalRef.current) {
+        clearInterval(typingIntervalRef.current);
+        typingIntervalRef.current = null;
+      }
+    };
+  }, []);
 
-  // TTS 기반 립싱크 제어
+  // 2. speakAIMessage에서 TTS 재생 직후 립싱크 강제 시작
+  const speakAIMessage = async (message) => {
+    try {
+      ttsService.stop(); // 항상 먼저 중단
+      if (!isTTSEnabled || !message) return;
+      setTtsSpeaking(true); // 립싱크 강제 시작
+      await ttsService.speak(message, {
+        voice: ttsVoice
+      });
+    } catch (error) {
+      console.error('TTS 재생 실패:', error);
+    }
+  };
+
+  // 3. 립싱크 interval 항상 clear 후 새로 시작
   useEffect(() => {
     if (ttsSpeaking) {
-      // TTS 속도에 따라 립싱크 속도 조정
-      const baseInterval = 200; // 기본 200ms
-      const rateMultiplier = ttsRate || 1.0; // TTS 속도 (기본값 1.0)
-      const lipSyncInterval = Math.max(100, Math.min(400, baseInterval / rateMultiplier)); // 100ms~400ms 범위로 제한
-
+      const baseInterval = 200;
+      const rateMultiplier = ttsRate || 1.0;
+      const lipSyncInterval = Math.max(100, Math.min(400, baseInterval / rateMultiplier));
       console.log('립싱크 간격 설정:', lipSyncInterval, 'ms (TTS 속도:', rateMultiplier, ')');
-
+      if (lipSyncInterval && typeof lipSyncInterval === 'number') {
+        clearInterval(lipSyncInterval);
+      }
       const interval = setInterval(() => {
-        setMouthTrigger(prev => {
-          const newValue = prev + 1;
-          return newValue;
-        });
+        setMouthTrigger(prev => prev + 1);
       }, lipSyncInterval);
-
       setLipSyncInterval(interval);
-
       return () => {
-        if (interval) {
-          clearInterval(interval);
-        }
+        if (interval) clearInterval(interval);
       };
     } else {
-      // TTS가 끝나면 립싱크 중지
       setMouthTrigger(0);
       if (lipSyncInterval) {
         clearInterval(lipSyncInterval);
@@ -251,27 +293,6 @@ const ChatBox = () => {
         setIsTTSEnabled(false);
         return;
       }
-
-      // TTS 이벤트 리스너 설정
-      ttsService.on('start', (text) => {
-        console.log('TTS 시작:', text.substring(0, 50) + '...');
-        setIsAiTalking(true);
-        setTtsSpeaking(true); // TTS 재생 시작 시 립싱크 시작
-      });
-
-      ttsService.on('end', () => {
-        console.log('TTS 종료');
-        setIsAiTalking(false);
-        setTtsSpeaking(false); // TTS 재생 종료 시 립싱크 중지
-        setMouthTrigger(0);
-      });
-
-      ttsService.on('error', (error) => {
-        console.error('TTS 오류:', error);
-        setIsAiTalking(false);
-        setTtsSpeaking(false); // TTS 오류 시 립싱크 중지
-        setMouthTrigger(0);
-      });
 
       // 기본 음성 설정
       const voices = ttsService.getVoices();
@@ -309,21 +330,6 @@ const ChatBox = () => {
       window.speechSynthesis.onvoiceschanged = null;
     };
   }, []);
-
-
-
-  // AI 메시지 TTS 재생
-  const speakAIMessage = async (message) => {
-    try {
-      if (!isTTSEnabled || !message) return;
-
-      await ttsService.speak(message, {
-        voice: ttsVoice
-      });
-    } catch (error) {
-      console.error('TTS 재생 실패:', error);
-    }
-  };
 
   // 아바타 초기화
   const initializeAvatars = async () => {
@@ -815,12 +821,19 @@ const ChatBox = () => {
 
   // sendMessage 함수 오버로드 허용 및 항상 인자 우선 전송
   const sendMessage = (text) => {
-    const msg = typeof text === 'string' ? text : input;
-    console.log('sendMessage 호출, text:', text, 'input:', input, 'msg:', msg);
-    if (!msg.trim()) {
-      console.log('sendMessage: msg가 비어있어서 전송하지 않음');
-      return;
+    // 기존 TTS/타이핑 효과/상태 완전 초기화
+    ttsService.stop();
+    setIsAiTalking(false);
+    setTtsSpeaking(false);
+    setMouthTrigger(0);
+    setDisplayedAiText('');
+    if (typingIntervalRef.current) {
+      clearInterval(typingIntervalRef.current);
+      typingIntervalRef.current = null;
     }
+    // 실제 메시지 전송 로직 (text가 undefined면 input 상태 사용)
+    const msg = text || input;
+    if (!msg || msg.trim() === '') return;
 
     // 사용자가 말할 때 애니메이션
     setIsUserTalking(true);
@@ -837,7 +850,15 @@ const ChatBox = () => {
       emotion: emotion
     }));
     setMessages((prev) => [...prev, { type: 'send', text: msg }]);
+    
+    // 입력창 완전 초기화 (textarea value와 ref 모두 초기화)
     setInput('');
+    if (inputRef.current) {
+      inputRef.current.value = '';
+      // textarea 높이도 초기화
+      inputRef.current.style.height = 'auto';
+      inputRef.current.focus();
+    }
   };
 
   // WebSocket 연결
@@ -887,14 +908,53 @@ const ChatBox = () => {
     };
   };
 
-  // 컴포넌트 언마운트 시 타이머 정리
+  // 컴포넌트 언마운트 시 타이머 정리 및 TTS 중지
   useEffect(() => {
     return () => {
       if (silenceTimer) {
         clearTimeout(silenceTimer);
       }
+      // TTS 강제 중지
+      ttsService.stop();
     };
   }, [silenceTimer]);
+
+  // 페이지 언로드 시 TTS 강제 중지
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      console.log('페이지 언로드 시 TTS 중지');
+      ttsService.stop();
+      // 브라우저의 speechSynthesis도 직접 중지
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        console.log('페이지 숨김 시 TTS 중지');
+        ttsService.stop();
+        if (window.speechSynthesis) {
+          window.speechSynthesis.cancel();
+        }
+      }
+    };
+
+    // 페이지 언로드 이벤트
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    // 페이지 숨김/보임 이벤트 (탭 전환, 브라우저 최소화 등)
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      // 컴포넌트 언마운트 시에도 TTS 중지
+      ttsService.stop();
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
 
   // 아바타 크기 동적 계산
   const avatarSize = useMemo(() => {
@@ -907,209 +967,128 @@ const ChatBox = () => {
     return Math.max(80, Math.min(maxAvatarWidth, maxAvatarHeight));
   }, [window.innerWidth, window.innerHeight]);
 
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 1200);
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= 1200);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  // 입력창 ref 추가
+  const inputRef = useRef(null);
 
 
   return (
     <>
       <div className="chat-container-with-avatars">
-        {isMobile ? (
-          // 모바일 레이아웃
-          <div className="mobile-layout">
-            {/* 아바타들을 위쪽에 좌우로 배치 */}
-            <div className="avatar-container">
-              <div className="avatar-section">
-                <RealisticAvatar3D
-                  avatarUrl={userAvatar}
-                  isTalking={isUserTalking}
-                  emotion={userEmotion}
-                  position="left"
-                  size="100%"
-                  showEmotionIndicator={true}
-                  emotionCaptureStatus={emotionCaptureStatus.user}
-                  enableTracking={isTrackingEnabled}
-                />
-              </div>
-              <div className="avatar-section">
-                <RealisticAvatar3D
-                  avatarUrl={aiAvatar}
-                  isTalking={isAiTalking}
-                  emotion={aiEmotion}
-                  mouthTrigger={mouthTrigger}
-                  position="right"
-                  size="100%"
-                  showEmotionIndicator={true}
-                  emotionCaptureStatus={emotionCaptureStatus.ai}
-                />
-              </div>
-            </div>
-            {/* 채팅창 (아래쪽) */}
-            <div className="chat-section">
-              <div className="chat-container">
-                <div className="chat-log" ref={mobileChatLogRef}>
-                  {messages.map((msg, idx) => (
-                    <div
-                      key={idx}
-                      className={`chat-bubble ${msg.type === 'send' ? 'sent' : 'received'}`}
-                    >
-                      {msg.type === 'recv' && idx === messages.length - 1 && isAiTalking
-                        ? displayedAiText
-                        : msg.text}
-                    </div>
-                  ))}
+        {/* 타이틀+음성/카메라/트래킹 버튼 헤더 */}
+        <div className="chat-header">
+          <div className="chat-title">
+            Hearth <span role="img" aria-label="fire">🔥</span> Chat
+          </div>
+          <div className="header-btn-group">
+            <button
+              onClick={() => setIsVoiceMenuOpen(true)}
+              className={`voice-menu-btn-header${isVoiceMenuOpen ? ' active' : ''}`}
+            >
+              🎤음성
+            </button>
+            {/* 상단 버튼들 - 카메라 버튼만 복구 (주석처리) */}
+            <button
+              onClick={toggleCamera}
+              className={`camera-btn-header${isCameraActive ? ' active' : ''}`}
+            >
+              📷카메라
+            </button>
+            <button
+              onClick={toggleTracking}
+              className={`tracking-btn-header${isTrackingEnabled ? ' active' : ''}`}
+            >
+              👀트래킹
+            </button>
+          </div>
+        </div>
+        {/* 아바타들을 위쪽에 좌우로 배치 */}
+        <div className="avatar-container">
+          {/* 왼쪽: AI 아바타 */}
+          <div className="avatar-section">
+            <RealisticAvatar3D
+              avatarUrl={aiAvatar}
+              isTalking={isAiTalking}
+              emotion={aiEmotion}
+              mouthTrigger={mouthTrigger}
+              position="left"
+              size="100%"
+              showEmotionIndicator={true}
+              emotionCaptureStatus={emotionCaptureStatus.ai}
+            />
+          </div>
+          {/* 오른쪽: 사용자 아바타 (카메라/트래킹 연동) */}
+          <div className="avatar-section">
+            {isCameraActive ? (
+              <EmotionCamera
+                isActive={isCameraActive}
+                emotion={cameraEmotion}
+                setEmotion={setCameraEmotion}
+                setEmotionDisplay={setEmotionDisplay}
+                setEmotionCaptureStatus={setEmotionCaptureStatus}
+                enableTracking={isTrackingEnabled}
+                userAvatar={userAvatar}
+                userEmotion={userEmotion}
+                isUserTalking={isUserTalking}
+                mouthTrigger={mouthTrigger}
+                emotionCaptureStatus={emotionCaptureStatus.user}
+              />
+            ) : (
+              <RealisticAvatar3D
+                avatarUrl={userAvatar}
+                isTalking={isUserTalking}
+                emotion={userEmotion}
+                position="right"
+                size="100%"
+                showEmotionIndicator={true}
+                emotionCaptureStatus={emotionCaptureStatus.user}
+                enableTracking={isTrackingEnabled}
+              />
+            )}
+          </div>
+        </div>
+        {/* 채팅창 (아래쪽), paddingBottom:28 */}
+        <div className="chat-section">
+          <div className="chat-container">
+            <div className="chat-log" ref={mobileChatLogRef}>
+              {messages.map((msg, idx) => (
+                <div
+                  key={idx}
+                  className={`chat-bubble ${msg.type === 'send' ? 'sent' : 'received'}`}
+                >
+                  {msg.type === 'recv' && idx === messages.length - 1 && isAiTalking
+                    ? displayedAiText
+                    : msg.text}
                 </div>
-                <div className="chat-input-area">
-                  <div className="input-controls">
-                    {/* 상단 버튼들 */}
-                    <div className="control-buttons" style={{ marginBottom: 8, display: 'flex', gap: 8 }}>
-                      <button
-                        onClick={() => setIsVoiceMenuOpen(true)}
-                        className="voice-menu-btn unified-btn"
-                        title="음성 메뉴 열기"
-                      >
-                        🎤 음성 메뉴
-                      </button>
-                      <button
-                        onClick={toggleCamera}
-                        className={`camera-toggle-btn unified-btn ${isCameraActive ? 'active' : ''}`}
-                      >
-                        {isCameraActive ? '👤 아바타' : '📷 카메라'}
-                      </button>
-                      <button
-                        onClick={toggleTracking}
-                        className={`tracking-toggle-btn unified-btn ${isTrackingEnabled ? 'active' : ''}`}
-                      >
-                        {isTrackingLoading ? '로딩 중...' : (isTrackingEnabled ? '🎯 트래킹 중지' : '🎯 트래킹 시작')}
-                      </button>
-                      {isCameraActive && (
-                        <button
-                          onClick={toggleRealTimeMode}
-                          className={`mode-toggle-btn unified-btn ${isRealTimeMode ? 'realtime' : 'stable'}`}
-                        >
-                          {isRealTimeMode ? '⚡ 실시간' : '🛡️ 안정'}
-                        </button>
-                      )}
-                    </div>
-                    {/* 입력창+전송버튼 한 줄 */}
-                    <div className="input-row" style={{ display: 'flex', gap: 8 }}>
-                      <input
-                        type="text"
-                        placeholder="메시지를 입력하세요"
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-                        style={{ flex: 1 }}
-                      />
-                      <button onClick={sendMessage} className="unified-btn">전송</button>
-                    </div>
-                  </div>
+              ))}
+            </div>
+            <div className="chat-input-area">
+              <div className="input-controls">
+                {/* 입력창+전송버튼 한 줄 */}
+                <div className="input-row flex-gap">
+                  <textarea
+                    ref={inputRef}
+                    placeholder="메시지를 입력하세요"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault(); // 엔터키 기본 동작(개행) 방지
+                        sendMessage();
+                      }
+                    }}
+                    onInput={e => {
+                      e.target.style.height = 'auto';
+                      e.target.style.height = e.target.scrollHeight + 'px';
+                    }}
+                    className="input-flex"
+                    rows={1}
+                  />
+                  <button onClick={sendMessage} className="unified-btn">🔥</button>
                 </div>
               </div>
             </div>
           </div>
-        ) : (
-          // PC 레이아웃
-          <div className="desktop-layout">
-            {/* 아바타들을 위쪽에 배치 */}
-            <div className="avatar-container">
-              <div className="avatar-section">
-                <RealisticAvatar3D
-                  avatarUrl={userAvatar}
-                  isTalking={isUserTalking}
-                  emotion={userEmotion}
-                  position="left"
-                  size="100%"
-                  showEmotionIndicator={true}
-                  emotionCaptureStatus={emotionCaptureStatus.user}
-                  enableTracking={isTrackingEnabled}
-                />
-              </div>
-              <div className="avatar-section">
-                <RealisticAvatar3D
-                  avatarUrl={aiAvatar}
-                  isTalking={isAiTalking}
-                  emotion={aiEmotion}
-                  mouthTrigger={mouthTrigger}
-                  position="right"
-                  size="100%"
-                  showEmotionIndicator={true}
-                  emotionCaptureStatus={emotionCaptureStatus.ai}
-                />
-              </div>
-            </div>
-            {/* 채팅창 (아래쪽) */}
-            <div className="chat-section">
-              <div className="chat-container">
-                <div className="chat-log" ref={chatLogRef}>
-                  {messages.map((msg, idx) => (
-                    <div
-                      key={idx}
-                      className={`chat-bubble ${msg.type === 'send' ? 'sent' : 'received'}`}
-                    >
-                      {msg.type === 'recv' && idx === messages.length - 1 && isAiTalking
-                        ? displayedAiText
-                        : msg.text}
-                    </div>
-                  ))}
-                </div>
-                <div className="chat-input-area">
-                  <div className="input-controls">
-                    {/* 상단 버튼들 */}
-                    <div className="control-buttons" style={{ marginBottom: 8, display: 'flex', gap: 8 }}>
-                      <button
-                        onClick={() => setIsVoiceMenuOpen(true)}
-                        className="voice-menu-btn unified-btn"
-                        title="음성 메뉴 열기"
-                      >
-                        🎤 음성 메뉴
-                      </button>
-                      <button
-                        onClick={toggleCamera}
-                        className={`camera-toggle-btn unified-btn ${isCameraActive ? 'active' : ''}`}
-                      >
-                        {isCameraActive ? '👤 아바타' : '📷 카메라'}
-                      </button>
-                      <button
-                        onClick={toggleTracking}
-                        className={`tracking-toggle-btn unified-btn ${isTrackingEnabled ? 'active' : ''}`}
-                      >
-                        {isTrackingLoading ? '로딩 중...' : (isTrackingEnabled ? '🎯 트래킹 중지' : '🎯 트래킹 시작')}
-                      </button>
-                      {isCameraActive && (
-                        <button
-                          onClick={toggleRealTimeMode}
-                          className={`mode-toggle-btn unified-btn ${isRealTimeMode ? 'realtime' : 'stable'}`}
-                        >
-                          {isRealTimeMode ? '⚡ 실시간' : '🛡️ 안정'}
-                        </button>
-                      )}
-                    </div>
-                    {/* 입력창+전송버튼 한 줄 */}
-                    <div className="input-row" style={{ display: 'flex', gap: 8 }}>
-                      <input
-                        type="text"
-                        placeholder="메시지를 입력하세요"
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-                        style={{ flex: 1 }}
-                      />
-                      <button onClick={sendMessage} className="unified-btn">전송</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        </div>
         {/* 음성 메뉴 모달 */}
         <Modal open={isVoiceMenuOpen} onClose={() => setIsVoiceMenuOpen(false)}>
           {/* TTS 관련 기능 박스 */}

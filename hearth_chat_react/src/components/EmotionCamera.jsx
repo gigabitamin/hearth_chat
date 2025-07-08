@@ -1,7 +1,8 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import './EmotionCamera.css';
+import RealisticAvatar3D from './RealisticAvatar3D';
 
-const EmotionCamera = ({ isActive = true, hideControls = false }) => {
+const EmotionCamera = ({ isActive = true, hideControls = false, userAvatar, userEmotion, isUserTalking, mouthTrigger, emotionCaptureStatus, enableTracking }) => {
     const videoRef = useRef(null);
     const streamRef = useRef(null);
     const [isCameraOn, setIsCameraOn] = useState(false);
@@ -108,39 +109,44 @@ const EmotionCamera = ({ isActive = true, hideControls = false }) => {
 
     return (
         <div className="emotion-camera">
-            {/* 카메라 제어 버튼 (위쪽 배치) - hideControls가 false일 때만 표시 */}
-            {!hideControls && (
-                <div className="camera-controls-top">
-                    <button
-                        onClick={isCameraOn ? stopCamera : startCamera}
-                        className={`camera-toggle ${isCameraOn ? 'active' : ''}`}
-                    >
-                        {isCameraOn ? '📷 카메라 끄기' : '📷 카메라 켜기'}
-                    </button>
-                </div>
-            )}
+            {/* 카메라 제어 버튼 및 공간 완전 삭제 */}
 
-            <div className="camera-container">
+            <div className="camera-container" style={{ position: 'relative', width: '100%', height: '100%' }}>
                 <video
                     ref={videoRef}
                     autoPlay
                     playsInline
                     muted
-                    className="camera-video"
-                    style={{
-                        // width: "100%", 
-                        // height: "100%",   
-                        // objectFit: 'contain',                      
-                        // objectFit: 'cover',
-                        // objectPosition: "center top",
-                        // width: '640px',
-                        height: '360px',                        
-                        border: '2px solid #ccc',
-                        borderRadius: '8px',
-                        backgroundColor: '#000',                        
-                    }}
+                    className="camera-video custom-camera-video"
                 />
-
+                {/* 사용자 아바타 오버레이 */}
+                <div
+                    style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '40%',
+                        height: '40%',
+                        opacity: 0.40,
+                        pointerEvents: 'none',
+                        zIndex: 10,
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        justifyContent: 'flex-start',
+                    }}
+                >
+                    <RealisticAvatar3D
+                        avatarUrl={userAvatar}
+                        isTalking={isUserTalking}
+                        emotion={userEmotion}
+                        mouthTrigger={mouthTrigger}
+                        position="right"
+                        size="100%"
+                        showEmotionIndicator={false}
+                        emotionCaptureStatus={emotionCaptureStatus}
+                        enableTracking={enableTracking}
+                    />
+                </div>
                 {/* 오류 메시지 */}
                 {error && (
                     <div className="error-message">

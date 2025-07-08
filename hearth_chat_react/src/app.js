@@ -5,7 +5,7 @@ import './App.css';
 function App() {
   return (
     <div className="app">
-      <h1 className="app-title">Hearth 🔥 Chat</h1>
+      {/* <h1 className="app-title">Hearth 🔥 Chat</h1> */}
       <ChatBox />
     </div>
   );

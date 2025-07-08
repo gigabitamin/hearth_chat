@@ -5,7 +5,9 @@
 ==========================================
 
 ## 250709  
-- Hearth Chat 전체 CSS 수정 작업, @@media 쿼리 CSS width 768px / 1000px / 1200 px 세부 수정   
+- Hearth Chat CSS 수정 작업, @@media 쿼리 CSS width 768px / 1000px / 1200 px 세부 수정
+- 현 프로젝트 페이지에서는 굳이 미디어쿼리가 필요없다고 판단되서 모바일 환경을 고려하여 768px 스타일로 전부 통합 -> css 전체 리팩토링 
+- css 리팩토링 완료, 전체 기능 점검 완료
 
 ## 250708
 - 음성인식 -> 묵음 2초 뒤 자동전송 문제 해결 (onAutoSend로 finalText가 들어오면 무조건 handleVoiceResult를 호출)
