@@ -255,7 +255,7 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
         };
     }, [enableTracking]);
 
-    // 립싱크: mouthTrigger가 바뀔 때마다 입을 잠깐 열었다 닫음 (TTS 속도에 맞춤)
+    // 립싱크: 고급 음소 기반 립싱크 시스템
     useEffect(() => {
         if (enableTracking && trackingData.isDetected) {
             // 트래킹 데이터에서 입 벌림 사용
@@ -265,12 +265,18 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
         } else if (mouthTrigger === 0) {
             setMouthOpen(0);
         } else {
-            // TTS 속도에 맞춰 더 자연스러운 립싱크 패턴
-            if (mouthTrigger % 6 < 3) {
-                setMouthOpen(1);
-            } else {
-                setMouthOpen(0);
-            }
+            // 고급 립싱크: mouthTrigger 값에 따른 다양한 입모양
+            const mouthOpenValues = {
+                0: 0,      // neutral - 입 닫힘
+                1: 0.2,    // closed - 살짝 열림
+                2: 0.4,    // slightly_open - 조금 열림
+                3: 0.6,    // open - 열림
+                4: 0.8,    // wide_open - 크게 열림
+                5: 0.5     // rounded - 둥글게 열림
+            };
+
+            const targetMouthOpen = mouthOpenValues[mouthTrigger] || 0;
+            setMouthOpen(targetMouthOpen);
         }
     }, [mouthTrigger, isTalking, enableTracking, trackingData.mouthOpen, trackingData.isDetected]);
 
@@ -463,10 +469,17 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
                         vrm.expressionManager.setValue('ih', 0);
                     }
                 } else {
-                    // 기존 립싱크
+                    // 고급 립싱크: mouthOpen 값에 따른 다양한 입모양
                     if (mouthOpen > 0) {
-                        vrm.expressionManager.setValue('aa', 0.8);
-                        vrm.expressionManager.setValue('ih', 0.6);
+                        // mouthOpen 값(0~1)을 VRM BlendShape 값으로 변환
+                        const aaValue = Math.min(mouthOpen * 1.2, 1.0); // aa는 더 큰 입 벌림
+                        const ihValue = Math.min(mouthOpen * 0.8, 0.8); // ih는 중간 입 벌림
+
+                        vrm.expressionManager.setValue('aa', aaValue);
+                        vrm.expressionManager.setValue('ih', ihValue);
+
+                        // 디버그 로그
+                        console.log('[LIP SYNC] mouthOpen:', mouthOpen, 'aa:', aaValue, 'ih:', ihValue);
                     } else {
                         vrm.expressionManager.setValue('aa', 0);
                         vrm.expressionManager.setValue('ih', 0);
