@@ -182,6 +182,8 @@ const ChatBox = () => {
   // TTS 기반 립싱크를 위한 상태
   const [ttsSpeaking, setTtsSpeaking] = useState(false);
   const [lipSyncInterval, setLipSyncInterval] = useState(null);
+  const [lipSyncSequence, setLipSyncSequence] = useState([]);
+  const [currentLipSyncIndex, setCurrentLipSyncIndex] = useState(0);
 
   // 타이핑 효과 interval ref 추가
   const typingIntervalRef = useRef(null);
@@ -189,10 +191,23 @@ const ChatBox = () => {
   // 1. TTS 이벤트 리스너 등록 useEffect로 최초 1회만 등록
   useEffect(() => {
     if (!ttsService.isSupported()) return;
-    const handleStart = (text) => {
+    const handleStart = (text, lipSyncSequence) => {
       console.log('TTS 시작(이벤트):', text.substring(0, 50) + '...');
       setIsAiTalking(true);
       setTtsSpeaking(true);
+      
+      // 립싱크 시퀀스 저장 및 초기화
+      if (lipSyncSequence && lipSyncSequence.length > 0) {
+        setLipSyncSequence(lipSyncSequence);
+        setCurrentLipSyncIndex(0);
+        console.log('립싱크 시퀀스 받음:', lipSyncSequence.length, '개 음소');
+        console.log('립싱크 시퀀스 샘플:', lipSyncSequence.slice(0, 5)); // 처음 5개 음소 확인
+      } else {
+        setLipSyncSequence([]);
+        setCurrentLipSyncIndex(0);
+        console.log('립싱크 시퀀스가 없음');
+      }
+      
       // 타이핑 효과 시작
       if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
       let i = 0;
@@ -247,8 +262,19 @@ const ChatBox = () => {
     try {
       ttsService.stop(); // 항상 먼저 중단
       if (!isTTSEnabled || !message) return;
+
+      // TTS용 텍스트 정리 (이모티콘, 특수문자 제거)
+      const cleanedMessage = ttsService.cleanTextForTTS(message);
+      if (!cleanedMessage) {
+        console.log('TTS로 읽을 수 있는 텍스트가 없습니다:', message);
+        return;
+      }
+
+      console.log('TTS 원본 텍스트:', message);
+      console.log('TTS 정리된 텍스트:', cleanedMessage);
+
       setTtsSpeaking(true); // 립싱크 강제 시작
-      await ttsService.speak(message, {
+      await ttsService.speak(message, { // 원본 메시지 전달 (서비스에서 정리됨)
         voice: ttsVoice
       });
     } catch (error) {
@@ -256,16 +282,64 @@ const ChatBox = () => {
     }
   };
 
-  // 3. 립싱크 interval 항상 clear 후 새로 시작
+  // 3. 고급 립싱크 시스템 (음소 기반)
   useEffect(() => {
-    if (ttsSpeaking) {
+    console.log('[LIP SYNC DEBUG] ttsSpeaking:', ttsSpeaking, 'lipSyncSequence.length:', lipSyncSequence.length);
+    
+    if (ttsSpeaking && lipSyncSequence.length > 0) {
+      console.log('[LIP SYNC] 고급 립싱크 시작, 시퀀스 길이:', lipSyncSequence.length);
+      
+      // 음소 기반 립싱크
+      const totalDuration = lipSyncSequence[lipSyncSequence.length - 1]?.endTime || 5000; // 기본 5초
+      const startTime = Date.now();
+      
+      console.log('[LIP SYNC] 총 재생 시간:', totalDuration, 'ms');
+      
+      const interval = setInterval(() => {
+        const elapsedTime = Date.now() - startTime;
+        const currentPhoneme = lipSyncSequence.find(p => 
+          elapsedTime >= p.startTime && elapsedTime < p.endTime
+        );
+        
+        if (currentPhoneme) {
+          // 입모양에 따른 mouthTrigger 값 설정
+          const mouthShapeValues = {
+            'closed': 1,
+            'slightly_open': 2,
+            'open': 3,
+            'wide_open': 4,
+            'rounded': 5,
+            'neutral': 0
+          };
+          const triggerValue = mouthShapeValues[currentPhoneme.mouthShape] || 0;
+          setMouthTrigger(triggerValue);
+          console.log('립싱크:', currentPhoneme.phoneme, currentPhoneme.mouthShape, triggerValue, '시간:', elapsedTime);
+        } else {
+          // 현재 시간에 해당하는 음소가 없으면 중립
+          setMouthTrigger(0);
+        }
+        
+        // TTS 종료 시점 체크
+        if (elapsedTime >= totalDuration) {
+          clearInterval(interval);
+          setLipSyncInterval(null);
+          setMouthTrigger(0);
+          console.log('[LIP SYNC] 립싱크 종료');
+        }
+      }, 50); // 50ms 간격으로 더 빠르게 업데이트
+      
+      setLipSyncInterval(interval);
+      return () => {
+        if (interval) clearInterval(interval);
+      };
+    } else if (ttsSpeaking) {
+      console.log('[LIP SYNC] 기본 립싱크 시작 (fallback)');
+      // 기존 단순 립싱크 (fallback)
       const baseInterval = 200;
       const rateMultiplier = ttsRate || 1.0;
       const lipSyncInterval = Math.max(100, Math.min(400, baseInterval / rateMultiplier));
-      console.log('립싱크 간격 설정:', lipSyncInterval, 'ms (TTS 속도:', rateMultiplier, ')');
-      if (lipSyncInterval && typeof lipSyncInterval === 'number') {
-        clearInterval(lipSyncInterval);
-      }
+      console.log('기본 립싱크 간격 설정:', lipSyncInterval, 'ms (TTS 속도:', rateMultiplier, ')');
+      
       const interval = setInterval(() => {
         setMouthTrigger(prev => prev + 1);
       }, lipSyncInterval);
@@ -275,12 +349,13 @@ const ChatBox = () => {
       };
     } else {
       setMouthTrigger(0);
+      setCurrentLipSyncIndex(0);
       if (lipSyncInterval) {
         clearInterval(lipSyncInterval);
         setLipSyncInterval(null);
       }
     }
-  }, [ttsSpeaking, ttsRate]);
+  }, [ttsSpeaking, ttsRate, lipSyncSequence]);
 
   // TTS 서비스 초기화
   const initializeTTSService = () => {
@@ -850,7 +925,7 @@ const ChatBox = () => {
       emotion: emotion
     }));
     setMessages((prev) => [...prev, { type: 'send', text: msg }]);
-    
+
     // 입력창 완전 초기화 (textarea value와 ref 모두 초기화)
     setInput('');
     if (inputRef.current) {
