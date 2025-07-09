@@ -5,6 +5,7 @@ djangorestframework==3.14.0
 asgiref==3.7.2
 channels==4.2.2
 daphne==4.2.1
+dj-database-url==2.1.0
 
 # 데이터베이스
 psycopg2-binary==2.9.9
