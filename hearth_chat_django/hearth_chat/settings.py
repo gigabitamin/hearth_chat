@@ -50,6 +50,12 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
     # Railway 환경에서 CORS 완전 해제
     CORS_ALLOW_ALL_ORIGINS = True
     print("Railway environment - CORS_ALLOW_ALL_ORIGINS enabled")
+    
+    # Railway 환경에서 모든 요청 허용
+    SECURE_CONTENT_TYPE_NOSNIFF = False
+    SECURE_BROWSER_XSS_FILTER = False
+    X_FRAME_OPTIONS = 'ALLOWALL'
+    print("Railway environment - Security headers relaxed")
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
