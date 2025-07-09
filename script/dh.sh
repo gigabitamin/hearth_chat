@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # 1. Daphne 서버 실행 (dh.bat)
-echo "Hearth_chat Daphne Start"
-cd /app/hearth_chat_django
-export DJANGO_SETTINGS_MODULE=hearth_chat.settings
-daphne -b 0.0.0.0 -p 8000 hearth_chat.asgi:application
+# echo "Hearth_chat Daphne Start"
+# cd /app/hearth_chat_django
+# export DJANGO_SETTINGS_MODULE=hearth_chat.settings
+# daphne -b 0.0.0.0 -p 8000 hearth_chat.asgi:application
 
 # 2. Git push hearth chat kdy (gkhc.bat)
 # echo "git push hearth chat kdy"
@@ -21,9 +21,9 @@ daphne -b 0.0.0.0 -p 8000 hearth_chat.asgi:application
 # git push origin main
 
 # 5. React 개발 서버 실행 (rh.bat)
-# echo "Hearth_chat React Start"
-# cd /app/hearth_chat_react
-# npm start
+echo "Hearth_chat React Start"
+cd /app/hearth_chat_react
+npm start
 
 # 6. cdhr.bat, cdhd.bat (디렉토리 이동)
 # cd /app/hearth_chat_react

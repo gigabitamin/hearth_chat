@@ -9,6 +9,7 @@ node_modules/
 .git/
 venv/
 *.log
+hearth_chat_etc/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

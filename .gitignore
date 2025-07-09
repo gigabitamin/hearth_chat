@@ -5,6 +5,7 @@ settings_local.py
 __pycache__/
 *.py[codz]
 *$py.class
+hearth_chat_etc/
 
 # C extensions
 *.so
