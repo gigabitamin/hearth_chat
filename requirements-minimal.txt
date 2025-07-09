@@ -34,4 +34,4 @@ certifi==2022.12.7
 
 # 기타 필수
 click==8.1.7
-packaging==23.2
+packaging==23.2 
