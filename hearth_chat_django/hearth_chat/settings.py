@@ -30,19 +30,15 @@ ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# DB 설정 (MySQL)
+# DB 설정 (PostgreSQL)
 DATABASES = {
     "default": {
-        "ENGINE": os.environ["DB_ENGINE"],
-        "NAME": os.environ["DB_NAME"],
-        "PORT": os.environ.get("DB_PORT", "3306"),  # 포트만 기본값 허용
-        "USER": os.environ["DB_USER"],
-        "PASSWORD": os.environ["DB_PASSWORD"],
-        "HOST": os.environ["DB_HOST"],
-        "OPTIONS": {
-            "charset": "utf8mb4",
-            "init_command": "SET character_set_connection=utf8mb4; SET collation_connection=utf8mb4_unicode_ci;",
-        },
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("DB_NAME", "railway"),
+        "PORT": os.environ.get("DB_PORT", "5432"),
+        "USER": os.environ.get("DB_USER", "postgres"),
+        "PASSWORD": os.environ.get("DB_PASSWORD", ""),
+        "HOST": os.environ.get("DB_HOST", "localhost"),
     }
 }
 
