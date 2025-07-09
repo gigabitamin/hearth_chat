@@ -1,5 +1,5 @@
 # 1. Python 베이스 이미지
-FROM python:3.11-slim
+FROM python:3.11.5
 
 # 2. 작업 디렉토리 생성
 WORKDIR /app
@@ -27,10 +27,20 @@ RUN npm install && npm run build
 
 # 7. Django static 파일 수집
 WORKDIR /app/hearth_chat_django
-RUN python manage.py collectstatic --noinput
+# RUN python manage.py collectstatic --noinput
 
 # 8. 포트 지정 (Railway는 8000, 8080 등 사용 가능)
 EXPOSE 8000
 
 # 9. Daphne로 ASGI 서버 실행
 CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "hearth_chat_django.asgi:application"]
+
+# sh 명령어 실행
+COPY script/dh.sh /usr/local/bin/dh
+RUN chmod +x /usr/local/bin/dh
+
+COPY script/rh.sh /usr/local/bin/rh
+RUN chmod +x /usr/local/bin/rh
+
+COPY script/cs.sh /usr/local/bin/cs
+RUN chmod +x /usr/local/bin/cs
