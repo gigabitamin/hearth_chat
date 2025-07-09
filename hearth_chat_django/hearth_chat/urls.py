@@ -32,8 +32,13 @@ def health_check(request):
     return HttpResponse("OK", content_type="text/plain")
 
 
+def root_response(request):
+    """Railway 헬스체크를 위한 루트 응답"""
+    return HttpResponse("Hearth Chat Server is running!", content_type="text/plain")
+
+
 urlpatterns = [
-    path("", home_redirect, name="home"),
+    path("", root_response, name="root"),  # 헬스체크용 루트 응답
     path("admin/", admin.site.urls),
     path('chat/', include("chat.urls")),
     path('health/', health_check, name="health_check"),  # 헬스체크 엔드포인트

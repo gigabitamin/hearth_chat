@@ -32,7 +32,11 @@ DEBUG = os.environ.get("DEBUG", "False") == "True"
 if os.environ.get("RAILWAY_ENVIRONMENT"):
     DEBUG = True
 
+# ALLOWED_HOSTS 설정 개선
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
+if os.environ.get("RAILWAY_ENVIRONMENT"):
+    # Railway 환경에서는 모든 호스트 허용
+    ALLOWED_HOSTS = ["*"]
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
