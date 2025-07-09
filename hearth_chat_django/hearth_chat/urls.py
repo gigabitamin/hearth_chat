@@ -31,5 +31,10 @@ urlpatterns = [
     path('chat/', include("chat.urls")),
 ]
 
+# Static files (CSS, JavaScript, Images)
 if settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+else:
+    # Production 환경에서도 static 파일 서빙 (Railway)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
