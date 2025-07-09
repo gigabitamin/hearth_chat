@@ -43,7 +43,18 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 # CORS
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "*").split(",")
+CORS_ALLOWED_ORIGINS = [
+    origin for origin in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
+    if origin and "://" in origin
+] + [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://192.168.44.9:3000",
+]
+
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^http://192\.168\.\d+\.\d+:\d+$",  # 내부 IP 허용
+]
 
 # Application definition
 INSTALLED_APPS = [
