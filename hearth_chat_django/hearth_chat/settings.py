@@ -151,3 +151,10 @@ CORS_ALLOWED_ORIGINS = db_settings.CORS_ALLOWED_ORIGINS + [
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://192\.168\.\d+\.\d+:\d+$",  # 내부 IP 허용
 ]
+
+
+
+# 미디어 파일(업로드 이미지 등) 설정
+MEDIA_ROOT = os.path.join(BASE_DIR, '..', 'hearth_chat_media')
+# MEDIA_ROOT = os.path.abspath(MEDIA_ROOT)  # 절대경로로 변환 (권장)
+MEDIA_URL = '/media/'
