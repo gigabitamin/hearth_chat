@@ -1,13 +1,14 @@
-
-backup/
-*_zip/
-__pycache__/
+# node
+node_modules
+venv
+__pycache__
 *.pyc
-*.pyo
-*.pyd
-node_modules/
-.git/
-venv/
+.git
+*.sqlite3
+*.zip
+*.tar
+media/
+backup/
 *.log
 hearth_chat_etc/
 hearth_chat_sql/

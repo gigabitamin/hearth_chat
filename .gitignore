@@ -1,3 +1,15 @@
+# node
+node_modules
+venv
+__pycache__
+*.pyc
+.git
+*.sqlite3
+*.zip
+*.tar
+media/
+backup/
+
 # etc
 settings_local.py
 
