@@ -59,3 +59,4 @@
 ## 250704  
 - django 보일러 세팅  
 - open ai api 사용  
+"# Force redeploy" 
