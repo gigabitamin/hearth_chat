@@ -905,8 +905,8 @@ const ChatBox = () => {
       typingIntervalRef.current = null;
     }
     // 실제 메시지 전송 로직 (text가 undefined면 input 상태 사용)
-    const msg = text || input;
-    if (!msg || msg.trim() === '') return;
+    const msg = typeof text === 'string' ? text : input;
+    if (typeof msg !== 'string' || msg.trim() === '') return;
 
     // 사용자가 말할 때 애니메이션
     setIsUserTalking(true);
@@ -1043,6 +1043,14 @@ const ChatBox = () => {
   // 입력창 ref 추가
   const inputRef = useRef(null);
 
+  const handleImageUpload = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    // TODO: 서버 업로드 로직 구현 예정
+    // 일단 파일명 콘솔 출력
+    console.log('선택된 이미지 파일:', file);
+  };
+
 
   return (
     <>
@@ -1161,7 +1169,18 @@ const ChatBox = () => {
             <div className="chat-input-area">
               <div className="input-controls">
                 {/* 입력창+전송버튼 한 줄 */}
-                <div className="input-row flex-gap">
+                <div className="chat-input-box">
+                  {/* 이미지 첨부 버튼 (왼쪽) */}
+                  <label htmlFor="chat-image-upload" className="image-upload-btn-side">
+                    <input
+                      id="chat-image-upload"
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={handleImageUpload}
+                    />
+                    <span className="image-upload-btn-icon">📤</span>
+                  </label>
                   <textarea
                     ref={inputRef}
                     placeholder="메시지를 입력하세요"
@@ -1177,9 +1196,10 @@ const ChatBox = () => {
                       e.target.style.height = 'auto';
                       e.target.style.height = e.target.scrollHeight + 'px';
                     }}
-                    className="input-flex"
+                    className="input-flex chat-textarea"
                     rows={1}
                   />
+                  {/* 모닥불(전송) 버튼 (오른쪽) */}
                   <button onClick={sendMessage} className="unified-btn">🔥</button>
                 </div>
               </div>
