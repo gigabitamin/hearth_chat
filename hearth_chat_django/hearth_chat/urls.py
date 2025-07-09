@@ -34,7 +34,20 @@ def health_check(request):
 
 def root_response(request):
     """Railway 헬스체크를 위한 루트 응답"""
-    return HttpResponse("OK", content_type="text/plain")
+    import os
+    response_text = f"""
+    Hearth Chat Server is running!
+    
+    Environment: {os.environ.get('RAILWAY_ENVIRONMENT', 'Not Railway')}
+    Debug: {os.environ.get('DEBUG', 'False')}
+    Allowed Hosts: {os.environ.get('ALLOWED_HOSTS', 'Not set')}
+    
+    Available endpoints:
+    - /health/ - Health check
+    - /admin/ - Django admin
+    - /chat/ - Chat application
+    """
+    return HttpResponse(response_text, content_type="text/plain")
 
 
 urlpatterns = [

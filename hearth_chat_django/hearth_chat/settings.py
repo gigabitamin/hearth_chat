@@ -31,18 +31,25 @@ DEBUG = os.environ.get("DEBUG", "False") == "True"
 # Railway 배포 시 디버깅을 위해 임시로 DEBUG 활성화
 if os.environ.get("RAILWAY_ENVIRONMENT"):
     DEBUG = True
+    print("Railway environment detected - DEBUG mode enabled")
 
 # ALLOWED_HOSTS 설정 개선
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
 if os.environ.get("RAILWAY_ENVIRONMENT"):
     # Railway 환경에서는 모든 호스트 허용
     ALLOWED_HOSTS = ["*"]
+    print("Railway environment - ALLOWED_HOSTS set to ['*']")
 
 # Railway 환경에서 추가 설정
 if os.environ.get("RAILWAY_ENVIRONMENT"):
     # 헬스체크를 위한 추가 설정
     SECURE_SSL_REDIRECT = False
     SECURE_PROXY_SSL_HEADER = None
+    print("Railway environment - SSL settings configured")
+    
+    # Railway 환경에서 CORS 완전 해제
+    CORS_ALLOW_ALL_ORIGINS = True
+    print("Railway environment - CORS_ALLOW_ALL_ORIGINS enabled")
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
