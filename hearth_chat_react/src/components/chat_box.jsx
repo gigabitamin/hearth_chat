@@ -932,7 +932,7 @@ const ChatBox = () => {
       // 이미지 서버 업로드
       const formData = new FormData();
       formData.append('file', attachedImage);
-      formData.append('content', messageText); // 메시지 내용도 함께 전송
+      formData.append('content', messageText);
       try {
         const res = await axios.post('/chat/api/chat/upload_image/', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
@@ -960,7 +960,15 @@ const ChatBox = () => {
     setInput('');
     setAttachedImage(null);
     setAttachedImagePreview(null);
-    // 이후 Gemini 전송 등 추가 로직 필요시 여기에
+    // Gemini(백엔드)로 메시지/이미지 전송
+    if (ws.current && (messageText || imageUrl)) {
+      ws.current.send(
+        JSON.stringify({
+          message: messageText || '',
+          imageUrl: imageUrl || '',
+        })
+      );
+    }
   };
 
   // WebSocket 연결
