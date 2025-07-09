@@ -15,7 +15,7 @@ class ChatAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('기본 정보', {
-            'fields': ('message_type', 'content', 'timestamp', 'session_id')
+            'fields': ('message_type', 'content', 'timestamp', 'session_id', 'attach_image')
         }),
         ('메타 정보', {
             'fields': ('created_at', 'updated_at'),

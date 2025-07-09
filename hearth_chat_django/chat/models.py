@@ -20,6 +20,12 @@ class Chat(models.Model):
     # 감정 정보 (사용자 메시지에만 적용)
     emotion = models.CharField(max_length=20, blank=True, null=True, verbose_name='감정 상태')
     
+    # 이미지 파일 경로 (선택적)
+    attach_image = models.ImageField(
+        upload_to='image/chat_attach/',  # 원하는 하위 폴더 경로
+        blank=True, null=True, verbose_name='첨부 이미지'
+    )
+    
     # 메타 정보
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='생성 시간')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='수정 시간')

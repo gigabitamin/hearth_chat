@@ -6,6 +6,7 @@ import ttsService from '../services/ttsService';
 import readyPlayerMeService from '../services/readyPlayerMe';
 import faceTrackingService from '../services/faceTrackingService';
 import './chat_box.css';
+import axios from 'axios';
 
 // 모달 컴포넌트 추가
 const Modal = ({ open, onClose, children }) => {
@@ -41,8 +42,7 @@ const ChatBox = () => {
   const [voiceList, setVoiceList] = useState([]);
 
   const ws = useRef(null);
-  const chatLogRef = useRef(null);
-  const mobileChatLogRef = useRef(null);
+  const chatScrollRef = useRef(null);
   const [displayedAiText, setDisplayedAiText] = useState('');
   const [mouthTrigger, setMouthTrigger] = useState(0);
   const [currentAiMessage, setCurrentAiMessage] = useState('');
@@ -171,13 +171,12 @@ const ChatBox = () => {
 
   // 새로운 메시지가 추가될 때마다 자동으로 스크롤을 맨 아래로 이동
   useEffect(() => {
-    if (chatLogRef.current) {
-      chatLogRef.current.scrollTop = chatLogRef.current.scrollHeight;
-    }
-    if (mobileChatLogRef.current) {
-      mobileChatLogRef.current.scrollTop = mobileChatLogRef.current.scrollHeight;
-    }
-  }, [messages]);
+    setTimeout(() => {
+      if (chatScrollRef.current) {
+        chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+      }
+    }, 0);
+  }, [messages, displayedAiText]);
 
   // TTS 기반 립싱크를 위한 상태
   const [ttsSpeaking, setTtsSpeaking] = useState(false);
@@ -195,7 +194,7 @@ const ChatBox = () => {
       console.log('TTS 시작(이벤트):', text.substring(0, 50) + '...');
       setIsAiTalking(true);
       setTtsSpeaking(true);
-      
+
       // 립싱크 시퀀스 저장 및 초기화
       if (lipSyncSequence && lipSyncSequence.length > 0) {
         setLipSyncSequence(lipSyncSequence);
@@ -207,7 +206,7 @@ const ChatBox = () => {
         setCurrentLipSyncIndex(0);
         console.log('립싱크 시퀀스가 없음');
       }
-      
+
       // 타이핑 효과 시작
       if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
       let i = 0;
@@ -285,22 +284,22 @@ const ChatBox = () => {
   // 3. 고급 립싱크 시스템 (음소 기반)
   useEffect(() => {
     console.log('[LIP SYNC DEBUG] ttsSpeaking:', ttsSpeaking, 'lipSyncSequence.length:', lipSyncSequence.length);
-    
+
     if (ttsSpeaking && lipSyncSequence.length > 0) {
       console.log('[LIP SYNC] 고급 립싱크 시작, 시퀀스 길이:', lipSyncSequence.length);
-      
+
       // 음소 기반 립싱크
       const totalDuration = lipSyncSequence[lipSyncSequence.length - 1]?.endTime || 5000; // 기본 5초
       const startTime = Date.now();
-      
+
       console.log('[LIP SYNC] 총 재생 시간:', totalDuration, 'ms');
-      
+
       const interval = setInterval(() => {
         const elapsedTime = Date.now() - startTime;
-        const currentPhoneme = lipSyncSequence.find(p => 
+        const currentPhoneme = lipSyncSequence.find(p =>
           elapsedTime >= p.startTime && elapsedTime < p.endTime
         );
-        
+
         if (currentPhoneme) {
           // 입모양에 따른 mouthTrigger 값 설정
           const mouthShapeValues = {
@@ -318,7 +317,7 @@ const ChatBox = () => {
           // 현재 시간에 해당하는 음소가 없으면 중립
           setMouthTrigger(0);
         }
-        
+
         // TTS 종료 시점 체크
         if (elapsedTime >= totalDuration) {
           clearInterval(interval);
@@ -327,7 +326,7 @@ const ChatBox = () => {
           console.log('[LIP SYNC] 립싱크 종료');
         }
       }, 50); // 50ms 간격으로 더 빠르게 업데이트
-      
+
       setLipSyncInterval(interval);
       return () => {
         if (interval) clearInterval(interval);
@@ -339,7 +338,7 @@ const ChatBox = () => {
       const rateMultiplier = ttsRate || 1.0;
       const lipSyncInterval = Math.max(100, Math.min(400, baseInterval / rateMultiplier));
       console.log('기본 립싱크 간격 설정:', lipSyncInterval, 'ms (TTS 속도:', rateMultiplier, ')');
-      
+
       const interval = setInterval(() => {
         setMouthTrigger(prev => prev + 1);
       }, lipSyncInterval);
@@ -894,45 +893,81 @@ const ChatBox = () => {
     }
   };
 
-  // sendMessage 함수 오버로드 허용 및 항상 인자 우선 전송
-  const sendMessage = (text) => {
-    // 기존 TTS/타이핑 효과/상태 완전 초기화
-    ttsService.stop();
-    setIsAiTalking(false);
-    setTtsSpeaking(false);
-    setMouthTrigger(0);
-    setDisplayedAiText('');
-    if (typingIntervalRef.current) {
-      clearInterval(typingIntervalRef.current);
-      typingIntervalRef.current = null;
+  // 이미지 첨부 핸들러
+  const handleImageUpload = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const allowedExt = ['jpg', 'jpeg', 'png', 'webp'];
+    const allowedMime = ['image/jpeg', 'image/png', 'image/webp'];
+    const maxSize = 4 * 1024 * 1024;
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!allowedExt.includes(ext)) {
+      alert('허용되지 않는 확장자입니다: ' + ext);
+      return;
     }
-    // 실제 메시지 전송 로직 (text가 undefined면 input 상태 사용)
-    const msg = text || input;
-    if (!msg || msg.trim() === '') return;
+    if (file.size > maxSize) {
+      alert('파일 용량은 4MB 이하만 허용됩니다.');
+      return;
+    }
+    if (!allowedMime.includes(file.type)) {
+      alert('허용되지 않는 이미지 형식입니다: ' + file.type);
+      return;
+    }
+    setAttachedImage(file);
+    setAttachedImagePreview(URL.createObjectURL(file));
+  };
 
-    // 사용자가 말할 때 애니메이션
-    setIsUserTalking(true);
-    setTimeout(() => setIsUserTalking(false), 2000);
+  // 첨부 이미지 해제
+  const handleRemoveAttachedImage = () => {
+    setAttachedImage(null);
+    setAttachedImagePreview(null);
+  };
 
-    // 카메라가 활성화되어 있으면 카메라 감정을 우선 사용, 아니면 텍스트 분석 감정 사용
-    const emotion = isCameraActive ? cameraEmotion : analyzeEmotion(msg);
-    setUserEmotion(emotion);
-    setEmotionDisplay(prev => ({ ...prev, user: emotion })); // 감정 표시 업데이트
-
-    // 감정 정보와 함께 메시지 전송
-    ws.current.send(JSON.stringify({
-      message: msg,
-      emotion: emotion
-    }));
-    setMessages((prev) => [...prev, { type: 'send', text: msg }]);
-
-    // 입력창 완전 초기화 (textarea value와 ref 모두 초기화)
+  // 메시지 전송 함수 수정
+  const sendMessage = async (text) => {
+    const messageText = text !== undefined ? text : input;
+    if (!messageText && !attachedImage) return; // 아무것도 없으면 전송X
+    let imageUrl = null;
+    if (attachedImage) {
+      // 이미지 서버 업로드
+      const formData = new FormData();
+      formData.append('file', attachedImage);
+      formData.append('content', messageText);
+      try {
+        const res = await axios.post('/chat/api/chat/upload_image/', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        if (res.data.status === 'success') {
+          imageUrl = res.data.file_url;
+        } else {
+          alert('이미지 업로드 실패: ' + (res.data.message || '알 수 없는 오류'));
+          return;
+        }
+      } catch (err) {
+        alert('이미지 업로드 실패: ' + (err.response?.data?.message || err.message));
+        return;
+      }
+    }
+    setMessages(prev => ([
+      ...prev,
+      {
+        type: 'send',
+        text: messageText || (imageUrl ? '' : ''),
+        imageUrl: imageUrl,
+        date: new Date().toISOString(),
+      }
+    ]));
     setInput('');
-    if (inputRef.current) {
-      inputRef.current.value = '';
-      // textarea 높이도 초기화
-      inputRef.current.style.height = 'auto';
-      inputRef.current.focus();
+    setAttachedImage(null);
+    setAttachedImagePreview(null);
+    // Gemini(백엔드)로 메시지/이미지 전송
+    if (ws.current && (messageText || imageUrl)) {
+      ws.current.send(
+        JSON.stringify({
+          message: messageText || '',
+          imageUrl: imageUrl || '',
+        })
+      );
     }
   };
 
@@ -1045,9 +1080,29 @@ const ChatBox = () => {
   // 입력창 ref 추가
   const inputRef = useRef(null);
 
+  const [attachedImage, setAttachedImage] = useState(null); // 첨부 이미지 상태
+  const [attachedImagePreview, setAttachedImagePreview] = useState(null); // 미리보기용
+  const [viewerImage, setViewerImage] = useState(null); // 이미지 뷰어 모달 상태
+
+  // ESC 키로 이미지 뷰어 닫기
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') setViewerImage(null);
+    };
+    if (viewerImage) window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [viewerImage]);
+
 
   return (
     <>
+      {/* 이미지 뷰어 모달 */}
+      {viewerImage && (
+        <div className="image-viewer-modal" onClick={() => setViewerImage(null)}>
+          <img src={viewerImage} alt="확대 이미지" className="image-viewer-img" onClick={e => e.stopPropagation()} />
+          <button className="image-viewer-close" onClick={() => setViewerImage(null)}>✖</button>
+        </div>
+      )}
       <div className="chat-container-with-avatars">
         {/* 타이틀+음성/카메라/트래킹 버튼 헤더 */}
         <div className="chat-header">
@@ -1124,22 +1179,73 @@ const ChatBox = () => {
         {/* 채팅창 (아래쪽), paddingBottom:28 */}
         <div className="chat-section">
           <div className="chat-container">
-            <div className="chat-log" ref={mobileChatLogRef}>
-              {messages.map((msg, idx) => (
-                <div
-                  key={idx}
-                  className={`chat-bubble ${msg.type === 'send' ? 'sent' : 'received'}`}
-                >
-                  {msg.type === 'recv' && idx === messages.length - 1 && isAiTalking
-                    ? displayedAiText
-                    : msg.text}
-                </div>
-              ))}
+            <div className="chat-log" ref={chatScrollRef}>
+              {messages.map((msg, idx) => {
+                // 날짜/시간 포맷 함수
+                const dateObj = msg.date ? new Date(msg.date) : new Date();
+                const yyyy = dateObj.getFullYear();
+                const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const dd = String(dateObj.getDate()).padStart(2, '0');
+                const hh = String(dateObj.getHours()).padStart(2, '0');
+                const min = String(dateObj.getMinutes()).padStart(2, '0');
+                // 날짜/시간 박스 JSX
+                const dateTimeBox = (
+                  <div className="chat-date-time-box">
+                    <div className="chat-date-time-year">{yyyy}-</div>
+                    <div className="chat-date-time-md">{mm}-{dd}</div>
+                    <div className="chat-date-time-hm">{hh}:{min}</div>
+                  </div>
+                );
+                return (
+                  <div
+                    key={idx}
+                    style={{ display: 'flex', flexDirection: msg.type === 'send' ? 'row-reverse' : 'row', alignItems: 'center' }}
+                  >
+                    {dateTimeBox}
+                    <div
+                      className={`chat-bubble ${msg.type === 'send' ? 'sent' : 'received'}`}
+                      style={{ marginRight: msg.type === 'send' ? 8 : 0, marginLeft: msg.type === 'send' ? 0 : 8 }}
+                    >
+                      {/* 이미지+텍스트 조합 출력 */}
+                      {msg.imageUrl && (
+                        <img
+                          src={msg.imageUrl}
+                          alt="첨부 이미지"
+                          className="attached-image-thumb"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => setViewerImage(msg.imageUrl)}
+                        />
+                      )}
+                      {msg.text && (
+                        <div>{msg.type === 'recv' && idx === messages.length - 1 && isAiTalking ? displayedAiText : msg.text}</div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
             <div className="chat-input-area">
+              {/* 첨부 이미지 썸네일+X 버튼을 textarea 바로 위에 위치 */}
+              {attachedImagePreview && (
+                <div className="attached-image-preview-box">
+                  <img src={attachedImagePreview} alt="첨부 이미지 미리보기" className="attached-image-thumb" />
+                  <button onClick={handleRemoveAttachedImage} className="attached-image-remove-btn">✖</button>
+                  {/* <span className="attached-image-label">이미지 첨부됨</span> */}
+                </div>
+              )}
               <div className="input-controls">
-                {/* 입력창+전송버튼 한 줄 */}
-                <div className="input-row flex-gap">
+                <div className="chat-input-box">
+                  {/* 이미지 첨부 버튼 (왼쪽) */}
+                  <label htmlFor="chat-image-upload" className="image-upload-btn-side">
+                    <input
+                      id="chat-image-upload"
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={handleImageUpload}
+                    />
+                    <span className="image-upload-btn-icon">📤</span>
+                  </label>
                   <textarea
                     ref={inputRef}
                     placeholder="메시지를 입력하세요"
@@ -1147,7 +1253,7 @@ const ChatBox = () => {
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault(); // 엔터키 기본 동작(개행) 방지
+                        e.preventDefault();
                         sendMessage();
                       }
                     }}
@@ -1155,10 +1261,10 @@ const ChatBox = () => {
                       e.target.style.height = 'auto';
                       e.target.style.height = e.target.scrollHeight + 'px';
                     }}
-                    className="input-flex"
+                    className="input-flex chat-textarea"
                     rows={1}
                   />
-                  <button onClick={sendMessage} className="unified-btn">🔥</button>
+                  <button onClick={() => sendMessage()} className="unified-btn">🔥</button>
                 </div>
               </div>
             </div>
