@@ -33,12 +33,12 @@ ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
 # DB 설정 (MySQL)
 DATABASES = {
     "default": {
-        "ENGINE": os.environ.get("DB_ENGINE", "django.db.backends.mysql"),
-        "NAME": os.environ.get("DB_NAME", "hearth_chat_db"),
-        "PORT": os.environ.get("DB_PORT", "3306"),
-        "USER": os.environ.get("DB_USER", "root"),
-        "PASSWORD": os.environ.get("DB_PASSWORD", "1234"),
-        "HOST": os.environ.get("DB_HOST", "localhost"),
+        "ENGINE": os.environ["DB_ENGINE"],
+        "NAME": os.environ["DB_NAME"],
+        "PORT": os.environ.get("DB_PORT", "3306"),  # 포트만 기본값 허용
+        "USER": os.environ["DB_USER"],
+        "PASSWORD": os.environ["DB_PASSWORD"],
+        "HOST": os.environ["DB_HOST"],
         "OPTIONS": {
             "charset": "utf8mb4",
             "init_command": "SET character_set_connection=utf8mb4; SET collation_connection=utf8mb4_unicode_ci;",
