@@ -27,7 +27,7 @@ WORKDIR /app
 # 시스템 패키지 설치 (런타임만)
 RUN apt-get update && apt-get install -y \
     libpq5 \
-    default-libmysqlclient21 \
+    default-libmysqlclient-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Python 패키지 복사
