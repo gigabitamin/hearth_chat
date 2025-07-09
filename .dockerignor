@@ -10,6 +10,7 @@ node_modules/
 venv/
 *.log
 hearth_chat_etc/
+hearth_chat_sql/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
