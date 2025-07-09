@@ -6,6 +6,7 @@ import ttsService from '../services/ttsService';
 import readyPlayerMeService from '../services/readyPlayerMe';
 import faceTrackingService from '../services/faceTrackingService';
 import './chat_box.css';
+import axios from 'axios';
 
 // 모달 컴포넌트 추가
 const Modal = ({ open, onClose, children }) => {
@@ -892,46 +893,74 @@ const ChatBox = () => {
     }
   };
 
-  // sendMessage 함수 오버로드 허용 및 항상 인자 우선 전송
-  const sendMessage = (text) => {
-    // 기존 TTS/타이핑 효과/상태 완전 초기화
-    ttsService.stop();
-    setIsAiTalking(false);
-    setTtsSpeaking(false);
-    setMouthTrigger(0);
-    setDisplayedAiText('');
-    if (typingIntervalRef.current) {
-      clearInterval(typingIntervalRef.current);
-      typingIntervalRef.current = null;
+  // 이미지 첨부 핸들러
+  const handleImageUpload = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const allowedExt = ['jpg', 'jpeg', 'png', 'webp'];
+    const allowedMime = ['image/jpeg', 'image/png', 'image/webp'];
+    const maxSize = 4 * 1024 * 1024;
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!allowedExt.includes(ext)) {
+      alert('허용되지 않는 확장자입니다: ' + ext);
+      return;
     }
-    // 실제 메시지 전송 로직 (text가 undefined면 input 상태 사용)
-    const msg = typeof text === 'string' ? text : input;
-    if (typeof msg !== 'string' || msg.trim() === '') return;
+    if (file.size > maxSize) {
+      alert('파일 용량은 4MB 이하만 허용됩니다.');
+      return;
+    }
+    if (!allowedMime.includes(file.type)) {
+      alert('허용되지 않는 이미지 형식입니다: ' + file.type);
+      return;
+    }
+    setAttachedImage(file);
+    setAttachedImagePreview(URL.createObjectURL(file));
+  };
 
-    // 사용자가 말할 때 애니메이션
-    setIsUserTalking(true);
-    setTimeout(() => setIsUserTalking(false), 2000);
+  // 첨부 이미지 해제
+  const handleRemoveAttachedImage = () => {
+    setAttachedImage(null);
+    setAttachedImagePreview(null);
+  };
 
-    // 카메라가 활성화되어 있으면 카메라 감정을 우선 사용, 아니면 텍스트 분석 감정 사용
-    const emotion = isCameraActive ? cameraEmotion : analyzeEmotion(msg);
-    setUserEmotion(emotion);
-    setEmotionDisplay(prev => ({ ...prev, user: emotion })); // 감정 표시 업데이트
-
-    // 감정 정보와 함께 메시지 전송
-    ws.current.send(JSON.stringify({
-      message: msg,
-      emotion: emotion
-    }));
-    setMessages((prev) => [...prev, { type: 'send', text: msg }]);
-
-    // 입력창 완전 초기화 (textarea value와 ref 모두 초기화)
+  // 메시지 전송 함수 수정
+  const sendMessage = async (text) => {
+    const messageText = text !== undefined ? text : input;
+    if (!messageText && !attachedImage) return; // 아무것도 없으면 전송X
+    let imageUrl = null;
+    if (attachedImage) {
+      // 이미지 서버 업로드
+      const formData = new FormData();
+      formData.append('file', attachedImage);
+      formData.append('content', messageText); // 메시지 내용도 함께 전송
+      try {
+        const res = await axios.post('/chat/api/chat/upload_image/', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        if (res.data.status === 'success') {
+          imageUrl = res.data.file_url;
+        } else {
+          alert('이미지 업로드 실패: ' + (res.data.message || '알 수 없는 오류'));
+          return;
+        }
+      } catch (err) {
+        alert('이미지 업로드 실패: ' + (err.response?.data?.message || err.message));
+        return;
+      }
+    }
+    setMessages(prev => ([
+      ...prev,
+      {
+        type: 'send',
+        text: messageText || (imageUrl ? '' : ''),
+        imageUrl: imageUrl,
+        date: new Date().toISOString(),
+      }
+    ]));
     setInput('');
-    if (inputRef.current) {
-      inputRef.current.value = '';
-      // textarea 높이도 초기화
-      inputRef.current.style.height = 'auto';
-      inputRef.current.focus();
-    }
+    setAttachedImage(null);
+    setAttachedImagePreview(null);
+    // 이후 Gemini 전송 등 추가 로직 필요시 여기에
   };
 
   // WebSocket 연결
@@ -1043,17 +1072,29 @@ const ChatBox = () => {
   // 입력창 ref 추가
   const inputRef = useRef(null);
 
-  const handleImageUpload = (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    // TODO: 서버 업로드 로직 구현 예정
-    // 일단 파일명 콘솔 출력
-    console.log('선택된 이미지 파일:', file);
-  };
+  const [attachedImage, setAttachedImage] = useState(null); // 첨부 이미지 상태
+  const [attachedImagePreview, setAttachedImagePreview] = useState(null); // 미리보기용
+  const [viewerImage, setViewerImage] = useState(null); // 이미지 뷰어 모달 상태
+
+  // ESC 키로 이미지 뷰어 닫기
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') setViewerImage(null);
+    };
+    if (viewerImage) window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [viewerImage]);
 
 
   return (
     <>
+      {/* 이미지 뷰어 모달 */}
+      {viewerImage && (
+        <div className="image-viewer-modal" onClick={() => setViewerImage(null)}>
+          <img src={viewerImage} alt="확대 이미지" className="image-viewer-img" onClick={e => e.stopPropagation()} />
+          <button className="image-viewer-close" onClick={() => setViewerImage(null)}>✖</button>
+        </div>
+      )}
       <div className="chat-container-with-avatars">
         {/* 타이틀+음성/카메라/트래킹 버튼 헤더 */}
         <div className="chat-header">
@@ -1152,23 +1193,39 @@ const ChatBox = () => {
                     key={idx}
                     style={{ display: 'flex', flexDirection: msg.type === 'send' ? 'row-reverse' : 'row', alignItems: 'center' }}
                   >
-                    {/* 내가 보낸 메시지: 오른쪽에 날짜/시간, AI 메시지: 왼쪽에 날짜/시간 */}
                     {dateTimeBox}
                     <div
                       className={`chat-bubble ${msg.type === 'send' ? 'sent' : 'received'}`}
                       style={{ marginRight: msg.type === 'send' ? 8 : 0, marginLeft: msg.type === 'send' ? 0 : 8 }}
                     >
-                      {msg.type === 'recv' && idx === messages.length - 1 && isAiTalking
-                        ? displayedAiText
-                        : msg.text}
+                      {/* 이미지+텍스트 조합 출력 */}
+                      {msg.imageUrl && (
+                        <img
+                          src={msg.imageUrl}
+                          alt="첨부 이미지"
+                          className="attached-image-thumb"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => setViewerImage(msg.imageUrl)}
+                        />
+                      )}
+                      {msg.text && (
+                        <div>{msg.type === 'recv' && idx === messages.length - 1 && isAiTalking ? displayedAiText : msg.text}</div>
+                      )}
                     </div>
                   </div>
                 );
               })}
             </div>
             <div className="chat-input-area">
+              {/* 첨부 이미지 썸네일+X 버튼을 textarea 바로 위에 위치 */}
+              {attachedImagePreview && (
+                <div className="attached-image-preview-box">
+                  <img src={attachedImagePreview} alt="첨부 이미지 미리보기" className="attached-image-thumb" />
+                  <button onClick={handleRemoveAttachedImage} className="attached-image-remove-btn">✖</button>
+                  {/* <span className="attached-image-label">이미지 첨부됨</span> */}
+                </div>
+              )}
               <div className="input-controls">
-                {/* 입력창+전송버튼 한 줄 */}
                 <div className="chat-input-box">
                   {/* 이미지 첨부 버튼 (왼쪽) */}
                   <label htmlFor="chat-image-upload" className="image-upload-btn-side">
@@ -1188,7 +1245,7 @@ const ChatBox = () => {
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault(); // 엔터키 기본 동작(개행) 방지
+                        e.preventDefault();
                         sendMessage();
                       }
                     }}
@@ -1199,8 +1256,7 @@ const ChatBox = () => {
                     className="input-flex chat-textarea"
                     rows={1}
                   />
-                  {/* 모닥불(전송) 버튼 (오른쪽) */}
-                  <button onClick={sendMessage} className="unified-btn">🔥</button>
+                  <button onClick={() => sendMessage()} className="unified-btn">🔥</button>
                 </div>
               </div>
             </div>

@@ -4,6 +4,14 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from .models import Chat
 import json
+import os
+from django.conf import settings
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+from django.views import View
+from django.http import HttpResponseBadRequest
 
 # Create your views here.
 
@@ -58,3 +66,44 @@ def get_all_sessions(request):
             'status': 'error',
             'message': str(e)
         }, status=500)
+
+ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp']
+ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+MAX_FILE_SIZE_MB = 4
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def upload_chat_image(request):
+    """채팅 이미지 업로드 API (확장자, 용량, MIME 타입 검사)"""
+    file = request.FILES.get('file')
+    session_id = request.POST.get('session_id', None)
+    content = request.POST.get('content', '')  # 메시지 내용도 받음
+    if not file:
+        return JsonResponse({'status': 'error', 'message': '파일이 첨부되지 않았습니다.'}, status=400)
+
+    # 확장자 검사
+    ext = file.name.split('.')[-1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        return JsonResponse({'status': 'error', 'message': f'허용되지 않는 확장자입니다: {ext}'}, status=400)
+
+    # 용량 검사
+    if file.size > MAX_FILE_SIZE_MB * 1024 * 1024:
+        return JsonResponse({'status': 'error', 'message': f'파일 용량은 {MAX_FILE_SIZE_MB}MB 이하만 허용됩니다.'}, status=400)
+
+    # MIME 타입 검사
+    if file.content_type not in ALLOWED_MIME_TYPES:
+        return JsonResponse({'status': 'error', 'message': f'허용되지 않는 MIME 타입입니다: {file.content_type}'}, status=400)
+
+    # 파일 저장
+    chat_obj = Chat.objects.create(
+        message_type='user',
+        content=content if content else '[이미지 첨부]',  # 메시지 내용이 있으면 저장, 없으면 [이미지 첨부]
+        session_id=session_id,
+        attach_image=file
+    )
+
+    return JsonResponse({
+        'status': 'success',
+        'file_url': chat_obj.attach_image.url if chat_obj.attach_image else None,
+        'chat_id': chat_obj.id
+    })

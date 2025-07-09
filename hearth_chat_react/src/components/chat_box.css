@@ -544,6 +544,36 @@ body,
   z-index: 3;
 }
 
+/* 이미지 첨부 썸네일+X 버튼 영역 */
+.attached-image-preview-box {
+  display: flex;
+  align-items: center;
+  margin-bottom: 2px;
+  margin-left: 12%;
+}
+
+.attached-image-thumb {
+  max-width: 80px;
+  max-height: 80px;
+  border-radius: 8px;
+  margin-right: 8px;
+  border: 1px solid #ccc;
+}
+
+.attached-image-remove-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: #888;
+}
+
+.attached-image-label {
+  font-size: 12px;
+  color: #666;
+  margin-left: 4px;
+}
+
 @media (max-width: 768px) {
   .voice-modal-content {
     margin-top: 80px;
@@ -551,4 +581,36 @@ body,
     max-width: 98vw;
     padding: 18px 6vw 18px 6vw;
   }
+}
+
+.image-viewer-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.image-viewer-img {
+  max-width: 90vw;
+  max-height: 90vh;
+  border-radius: 12px;
+  box-shadow: 0 4px 32px #000a;
+}
+
+.image-viewer-close {
+  position: absolute;
+  top: 32px;
+  right: 48px;
+  font-size: 2rem;
+  color: #fff;
+  background: none;
+  border: none;
+  cursor: pointer;
+  z-index: 10000;
 }
