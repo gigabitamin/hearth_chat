@@ -41,7 +41,12 @@ def catch_all(request, path):
     return HttpResponse("OK", content_type="text/plain")
 
 
+def favicon(request):
+    return HttpResponse("", content_type="image/x-icon")
+
+
 urlpatterns = [
+    path("favicon.ico", favicon),
     path("", root_response, name="root"),  # 헬스체크용 루트 응답
     path("admin/", admin.site.urls),
     path('chat/', include("chat.urls")),
