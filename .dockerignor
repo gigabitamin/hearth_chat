@@ -1,3 +1,15 @@
+
+backup/
+*_zip/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+node_modules/
+.git/
+venv/
+*.log
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
