@@ -155,3 +155,25 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 MEDIA_ROOT = os.path.join(BASE_DIR, '..', 'hearth_chat_media')
 # MEDIA_ROOT = os.path.abspath(MEDIA_ROOT)  # 절대경로로 변환 (권장)
 MEDIA_URL = '/media/'
+
+# 로깅 설정 추가
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
