@@ -37,6 +37,9 @@ COPY --from=frontend /app/build/ /app/hearth_chat_react/build/
 # 장고 앱 복사
 COPY hearth_chat_django/ ./hearth_chat_django/
 
+# 작업 디렉토리를 Django 앱으로 변경
+WORKDIR /app/hearth_chat_django
+
 # 실행 스크립트 복사
 COPY script/dh.sh /usr/local/bin/dh
 COPY script/rh.sh /usr/local/bin/rh
@@ -45,4 +48,4 @@ RUN chmod +x /usr/local/bin/dh /usr/local/bin/rh /usr/local/bin/cs
 
 EXPOSE 8000
 
-CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "hearth_chat_django.asgi:application"]
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "hearth_chat.asgi:application"]
