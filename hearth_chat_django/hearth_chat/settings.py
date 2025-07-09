@@ -20,22 +20,42 @@ load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-# SECRET_KEY = "django-insecure-&y=mhcf4s2r17atnzv5%g&1ey=iy_e%nw(wl+l*kc=^7-5s*)e"
-SECRET_KEY = db_settings.SECRET_KEY
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "your-default-secret-key")
+DEBUG = os.environ.get("DEBUG", "False") == "True"
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Database
+# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-ALLOWED_HOSTS = db_settings.ALLOWED_HOSTS
+# DB 설정 (MySQL)
+DATABASES = {
+    "default": {
+        "ENGINE": os.environ.get("DB_ENGINE", "django.db.backends.mysql"),
+        "NAME": os.environ.get("DB_NAME", "hearth_chat_db"),
+        "PORT": os.environ.get("DB_PORT", "3306"),
+        "USER": os.environ.get("DB_USER", "root"),
+        "PASSWORD": os.environ.get("DB_PASSWORD", "1234"),
+        "HOST": os.environ.get("DB_HOST", "localhost"),
+        "OPTIONS": {
+            "charset": "utf8mb4",
+            "init_command": "SET character_set_connection=utf8mb4; SET collation_connection=utf8mb4_unicode_ci;",
+        },
+    }
+}
 
+# Gemini API 키
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+
+# CORS
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "*").split(",")
 
 # Application definition
-
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -87,18 +107,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "hearth_chat.wsgi.application"
 
-
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.sqlite3",
-#         "NAME": BASE_DIR / "db.sqlite3",
-#     }
-# }
-DATABASES = db_settings.DATABASES
-
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
@@ -116,7 +124,6 @@ AUTH_PASSWORD_VALIDATORS = [
         "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
-
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
@@ -151,8 +158,6 @@ CORS_ALLOWED_ORIGINS = db_settings.CORS_ALLOWED_ORIGINS + [
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://192\.168\.\d+\.\d+:\d+$",  # 내부 IP 허용
 ]
-
-
 
 # 미디어 파일(업로드 이미지 등) 설정
 MEDIA_ROOT = os.path.join(BASE_DIR, '..', 'hearth_chat_media')
