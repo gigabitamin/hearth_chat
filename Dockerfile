@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y build-essential libpq-dev ffmpeg nodejs
 
 # 4. 파이썬 패키지 설치
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r hearth_chat_django/requirements.txt
+RUN pip install --upgrade pip && pip install -r requirements.txt
 
 # 5. 소스 전체 복사 (여기서 .dockerignore가 적용됨)
 COPY . .
