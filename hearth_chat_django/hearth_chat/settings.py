@@ -63,6 +63,19 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://192\.168\.\d+\.\d+:\d+$",  # 내부 IP 허용
 ]
 
+# Railway 헬스체크를 위한 추가 설정
+CORS_ALLOWED_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
+
 # Application definition
 INSTALLED_APPS = [
     "django.contrib.admin",

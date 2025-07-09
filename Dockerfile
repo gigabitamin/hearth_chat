@@ -47,7 +47,7 @@ COPY script/cs.sh /usr/local/bin/cs
 RUN chmod +x /usr/local/bin/dh /usr/local/bin/rh /usr/local/bin/cs
 
 # 정적 파일 수집 및 마이그레이션을 위한 스크립트 생성
-RUN echo '#!/bin/bash\nset -e\necho "Starting Django setup..."\necho "Current directory: $(pwd)"\necho "Listing files:"\nls -la\necho "Collecting static files..."\npython manage.py collectstatic --noinput --verbosity=2\necho "Running migrations..."\npython manage.py migrate --verbosity=2\necho "Starting Daphne server..."\nexec daphne -b 0.0.0.0 -p 8000 hearth_chat.asgi:application' > /usr/local/bin/start.sh
+RUN echo '#!/bin/bash\nset -e\necho "Starting Django setup..."\necho "Current directory: $(pwd)"\necho "Listing files:"\nls -la\necho "Collecting static files..."\npython manage.py collectstatic --noinput --verbosity=2\necho "Running migrations..."\npython manage.py migrate --verbosity=2\necho "Starting Daphne server..."\necho "Server will be available at http://0.0.0.0:8000"\necho "Health check endpoint: http://0.0.0.0:8000/health/"\nexec daphne -b 0.0.0.0 -p 8000 hearth_chat.asgi:application' > /usr/local/bin/start.sh
 RUN chmod +x /usr/local/bin/start.sh
 
 EXPOSE 8000

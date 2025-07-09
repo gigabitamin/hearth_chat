@@ -19,16 +19,24 @@ from django.urls import path, include
 from django.shortcuts import redirect
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import HttpResponse
 
 
 def home_redirect(request):
     """루트 URL을 admin으로 리다이렉트"""
     return redirect('admin:index')
 
+
+def health_check(request):
+    """Railway 헬스체크용 엔드포인트"""
+    return HttpResponse("OK", content_type="text/plain")
+
+
 urlpatterns = [
     path("", home_redirect, name="home"),
     path("admin/", admin.site.urls),
     path('chat/', include("chat.urls")),
+    path('health/', health_check, name="health_check"),  # 헬스체크 엔드포인트
 ]
 
 # Static files (CSS, JavaScript, Images)
