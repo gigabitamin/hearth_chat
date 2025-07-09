@@ -4,8 +4,15 @@ FROM python:3.11-slim
 # 2. 작업 디렉토리 생성
 WORKDIR /app
 
-# 3. 시스템 패키지 설치 (node, npm, 빌드툴 등)
-RUN apt-get update && apt-get install -y build-essential libpq-dev ffmpeg nodejs npm
+# 3. 시스템 패키지 설치 (node, npm, 빌드툴 등 + mysqlclient 빌드 필수 패키지)
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    ffmpeg \
+    nodejs \
+    npm \
+    pkg-config \
+    default-libmysqlclient-dev
 
 # 4. 파이썬 패키지 설치
 COPY requirements.txt .
