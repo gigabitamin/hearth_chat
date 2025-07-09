@@ -41,24 +41,19 @@ DATABASES = {
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
 # CORS
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False  # 운영 환경에서는 False가 안전
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     origin for origin in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
     if origin and "://" in origin
-] + [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://192.168.44.9:3000",
 ]
-
-if not os.environ.get("CORS_ALLOWED_ORIGINS"):
+if not CORS_ALLOWED_ORIGINS:
     CORS_ALLOWED_ORIGINS = [
+        "https://hearthchat-production.up.railway.app",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://192.168.44.9:3000",
     ]
-
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://192\.168\.\d+\.\d+:\d+$",  # 내부 IP 허용
 ]
@@ -155,21 +150,6 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
-# CORS 설정
-CORS_ALLOW_ALL_ORIGINS = True  # 개발 환경에서만 사용
-CORS_ALLOW_CREDENTIALS = True
-
-# 환경변수에서 쉼표로 구분된 값들을 리스트로 변환
-CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",") + [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://192.168.44.9:3000",
-]
-
-CORS_ALLOWED_ORIGIN_REGEXES = [
-    r"^http://192\.168\.\d+\.\d+:\d+$",  # 내부 IP 허용
-]
 
 # 미디어 파일(업로드 이미지 등) 설정
 MEDIA_ROOT = os.path.join(BASE_DIR, '..', 'hearth_chat_media')
