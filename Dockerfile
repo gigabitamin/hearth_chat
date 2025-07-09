@@ -46,6 +46,10 @@ COPY script/rh.sh /usr/local/bin/rh
 COPY script/cs.sh /usr/local/bin/cs
 RUN chmod +x /usr/local/bin/dh /usr/local/bin/rh /usr/local/bin/cs
 
+# 정적 파일 수집 및 마이그레이션을 위한 스크립트 생성
+RUN echo '#!/bin/bash\npython manage.py collectstatic --noinput\npython manage.py migrate\nexec "$@"' > /usr/local/bin/start.sh
+RUN chmod +x /usr/local/bin/start.sh
+
 EXPOSE 8000
 
-CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "hearth_chat.asgi:application"]
+CMD ["/usr/local/bin/start.sh", "daphne", "-b", "0.0.0.0", "-p", "8000", "hearth_chat.asgi:application"]
