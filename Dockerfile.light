@@ -1,32 +1,35 @@
 # ======================
-# 🔵 1. FRONTEND 빌드 단계
+# 🔵 1. FRONTEND 빌드 단계 (메모리 최적화)
 # ======================
-FROM node:18 AS frontend
+FROM node:18-alpine AS frontend
 
 WORKDIR /app
 COPY hearth_chat_react/package*.json ./
-RUN npm ci --only=production
+RUN npm ci --only=production --no-audit --no-fund
 
 COPY hearth_chat_react/ ./
-# 메모리 제한 설정으로 빌드 안정성 향상
-ENV NODE_OPTIONS="--max-old-space-size=4096"
+# 메모리 제한 및 빌드 최적화
+ENV NODE_OPTIONS="--max-old-space-size=2048"
+ENV GENERATE_SOURCEMAP=false
 RUN npm run build
 
 # ======================
-# 🟡 2. BACKEND (Django)
+# 🟡 2. BACKEND (Django) - 최소 패키지만
 # ======================
 FROM python:3.11.5-slim
 
-# 시스템 필수 패키지 설치 (pkg-config 추가)
+# 필수 패키지만 설치
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
     pkg-config \
     default-libmysqlclient-dev \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 WORKDIR /app
 
+# requirements.txt에서 필수 패키지만 설치
 COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
@@ -45,4 +48,4 @@ RUN chmod +x /usr/local/bin/dh /usr/local/bin/rh /usr/local/bin/cs
 
 EXPOSE 8000
 
-CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "hearth_chat_django.asgi:application"]
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "hearth_chat_django.asgi:application"] 
