@@ -38,6 +38,12 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
     # Railway 환경에서는 모든 호스트 허용
     ALLOWED_HOSTS = ["*"]
 
+# Railway 환경에서 추가 설정
+if os.environ.get("RAILWAY_ENVIRONMENT"):
+    # 헬스체크를 위한 추가 설정
+    SECURE_SSL_REDIRECT = False
+    SECURE_PROXY_SSL_HEADER = None
+
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 

@@ -34,7 +34,7 @@ def health_check(request):
 
 def root_response(request):
     """Railway 헬스체크를 위한 루트 응답"""
-    return HttpResponse("Hearth Chat Server is running!", content_type="text/plain")
+    return HttpResponse("OK", content_type="text/plain")
 
 
 urlpatterns = [
