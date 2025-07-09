@@ -34,11 +34,7 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
     print("Railway environment detected - DEBUG mode enabled")
 
 # ALLOWED_HOSTS 설정 개선
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
-if os.environ.get("RAILWAY_ENVIRONMENT"):
-    # Railway 환경에서는 모든 호스트 허용
-    ALLOWED_HOSTS = ["*"]
-    print("Railway environment - ALLOWED_HOSTS set to ['*']")
+ALLOWED_HOSTS = ["*"]
 
 # Railway 환경에서 추가 설정
 if os.environ.get("RAILWAY_ENVIRONMENT"):
