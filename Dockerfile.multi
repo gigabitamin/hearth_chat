@@ -1,0 +1,50 @@
+# 멀티스테이지 빌드 - 더 작은 이미지 크기
+# 1단계: React 빌드
+FROM node:18-alpine AS react-builder
+WORKDIR /app
+COPY hearth_chat_react/package*.json ./
+RUN npm ci --only=production
+COPY hearth_chat_react/ .
+RUN npm run build
+
+# 2단계: Python 빌드
+FROM python:3.11.5-slim AS python-builder
+WORKDIR /app
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    pkg-config \
+    default-libmysqlclient-dev \
+    && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# 3단계: 최종 이미지
+FROM python:3.11.5-slim
+WORKDIR /app
+
+# 시스템 패키지 설치 (런타임만)
+RUN apt-get update && apt-get install -y \
+    libpq5 \
+    default-libmysqlclient21 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Python 패키지 복사
+COPY --from=python-builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=python-builder /usr/local/bin /usr/local/bin
+
+# Django 앱 복사
+COPY hearth_chat_django/ ./hearth_chat_django/
+
+# React 빌드 결과 복사
+COPY --from=react-builder /app/build ./hearth_chat_react/build/
+
+# 스크립트 복사
+COPY script/dh.sh /usr/local/bin/dh
+COPY script/rh.sh /usr/local/bin/rh
+COPY script/cs.sh /usr/local/bin/cs
+RUN chmod +x /usr/local/bin/dh /usr/local/bin/rh /usr/local/bin/cs
+
+EXPOSE 8000
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "hearth_chat_django.asgi:application"] 

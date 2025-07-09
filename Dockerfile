@@ -1,46 +1,44 @@
-# 1. Python 베이스 이미지
-FROM python:3.11.5
+# 1. Python 베이스 이미지 (더 가벼운 버전 사용)
+FROM python:3.11.5-slim
 
 # 2. 작업 디렉토리 생성
 WORKDIR /app
 
-# 3. 시스템 패키지 설치 (node, npm, 빌드툴 등 + mysqlclient 빌드 필수 패키지)
+# 3. 시스템 패키지 설치 (필수 패키지만)
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
-    ffmpeg \
     nodejs \
     npm \
     pkg-config \
-    default-libmysqlclient-dev
+    default-libmysqlclient-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# 4. 파이썬 패키지 설치
+# 4. 파이썬 패키지 설치 (캐시 최적화)
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# 5. 소스 전체 복사 (여기서 .dockerignore가 적용됨)
-COPY . .
-
-# 6. React 빌드
+# 5. React 빌드 (캐시 최적화)
 WORKDIR /app/hearth_chat_react
-RUN npm install && npm run build
+COPY hearth_chat_react/package*.json ./
+RUN npm ci --only=production
 
-# 7. Django static 파일 수집
+COPY hearth_chat_react/ .
+RUN npm run build
+
+# 6. Django 설정
 WORKDIR /app/hearth_chat_django
-# RUN python manage.py collectstatic --noinput
+COPY hearth_chat_django/ .
 
-# 8. 포트 지정 (Railway는 8000, 8080 등 사용 가능)
+# 7. 스크립트 복사 및 권한 설정
+COPY script/dh.sh /usr/local/bin/dh
+COPY script/rh.sh /usr/local/bin/rh
+COPY script/cs.sh /usr/local/bin/cs
+RUN chmod +x /usr/local/bin/dh /usr/local/bin/rh /usr/local/bin/cs
+
+# 8. 포트 지정
 EXPOSE 8000
 
 # 9. Daphne로 ASGI 서버 실행
 CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "hearth_chat_django.asgi:application"]
-
-# sh 명령어 실행
-COPY script/dh.sh /usr/local/bin/dh
-RUN chmod +x /usr/local/bin/dh
-
-COPY script/rh.sh /usr/local/bin/rh
-RUN chmod +x /usr/local/bin/rh
-
-COPY script/cs.sh /usr/local/bin/cs
-RUN chmod +x /usr/local/bin/cs
