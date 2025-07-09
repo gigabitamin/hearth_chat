@@ -227,7 +227,38 @@ body,
   max-height: 100%;
   overflow-y: auto;
   width: 100%;
-  padding: 20px;
+}
+
+/* 채팅 로그 스크롤바 기본: 25% 반투명, hover/active: 50% 반투명 */
+.chat-log::-webkit-scrollbar {
+  width: 8px;
+  background: transparent;
+}
+
+.chat-log::-webkit-scrollbar-thumb {
+  background: rgba(120, 120, 120, 0.25);
+  /* 25% 불투명 */
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.chat-log:hover::-webkit-scrollbar-thumb,
+.chat-log:active::-webkit-scrollbar-thumb,
+.chat-log.scrolling::-webkit-scrollbar-thumb {
+  background: rgba(120, 120, 120, 0.5);
+  /* 50% 불투명 */
+}
+
+/* Firefox용 */
+.chat-log {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(120, 120, 120, 0.25) transparent;
+}
+
+.chat-log:hover,
+.chat-log:active,
+.chat-log.scrolling {
+  scrollbar-color: rgba(120, 120, 120, 0.5) transparent;
 }
 
 .chat-bubble {
@@ -398,6 +429,32 @@ body,
   margin-bottom: 12px;
   letter-spacing: 0.5px;
   text-align: left;
+}
+
+/* 날짜/시간 박스 (채팅 로그용) */
+.chat-date-time-box {
+  color: #888;
+  font-size: 11px;
+  text-align: center;
+  line-height: 1.1;
+  min-width: 36px;
+  max-width: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+}
+
+.chat-date-time-year,
+.chat-date-time-md,
+.chat-date-time-hm {
+  height: 13px;
+  line-height: 13px;
+  padding: 0;
+  margin: 0;
 }
 
 @media (max-width: 768px) {

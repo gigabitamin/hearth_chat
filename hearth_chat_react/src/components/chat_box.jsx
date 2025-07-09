@@ -41,8 +41,7 @@ const ChatBox = () => {
   const [voiceList, setVoiceList] = useState([]);
 
   const ws = useRef(null);
-  const chatLogRef = useRef(null);
-  const mobileChatLogRef = useRef(null);
+  const chatScrollRef = useRef(null);
   const [displayedAiText, setDisplayedAiText] = useState('');
   const [mouthTrigger, setMouthTrigger] = useState(0);
   const [currentAiMessage, setCurrentAiMessage] = useState('');
@@ -171,13 +170,12 @@ const ChatBox = () => {
 
   // 새로운 메시지가 추가될 때마다 자동으로 스크롤을 맨 아래로 이동
   useEffect(() => {
-    if (chatLogRef.current) {
-      chatLogRef.current.scrollTop = chatLogRef.current.scrollHeight;
-    }
-    if (mobileChatLogRef.current) {
-      mobileChatLogRef.current.scrollTop = mobileChatLogRef.current.scrollHeight;
-    }
-  }, [messages]);
+    setTimeout(() => {
+      if (chatScrollRef.current) {
+        chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+      }
+    }, 0);
+  }, [messages, displayedAiText]);
 
   // TTS 기반 립싱크를 위한 상태
   const [ttsSpeaking, setTtsSpeaking] = useState(false);
@@ -195,7 +193,7 @@ const ChatBox = () => {
       console.log('TTS 시작(이벤트):', text.substring(0, 50) + '...');
       setIsAiTalking(true);
       setTtsSpeaking(true);
-      
+
       // 립싱크 시퀀스 저장 및 초기화
       if (lipSyncSequence && lipSyncSequence.length > 0) {
         setLipSyncSequence(lipSyncSequence);
@@ -207,7 +205,7 @@ const ChatBox = () => {
         setCurrentLipSyncIndex(0);
         console.log('립싱크 시퀀스가 없음');
       }
-      
+
       // 타이핑 효과 시작
       if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
       let i = 0;
@@ -285,22 +283,22 @@ const ChatBox = () => {
   // 3. 고급 립싱크 시스템 (음소 기반)
   useEffect(() => {
     console.log('[LIP SYNC DEBUG] ttsSpeaking:', ttsSpeaking, 'lipSyncSequence.length:', lipSyncSequence.length);
-    
+
     if (ttsSpeaking && lipSyncSequence.length > 0) {
       console.log('[LIP SYNC] 고급 립싱크 시작, 시퀀스 길이:', lipSyncSequence.length);
-      
+
       // 음소 기반 립싱크
       const totalDuration = lipSyncSequence[lipSyncSequence.length - 1]?.endTime || 5000; // 기본 5초
       const startTime = Date.now();
-      
+
       console.log('[LIP SYNC] 총 재생 시간:', totalDuration, 'ms');
-      
+
       const interval = setInterval(() => {
         const elapsedTime = Date.now() - startTime;
-        const currentPhoneme = lipSyncSequence.find(p => 
+        const currentPhoneme = lipSyncSequence.find(p =>
           elapsedTime >= p.startTime && elapsedTime < p.endTime
         );
-        
+
         if (currentPhoneme) {
           // 입모양에 따른 mouthTrigger 값 설정
           const mouthShapeValues = {
@@ -318,7 +316,7 @@ const ChatBox = () => {
           // 현재 시간에 해당하는 음소가 없으면 중립
           setMouthTrigger(0);
         }
-        
+
         // TTS 종료 시점 체크
         if (elapsedTime >= totalDuration) {
           clearInterval(interval);
@@ -327,7 +325,7 @@ const ChatBox = () => {
           console.log('[LIP SYNC] 립싱크 종료');
         }
       }, 50); // 50ms 간격으로 더 빠르게 업데이트
-      
+
       setLipSyncInterval(interval);
       return () => {
         if (interval) clearInterval(interval);
@@ -339,7 +337,7 @@ const ChatBox = () => {
       const rateMultiplier = ttsRate || 1.0;
       const lipSyncInterval = Math.max(100, Math.min(400, baseInterval / rateMultiplier));
       console.log('기본 립싱크 간격 설정:', lipSyncInterval, 'ms (TTS 속도:', rateMultiplier, ')');
-      
+
       const interval = setInterval(() => {
         setMouthTrigger(prev => prev + 1);
       }, lipSyncInterval);
@@ -1124,17 +1122,41 @@ const ChatBox = () => {
         {/* 채팅창 (아래쪽), paddingBottom:28 */}
         <div className="chat-section">
           <div className="chat-container">
-            <div className="chat-log" ref={mobileChatLogRef}>
-              {messages.map((msg, idx) => (
-                <div
-                  key={idx}
-                  className={`chat-bubble ${msg.type === 'send' ? 'sent' : 'received'}`}
-                >
-                  {msg.type === 'recv' && idx === messages.length - 1 && isAiTalking
-                    ? displayedAiText
-                    : msg.text}
-                </div>
-              ))}
+            <div className="chat-log" ref={chatScrollRef}>
+              {messages.map((msg, idx) => {
+                // 날짜/시간 포맷 함수
+                const dateObj = msg.date ? new Date(msg.date) : new Date();
+                const yyyy = dateObj.getFullYear();
+                const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const dd = String(dateObj.getDate()).padStart(2, '0');
+                const hh = String(dateObj.getHours()).padStart(2, '0');
+                const min = String(dateObj.getMinutes()).padStart(2, '0');
+                // 날짜/시간 박스 JSX
+                const dateTimeBox = (
+                  <div className="chat-date-time-box">
+                    <div className="chat-date-time-year">{yyyy}-</div>
+                    <div className="chat-date-time-md">{mm}-{dd}</div>
+                    <div className="chat-date-time-hm">{hh}:{min}</div>
+                  </div>
+                );
+                return (
+                  <div
+                    key={idx}
+                    style={{ display: 'flex', flexDirection: msg.type === 'send' ? 'row-reverse' : 'row', alignItems: 'center' }}
+                  >
+                    {/* 내가 보낸 메시지: 오른쪽에 날짜/시간, AI 메시지: 왼쪽에 날짜/시간 */}
+                    {dateTimeBox}
+                    <div
+                      className={`chat-bubble ${msg.type === 'send' ? 'sent' : 'received'}`}
+                      style={{ marginRight: msg.type === 'send' ? 8 : 0, marginLeft: msg.type === 'send' ? 0 : 8 }}
+                    >
+                      {msg.type === 'recv' && idx === messages.length - 1 && isAiTalking
+                        ? displayedAiText
+                        : msg.text}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
             <div className="chat-input-area">
               <div className="input-controls">
