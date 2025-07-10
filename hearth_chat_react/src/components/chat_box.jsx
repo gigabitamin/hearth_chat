@@ -1138,13 +1138,13 @@ const ChatBox = () => {
             >
               👀
             </button>
-            {/* 사용자 아바타 토글 */}
-            <button className="icon-btn" onClick={() => setIsUserAvatarOn(v => !v)} title="사용자 아바타 토글">
-              <span role="img" aria-label="user-avatar" style={{ opacity: isUserAvatarOn ? 1 : 0.3 }}>👤</span>
-            </button>
             {/* AI 아바타 토글 */}
             <button className="icon-btn" onClick={() => setIsAiAvatarOn(v => !v)} title="AI 아바타 토글">
               <span role="img" aria-label="ai-avatar" style={{ opacity: isAiAvatarOn ? 1 : 0.3 }}>🤖</span>
+            </button>
+            {/* 사용자 아바타 토글 */}
+            <button className="icon-btn" onClick={() => setIsUserAvatarOn(v => !v)} title="사용자 아바타 토글">
+              <span role="img" aria-label="user-avatar" style={{ opacity: isUserAvatarOn ? 1 : 0.3 }}>👤</span>
             </button>
           </div>
         </div>

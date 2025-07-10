@@ -83,6 +83,8 @@ const VoiceRecognition = forwardRef(({ isTTSSpeaking, onResult, onInterimResult,
     const lastFinalTextRef = useRef('');
     const lastRecognizedTextRef = useRef(''); // 마지막 인식된 텍스트 저장
     const interimTextRef = useRef(''); // 마지막 interim(중간) 텍스트 저장
+    const isSilenceHandledRef = useRef(false); // 침묵 감지 중복 방지
+    const lastSentTextRef = useRef(''); // 마지막 전송된 텍스트
 
     // 외부에서 호출할 수 있는 메서드들
     useImperativeHandle(ref, () => ({
@@ -204,7 +206,7 @@ const VoiceRecognition = forwardRef(({ isTTSSpeaking, onResult, onInterimResult,
         setAdvancedSettings(initialSettings);
 
         // 4-1단계: 향상된 기능 이벤트 리스너
-        // 음성 감지 시 타이머 취소
+        // 음성 감지 시 타이머 취소 및 침묵 처리 플래그 초기화
         speechRecognitionService.on('voice-detected', () => {
             setIsVoiceDetected(true);
             setCurrentRecognitionInfo(prev => ({ ...prev, status: '음성 감지됨' }));
@@ -212,6 +214,7 @@ const VoiceRecognition = forwardRef(({ isTTSSpeaking, onResult, onInterimResult,
                 clearTimeout(silenceTimerRef.current);
                 silenceTimerRef.current = null;
             }
+            isSilenceHandledRef.current = false; // 침묵 감지 플래그 초기화
         });
 
         // 침묵 감지 시 타이머 시작
@@ -222,15 +225,19 @@ const VoiceRecognition = forwardRef(({ isTTSSpeaking, onResult, onInterimResult,
             if (silenceTimerRef.current) {
                 clearTimeout(silenceTimerRef.current);
             }
-            // TTS 재생 중에는 자동 전송을 막고, 아닐 때만 전송
-            if (!isTTSSpeaking) {
-                let textToSend = interimTextRef.current && interimTextRef.current.trim() ? interimTextRef.current : lastRecognizedTextRef.current;
-                if (typeof onAutoSend === 'function') {
-                    console.log('onAutoSend 호출 (VoiceRecognition.jsx)', textToSend);
-                    onAutoSend(textToSend);
-                }
+            // 중복 침묵 감지 방지
+            if (isSilenceHandledRef.current) return;
+            isSilenceHandledRef.current = true;
+            // TTS 재생 중에는 침묵 감지 이벤트 자체를 무시
+            if (isTTSSpeaking) return;
+            let textToSend = interimTextRef.current && interimTextRef.current.trim() ? interimTextRef.current : lastRecognizedTextRef.current;
+            // 마지막 전송된 문장과 동일하면 무시
+            if (textToSend && textToSend === lastSentTextRef.current) return;
+            if (typeof onAutoSend === 'function') {
+                console.log('onAutoSend 호출 (VoiceRecognition.jsx)', textToSend);
+                onAutoSend(textToSend);
+                lastSentTextRef.current = textToSend;
             }
-            // 추가 타이머 및 중복 전송 로직 제거
         });
 
         speechRecognitionService.on('enhanced-stats', (stats) => {
