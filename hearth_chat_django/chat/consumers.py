@@ -224,7 +224,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     # 백업: REST API 방식 시도
                     try:
                         GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-                        GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent"
+                        GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent"
                         
                         payload = {
                             "contents": [
