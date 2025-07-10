@@ -134,7 +134,7 @@ const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true
         const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
         const minWords = isMobile ? 1 : 2; // 모바일에서는 1단어도 허용
         const minConfidence = isMobile ? 0.3 : 0.6; // 모바일에서는 더 낮은 신뢰도 허용
-        
+
         speechRecognitionService.on('result', (finalText, additionalInfo) => {
             lastFinalTextRef.current = finalText;
             lastRecognizedTextRef.current = finalText; // 항상 최신 텍스트 저장
@@ -149,15 +149,15 @@ const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true
             // 단어 수/신뢰도 기준 적용 (모바일에서는 더 관대하게)
             const wordCount = cleanText.split(/\s+/).length;
             const confidence = additionalInfo?.confidence ?? 1.0;
-            console.log('음성인식 결과 검증:', { 
-                text: cleanText, 
-                wordCount, 
-                confidence, 
-                minWords, 
-                minConfidence, 
-                isMobile 
+            console.log('음성인식 결과 검증:', {
+                text: cleanText,
+                wordCount,
+                confidence,
+                minWords,
+                minConfidence,
+                isMobile
             });
-            
+
             if (wordCount < minWords || confidence < minConfidence) {
                 // 너무 짧거나 신뢰도 낮으면 무시
                 console.log('품질 기준 미달로 무시됨');
@@ -222,22 +222,15 @@ const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true
             if (silenceTimerRef.current) {
                 clearTimeout(silenceTimerRef.current);
             }
-            // 자동전송 트리거 (interim이 있으면 interim, 아니면 lastRecognized)
-            let textToSend = interimTextRef.current && interimTextRef.current.trim() ? interimTextRef.current : lastRecognizedTextRef.current;
-            if (typeof onAutoSend === 'function') {
-                console.log('onAutoSend 호출 (VoiceRecognition.jsx)', textToSend);
-                onAutoSend(textToSend);
-            }
-            silenceTimerRef.current = setTimeout(() => {
-                if (lastFinalTextRef.current && lastFinalTextRef.current.trim()) {
-                    if (onResult) onResult(lastFinalTextRef.current);
-                    lastFinalTextRef.current = '';
+            // TTS 재생 중에는 자동 전송을 막고, 아닐 때만 전송
+            if (!props.isTTSSpeaking) {
+                let textToSend = interimTextRef.current && interimTextRef.current.trim() ? interimTextRef.current : lastRecognizedTextRef.current;
+                if (typeof onAutoSend === 'function') {
+                    console.log('onAutoSend 호출 (VoiceRecognition.jsx)', textToSend);
+                    onAutoSend(textToSend);
                 }
-                speechRecognitionService.stop();
-                setTimeout(() => {
-                    speechRecognitionService.start();
-                }, 200);
-            }, 1000);
+            }
+            // 추가 타이머 및 중복 전송 로직 제거
         });
 
         speechRecognitionService.on('enhanced-stats', (stats) => {
@@ -294,7 +287,7 @@ const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true
                         setError('음성인식을 시작할 수 없습니다: ' + error.message);
                     }
                 };
-                
+
                 startRecognition();
             } else {
                 // 자동 재시작/연속 옵션 강제 OFF
