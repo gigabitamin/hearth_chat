@@ -1137,10 +1137,18 @@ const ChatBox = () => {
               <span role="img" aria-label="ai-avatar" style={{ opacity: isAiAvatarOn ? 1 : 0.3 }}>🤖</span>
             </button>
             {/* 사용자 아바타 토글 + 트래킹 통합 */}
-            <button className="icon-btn" onClick={() => {
+            <button className="icon-btn" onClick={async () => {
               setIsUserAvatarOn(v => {
-                setIsTrackingEnabled(!v ? true : false); // on될 때 트래킹도 on, off될 때 트래킹도 off
-                return !v;
+                const next = !v;
+                setIsTrackingEnabled(next);
+                if (next) {
+                  // 트래킹 서비스 시작
+                  faceTrackingService.startCamera();
+                } else {
+                  // 트래킹 서비스 중지
+                  faceTrackingService.stopCamera();
+                }
+                return next;
               });
             }} title="사용자 아바타/트래킹 토글">
               <span role="img" aria-label="user-avatar" style={{ opacity: isUserAvatarOn ? 1 : 0.3 }}>👤</span>
@@ -1212,7 +1220,8 @@ const ChatBox = () => {
                     isUserTalking={isUserTalking}
                     mouthTrigger={mouthTrigger}
                     emotionCaptureStatus={emotionCaptureStatus.user}
-                    enableTracking={isTrackingEnabled}
+                    enableTracking={isUserAvatarOn}
+                    showAvatarOverlay={true}
                   />
                 ) : (
                   <RealisticAvatar3D
@@ -1228,6 +1237,37 @@ const ChatBox = () => {
                 )}
               </div>
             </>
+          )}
+          {((isUserAvatarOn && !isAiAvatarOn) || (!isUserAvatarOn && !isAiAvatarOn && isCameraActive)) && (
+            <div style={{ flex: 1, width: '100%', height: '100%' }}>
+              {isCameraActive ? (
+                <EmotionCamera
+                  isActive={isCameraActive}
+                  userAvatar={userAvatar}
+                  userEmotion={userEmotion}
+                  isUserTalking={isUserTalking}
+                  mouthTrigger={mouthTrigger}
+                  emotionCaptureStatus={emotionCaptureStatus.user}
+                  enableTracking={isUserAvatarOn}
+                  showAvatarOverlay={isUserAvatarOn}
+                />
+              ) : (
+                isUserAvatarOn ? (
+                  <RealisticAvatar3D
+                    avatarUrl={userAvatar}
+                    isTalking={isUserTalking}
+                    emotion={userEmotion}
+                    position="right"
+                    size="100%"
+                    showEmotionIndicator={true}
+                    emotionCaptureStatus={emotionCaptureStatus.user}
+                    enableTracking={isTrackingEnabled}
+                  />
+                ) : (
+                  <div style={{ width: '100%', height: '100%' }} />
+                )
+              )}
+            </div>
           )}
           {!isUserAvatarOn && !isAiAvatarOn && (
             <div style={{ flex: 1, width: '100%', height: '100%' }}>
