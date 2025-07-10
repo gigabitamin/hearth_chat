@@ -1123,20 +1123,20 @@ const ChatBox = () => {
               onClick={() => setIsVoiceMenuOpen(true)}
               className={`voice-menu-btn-header${isVoiceMenuOpen ? ' active' : ''}`}
             >
-              🎤음성
+              🎤
             </button>
             {/* 상단 버튼들 - 카메라 버튼만 복구 (주석처리) */}
             <button
               onClick={toggleCamera}
               className={`camera-btn-header${isCameraActive ? ' active' : ''}`}
             >
-              📷카메라
+              📷
             </button>
             <button
               onClick={toggleTracking}
               className={`tracking-btn-header${isTrackingEnabled ? ' active' : ''}`}
             >
-              👀트래킹
+              👀
             </button>
             {/* 사용자 아바타 토글 */}
             <button className="icon-btn" onClick={() => setIsUserAvatarOn(v => !v)} title="사용자 아바타 토글">
@@ -1149,9 +1149,9 @@ const ChatBox = () => {
           </div>
         </div>
         {/* 아바타들을 위쪽에 좌우로 배치 */}
-        <div className="avatar-container" style={{ display: 'flex', flexDirection: 'row', width: '100%' }}>
+        <div className="avatar-container" style={{ display: 'flex', flexDirection: 'row', width: '100%', height: '50%', margin: 0, padding: 0 }}>
           {isUserAvatarOn && !isAiAvatarOn && (
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, width: '100%', height: '100%' }}>
               <RealisticAvatar3D
                 avatarUrl={userAvatar}
                 isTalking={isUserTalking}
@@ -1165,7 +1165,7 @@ const ChatBox = () => {
             </div>
           )}
           {isAiAvatarOn && !isUserAvatarOn && (
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, width: '100%', height: '100%' }}>
               <RealisticAvatar3D
                 avatarUrl={aiAvatar}
                 isTalking={isAiTalking}
@@ -1180,7 +1180,7 @@ const ChatBox = () => {
           )}
           {isUserAvatarOn && isAiAvatarOn && (
             <>
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, width: '50%', height: '100%' }}>
                 <RealisticAvatar3D
                   avatarUrl={aiAvatar}
                   isTalking={isAiTalking}
@@ -1192,7 +1192,7 @@ const ChatBox = () => {
                   emotionCaptureStatus={emotionCaptureStatus.ai}
                 />
               </div>
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, width: '50%', height: '100%' }}>
                 <RealisticAvatar3D
                   avatarUrl={userAvatar}
                   isTalking={isUserTalking}
@@ -1207,14 +1207,14 @@ const ChatBox = () => {
             </>
           )}
           {!isUserAvatarOn && !isAiAvatarOn && (
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, width: '100%', height: '100%' }}>
               {/* 아바타 없이 채팅 로그 전체 공간 */}
               {/* 아래 chat-section이 전체를 차지하도록 avatar-container는 빈 div만 남김 */}
             </div>
           )}
         </div>
         {/* 채팅창 (아래쪽), paddingBottom:28 */}
-        <div className="chat-section">
+        <div className="chat-section" style={{ height: '50%', margin: 0, padding: 0, width: '100%' }}>
           <div className="chat-container">
             <div className="chat-log" ref={chatScrollRef}>
               {messages.map((msg, idx) => {
