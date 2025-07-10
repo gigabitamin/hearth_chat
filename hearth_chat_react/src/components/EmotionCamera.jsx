@@ -46,6 +46,7 @@ const EmotionCamera = ({ isActive = true, hideControls = false, userAvatar, user
         } catch (err) {
             console.error('웹캠 시작 실패:', err);
             setError(`웹캠에 접근할 수 없습니다: ${err.message}`);
+            alert(`웹캠에 접근할 수 없습니다: ${err.message}`);
         }
     }, []);
 
