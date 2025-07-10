@@ -1098,6 +1098,9 @@ const ChatBox = () => {
     return () => window.removeEventListener('keydown', handleEsc);
   }, [viewerImage]);
 
+  // 아바타 on/off 상태 추가
+  const [isUserAvatarOn, setIsUserAvatarOn] = useState(false); // 기본값 off
+  const [isAiAvatarOn, setIsAiAvatarOn] = useState(false); // 기본값 off
 
   return (
     <>
@@ -1114,6 +1117,7 @@ const ChatBox = () => {
           <div className="chat-title">
             Hearth <span role="img" aria-label="fire">🔥</span> Chat
           </div>
+          {/* 버튼 렌더링 부분(마이크, 카메라, 트래킹, 아바타 토글) */}
           <div className="header-btn-group">
             <button
               onClick={() => setIsVoiceMenuOpen(true)}
@@ -1134,40 +1138,20 @@ const ChatBox = () => {
             >
               👀트래킹
             </button>
+            {/* 사용자 아바타 토글 */}
+            <button className="icon-btn" onClick={() => setIsUserAvatarOn(v => !v)} title="사용자 아바타 토글">
+              <span role="img" aria-label="user-avatar" style={{ opacity: isUserAvatarOn ? 1 : 0.3 }}>👤</span>
+            </button>
+            {/* AI 아바타 토글 */}
+            <button className="icon-btn" onClick={() => setIsAiAvatarOn(v => !v)} title="AI 아바타 토글">
+              <span role="img" aria-label="ai-avatar" style={{ opacity: isAiAvatarOn ? 1 : 0.3 }}>🤖</span>
+            </button>
           </div>
         </div>
         {/* 아바타들을 위쪽에 좌우로 배치 */}
-        <div className="avatar-container">
-          {/* 왼쪽: AI 아바타 */}
-          <div className="avatar-section">
-            <RealisticAvatar3D
-              avatarUrl={aiAvatar}
-              isTalking={isAiTalking}
-              emotion={aiEmotion}
-              mouthTrigger={mouthTrigger}
-              position="left"
-              size="100%"
-              showEmotionIndicator={true}
-              emotionCaptureStatus={emotionCaptureStatus.ai}
-            />
-          </div>
-          {/* 오른쪽: 사용자 아바타 (카메라/트래킹 연동) */}
-          <div className="avatar-section">
-            {isCameraActive ? (
-              <EmotionCamera
-                isActive={isCameraActive}
-                emotion={cameraEmotion}
-                setEmotion={setCameraEmotion}
-                setEmotionDisplay={setEmotionDisplay}
-                setEmotionCaptureStatus={setEmotionCaptureStatus}
-                enableTracking={isTrackingEnabled}
-                userAvatar={userAvatar}
-                userEmotion={userEmotion}
-                isUserTalking={isUserTalking}
-                mouthTrigger={mouthTrigger}
-                emotionCaptureStatus={emotionCaptureStatus.user}
-              />
-            ) : (
+        <div className="avatar-container" style={{ display: 'flex', flexDirection: 'row', width: '100%' }}>
+          {isUserAvatarOn && !isAiAvatarOn && (
+            <div style={{ flex: 1 }}>
               <RealisticAvatar3D
                 avatarUrl={userAvatar}
                 isTalking={isUserTalking}
@@ -1178,8 +1162,56 @@ const ChatBox = () => {
                 emotionCaptureStatus={emotionCaptureStatus.user}
                 enableTracking={isTrackingEnabled}
               />
-            )}
-          </div>
+            </div>
+          )}
+          {isAiAvatarOn && !isUserAvatarOn && (
+            <div style={{ flex: 1 }}>
+              <RealisticAvatar3D
+                avatarUrl={aiAvatar}
+                isTalking={isAiTalking}
+                emotion={aiEmotion}
+                mouthTrigger={mouthTrigger}
+                position="left"
+                size="100%"
+                showEmotionIndicator={true}
+                emotionCaptureStatus={emotionCaptureStatus.ai}
+              />
+            </div>
+          )}
+          {isUserAvatarOn && isAiAvatarOn && (
+            <>
+              <div style={{ flex: 1 }}>
+                <RealisticAvatar3D
+                  avatarUrl={aiAvatar}
+                  isTalking={isAiTalking}
+                  emotion={aiEmotion}
+                  mouthTrigger={mouthTrigger}
+                  position="left"
+                  size="100%"
+                  showEmotionIndicator={true}
+                  emotionCaptureStatus={emotionCaptureStatus.ai}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <RealisticAvatar3D
+                  avatarUrl={userAvatar}
+                  isTalking={isUserTalking}
+                  emotion={userEmotion}
+                  position="right"
+                  size="100%"
+                  showEmotionIndicator={true}
+                  emotionCaptureStatus={emotionCaptureStatus.user}
+                  enableTracking={isTrackingEnabled}
+                />
+              </div>
+            </>
+          )}
+          {!isUserAvatarOn && !isAiAvatarOn && (
+            <div style={{ flex: 1 }}>
+              {/* 아바타 없이 채팅 로그 전체 공간 */}
+              {/* 아래 chat-section이 전체를 차지하도록 avatar-container는 빈 div만 남김 */}
+            </div>
+          )}
         </div>
         {/* 채팅창 (아래쪽), paddingBottom:28 */}
         <div className="chat-section">
