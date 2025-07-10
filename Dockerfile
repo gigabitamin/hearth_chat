@@ -49,6 +49,7 @@ COPY hearth_chat_django/ ./hearth_chat_django/
 COPY --from=frontend /app/build/ /app/hearth_chat_react/build/
 
 # 빌드 타임에 collectstatic 실행
+ENV DATABASE_URL=sqlite:///tmp/db.sqlite3
 WORKDIR /app/hearth_chat_django
 RUN python manage.py collectstatic --noinput
 
