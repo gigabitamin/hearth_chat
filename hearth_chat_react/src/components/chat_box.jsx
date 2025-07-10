@@ -1156,7 +1156,20 @@ const ChatBox = () => {
           </div>
         </div>
         {/* 아바타/카메라를 항상 렌더링하고, style로만 분할/숨김/오버레이 처리 */}
-        <div className="avatar-container" style={{ display: 'flex', flexDirection: 'row', width: '100%', height: '50%', margin: 0, padding: 0, position: 'relative' }}>
+        <div
+          className="avatar-container"
+          style={{
+            display: (!isCameraActive && !isAiAvatarOn && !isUserAvatarOn) ? 'none' : 'flex',
+            flexDirection: 'row',
+            width: '100%',
+            height: (!isCameraActive && !isAiAvatarOn && !isUserAvatarOn) ? 0 : '50%',
+            margin: 0,
+            padding: 0,
+            position: 'relative',
+            minHeight: 0,
+            minWidth: 0,
+          }}
+        >
           {/* AI 아바타 */}
           <div style={getAiAvatarStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn)}>
             <RealisticAvatar3D
@@ -1197,8 +1210,16 @@ const ChatBox = () => {
             />
           </div>
         </div>
-        {/* 채팅창 (아래쪽), paddingBottom:28 */}
-        <div className="chat-section" style={{ height: '50%', margin: 0, padding: 0, width: '100%' }}>
+        {/* 채팅창 (아래쪽), avatar-container가 없으면 전체를 차지 */}
+        <div
+          className="chat-section"
+          style={{
+            height: (!isCameraActive && !isAiAvatarOn && !isUserAvatarOn) ? '100%' : '50%',
+            margin: 0,
+            padding: 0,
+            width: '100%'
+          }}
+        >
           <div className="chat-container">
             <div className="chat-log" ref={chatScrollRef}>
               {messages.map((msg, idx) => {
