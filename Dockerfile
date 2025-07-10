@@ -48,5 +48,4 @@ RUN chmod +x /usr/local/bin/dh /usr/local/bin/rh /usr/local/bin/cs
 
 EXPOSE 8000
 
-# 직접 daphne 실행 (start.sh 없이)
-CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "hearth_chat.asgi:application"]
+CMD ["sh", "-c", "daphne -b 0.0.0.0 -p ${PORT:-8000} hearth_chat.asgi:application"]
