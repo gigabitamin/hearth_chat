@@ -1155,159 +1155,47 @@ const ChatBox = () => {
             </button>
           </div>
         </div>
-        {/* 아바타들을 위쪽에 좌우로 배치 */}
-        <div className="avatar-container" style={{ display: 'flex', flexDirection: 'row', width: '100%', height: '50%', margin: 0, padding: 0 }}>
-          {/* 1. 카메라만 ON */}
-          {isCameraActive && !isAiAvatarOn && !isUserAvatarOn && (
-            <div style={{ flex: 1, width: '100%', height: '100%' }}>
-              <EmotionCamera
-                isActive={isCameraActive}
-                userAvatar={userAvatar}
-                userEmotion={userEmotion}
-                isUserTalking={isUserTalking}
-                mouthTrigger={mouthTrigger}
-                emotionCaptureStatus={emotionCaptureStatus.user}
-                enableTracking={false}
-                showAvatarOverlay={false}
-              />
-            </div>
-          )}
-          {/* 2. AI 아바타만 ON */}
-          {!isCameraActive && isAiAvatarOn && !isUserAvatarOn && (
-            <div style={{ flex: 1, width: '100%', height: '100%' }}>
-              <RealisticAvatar3D
-                avatarUrl={aiAvatar}
-                isTalking={isAiTalking}
-                emotion={aiEmotion}
-                mouthTrigger={mouthTrigger}
-                position="left"
-                size="100%"
-                showEmotionIndicator={true}
-                emotionCaptureStatus={emotionCaptureStatus.ai}
-              />
-            </div>
-          )}
-          {/* 3. 사용자 아바타만 ON */}
-          {!isCameraActive && !isAiAvatarOn && isUserAvatarOn && (
-            <div style={{ flex: 1, width: '100%', height: '100%' }}>
-              <RealisticAvatar3D
-                avatarUrl={userAvatar}
-                isTalking={isUserTalking}
-                emotion={userEmotion}
-                position="right"
-                size="100%"
-                showEmotionIndicator={true}
-                emotionCaptureStatus={emotionCaptureStatus.user}
-                enableTracking={isTrackingEnabled}
-              />
-            </div>
-          )}
-          {/* 4. 카메라+AI 아바타 ON (사용자 아바타 OFF) */}
-          {isCameraActive && isAiAvatarOn && !isUserAvatarOn && (
-            <>
-              <div style={{ flex: 1, width: '50%', height: '100%' }}>
-                <RealisticAvatar3D
-                  avatarUrl={aiAvatar}
-                  isTalking={isAiTalking}
-                  emotion={aiEmotion}
-                  mouthTrigger={mouthTrigger}
-                  position="left"
-                  size="100%"
-                  showEmotionIndicator={true}
-                  emotionCaptureStatus={emotionCaptureStatus.ai}
-                />
-              </div>
-              <div style={{ flex: 1, width: '50%', height: '100%' }}>
-                <EmotionCamera
-                  isActive={isCameraActive}
-                  userAvatar={userAvatar}
-                  userEmotion={userEmotion}
-                  isUserTalking={isUserTalking}
-                  mouthTrigger={mouthTrigger}
-                  emotionCaptureStatus={emotionCaptureStatus.user}
-                  enableTracking={false}
-                  showAvatarOverlay={false}
-                />
-              </div>
-            </>
-          )}
-          {/* 5. 카메라+사용자 아바타 ON (AI 아바타 OFF) */}
-          {isCameraActive && !isAiAvatarOn && isUserAvatarOn && (
-            <div style={{ flex: 1, width: '100%', height: '100%' }}>
-              <EmotionCamera
-                isActive={isCameraActive}
-                userAvatar={userAvatar}
-                userEmotion={userEmotion}
-                isUserTalking={isUserTalking}
-                mouthTrigger={mouthTrigger}
-                emotionCaptureStatus={emotionCaptureStatus.user}
-                enableTracking={isUserAvatarOn}
-                showAvatarOverlay={true}
-              />
-            </div>
-          )}
-          {/* 6. 카메라+AI+사용자 아바타 ON */}
-          {isCameraActive && isAiAvatarOn && isUserAvatarOn && (
-            <>
-              <div style={{ flex: 1, width: '50%', height: '100%' }}>
-                <RealisticAvatar3D
-                  avatarUrl={aiAvatar}
-                  isTalking={isAiTalking}
-                  emotion={aiEmotion}
-                  mouthTrigger={mouthTrigger}
-                  position="left"
-                  size="100%"
-                  showEmotionIndicator={true}
-                  emotionCaptureStatus={emotionCaptureStatus.ai}
-                />
-              </div>
-              <div style={{ flex: 1, width: '50%', height: '100%' }}>
-                <EmotionCamera
-                  isActive={isCameraActive}
-                  userAvatar={userAvatar}
-                  userEmotion={userEmotion}
-                  isUserTalking={isUserTalking}
-                  mouthTrigger={mouthTrigger}
-                  emotionCaptureStatus={emotionCaptureStatus.user}
-                  enableTracking={isUserAvatarOn}
-                  showAvatarOverlay={true}
-                />
-              </div>
-            </>
-          )}
-          {/* 7. AI 아바타+사용자 아바타 ON (카메라 OFF) */}
-          {!isCameraActive && isAiAvatarOn && isUserAvatarOn && (
-            <>
-              <div style={{ flex: 1, width: '50%', height: '100%' }}>
-                <RealisticAvatar3D
-                  avatarUrl={aiAvatar}
-                  isTalking={isAiTalking}
-                  emotion={aiEmotion}
-                  mouthTrigger={mouthTrigger}
-                  position="left"
-                  size="100%"
-                  showEmotionIndicator={true}
-                  emotionCaptureStatus={emotionCaptureStatus.ai}
-                />
-              </div>
-              <div style={{ flex: 1, width: '50%', height: '100%' }}>
-                <RealisticAvatar3D
-                  avatarUrl={userAvatar}
-                  isTalking={isUserTalking}
-                  emotion={userEmotion}
-                  position="right"
-                  size="100%"
-                  showEmotionIndicator={true}
-                  emotionCaptureStatus={emotionCaptureStatus.user}
-                  enableTracking={isTrackingEnabled}
-                />
-              </div>
-            </>
-          )}
-          {/* 7. 아무것도 없음 (빈 공간) */}
-          {!isCameraActive && !isAiAvatarOn && !isUserAvatarOn && (
-            <div style={{ flex: 1, width: '100%', height: '100%' }} />
-          )}
+        {/* 아바타/카메라를 항상 렌더링하고, style로만 분할/숨김/오버레이 처리 */}
+        <div className="avatar-container" style={{ display: 'flex', flexDirection: 'row', width: '100%', height: '50%', margin: 0, padding: 0, position: 'relative' }}>
+          {/* AI 아바타 */}
+          <div style={getAiAvatarStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn)}>
+            <RealisticAvatar3D
+              avatarUrl={aiAvatar}
+              isTalking={isAiTalking}
+              emotion={aiEmotion}
+              mouthTrigger={mouthTrigger}
+              position="left"
+              size="100%"
+              showEmotionIndicator={true}
+              emotionCaptureStatus={emotionCaptureStatus.ai}
+            />
+          </div>
+          {/* 사용자 아바타 */}
+          <div style={getUserAvatarStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn)}>
+            <RealisticAvatar3D
+              avatarUrl={userAvatar}
+              isTalking={isUserTalking}
+              emotion={userEmotion}
+              position="right"
+              size="100%"
+              showEmotionIndicator={true}
+              emotionCaptureStatus={emotionCaptureStatus.user}
+              enableTracking={isTrackingEnabled}
+            />
+          </div>
+          {/* 카메라 */}
+          <div style={getCameraStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn)}>
+            <EmotionCamera
+              isActive={isCameraActive}
+              userAvatar={userAvatar}
+              userEmotion={userEmotion}
+              isUserTalking={isUserTalking}
+              mouthTrigger={mouthTrigger}
+              emotionCaptureStatus={emotionCaptureStatus.user}
+              enableTracking={isUserAvatarOn}
+              showAvatarOverlay={isCameraActive && isUserAvatarOn && !isAiAvatarOn}
+            />
+          </div>
         </div>
         {/* 채팅창 (아래쪽), paddingBottom:28 */}
         <div className="chat-section" style={{ height: '50%', margin: 0, padding: 0, width: '100%' }}>
@@ -1538,3 +1426,38 @@ const ChatBox = () => {
 };
 
 export default ChatBox;
+
+function getAiAvatarStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn) {
+  // AI 아바타가 꺼져있으면 숨김
+  if (!isAiAvatarOn) return { display: 'none' };
+  // AI+사용자+카메라: 50% 분할
+  if (isCameraActive && isUserAvatarOn) return { flex: 1, width: '50%', height: '100%', transition: 'all 0.3s' };
+  // AI+카메라: 50% 분할
+  if (isCameraActive) return { flex: 1, width: '50%', height: '100%', transition: 'all 0.3s' };
+  // AI+사용자: 50% 분할
+  if (isUserAvatarOn) return { flex: 1, width: '50%', height: '100%', transition: 'all 0.3s' };
+  // AI만: 전체
+  return { flex: 1, width: '100%', height: '100%', transition: 'all 0.3s' };
+}
+function getUserAvatarStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn) {
+  if (!isUserAvatarOn) return { display: 'none' };
+  // AI+사용자+카메라: 숨김(오버레이로만)
+  if (isCameraActive && isAiAvatarOn) return { display: 'none' };
+  // AI+사용자: 50% 분할
+  if (isAiAvatarOn) return { flex: 1, width: '50%', height: '100%', transition: 'all 0.3s' };
+  // 카메라+사용자: 숨김(오버레이로만)
+  if (isCameraActive) return { display: 'none' };
+  // 사용자만: 전체
+  return { flex: 1, width: '100%', height: '100%', transition: 'all 0.3s' };
+}
+function getCameraStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn) {
+  if (!isCameraActive) return { display: 'none' };
+  // AI+카메라: 50% 분할
+  if (isAiAvatarOn && !isUserAvatarOn) return { flex: 1, width: '50%', height: '100%', transition: 'all 0.3s' };
+  // AI+사용자+카메라: 50% 분할(오버레이)
+  if (isAiAvatarOn && isUserAvatarOn) return { flex: 1, width: '50%', height: '100%', transition: 'all 0.3s', position: 'relative', zIndex: 2 };
+  // 카메라+사용자: 전체(오버레이)
+  if (isUserAvatarOn) return { flex: 1, width: '100%', height: '100%', transition: 'all 0.3s', position: 'relative', zIndex: 2 };
+  // 카메라만: 전체
+  return { flex: 1, width: '100%', height: '100%', transition: 'all 0.3s' };
+}
