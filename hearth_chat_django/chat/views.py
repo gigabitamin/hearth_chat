@@ -12,8 +12,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.http import HttpResponseBadRequest
+from django.http import HttpResponse
 
 # Create your views here.
+
+def chat_home(request):
+    return HttpResponse("Chat 메인 페이지입니다.")
 
 @csrf_exempt
 @require_http_methods(["GET"])
