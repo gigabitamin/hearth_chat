@@ -58,7 +58,10 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
 
 
 DATABASES = {
-    "default": dj_database_url.config(conn_max_age=600, ssl_require=False)
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": ":memory:",
+    }
 }
 
 # Gemini API 키
