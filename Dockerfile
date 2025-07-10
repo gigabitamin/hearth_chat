@@ -45,8 +45,15 @@ RUN ls -la /app/hearth_chat_react/build/static/js/ || echo "static/js directory 
 # 장고 앱 복사
 COPY hearth_chat_django/ ./hearth_chat_django/
 
-# 작업 디렉토리를 Django 앱으로 변경
+# React 빌드 결과물 복사 (이미 있음)
+COPY --from=frontend /app/build/ /app/hearth_chat_react/build/
+
+# 빌드 타임에 collectstatic 실행
 WORKDIR /app/hearth_chat_django
+RUN python manage.py collectstatic --noinput
+
+# 작업 디렉토리를 Django 앱으로 변경
+# WORKDIR /app/hearth_chat_django
 
 # 실행 스크립트 복사
 COPY script/dh.sh /usr/local/bin/dh

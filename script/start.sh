@@ -10,9 +10,6 @@ ls -la /app/hearth_chat_react/build/static/js/ || echo "React static/js director
 echo "=== React static/css directory ==="
 ls -la /app/hearth_chat_react/build/static/css/ || echo "React static/css directory not found"
 
-echo "=== Collecting static files ==="
-python manage.py collectstatic --noinput
-
 echo "=== Staticfiles check ==="
 ls -la /app/hearth_chat_django/staticfiles/ || echo "staticfiles directory not found"
 ls -la /app/hearth_chat_django/staticfiles/static/ || echo "staticfiles/static directory not found"
