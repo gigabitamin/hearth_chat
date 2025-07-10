@@ -1125,13 +1125,6 @@ const ChatBox = () => {
             >
               🎤
             </button>
-            {/* 상단 버튼들 - 카메라 버튼만 복구 (주석처리) */}
-            <button
-              onClick={toggleCamera}
-              className={`camera-btn-header${isCameraActive ? ' active' : ''}`}
-            >
-              📷
-            </button>
             {/* AI 아바타 토글 */}
             <button className="icon-btn" onClick={() => setIsAiAvatarOn(v => !v)} title="AI 아바타 토글">
               <span role="img" aria-label="ai-avatar" style={{ opacity: isAiAvatarOn ? 1 : 0.3 }}>🤖</span>
@@ -1153,37 +1146,34 @@ const ChatBox = () => {
             }} title="사용자 아바타/트래킹 토글">
               <span role="img" aria-label="user-avatar" style={{ opacity: isUserAvatarOn ? 1 : 0.3 }}>👤</span>
             </button>
+            {/* 카메라 버튼 */}
+            <button
+              onClick={toggleCamera}
+              className={`camera-btn-header${isCameraActive ? ' active' : ''}`}
+            >
+              📷
+            </button>
           </div>
         </div>
         {/* 아바타들을 위쪽에 좌우로 배치 */}
         <div className="avatar-container" style={{ display: 'flex', flexDirection: 'row', width: '100%', height: '50%', margin: 0, padding: 0 }}>
-          {isUserAvatarOn && !isAiAvatarOn && (
+          {/* 1. 카메라만 ON */}
+          {isCameraActive && !isAiAvatarOn && !isUserAvatarOn && (
             <div style={{ flex: 1, width: '100%', height: '100%' }}>
-              {isCameraActive ? (
-                <EmotionCamera
-                  isActive={isCameraActive}
-                  userAvatar={userAvatar}
-                  userEmotion={userEmotion}
-                  isUserTalking={isUserTalking}
-                  mouthTrigger={mouthTrigger}
-                  emotionCaptureStatus={emotionCaptureStatus.user}
-                  enableTracking={isTrackingEnabled}
-                />
-              ) : (
-                <RealisticAvatar3D
-                  avatarUrl={userAvatar}
-                  isTalking={isUserTalking}
-                  emotion={userEmotion}
-                  position="right"
-                  size="100%"
-                  showEmotionIndicator={true}
-                  emotionCaptureStatus={emotionCaptureStatus.user}
-                  enableTracking={isTrackingEnabled}
-                />
-              )}
+              <EmotionCamera
+                isActive={isCameraActive}
+                userAvatar={userAvatar}
+                userEmotion={userEmotion}
+                isUserTalking={isUserTalking}
+                mouthTrigger={mouthTrigger}
+                emotionCaptureStatus={emotionCaptureStatus.user}
+                enableTracking={false}
+                showAvatarOverlay={false}
+              />
             </div>
           )}
-          {isAiAvatarOn && !isUserAvatarOn && (
+          {/* 2. AI 아바타만 ON */}
+          {!isCameraActive && isAiAvatarOn && !isUserAvatarOn && (
             <div style={{ flex: 1, width: '100%', height: '100%' }}>
               <RealisticAvatar3D
                 avatarUrl={aiAvatar}
@@ -1197,7 +1187,23 @@ const ChatBox = () => {
               />
             </div>
           )}
-          {isUserAvatarOn && isAiAvatarOn && (
+          {/* 3. 사용자 아바타만 ON */}
+          {!isCameraActive && !isAiAvatarOn && isUserAvatarOn && (
+            <div style={{ flex: 1, width: '100%', height: '100%' }}>
+              <RealisticAvatar3D
+                avatarUrl={userAvatar}
+                isTalking={isUserTalking}
+                emotion={userEmotion}
+                position="right"
+                size="100%"
+                showEmotionIndicator={true}
+                emotionCaptureStatus={emotionCaptureStatus.user}
+                enableTracking={isTrackingEnabled}
+              />
+            </div>
+          )}
+          {/* 4. 카메라+AI 아바타 ON (사용자 아바타 OFF) */}
+          {isCameraActive && isAiAvatarOn && !isUserAvatarOn && (
             <>
               <div style={{ flex: 1, width: '50%', height: '100%' }}>
                 <RealisticAvatar3D
@@ -1212,35 +1218,50 @@ const ChatBox = () => {
                 />
               </div>
               <div style={{ flex: 1, width: '50%', height: '100%' }}>
-                {isCameraActive ? (
-                  <EmotionCamera
-                    isActive={isCameraActive}
-                    userAvatar={userAvatar}
-                    userEmotion={userEmotion}
-                    isUserTalking={isUserTalking}
-                    mouthTrigger={mouthTrigger}
-                    emotionCaptureStatus={emotionCaptureStatus.user}
-                    enableTracking={isUserAvatarOn}
-                    showAvatarOverlay={true}
-                  />
-                ) : (
-                  <RealisticAvatar3D
-                    avatarUrl={userAvatar}
-                    isTalking={isUserTalking}
-                    emotion={userEmotion}
-                    position="right"
-                    size="100%"
-                    showEmotionIndicator={true}
-                    emotionCaptureStatus={emotionCaptureStatus.user}
-                    enableTracking={isTrackingEnabled}
-                  />
-                )}
+                <EmotionCamera
+                  isActive={isCameraActive}
+                  userAvatar={userAvatar}
+                  userEmotion={userEmotion}
+                  isUserTalking={isUserTalking}
+                  mouthTrigger={mouthTrigger}
+                  emotionCaptureStatus={emotionCaptureStatus.user}
+                  enableTracking={false}
+                  showAvatarOverlay={false}
+                />
               </div>
             </>
           )}
-          {((isUserAvatarOn && !isAiAvatarOn) || (!isUserAvatarOn && !isAiAvatarOn && isCameraActive)) && (
+          {/* 5. 카메라+사용자 아바타 ON (AI 아바타 OFF) */}
+          {isCameraActive && !isAiAvatarOn && isUserAvatarOn && (
             <div style={{ flex: 1, width: '100%', height: '100%' }}>
-              {isCameraActive ? (
+              <EmotionCamera
+                isActive={isCameraActive}
+                userAvatar={userAvatar}
+                userEmotion={userEmotion}
+                isUserTalking={isUserTalking}
+                mouthTrigger={mouthTrigger}
+                emotionCaptureStatus={emotionCaptureStatus.user}
+                enableTracking={isUserAvatarOn}
+                showAvatarOverlay={true}
+              />
+            </div>
+          )}
+          {/* 6. 카메라+AI+사용자 아바타 ON */}
+          {isCameraActive && isAiAvatarOn && isUserAvatarOn && (
+            <>
+              <div style={{ flex: 1, width: '50%', height: '100%' }}>
+                <RealisticAvatar3D
+                  avatarUrl={aiAvatar}
+                  isTalking={isAiTalking}
+                  emotion={aiEmotion}
+                  mouthTrigger={mouthTrigger}
+                  position="left"
+                  size="100%"
+                  showEmotionIndicator={true}
+                  emotionCaptureStatus={emotionCaptureStatus.ai}
+                />
+              </div>
+              <div style={{ flex: 1, width: '50%', height: '100%' }}>
                 <EmotionCamera
                   isActive={isCameraActive}
                   userAvatar={userAvatar}
@@ -1249,31 +1270,14 @@ const ChatBox = () => {
                   mouthTrigger={mouthTrigger}
                   emotionCaptureStatus={emotionCaptureStatus.user}
                   enableTracking={isUserAvatarOn}
-                  showAvatarOverlay={isUserAvatarOn}
+                  showAvatarOverlay={true}
                 />
-              ) : (
-                isUserAvatarOn ? (
-                  <RealisticAvatar3D
-                    avatarUrl={userAvatar}
-                    isTalking={isUserTalking}
-                    emotion={userEmotion}
-                    position="right"
-                    size="100%"
-                    showEmotionIndicator={true}
-                    emotionCaptureStatus={emotionCaptureStatus.user}
-                    enableTracking={isTrackingEnabled}
-                  />
-                ) : (
-                  <div style={{ width: '100%', height: '100%' }} />
-                )
-              )}
-            </div>
+              </div>
+            </>
           )}
-          {!isUserAvatarOn && !isAiAvatarOn && (
-            <div style={{ flex: 1, width: '100%', height: '100%' }}>
-              {/* 아바타 없이 채팅 로그 전체 공간 */}
-              {/* 아래 chat-section이 전체를 차지하도록 avatar-container는 빈 div만 남김 */}
-            </div>
+          {/* 7. 아무것도 없음 (빈 공간) */}
+          {!isCameraActive && !isAiAvatarOn && !isUserAvatarOn && (
+            <div style={{ flex: 1, width: '100%', height: '100%' }} />
           )}
         </div>
         {/* 채팅창 (아래쪽), paddingBottom:28 */}
