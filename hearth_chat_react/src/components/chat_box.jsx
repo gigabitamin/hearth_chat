@@ -1193,7 +1193,7 @@ const ChatBox = () => {
               mouthTrigger={mouthTrigger}
               emotionCaptureStatus={emotionCaptureStatus.user}
               enableTracking={isUserAvatarOn}
-              showAvatarOverlay={isCameraActive && isUserAvatarOn && !isAiAvatarOn}
+              showAvatarOverlay={isCameraActive && isUserAvatarOn}
             />
           </div>
         </div>
