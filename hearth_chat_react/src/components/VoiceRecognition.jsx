@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } f
 import './VoiceRecognition.css';
 import speechRecognitionService from '../services/speechRecognitionService';
 
-const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true, continuous = false, onStart, onStop, onAutoSend }, ref) => {
+const VoiceRecognition = forwardRef(({ isTTSSpeaking, onResult, onInterimResult, enabled = true, continuous = false, onStart, onStop, onAutoSend }, ref) => {
     const [isListening, setIsListening] = useState(false);
     const [isSupported, setIsSupported] = useState(false);
     const [currentLanguage, setCurrentLanguage] = useState('ko-KR');
@@ -223,7 +223,7 @@ const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true
                 clearTimeout(silenceTimerRef.current);
             }
             // TTS 재생 중에는 자동 전송을 막고, 아닐 때만 전송
-            if (!props.isTTSSpeaking) {
+            if (!isTTSSpeaking) {
                 let textToSend = interimTextRef.current && interimTextRef.current.trim() ? interimTextRef.current : lastRecognizedTextRef.current;
                 if (typeof onAutoSend === 'function') {
                     console.log('onAutoSend 호출 (VoiceRecognition.jsx)', textToSend);
@@ -264,7 +264,7 @@ const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true
                 clearTimeout(silenceTimerRef.current);
             }
         };
-    }, [onResult, onInterimResult, isListening, continuous, enabled, onStart, onAutoSend]);
+    }, [onResult, onInterimResult, isListening, continuous, enabled, onStart, onAutoSend, isTTSSpeaking]);
 
     // enabled prop이 변경될 때 자동으로 start/stop
     useEffect(() => {
