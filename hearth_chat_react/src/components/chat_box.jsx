@@ -1152,16 +1152,28 @@ const ChatBox = () => {
         <div className="avatar-container" style={{ display: 'flex', flexDirection: 'row', width: '100%', height: '50%', margin: 0, padding: 0 }}>
           {isUserAvatarOn && !isAiAvatarOn && (
             <div style={{ flex: 1, width: '100%', height: '100%' }}>
-              <RealisticAvatar3D
-                avatarUrl={userAvatar}
-                isTalking={isUserTalking}
-                emotion={userEmotion}
-                position="right"
-                size="100%"
-                showEmotionIndicator={true}
-                emotionCaptureStatus={emotionCaptureStatus.user}
-                enableTracking={isTrackingEnabled}
-              />
+              {isCameraActive ? (
+                <EmotionCamera
+                  isActive={isCameraActive}
+                  userAvatar={userAvatar}
+                  userEmotion={userEmotion}
+                  isUserTalking={isUserTalking}
+                  mouthTrigger={mouthTrigger}
+                  emotionCaptureStatus={emotionCaptureStatus.user}
+                  enableTracking={isTrackingEnabled}
+                />
+              ) : (
+                <RealisticAvatar3D
+                  avatarUrl={userAvatar}
+                  isTalking={isUserTalking}
+                  emotion={userEmotion}
+                  position="right"
+                  size="100%"
+                  showEmotionIndicator={true}
+                  emotionCaptureStatus={emotionCaptureStatus.user}
+                  enableTracking={isTrackingEnabled}
+                />
+              )}
             </div>
           )}
           {isAiAvatarOn && !isUserAvatarOn && (
@@ -1193,16 +1205,28 @@ const ChatBox = () => {
                 />
               </div>
               <div style={{ flex: 1, width: '50%', height: '100%' }}>
-                <RealisticAvatar3D
-                  avatarUrl={userAvatar}
-                  isTalking={isUserTalking}
-                  emotion={userEmotion}
-                  position="right"
-                  size="100%"
-                  showEmotionIndicator={true}
-                  emotionCaptureStatus={emotionCaptureStatus.user}
-                  enableTracking={isTrackingEnabled}
-                />
+                {isCameraActive ? (
+                  <EmotionCamera
+                    isActive={isCameraActive}
+                    userAvatar={userAvatar}
+                    userEmotion={userEmotion}
+                    isUserTalking={isUserTalking}
+                    mouthTrigger={mouthTrigger}
+                    emotionCaptureStatus={emotionCaptureStatus.user}
+                    enableTracking={isTrackingEnabled}
+                  />
+                ) : (
+                  <RealisticAvatar3D
+                    avatarUrl={userAvatar}
+                    isTalking={isUserTalking}
+                    emotion={userEmotion}
+                    position="right"
+                    size="100%"
+                    showEmotionIndicator={true}
+                    emotionCaptureStatus={emotionCaptureStatus.user}
+                    enableTracking={isTrackingEnabled}
+                  />
+                )}
               </div>
             </>
           )}
