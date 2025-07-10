@@ -1132,18 +1132,17 @@ const ChatBox = () => {
             >
               📷
             </button>
-            <button
-              onClick={toggleTracking}
-              className={`tracking-btn-header${isTrackingEnabled ? ' active' : ''}`}
-            >
-              👀
-            </button>
             {/* AI 아바타 토글 */}
             <button className="icon-btn" onClick={() => setIsAiAvatarOn(v => !v)} title="AI 아바타 토글">
               <span role="img" aria-label="ai-avatar" style={{ opacity: isAiAvatarOn ? 1 : 0.3 }}>🤖</span>
             </button>
-            {/* 사용자 아바타 토글 */}
-            <button className="icon-btn" onClick={() => setIsUserAvatarOn(v => !v)} title="사용자 아바타 토글">
+            {/* 사용자 아바타 토글 + 트래킹 통합 */}
+            <button className="icon-btn" onClick={() => {
+              setIsUserAvatarOn(v => {
+                setIsTrackingEnabled(!v ? true : false); // on될 때 트래킹도 on, off될 때 트래킹도 off
+                return !v;
+              });
+            }} title="사용자 아바타/트래킹 토글">
               <span role="img" aria-label="user-avatar" style={{ opacity: isUserAvatarOn ? 1 : 0.3 }}>👤</span>
             </button>
           </div>
