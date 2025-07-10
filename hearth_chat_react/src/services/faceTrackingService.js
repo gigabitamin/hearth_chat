@@ -39,7 +39,9 @@ class FaceTrackingService {
 
         try {
             // MediaPipe Face Mesh 로드 (더 안정적인 방법)
+            console.log('MediaPipe 라이브러리 로딩 시도...');
             const { FaceMesh } = await import('@mediapipe/face_mesh');
+            console.log('MediaPipe 라이브러리 로딩 성공');
 
             this.faceMesh = new FaceMesh({
                 locateFile: (file) => {
@@ -49,6 +51,7 @@ class FaceTrackingService {
                         `https://unpkg.com/@mediapipe/face_mesh/${file}`,
                         `https://cdn.skypack.dev/@mediapipe/face_mesh/${file}`
                     ];
+                    console.log(`MediaPipe 파일 로딩: ${file}`);
                     return cdnUrls[0]; // 첫 번째 CDN 사용
                 }
             });
@@ -204,6 +207,8 @@ class FaceTrackingService {
             return false;
         }
         try {
+            console.log('카메라 권한 요청 중...');
+            
             // 비디오 요소 생성
             this.video = document.createElement('video');
             this.video.style.display = 'none';
@@ -224,6 +229,7 @@ class FaceTrackingService {
                 }
             });
 
+            console.log('카메라 스트림 획득 성공');
             this.video.srcObject = stream;
             this.video.play();
 
