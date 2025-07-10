@@ -20,6 +20,7 @@ from django.shortcuts import redirect
 from django.conf import settings
 from django.conf.urls.static import static
 from django.http import HttpResponse
+from .views import ReactAppView
 
 
 def home_redirect(request):
@@ -45,7 +46,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path('chat/', include("chat.urls")),
     path('health/', health_check, name="health_check"),  # 헬스체크 엔드포인트
-    path("", root_response, name="root"),  # 반드시 마지막에 위치
+    path("", ReactAppView.as_view(), name="root"),  # 루트에 React index.html 연결
 ]
 
 # Static files (CSS, JavaScript, Images)
