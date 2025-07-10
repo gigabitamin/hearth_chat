@@ -1275,6 +1275,35 @@ const ChatBox = () => {
               </div>
             </>
           )}
+          {/* 7. AI 아바타+사용자 아바타 ON (카메라 OFF) */}
+          {!isCameraActive && isAiAvatarOn && isUserAvatarOn && (
+            <>
+              <div style={{ flex: 1, width: '50%', height: '100%' }}>
+                <RealisticAvatar3D
+                  avatarUrl={aiAvatar}
+                  isTalking={isAiTalking}
+                  emotion={aiEmotion}
+                  mouthTrigger={mouthTrigger}
+                  position="left"
+                  size="100%"
+                  showEmotionIndicator={true}
+                  emotionCaptureStatus={emotionCaptureStatus.ai}
+                />
+              </div>
+              <div style={{ flex: 1, width: '50%', height: '100%' }}>
+                <RealisticAvatar3D
+                  avatarUrl={userAvatar}
+                  isTalking={isUserTalking}
+                  emotion={userEmotion}
+                  position="right"
+                  size="100%"
+                  showEmotionIndicator={true}
+                  emotionCaptureStatus={emotionCaptureStatus.user}
+                  enableTracking={isTrackingEnabled}
+                />
+              </div>
+            </>
+          )}
           {/* 7. 아무것도 없음 (빈 공간) */}
           {!isCameraActive && !isAiAvatarOn && !isUserAvatarOn && (
             <div style={{ flex: 1, width: '100%', height: '100%' }} />
