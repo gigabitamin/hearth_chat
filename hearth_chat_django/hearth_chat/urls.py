@@ -56,3 +56,6 @@ if settings.DEBUG:
 else:
     # Production 환경에서도 static 파일 서빙 (Railway)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+
+# Avatar VRM files - React에서 /avatar_vrm/ 경로로 요청하는 파일들을 static으로 서빙
+urlpatterns += static('/avatar_vrm/', document_root=settings.STATIC_ROOT)
