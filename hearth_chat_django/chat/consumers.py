@@ -142,6 +142,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         @sync_to_async
         def call_gemini():
+            print("[Gemini] 호출 시작 (user_emotion:", user_emotion, ", user_message:", user_message[:30], ")")
             # 감정 변화 추세 분석
             emotion_trend = self.get_emotion_trend()
             # 감정 전략 등 기존 코드 유지
@@ -195,6 +196,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                 {"role": "user", "content": user_message or "이미지 분석을 요청했지만 파일을 찾을 수 없습니다."}
                             ]
                         )
+                        print(f"[Gemini] 파일 없음 텍스트 응답: {response.choices[0].message.content[:100]}")
                         return response.choices[0].message.content
                     
                     # 파일을 base64로 읽어오기
@@ -217,10 +219,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             ]}
                         ]
                     )
+                    print(f"[Gemini] OpenAI 라이브러리 멀티모달 응답: {response.choices[0].message.content[:100]}")
                     return response.choices[0].message.content
                     
                 except Exception as e:
-                    print(f"OpenAI 라이브러리 멀티모달 실패: {e}")
+                    print(f"[Gemini] OpenAI 라이브러리 멀티모달 실패: {e}")
                     # 백업: REST API 방식 시도
                     try:
                         GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
@@ -250,10 +253,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         response.raise_for_status()
                         result = response.json()
                         gemini_text = result["candidates"][0]["content"]["parts"][0]["text"]
+                        print(f"[Gemini] REST API 멀티모달 응답: {gemini_text[:100]}")
                         return gemini_text
                         
                     except Exception as e2:
-                        print(f"REST API 멀티모달도 실패: {e2}")
+                        print(f"[Gemini] REST API 멀티모달도 실패: {e2}")
                         # 최종 백업: 텍스트만으로 처리
                         client = OpenAI(
                             api_key=os.environ.get("GEMINI_API_KEY"),
@@ -266,20 +270,26 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                 {"role": "user", "content": user_message or "이미지 분석을 시도했지만 실패했습니다. 텍스트로만 응답드립니다."}
                             ]
                         )
+                        print(f"[Gemini] 최종 백업 텍스트 응답: {response.choices[0].message.content[:100]}")
                         return response.choices[0].message.content
             # 2. 텍스트-only: 기존 OpenAI 라이브러리 방식
             else:
-                client = OpenAI(
-                    api_key=os.environ.get("GEMINI_API_KEY"),
-                    base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
-                )
-                response = client.chat.completions.create(
-                    model="gemini-2.5-flash",
-                    messages=[
-                        {"role": "system", "content": system_content},
-                        {"role": "user", "content": user_message}
-                    ]
-                )
-                return response.choices[0].message.content
+                try:
+                    client = OpenAI(
+                        api_key=os.environ.get("GEMINI_API_KEY"),
+                        base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+                    )
+                    response = client.chat.completions.create(
+                        model="gemini-2.5-flash",
+                        messages=[
+                            {"role": "system", "content": system_content},
+                            {"role": "user", "content": user_message}
+                        ]
+                    )
+                    print(f"[Gemini] 텍스트 응답: {response.choices[0].message.content[:100]}")
+                    return response.choices[0].message.content
+                except Exception as e:
+                    print(f"[Gemini] 텍스트 응답 실패: {e}")
+                    return "[Gemini] 응답 생성 중 오류가 발생했습니다."
 
         return await call_gemini()
