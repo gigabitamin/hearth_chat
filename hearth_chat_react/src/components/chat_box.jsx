@@ -962,12 +962,17 @@ const ChatBox = () => {
     setAttachedImagePreview(null);
     // Gemini(백엔드)로 메시지/이미지 전송
     if (ws.current && (messageText || imageUrl)) {
-      ws.current.send(
-        JSON.stringify({
-          message: messageText || '',
-          imageUrl: imageUrl || '',
-        })
-      );
+      if (ws.current.readyState === 1) {
+        ws.current.send(
+          JSON.stringify({
+            message: messageText || '',
+            imageUrl: imageUrl || '',
+          })
+        );
+      } else {
+        alert('서버와의 연결이 아직 완료되지 않았습니다. 잠시 후 다시 시도해 주세요.');
+        console.warn('WebSocket이 아직 OPEN 상태가 아닙니다. 현재 상태:', ws.current.readyState);
+      }
     }
   };
 
@@ -976,7 +981,7 @@ const ChatBox = () => {
     // 현재 호스트의 IP 주소를 사용하여 WebSocket 연결
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.hostname;
-    const port = '8000'; // Django 백엔드 포트
+    const port = '8080'; // Django 백엔드 포트 (Railway 환경)
     ws.current = new WebSocket(`${protocol}//${host}:${port}/ws/chat/`);
 
     ws.current.onopen = () => {
