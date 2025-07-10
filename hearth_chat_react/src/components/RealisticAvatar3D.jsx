@@ -25,8 +25,8 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
     // === Idle 모션 파일 경로 ===
     // 아래 URL을 원하는 idle/walk/wave 등 glTF 모션 파일로 교체 가능
     // 예시: Mixamo에서 FBX로 다운받아 glTF로 변환 후 사용
-    // 무료 예시: https://github.com/vrm-c/UniVRM_Viewer/raw/master/Assets/VRMViewer/Animations/idle.gltf
-    const idleMotionUrl = 'https://github.com/vrm-c/UniVRM_Viewer/raw/master/Assets/VRMViewer/Animations/idle.gltf';
+    // 프로젝트 public 폴더 내 avatar_motion_gltf/Standing_Greeting.gltf 사용
+    const idleMotionUrl = '/avatar_motion_gltf/Standing_Greeting.gltf';
 
     // 트래킹 데이터 상태
     const [trackingData, setTrackingData] = useState({
