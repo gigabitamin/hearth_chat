@@ -3,8 +3,12 @@ set -e
 
 echo "=== React build files check ==="
 ls -la /app/hearth_chat_react/build/ || echo "React build directory not found"
+echo "=== React static directory ==="
 ls -la /app/hearth_chat_react/build/static/ || echo "React static directory not found"
+echo "=== React static/js directory ==="
 ls -la /app/hearth_chat_react/build/static/js/ || echo "React static/js directory not found"
+echo "=== React static/css directory ==="
+ls -la /app/hearth_chat_react/build/static/css/ || echo "React static/css directory not found"
 
 echo "=== Collecting static files ==="
 python manage.py collectstatic --noinput
