@@ -21,6 +21,8 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.http import HttpResponse
 from .views import ReactAppView
+from django.views.static import serve as static_serve
+import os
 
 
 def home_redirect(request):
@@ -41,11 +43,21 @@ def favicon(request):
     return HttpResponse("", content_type="image/x-icon")
 
 
+def manifest_json(request):
+    # Railway 환경에서는 build 폴더 경로가 다름
+    if settings.DEBUG:
+        manifest_path = os.path.join(settings.BASE_DIR, '..', 'hearth_chat_react', 'build', 'manifest.json')
+    else:
+        manifest_path = '/app/hearth_chat_react/build/manifest.json'
+    return static_serve(request, os.path.basename(manifest_path), os.path.dirname(manifest_path))
+
+
 urlpatterns = [
     path("favicon.ico", favicon),
     path("admin/", admin.site.urls),
     path('chat/', include("chat.urls")),
     path('health/', health_check, name="health_check"),  # 헬스체크 엔드포인트
+    path("manifest.json", manifest_json),  # manifest.json 직접 반환
     path("", ReactAppView.as_view(), name="root"),  # 루트에 React index.html 연결
 ]
 

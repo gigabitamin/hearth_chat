@@ -188,14 +188,12 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # 추가 static 파일 디렉토리
 if os.environ.get("RAILWAY_ENVIRONMENT"):
-    # Railway 환경에서는 Docker 컨테이너 내부 경로 사용
     STATICFILES_DIRS = [
-        '/app/hearth_chat_react/build',
+        '/app/hearth_chat_react/build/static',
     ]
 else:
-    # 로컬 환경에서는 상대 경로 사용
     STATICFILES_DIRS = [
-        os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build'),
+        os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build', 'static'),
     ]
 
 # Default primary key field type
