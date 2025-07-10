@@ -51,8 +51,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.save_user_message(user_message or '[이미지 첨부]', user_emotion)
 
         try:
+            print("[DEBUG] get_ai_response 호출 직전 (user_message:", user_message, ", user_emotion:", user_emotion, ", image_url:", image_url, ")")
             ai_response = await self.get_ai_response(user_message, user_emotion, image_url)
-            print(f"AI 응답 받음: {ai_response}")
+            print(f"[DEBUG] get_ai_response 호출 후, AI 응답 받음: {ai_response}")
             
             # AI 응답을 DB에 저장
             print(f"AI 응답 저장 시도: {ai_response}")
