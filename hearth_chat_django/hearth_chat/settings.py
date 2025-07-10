@@ -65,7 +65,7 @@ if not DATABASES["default"].get("ENGINE"):
     raise Exception("DATABASE_URL 환경변수 또는 ENGINE 설정이 잘못되었습니다. Railway Variables에서 DATABASE_URL을 확인하세요.")
 
 # Gemini API 키
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "AIzaSyA8W0B5dsSKhTWKb-VcVjantISwQMnRc0M")
 
 # CORS
 CORS_ALLOW_ALL_ORIGINS = False  # 운영 환경에서는 False가 안전
