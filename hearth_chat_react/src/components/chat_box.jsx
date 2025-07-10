@@ -226,8 +226,19 @@ const ChatBox = () => {
       console.log('TTS 종료(이벤트)');
       setIsAiTalking(false);
       setTtsSpeaking(false);
-      setMouthTrigger(0); // TTS 종료 시 반드시 입 닫기
-      setLastLipSyncValue(0); // 립싱크 값도 초기화
+      // 립싱크 애니메이션: 1초간 랜덤 입모양 반복 후 닫기
+      let animCount = 0;
+      const animMax = 10; // 1초(100ms*10)
+      const animInterval = setInterval(() => {
+        // 0(닫힘)~4(최대) 중 랜덤
+        setMouthTrigger(Math.floor(Math.random() * 5));
+        animCount++;
+        if (animCount >= animMax) {
+          clearInterval(animInterval);
+          setMouthTrigger(0); // 마지막엔 닫기
+          setLastLipSyncValue(0);
+        }
+      }, 100);
       // 타이핑 효과 종료 및 전체 메시지 표시
       if (typingIntervalRef.current) {
         clearInterval(typingIntervalRef.current);
