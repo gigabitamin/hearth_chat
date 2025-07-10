@@ -36,11 +36,6 @@ def root_response(request):
     return HttpResponse("OK", content_type="text/plain")
 
 
-def catch_all(request, path):
-    """모든 경로에 대한 기본 응답 (Railway 헬스체크용)"""
-    return HttpResponse("OK", content_type="text/plain")
-
-
 def favicon(request):
     return HttpResponse("", content_type="image/x-icon")
 
@@ -51,7 +46,6 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path('chat/', include("chat.urls")),
     path('health/', health_check, name="health_check"),  # 헬스체크 엔드포인트
-    path('<path:path>', catch_all, name="catch_all"),  # 모든 경로에 대한 기본 응답
 ]
 
 # Static files (CSS, JavaScript, Images)
