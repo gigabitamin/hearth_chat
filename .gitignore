@@ -9,7 +9,7 @@ __pycache__
 *.tar
 media/
 backup/
-
+hearth-chat.tar
 # etc
 settings_local.py
 
