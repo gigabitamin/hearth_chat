@@ -12,7 +12,10 @@ COPY hearth_chat_react/ ./
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npm run build
 
-RUN ls -l /app/hearth_chat_react/build/avatar_vrm || echo "avatar_vrm not found in build"
+RUN ls -la /app/build/ || echo "build directory not found"
+RUN ls -la /app/build/static/ || echo "static directory not found"
+RUN ls -la /app/build/static/js/ || echo "static/js directory not found"
+RUN ls -la /app/build/avatar_vrm/ || echo "avatar_vrm directory not found"
 
 # ======================
 # 🟡 2. BACKEND (Django)

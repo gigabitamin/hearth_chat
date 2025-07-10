@@ -1,7 +1,18 @@
 #!/bin/bash
 set -e
 
+echo "=== React build files check ==="
+ls -la /app/hearth_chat_react/build/ || echo "React build directory not found"
+ls -la /app/hearth_chat_react/build/static/ || echo "React static directory not found"
+ls -la /app/hearth_chat_react/build/static/js/ || echo "React static/js directory not found"
+
+echo "=== Collecting static files ==="
 python manage.py collectstatic --noinput
-ls -l /app/hearth_chat_django/staticfiles/avatar_vrm || echo "avatar_vrm not found in staticfiles"
+
+echo "=== Staticfiles check ==="
+ls -la /app/hearth_chat_django/staticfiles/ || echo "staticfiles directory not found"
+ls -la /app/hearth_chat_django/staticfiles/static/ || echo "staticfiles/static directory not found"
+ls -la /app/hearth_chat_django/staticfiles/static/js/ || echo "staticfiles/static/js directory not found"
+ls -la /app/hearth_chat_django/staticfiles/avatar_vrm/ || echo "avatar_vrm directory not found"
 python manage.py migrate --noinput
 exec daphne -b 0.0.0.0 -p ${PORT:-8000} hearth_chat.asgi:application 
