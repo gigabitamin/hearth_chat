@@ -10,10 +10,6 @@ ls -la /app/hearth_chat_react/build/static/js/ || echo "React static/js director
 echo "=== React static/css directory ==="
 ls -la /app/hearth_chat_react/build/static/css/ || echo "React static/css directory not found"
 
-echo "=== Django settings check ==="
-export DJANGO_SETTINGS_MODULE=hearth_chat.settings
-python -c "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'hearth_chat.settings'); import django; django.setup(); from django.conf import settings; print('STATICFILES_DIRS:', settings.STATICFILES_DIRS); print('STATIC_ROOT:', settings.STATIC_ROOT)"
-
 echo "=== Collecting static files ==="
 python manage.py collectstatic --noinput
 
