@@ -981,8 +981,8 @@ const ChatBox = () => {
     // 현재 호스트의 IP 주소를 사용하여 WebSocket 연결
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.hostname;
-    const port = '8080'; // Django 백엔드 포트 (Railway 환경)
-    ws.current = new WebSocket(`${protocol}//${host}:${port}/ws/chat/`);
+    // 배포 환경에서는 포트 없이 도메인만 사용
+    ws.current = new WebSocket(`${protocol}//${host}/ws/chat/`);
 
     ws.current.onopen = () => {
       console.log('WebSocket 연결 성공');
