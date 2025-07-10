@@ -61,6 +61,9 @@ DATABASES = {
     "default": dj_database_url.config(conn_max_age=600, ssl_require=False)
 }
 
+if not DATABASES["default"].get("ENGINE"):
+    raise Exception("DATABASE_URL 환경변수 또는 ENGINE 설정이 잘못되었습니다. Railway Variables에서 DATABASE_URL을 확인하세요.")
+
 # Gemini API 키
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
