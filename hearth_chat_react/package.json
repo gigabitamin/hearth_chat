@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@mediapipe/face_mesh": "^0.4.1633559619",
     "@pixiv/three-vrm": "^3.4.2",
     "@react-three/drei": "^10.4.4",
     "@react-three/fiber": "^9.2.0",

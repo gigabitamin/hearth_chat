@@ -5,7 +5,7 @@ FROM node:18 AS frontend
 
 WORKDIR /app
 COPY hearth_chat_react/package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 
 COPY hearth_chat_react/ ./
 # 메모리 제한 설정으로 빌드 안정성 향상
