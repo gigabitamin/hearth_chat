@@ -46,9 +46,10 @@ COPY script/rh.sh /usr/local/bin/rh
 COPY script/cs.sh /usr/local/bin/cs
 RUN chmod +x /usr/local/bin/dh /usr/local/bin/rh /usr/local/bin/cs
 
-# 정적 파일 수집 및 마이그레이션 자동화
-RUN python manage.py collectstatic --noinput && python manage.py migrate --noinput
+# start.sh 복사 및 실행 권한 부여
+COPY script/start.sh /usr/local/bin/start.sh
+RUN chmod +x /usr/local/bin/start.sh
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "daphne -b 0.0.0.0 -p ${PORT:-8000} hearth_chat.asgi:application"]
+CMD ["/usr/local/bin/start.sh"]
