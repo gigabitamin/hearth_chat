@@ -42,10 +42,10 @@ def favicon(request):
 
 urlpatterns = [
     path("favicon.ico", favicon),
-    path("", root_response, name="root"),  # 헬스체크용 루트 응답
     path("admin/", admin.site.urls),
     path('chat/', include("chat.urls")),
     path('health/', health_check, name="health_check"),  # 헬스체크 엔드포인트
+    path("", root_response, name="root"),  # 반드시 마지막에 위치
 ]
 
 # Static files (CSS, JavaScript, Images)
