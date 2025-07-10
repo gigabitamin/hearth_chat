@@ -35,6 +35,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 # 🔁 프론트 빌드 결과물 복사
 COPY --from=frontend /app/build/ /app/hearth_chat_react/build/
+RUN ls -la /app/hearth_chat_react/build/ || echo "build directory not found"
+RUN ls -la /app/hearth_chat_react/build/avatar_vrm/ || echo "avatar_vrm directory not found"
 
 # 장고 앱 복사
 COPY hearth_chat_django/ ./hearth_chat_django/

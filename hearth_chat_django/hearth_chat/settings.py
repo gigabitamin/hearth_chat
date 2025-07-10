@@ -188,8 +188,7 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # 추가 static 파일 디렉토리
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build', 'static'),
-    os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build', 'avatar_vrm'),  # 아바타 모델 폴더 추가
+    os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build'),
 ]
 
 # Default primary key field type
