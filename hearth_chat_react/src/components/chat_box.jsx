@@ -183,6 +183,8 @@ const ChatBox = () => {
   const [lipSyncInterval, setLipSyncInterval] = useState(null);
   const [lipSyncSequence, setLipSyncSequence] = useState([]);
   const [currentLipSyncIndex, setCurrentLipSyncIndex] = useState(0);
+  // 립싱크 마지막 프레임을 기억
+  const [lastLipSyncValue, setLastLipSyncValue] = useState(0);
 
   // 타이핑 효과 interval ref 추가
   const typingIntervalRef = useRef(null);
@@ -224,7 +226,8 @@ const ChatBox = () => {
       console.log('TTS 종료(이벤트)');
       setIsAiTalking(false);
       setTtsSpeaking(false);
-      setMouthTrigger(0);
+      setMouthTrigger(0); // TTS 종료 시 반드시 입 닫기
+      setLastLipSyncValue(0); // 립싱크 값도 초기화
       // 타이핑 효과 종료 및 전체 메시지 표시
       if (typingIntervalRef.current) {
         clearInterval(typingIntervalRef.current);
@@ -312,18 +315,20 @@ const ChatBox = () => {
           };
           const triggerValue = mouthShapeValues[currentPhoneme.mouthShape] || 0;
           setMouthTrigger(triggerValue);
+          setLastLipSyncValue(triggerValue); // 마지막 립싱크 값 저장
           console.log('립싱크:', currentPhoneme.phoneme, currentPhoneme.mouthShape, triggerValue, '시간:', elapsedTime);
         } else {
-          // 현재 시간에 해당하는 음소가 없으면 중립
-          setMouthTrigger(0);
+          // 현재 시간에 해당하는 음소가 없으면 마지막 립싱크 값 유지
+          setMouthTrigger(lastLipSyncValue);
         }
 
         // TTS 종료 시점 체크
         if (elapsedTime >= totalDuration) {
           clearInterval(interval);
           setLipSyncInterval(null);
-          setMouthTrigger(0);
-          console.log('[LIP SYNC] 립싱크 종료');
+          // 립싱크가 먼저 끝나도 TTS가 끝날 때까지 마지막 입모양 유지
+          setMouthTrigger(lastLipSyncValue);
+          console.log('[LIP SYNC] 립싱크 종료, 마지막 프레임 유지');
         }
       }, 50); // 50ms 간격으로 더 빠르게 업데이트
 
@@ -333,14 +338,17 @@ const ChatBox = () => {
       };
     } else if (ttsSpeaking) {
       console.log('[LIP SYNC] 기본 립싱크 시작 (fallback)');
-      // 기존 단순 립싱크 (fallback)
       const baseInterval = 200;
       const rateMultiplier = ttsRate || 1.0;
       const lipSyncInterval = Math.max(100, Math.min(400, baseInterval / rateMultiplier));
       console.log('기본 립싱크 간격 설정:', lipSyncInterval, 'ms (TTS 속도:', rateMultiplier, ')');
 
       const interval = setInterval(() => {
-        setMouthTrigger(prev => prev + 1);
+        setMouthTrigger(prev => {
+          const next = prev + 1;
+          setLastLipSyncValue(next);
+          return next;
+        });
       }, lipSyncInterval);
       setLipSyncInterval(interval);
       return () => {
