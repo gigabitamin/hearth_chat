@@ -6,6 +6,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 import SimpleTestAvatar from './SimpleTestAvatar';
 import faceTrackingService from '../services/faceTrackingService';
+import { AnimationMixer } from 'three';
 
 // VRM 아바타 컴포넌트
 function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess, onLoadError, position, enableTracking = false }) {
@@ -17,6 +18,15 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
     const [mouthOpen, setMouthOpen] = useState(0);
     const [eyeBlink, setEyeBlink] = useState(0);
     const [currentEmotion, setCurrentEmotion] = useState('neutral');
+    // === Idle 모션 관련 ===
+    const mixerRef = useRef(null);
+    const idleActionRef = useRef(null);
+    const [idleLoaded, setIdleLoaded] = useState(false);
+    // === Idle 모션 파일 경로 ===
+    // 아래 URL을 원하는 idle/walk/wave 등 glTF 모션 파일로 교체 가능
+    // 예시: Mixamo에서 FBX로 다운받아 glTF로 변환 후 사용
+    // 무료 예시: https://github.com/vrm-c/UniVRM_Viewer/raw/master/Assets/VRMViewer/Animations/idle.gltf
+    const idleMotionUrl = 'https://github.com/vrm-c/UniVRM_Viewer/raw/master/Assets/VRMViewer/Animations/idle.gltf';
 
     // 트래킹 데이터 상태
     const [trackingData, setTrackingData] = useState({
@@ -53,6 +63,7 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
         if (!avatarUrl) return;
         setVrm(null);
         setError(null);
+        setIdleLoaded(false);
         const loader = new GLTFLoader();
         loader.register((parser) => new VRMLoaderPlugin(parser));
         loader.load(
@@ -202,6 +213,28 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
 
                 setVrm(vrmInstance);
                 if (onLoadSuccess) onLoadSuccess();
+                // === Idle 모션 로드 및 AnimationMixer 적용 ===
+                // (모션 파일은 glTF, Mixamo 등에서 다운로드/변환 가능)
+                const animLoader = new GLTFLoader();
+                animLoader.load(
+                    idleMotionUrl,
+                    (animGltf) => {
+                        if (!vrmInstance.scene) return;
+                        mixerRef.current = new AnimationMixer(vrmInstance.scene);
+                        // glTF 애니메이션 클립 추출
+                        const clip = animGltf.animations[0];
+                        if (clip) {
+                            idleActionRef.current = mixerRef.current.clipAction(clip);
+                            idleActionRef.current.play();
+                            setIdleLoaded(true);
+                            console.log('[VRM] Idle 모션 적용 완료');
+                        }
+                    },
+                    undefined,
+                    (e) => {
+                        console.warn('Idle 모션 로드 실패:', e);
+                    }
+                );
 
                 console.log('VRM 모델 초기화 완료:', {
                     hasHumanoid: !!vrmInstance.humanoid,
@@ -216,6 +249,13 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
             }
         );
     }, [avatarUrl, onLoadSuccess, onLoadError, position]);
+
+    // === AnimationMixer 업데이트 ===
+    useFrame((_, delta) => {
+        if (mixerRef.current && idleLoaded) {
+            mixerRef.current.update(delta);
+        }
+    });
 
     // 트래킹 서비스 연동
     useEffect(() => {
