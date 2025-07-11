@@ -13,6 +13,8 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.http import HttpResponseBadRequest
 from django.http import HttpResponse
+from django.contrib.auth import logout as django_logout
+from django.contrib.auth.decorators import login_required
 
 # Create your views here.
 
@@ -111,3 +113,27 @@ def upload_chat_image(request):
         'file_url': chat_obj.attach_image.url if chat_obj.attach_image else None,
         'chat_id': chat_obj.id
     })
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def user_info(request):
+    """현재 로그인된 사용자 정보 반환 API"""
+    if request.user.is_authenticated:
+        return JsonResponse({
+            'status': 'success',
+            'user': {
+                'username': request.user.username,
+                'email': request.user.email,
+                'is_superuser': request.user.is_superuser,
+                'is_staff': request.user.is_staff,
+            }
+        })
+    else:
+        return JsonResponse({'status': 'error', 'message': 'Not authenticated'}, status=401)
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def logout_api(request):
+    """로그아웃 API"""
+    django_logout(request)
+    return JsonResponse({'status': 'success', 'message': 'Logged out'})

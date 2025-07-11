@@ -1,28 +1,30 @@
 import React from 'react';
 import styles from './SocialLoginButtons.module.css';
 
+const BACKEND_URL = 'http://localhost:8000';
+
 const SOCIALS = [
     {
         name: 'Google',
-        url: '/accounts/google/login/',
+        url: `${BACKEND_URL}/accounts/google/login/`,
         className: styles.google,
         logo: process.env.PUBLIC_URL + '/oauth_logo/Google.svg',
     },
     {
         name: 'Kakao',
-        url: '/accounts/kakao/login/',
+        url: `${BACKEND_URL}/accounts/kakao/login/`,
         className: styles.kakao,
         logo: process.env.PUBLIC_URL + '/oauth_logo/KakaoTalk.svg',
     },
     {
         name: 'Naver',
-        url: '/accounts/naver/login/',
+        url: `${BACKEND_URL}/accounts/naver/login/`,
         className: styles.naver,
         logo: process.env.PUBLIC_URL + '/oauth_logo/Naver.svg',
     },
     {
         name: 'GitHub',
-        url: '/accounts/github/login/',
+        url: `${BACKEND_URL}/accounts/github/login/`,
         className: styles.github,
         logo: process.env.PUBLIC_URL + '/oauth_logo/Github.svg',
     },

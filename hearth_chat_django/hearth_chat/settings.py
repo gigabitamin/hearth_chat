@@ -46,6 +46,15 @@ ALLOWED_HOSTS = [
     "192.168.44.9",
     "192.168.0.0/16",  # 192.168.*.* 전체 허용
 ]
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:8000',
+    'http://localhost:3000',
+    'http://127.0.0.1:8000',
+    'http://127.0.0.1:3000',    
+    'http://192.168.44.9:8000',
+    'http://192.168.44.9:3000',    
+]
+
 
 # Railway 환경에서 추가 설정
 if os.environ.get("RAILWAY_ENVIRONMENT"):
@@ -148,7 +157,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.github',
 ]
 
-SITE_ID = 1
+SITE_ID = 2 # 소셜 로그인 설정을 위한 필수 설정 (1: railway, 2: 로컬)
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',

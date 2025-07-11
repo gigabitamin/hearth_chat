@@ -3,6 +3,7 @@ import RealisticAvatar3D from './RealisticAvatar3D';
 import EmotionCamera from './EmotionCamera';
 import VoiceRecognition from './VoiceRecognition';
 import LoginModal from './LoginModal';
+import UserMenuModal from './UserMenuModal';
 import ttsService from '../services/ttsService';
 import readyPlayerMeService from '../services/readyPlayerMe';
 import faceTrackingService from '../services/faceTrackingService';
@@ -134,6 +135,12 @@ const ChatBox = () => {
 
   // 로그인 모달 상태
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  // 사용자 메뉴 모달 상태
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  // 로그인 사용자 정보
+  const [loginUser, setLoginUser] = useState(null);
+  // 로그인 상태 로딩
+  const [loginLoading, setLoginLoading] = useState(true);
 
   // TTS 관련 상태
   const [isTTSEnabled, setIsTTSEnabled] = useState(false);
@@ -1557,6 +1564,21 @@ const ChatBox = () => {
     isTTSEnabledRef.current = isTTSEnabled;
   }, [isTTSEnabled]);
 
+  // 로그인 상태 확인
+  useEffect(() => {
+    fetch('/chat/api/user/', { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success') {
+          setLoginUser(data.user);
+        } else {
+          setLoginUser(null);
+        }
+      })
+      .catch(() => setLoginUser(null))
+      .finally(() => setLoginLoading(false));
+  }, []);
+
   return (
     <>
       {/* 이미지 뷰어 모달 */}
@@ -1608,28 +1630,53 @@ const ChatBox = () => {
             >
               📷
             </button>
-            {/* 로그인 버튼 - 오른쪽 끝 */}
-            <button
-              onClick={() => setIsLoginModalOpen(true)}
-              className="login-btn-header"
-              style={{
-                marginLeft: 12,
-                background: 'rgba(255,255,255,0.12)',
-                border: 'none',
-                borderRadius: 4,
-                padding: '6px 12px',
-                color: '#fff',
-                fontWeight: 'bold',
-                fontSize: 18,
-                display: 'flex',
-                alignItems: 'center',
-                textDecoration: 'none',
-                cursor: 'pointer',
-              }}
-              title="로그인"
-            >
-              <span role="img" aria-label="login" style={{ marginRight: 6 }}>🔑</span>
-            </button>
+            {/* 로그인/내 계정 버튼 - 오른쪽 끝 */}
+            {loginLoading ? null : loginUser ? (
+              <button
+                onClick={() => setIsUserMenuOpen(true)}
+                className="login-btn-header"
+                style={{
+                  marginLeft: 12,
+                  background: 'rgba(255,255,255,0.12)',
+                  border: 'none',
+                  borderRadius: 4,
+                  padding: '6px 12px',
+                  color: '#fff',
+                  fontWeight: 'bold',
+                  fontSize: 18,
+                  display: 'flex',
+                  alignItems: 'center',
+                  textDecoration: 'none',
+                  cursor: 'pointer',
+                }}
+                title="내 계정"
+              >
+                <span role="img" aria-label="user" style={{ marginRight: 6 }}>👤</span>
+                {loginUser.username || '내 계정'}
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsLoginModalOpen(true)}
+                className="login-btn-header"
+                style={{
+                  marginLeft: 12,
+                  background: 'rgba(255,255,255,0.12)',
+                  border: 'none',
+                  borderRadius: 4,
+                  padding: '6px 12px',
+                  color: '#fff',
+                  fontWeight: 'bold',
+                  fontSize: 18,
+                  display: 'flex',
+                  alignItems: 'center',
+                  textDecoration: 'none',
+                  cursor: 'pointer',
+                }}
+                title="로그인"
+              >
+                <span role="img" aria-label="login" style={{ marginRight: 6 }}>🔑</span>
+              </button>
+            )}
           </div>
         </div>
         {/* 차트 렌더링 */}
@@ -2011,6 +2058,11 @@ const ChatBox = () => {
         <LoginModal
           isOpen={isLoginModalOpen}
           onClose={() => setIsLoginModalOpen(false)}
+        />
+        {/* 사용자 메뉴 모달 */}
+        <UserMenuModal
+          isOpen={isUserMenuOpen}
+          onClose={() => setIsUserMenuOpen(false)}
         />
       </div>
     </>
