@@ -84,9 +84,11 @@ DATABASES = {
 }
 
 # 로컬 MySQL 환경에서만 utf8mb4 옵션 적용 (PostgreSQL 등에서는 절대 실행되지 않도록 보장)
+print("DATABASE ENGINE:", DATABASES["default"].get("ENGINE", "<None>"))
+
 if (
     DATABASES["default"].get("ENGINE", "") == "django.db.backends.mysql"
-    and not os.environ.get("RAILWAY_ENVIRONMENT")  # Railway 환경이 아니면(즉, 로컬)
+    and not os.environ.get("RAILWAY_ENVIRONMENT")
 ):
     DATABASES["default"]["OPTIONS"] = {
         "charset": os.environ.get("LOCAL_MYSQL_CHARSET", "utf8mb4"),
@@ -96,6 +98,8 @@ if (
         ),
     }
     print("✅ 로컬 MySQL utf8mb4 옵션 적용 완료!")
+else:
+    print("MySQL 전용 옵션은 적용되지 않음")
 
 if not DATABASES["default"].get("ENGINE"):
     raise Exception("DATABASE_URL 환경변수 또는 ENGINE 설정이 잘못되었습니다. Railway Variables에서 DATABASE_URL을 확인하세요.")
