@@ -316,7 +316,7 @@ const ChatBox = () => {
           clearInterval(typingIntervalRef.current);
           typingIntervalRef.current = null;
         }
-      }, 30); // 타이핑 속도 조절
+      }, 0); // 타이핑 속도 조절
     };
     const handleEnd = (text) => {
       console.log('TTS 종료(이벤트)');
