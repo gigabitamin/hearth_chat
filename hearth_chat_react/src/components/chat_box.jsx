@@ -1360,33 +1360,51 @@ const ChatBox = () => {
 
     // 차트 변환 함수
     function convertToChartData(data) {
-      if (!Array.isArray(data) || data.length === 0) return null;
-      const labels = data.map(item => item.name);
-      const keys = Object.keys(data[0]).filter(key => key !== 'name');
-      const colorList = ['#FFD600', '#00E5FF', '#76FF03', '#FF4081', '#FFFFFF'];
-      const datasets = keys.map((key, idx) => ({
-        label: key,
-        data: data.map(item => item[key]),
-        borderColor: colorList[idx % colorList.length],
-        backgroundColor: colorList[idx % colorList.length] + '80',
-        pointBackgroundColor: colorList[idx % colorList.length],
-        borderWidth: 3,
-        pointRadius: 4,
-        tension: 0.3,
-        fill: false,
-      }));
-      return { labels, datasets };
+      // Chart.js 형식 데이터인지 확인 (labels와 datasets가 있는 경우)
+      if (data.labels && data.datasets && Array.isArray(data.labels) && Array.isArray(data.datasets)) {
+        return data; // 이미 Chart.js 형식이면 그대로 반환
+      }
+
+      // 기존 형식: 배열 형태의 데이터
+      if (Array.isArray(data) && data.length > 0) {
+        const labels = data.map(item => item.name);
+        const keys = Object.keys(data[0]).filter(key => key !== 'name');
+        const colorList = ['#FFD600', '#00E5FF', '#76FF03', '#FF4081', '#FFFFFF'];
+        const datasets = keys.map((key, idx) => ({
+          label: key,
+          data: data.map(item => item[key]),
+          borderColor: colorList[idx % colorList.length],
+          backgroundColor: colorList[idx % colorList.length] + '80',
+          pointBackgroundColor: colorList[idx % colorList.length],
+          borderWidth: 3,
+          pointRadius: 4,
+          tension: 0.3,
+          fill: false,
+        }));
+        return { labels, datasets };
+      }
+
+      return null;
     }
 
     let chartData = null;
     let isJson = false;
     try {
       const parsed = typeof code === 'string' ? JSON.parse(code) : code;
-      if (Array.isArray(parsed) && parsed[0]?.name) {
+      // Chart.js 형식 또는 기존 배열 형식 모두 감지
+      if ((parsed.labels && parsed.datasets) || (Array.isArray(parsed) && parsed[0]?.name)) {
         isJson = true;
         chartData = convertToChartData(parsed);
+        console.log('Chart detection:', { isChartCandidate, isJson, chartData, parsed });
       }
-    } catch (e) { }
+    } catch (e) {
+      console.log('JSON parse error:', e);
+    }
+
+    // JSON 파싱이 성공하고 차트 데이터가 있으면 차트 후보로 인식
+    if (isJson && chartData) {
+      console.log('Chart candidate detected!');
+    }
 
     // 차트 옵션: 어두운 배경에서 잘 보이도록 색상 지정
     const chartOptions = {
@@ -1427,13 +1445,13 @@ const ChatBox = () => {
       <div className="code-json-card" style={{ position: 'relative', margin: '12px 0' }}>
         <button
           className="copy-btn"
-          style={{ position: 'absolute', top: 8, right: isChartCandidate ? 40 : 8, zIndex: 2 }}
+          style={{ position: 'absolute', top: 8, right: (isChartCandidate || (isJson && chartData)) ? 40 : 8, zIndex: 2 }}
           onClick={handleCopy}
           title="클립보드 복사"
         >
           <ContentCopyIcon fontSize="small" />
         </button>
-        {isChartCandidate && isJson && (
+        {(isChartCandidate || (isJson && chartData)) && (
           <button
             className="chart-toggle-btn"
             style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}
@@ -1443,7 +1461,7 @@ const ChatBox = () => {
             {isChartView ? <CodeIcon fontSize="small" /> : <InsertChartIcon fontSize="small" />}
           </button>
         )}
-        {isChartCandidate && isJson && isChartView && chartData ? (
+        {(isChartCandidate || (isJson && chartData)) && isChartView && chartData ? (
           <div onClick={() => setIsChartModalOpen(true)} style={{ cursor: 'zoom-in' }}>
             <ChartLine data={chartData} options={chartOptions} />
           </div>
