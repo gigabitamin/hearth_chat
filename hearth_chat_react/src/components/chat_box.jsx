@@ -7,6 +7,39 @@ import readyPlayerMeService from '../services/readyPlayerMe';
 import faceTrackingService from '../services/faceTrackingService';
 import './chat_box.css';
 import axios from 'axios';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import { Line as ChartLine } from 'react-chartjs-2';
+import Prism from 'prismjs';
+import 'prismjs/themes/prism-tomorrow.css';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import InsertChartIcon from '@mui/icons-material/InsertChart';
+import CodeIcon from '@mui/icons-material/Code';
+
+// Chart.js core 등록 필수!
+import {
+  Chart as ChartJS,
+  LineElement,
+  PointElement,
+  CategoryScale,
+  LinearScale,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+
+ChartJS.register(
+  LineElement,
+  PointElement,
+  CategoryScale,
+  LinearScale,
+  Title,
+  Tooltip,
+  Legend
+);
 
 // 모달 컴포넌트 추가
 const Modal = ({ open, onClose, children }) => {
@@ -14,12 +47,75 @@ const Modal = ({ open, onClose, children }) => {
   return (
     <div className="voice-modal-overlay" onClick={onClose}>
       <div className="voice-modal-content" onClick={e => e.stopPropagation()}>
-        <button className="voice-modal-close" onClick={onClose}>닫기</button>
+        <button className="voice-modal-close" onClick={onClose}>❌</button>
         {children}
       </div>
     </div>
   );
 };
+
+// 테스트용 차트 데이터 및 컴포넌트
+// const testChartData = [
+//   { name: '1월', 방문자수: 4000, 매출: 2400, 비용: 2400 },
+//   { name: '2월', 방문자수: 3000, 매출: 1398, 비용: 2210 },
+//   { name: '3월', 방문자수: 2000, 매출: 9800, 비용: 2290 },
+//   { name: '4월', 방문자수: 2780, 매출: 3908, 비용: 2000 },
+//   { name: '5월', 방문자수: 1890, 매출: 4800, 비용: 2181 },
+//   { name: '6월', 방문자수: 2390, 매출: 3800, 비용: 2500 },
+//   { name: '7월', 방문자수: 3490, 매출: 4300, 비용: 2100 }
+// ];
+
+// Chart.js용 데이터 및 옵션
+const chartData = {
+  labels: ['1월', '2월', '3월', '4월', '5월', '6월', '7월'],
+  datasets: [
+    {
+      label: '방문자수',
+      data: [4000, 3000, 2000, 2780, 1890, 2390, 3490],
+      borderColor: '#8884d8',
+      backgroundColor: 'rgba(136,132,216,0.2)',
+      fill: false,
+      tension: 0.3,
+    },
+    {
+      label: '매출',
+      data: [2400, 1398, 9800, 3908, 4800, 3800, 4300],
+      borderColor: '#82ca9d',
+      backgroundColor: 'rgba(130,202,157,0.2)',
+      fill: false,
+      tension: 0.3,
+    },
+    {
+      label: '비용',
+      data: [2400, 2210, 2290, 2000, 2181, 2500, 2100],
+      borderColor: '#ff7300',
+      backgroundColor: 'rgba(255,115,0,0.2)',
+      fill: false,
+      tension: 0.3,
+    },
+  ],
+};
+
+const chartOptions = {
+  responsive: true,
+  plugins: {
+    legend: {
+      position: 'top',
+    },
+    title: {
+      display: true,
+      text: '월별 방문자수/매출/비용',
+    },
+  },
+};
+
+function MyChart() {
+  return (
+    <div style={{ width: '100%', maxWidth: 700, margin: '0 auto', background: '#fff', borderRadius: 12, marginBottom: 16, padding: 16 }}>
+      <ChartLine data={chartData} options={chartOptions} />
+    </div>
+  );
+}
 
 const ChatBox = () => {
   const [messages, setMessages] = useState([]);
@@ -226,7 +322,8 @@ const ChatBox = () => {
       console.log('TTS 종료(이벤트)');
       setIsAiTalking(false);
       setTtsSpeaking(false);
-      // 립싱크 애니메이션: 1초간 랜덤 입모양 반복 후 닫기
+      // 립싱크 애니메이션: 1초간 랜덤 입모양 반복 후 닫기 (일시 비활성화)
+      /*
       let animCount = 0;
       const animMax = 10; // 1초(100ms*10)
       const animInterval = setInterval(() => {
@@ -239,6 +336,7 @@ const ChatBox = () => {
           setLastLipSyncValue(0);
         }
       }, 100);
+      */
       // 타이핑 효과 종료 및 전체 메시지 표시
       if (typingIntervalRef.current) {
         clearInterval(typingIntervalRef.current);
@@ -327,7 +425,7 @@ const ChatBox = () => {
           const triggerValue = mouthShapeValues[currentPhoneme.mouthShape] || 0;
           setMouthTrigger(triggerValue);
           setLastLipSyncValue(triggerValue); // 마지막 립싱크 값 저장
-          console.log('립싱크:', currentPhoneme.phoneme, currentPhoneme.mouthShape, triggerValue, '시간:', elapsedTime);
+          // console.log('립싱크:', currentPhoneme.phoneme, currentPhoneme.mouthShape, triggerValue, '시간:', elapsedTime);
         } else {
           // 현재 시간에 해당하는 음소가 없으면 마지막 립싱크 값 유지
           setMouthTrigger(lastLipSyncValue);
@@ -374,6 +472,25 @@ const ChatBox = () => {
       }
     }
   }, [ttsSpeaking, ttsRate, lipSyncSequence]);
+
+  // LaTeX 수식 렌더링 함수 (원상복구)
+  const renderLatexInText = (text) => {
+    return text || '';
+  };
+
+  // 수식 블록 전처리 함수
+  const preprocessLatexBlocks = (text) => {
+    if (!text) return '';
+    // 코드블록(```latex ... ```, ``` ... ```)을 $$...$$로 변환
+    let processed = text.replace(/```(?:latex)?([\s\S]*?)```/g, (match, p1) => {
+      return `$$${p1.trim()}$$`;
+    });
+    // 따옴표(‘ ’, ", ")로 감싼 수식도 $$...$$로 변환 (너무 짧은 경우는 무시)
+    processed = processed.replace(/[‘'“”"]([\s\S]{5,}?)[’'“”"]/g, (match, p1) => {
+      return `$$${p1.trim()}$$`;
+    });
+    return processed;
+  };
 
   // TTS 서비스 초기화
   const initializeTTSService = () => {
@@ -1000,11 +1117,11 @@ const ChatBox = () => {
     // 현재 호스트의 IP 주소를 사용하여 WebSocket 연결
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.hostname;
-    
+
     // 로컬 환경에서는 Django 서버 포트(8000)를 사용하고, 배포 환경에서는 포트 없이 사용
     const isLocalhost = host === 'localhost' || host === '127.0.0.1';
     const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}/ws/chat/`;
-    
+
     console.log('WebSocket 연결 시도:', wsUrl);
     ws.current = new WebSocket(wsUrl);
 
@@ -1130,6 +1247,227 @@ const ChatBox = () => {
   const [isUserAvatarOn, setIsUserAvatarOn] = useState(false); // 기본값 off
   const [isAiAvatarOn, setIsAiAvatarOn] = useState(false); // 기본값 off
 
+  // 수식과 일반 텍스트를 분리 렌더링하는 함수 (katex 직접 사용)
+  const renderMessageWithLatex = (text) => {
+    if (!text) return null;
+    // $$...$$ 블록 수식 분리
+    const blockParts = text.split(/(\$\$[^$]+\$\$)/g);
+    return blockParts.map((part, i) => {
+      if (/^\$\$[^$]+\$\$$/.test(part)) {
+        const math = part.replace(/^\$\$|\$\$$/g, '');
+        return (
+          <div
+            key={i}
+            dangerouslySetInnerHTML={{
+              __html: katex.renderToString(math, { displayMode: true, throwOnError: false }),
+            }}
+          />
+        );
+      } else {
+        // 인라인 수식 분리
+        const inlineParts = part.split(/(\$[^$]+\$)/g);
+        return inlineParts.map((inline, j) => {
+          if (/^\$[^$]+\$/.test(inline)) {
+            const math = inline.replace(/^\$|\$$/g, '');
+            return (
+              <span
+                key={j}
+                dangerouslySetInnerHTML={{
+                  __html: katex.renderToString(math, { displayMode: false, throwOnError: false }),
+                }}
+              />
+            );
+          } else {
+            // 일반 텍스트 (줄바꿈 처리)
+            return inline.split(/\n/g).map((line, k) => (
+              <span key={k}>
+                {line}
+                {k < inline.split(/\n/g).length - 1 && <br />}
+              </span>
+            ));
+          }
+        });
+      }
+    });
+  };
+
+  // 차트 렌더링 함수
+  const renderChartIfData = (text) => {
+    // 차트 렌더링 비활성화 (recharts 제거)
+    return null;
+  };
+
+  // 메시지 블록 파싱 함수
+  function parseMessageBlocks(text) {
+    const blocks = [];
+    let lastIndex = 0;
+    // $$...$$ (블록 수식)
+    const blockMathRegex = /\$\$([\s\S]+?)\$\$/g;
+    // ```json ... ``` (차트 데이터)
+    const chartRegex = /```json\s*([\s\S]+?)```/g;
+    // ```언어 ... ``` (코드블록)
+    const codeBlockRegex = /```(\w+)?\s*([\s\S]+?)```/g;
+
+    // 두 정규식 모두 찾아서 출현 순서대로 분할
+    let match;
+    const matches = [];
+    while ((match = blockMathRegex.exec(text)) !== null) {
+      matches.push({ type: 'math', value: match[1], index: match.index, length: match[0].length });
+    }
+    while ((match = chartRegex.exec(text)) !== null) {
+      matches.push({ type: 'chart', value: match[1], index: match.index, length: match[0].length });
+    }
+    while ((match = codeBlockRegex.exec(text)) !== null) {
+      // chartRegex와 중복되는 부분은 chart로만 처리
+      if (match[1] === 'json') continue;
+      matches.push({ type: 'code', value: match[2], language: match[1] || 'javascript', index: match.index, length: match[0].length });
+    }
+    matches.sort((a, b) => a.index - b.index);
+
+    for (const m of matches) {
+      if (lastIndex < m.index) {
+        blocks.push({ type: 'markdown', value: text.slice(lastIndex, m.index) });
+      }
+      if (m.type === 'code') {
+        blocks.push({ type: 'code', value: m.value, language: m.language });
+      } else if (m.type === 'chart') {
+        blocks.push({ type: 'chart', value: m.value });
+      } else if (m.type === 'math') {
+        blocks.push({ type: 'math', value: m.value });
+      }
+      lastIndex = m.index + m.length;
+    }
+    if (lastIndex < text.length) {
+      blocks.push({ type: 'markdown', value: text.slice(lastIndex) });
+    }
+    return blocks;
+  }
+
+  // 차트 렌더링 함수
+  const renderChartBlock = (value, key) => {
+    // 차트 렌더링 비활성화 (recharts 제거)
+    // 차트 데이터 텍스트만 출력
+    return <pre key={key}>{value}</pre>;
+  };
+
+  // 코드/JSON/차트 카드 컴포넌트
+  function CodeJsonChartCard({ code, language, isChartCandidate }) {
+    const [isChartView, setIsChartView] = React.useState(false);
+    const [copyMsg, setCopyMsg] = React.useState('');
+    const [isChartModalOpen, setIsChartModalOpen] = React.useState(false);
+
+    // 차트 변환 함수
+    function convertToChartData(data) {
+      if (!Array.isArray(data) || data.length === 0) return null;
+      const labels = data.map(item => item.name);
+      const keys = Object.keys(data[0]).filter(key => key !== 'name');
+      const colorList = ['#FFD600', '#00E5FF', '#76FF03', '#FF4081', '#FFFFFF'];
+      const datasets = keys.map((key, idx) => ({
+        label: key,
+        data: data.map(item => item[key]),
+        borderColor: colorList[idx % colorList.length],
+        backgroundColor: colorList[idx % colorList.length] + '80',
+        pointBackgroundColor: colorList[idx % colorList.length],
+        borderWidth: 3,
+        pointRadius: 4,
+        tension: 0.3,
+        fill: false,
+      }));
+      return { labels, datasets };
+    }
+
+    let chartData = null;
+    let isJson = false;
+    try {
+      const parsed = typeof code === 'string' ? JSON.parse(code) : code;
+      if (Array.isArray(parsed) && parsed[0]?.name) {
+        isJson = true;
+        chartData = convertToChartData(parsed);
+      }
+    } catch (e) { }
+
+    // 차트 옵션: 어두운 배경에서 잘 보이도록 색상 지정
+    const chartOptions = {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: { color: '#fff' },
+        },
+        title: {
+          display: false,
+          color: '#fff',
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: '#fff' },
+          grid: { color: 'rgba(255,255,255,0.1)' },
+        },
+        y: {
+          ticks: { color: '#fff' },
+          grid: { color: 'rgba(255,255,255,0.1)' },
+        },
+      },
+    };
+
+    // 클립보드 복사
+    const handleCopy = () => {
+      navigator.clipboard.writeText(code);
+      setCopyMsg('복사됨!');
+      setTimeout(() => setCopyMsg(''), 1000);
+    };
+
+    // 차트 모달 닫기
+    const closeModal = () => setIsChartModalOpen(false);
+
+    return (
+      <div className="code-json-card" style={{ position: 'relative', margin: '12px 0' }}>
+        <button
+          className="copy-btn"
+          style={{ position: 'absolute', top: 8, right: isChartCandidate ? 40 : 8, zIndex: 2 }}
+          onClick={handleCopy}
+          title="클립보드 복사"
+        >
+          <ContentCopyIcon fontSize="small" />
+        </button>
+        {isChartCandidate && isJson && (
+          <button
+            className="chart-toggle-btn"
+            style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}
+            onClick={() => setIsChartView(v => !v)}
+            title={isChartView ? '코드로 보기' : '차트로 보기'}
+          >
+            {isChartView ? <CodeIcon fontSize="small" /> : <InsertChartIcon fontSize="small" />}
+          </button>
+        )}
+        {isChartCandidate && isJson && isChartView && chartData ? (
+          <div onClick={() => setIsChartModalOpen(true)} style={{ cursor: 'zoom-in' }}>
+            <ChartLine data={chartData} options={chartOptions} />
+          </div>
+        ) : (
+          <pre style={{ background: '#222', color: '#fff', borderRadius: 6, padding: 12, overflowX: 'auto', margin: 0 }}
+            dangerouslySetInnerHTML={{
+              __html: Prism.highlight(code, Prism.languages[language] || Prism.languages.javascript, language)
+            }}
+          />
+        )}
+        {copyMsg && <span className="copy-msg" style={{ position: 'absolute', top: 8, left: 8, color: '#4caf50', fontSize: 12 }}>{copyMsg}</span>}
+        {/* 차트 확대 모달 */}
+        {isChartModalOpen && (
+          <div className="chart-modal-overlay" onClick={closeModal} style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="chart-modal-content" onClick={e => e.stopPropagation()} style={{ background: '#23272f', borderRadius: 16, padding: 32, maxWidth: '90vw', maxHeight: '90vh', boxShadow: '0 4px 24px rgba(0,0,0,0.3)' }}>
+              <button onClick={closeModal} style={{ position: 'absolute', top: 24, right: 32, background: 'none', border: 'none', color: '#fff', fontSize: 28, cursor: 'pointer', zIndex: 10000 }}>✖</button>
+              <div style={{ width: '80vw', height: '60vh', minWidth: 320, minHeight: 240 }}>
+                <ChartLine data={chartData} options={chartOptions} />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <>
       {/* 이미지 뷰어 모달 */}
@@ -1183,6 +1521,8 @@ const ChatBox = () => {
             </button>
           </div>
         </div>
+        {/* 차트 렌더링 */}
+        {/* <MyChart /> */}
         {/* 아바타/카메라를 항상 렌더링하고, style로만 분할/숨김/오버레이 처리 */}
         <div
           className="avatar-container"
@@ -1213,16 +1553,16 @@ const ChatBox = () => {
           </div>
           {/* 사용자 아바타 */}
           <div style={getUserAvatarStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn)}>
-              <RealisticAvatar3D
-                avatarUrl={userAvatar}
-                isTalking={isUserTalking}
-                emotion={userEmotion}
-                position="right"
-                size="100%"
-                showEmotionIndicator={true}
-                emotionCaptureStatus={emotionCaptureStatus.user}
-                enableTracking={isTrackingEnabled}
-              />
+            <RealisticAvatar3D
+              avatarUrl={userAvatar}
+              isTalking={isUserTalking}
+              emotion={userEmotion}
+              position="right"
+              size="100%"
+              showEmotionIndicator={true}
+              emotionCaptureStatus={emotionCaptureStatus.user}
+              enableTracking={isTrackingEnabled}
+            />
           </div>
           {/* 카메라 */}
           <div style={getCameraStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn)}>
@@ -1236,7 +1576,7 @@ const ChatBox = () => {
               enableTracking={isUserAvatarOn}
               showAvatarOverlay={isCameraActive && isUserAvatarOn}
             />
-        </div>
+          </div>
         </div>
         {/* 채팅창 (아래쪽), avatar-container가 없으면 전체를 차지 */}
         <div
@@ -1286,9 +1626,40 @@ const ChatBox = () => {
                           onClick={() => setViewerImage(msg.imageUrl)}
                         />
                       )}
-                      {msg.text && (
-                        <div>{msg.type === 'recv' && idx === messages.length - 1 && isAiTalking ? displayedAiText : msg.text}</div>
-                      )}
+                      {msg.text && parseMessageBlocks(msg.type === 'recv' && idx === messages.length - 1 && isAiTalking ? displayedAiText : msg.text).map((block, i) => {
+                        if (block.type === 'math') {
+                          return (
+                            <span key={i} dangerouslySetInnerHTML={{ __html: katex.renderToString(block.value, { throwOnError: false }) }} />
+                          );
+                        } else if (block.type === 'chart') {
+                          return (
+                            <CodeJsonChartCard key={i} code={block.value} language="json" isChartCandidate={true} />
+                          );
+                        } else if (block.type === 'code') {
+                          return (
+                            <CodeJsonChartCard key={i} code={block.value} language={block.language} isChartCandidate={block.language === 'json'} />
+                          );
+                        } else if (block.type === 'markdown') {
+                          return (
+                            <ReactMarkdown
+                              key={i}
+                              children={block.value}
+                              remarkPlugins={[remarkMath]}
+                              rehypePlugins={[rehypeKatex]}
+                              components={{
+                                code({ node, inline, className, children, ...props }) {
+                                  return (
+                                    <code className={className} {...props} style={{ background: '#222', color: '#fff', borderRadius: 4, padding: '2px 6px' }}>
+                                      {children}
+                                    </code>
+                                  );
+                                },
+                              }}
+                            />
+                          );
+                        }
+                        return null;
+                      })}
                     </div>
                   </div>
                 );

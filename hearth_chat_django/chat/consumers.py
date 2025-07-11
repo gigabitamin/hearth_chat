@@ -14,7 +14,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.session_id = None
         self.user_emotion_history = []  # 감정 변화 추적
         self.conversation_context = []  # 대화 컨텍스트 저장
-        
+
         # MySQL 연결을 강제로 utf8mb4로 설정
         self._force_utf8mb4_connection()
     

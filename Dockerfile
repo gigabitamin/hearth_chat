@@ -4,8 +4,9 @@
 FROM node:18 AS frontend
 
 WORKDIR /app
-COPY hearth_chat_react/package*.json ./
-RUN npm ci
+# package.json과 package-lock.json을 모두 복사
+COPY package.json package-lock.json ./
+RUN npm install
 
 COPY hearth_chat_react/ ./
 # 메모리 제한 설정으로 빌드 안정성 향상

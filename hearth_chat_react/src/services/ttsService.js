@@ -132,7 +132,13 @@ class TTSService {
 
         let cleanedText = text;
 
-        // 1. 이모티콘 제거 (유니코드 이모티콘 범위)
+        // 1. 마크다운 스타일 제거 (** **, * *, ` ` 등)
+        cleanedText = cleanedText.replace(/\*\*(.*?)\*\*/g, '$1'); // **텍스트** -> 텍스트
+        cleanedText = cleanedText.replace(/\*(.*?)\*/g, '$1');     // *텍스트* -> 텍스트
+        cleanedText = cleanedText.replace(/`(.*?)`/g, '$1');       // `텍스트` -> 텍스트
+        cleanedText = cleanedText.replace(/~~(.*?)~~/g, '$1');     // ~~텍스트~~ -> 텍스트
+
+        // 2. 이모티콘 제거 (유니코드 이모티콘 범위)
         const emojiRanges = [
             /[\u{1F600}-\u{1F64F}]/gu,  // 감정 표현
             /[\u{1F300}-\u{1F5FF}]/gu,  // 기호와 픽토그램
@@ -153,16 +159,16 @@ class TTSService {
             cleanedText = cleanedText.replace(range, '');
         });
 
-        // 2. 특정 이모티콘 패턴 제거 (이스케이프된 이모티콘)
+        // 3. 특정 이모티콘 패턴 제거 (이스케이프된 이모티콘)
         cleanedText = cleanedText.replace(/\\u[\dA-Fa-f]{4}/g, '');
 
-        // 3. 특수문자 제거 (한글, 영어, 숫자, 기본 문장부호만 유지)
+        // 4. 특수문자 제거 (한글, 영어, 숫자, 기본 문장부호만 유지)
         cleanedText = cleanedText.replace(/[^\w\s가-힣ㄱ-ㅎㅏ-ㅣ.,!?;:()[\]{}"'`~@#$%^&*+=|\\<>/]/g, '');
 
-        // 4. 연속된 공백을 하나로 정리
+        // 5. 연속된 공백을 하나로 정리
         cleanedText = cleanedText.replace(/\s+/g, ' ').trim();
 
-        // 5. 빈 문자열 체크 및 대체 텍스트 제공
+        // 6. 빈 문자열 체크 및 대체 텍스트 제공
         if (!cleanedText || cleanedText.length === 0) {
             // 원본에서 한글/영어/숫자만 추출
             const fallbackText = text.replace(/[^\w\s가-힣ㄱ-ㅎㅏ-ㅣ]/g, '').trim();

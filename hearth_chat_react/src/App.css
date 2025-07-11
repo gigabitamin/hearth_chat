@@ -16,3 +16,74 @@
   backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
+
+/* LaTeX 수식 스타일 */
+.math-inline {
+  display: inline;
+  font-family: 'Computer Modern', serif;
+}
+
+.math-block {
+  display: block;
+  text-align: center;
+  margin: 10px 0;
+  font-family: 'Computer Modern', serif;
+}
+
+/* MathJax 컨테이너 스타일 */
+.mjx-chtml {
+  font-size: 1em !important;
+}
+
+.mjx-chtml .mjx-char {
+  font-size: 1em !important;
+}
+
+/* 메시지 내용 스타일 */
+.message-content {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.message-content .math-inline,
+.message-content .math-block {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 4px;
+  border-radius: 4px;
+  margin: 2px 0;
+}
+
+.message-markdown,
+.chat-bubble,
+.chat-log {
+  overflow-wrap: break-word;
+  word-break: break-all;
+  white-space: pre-line;
+  max-width: 100%;
+}
+
+.message-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  background: #222;
+  color: #fff;
+}
+
+.message-markdown th,
+.message-markdown td {
+  border: 1px solid #888;
+  padding: 6px 10px;
+  text-align: left;
+  font-size: 1em;
+}
+
+.message-markdown th {
+  background: #333;
+  font-weight: bold;
+}
+
+.message-markdown code {
+  word-break: break-all;
+  white-space: pre-wrap;
+}

@@ -614,3 +614,56 @@ body,
   cursor: pointer;
   z-index: 10000;
 }
+
+/* 코드/JSON/차트 카드 스타일 */
+.code-json-card {
+  background: #23272f;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 0;
+  margin: 12px 0;
+  position: relative;
+  overflow-x: auto;
+}
+
+.code-json-card pre {
+  background: transparent;
+  color: #fff;
+  font-family: 'Fira Mono', 'Consolas', 'Menlo', monospace;
+  font-size: 15px;
+  border: none;
+  margin: 0;
+  padding: 18px 16px 16px 16px;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.copy-btn,
+.chart-toggle-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #bbb;
+  transition: color 0.2s;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.copy-btn:hover,
+.chart-toggle-btn:hover {
+  color: #4caf50;
+  background: #333;
+}
+
+.copy-msg {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  color: #4caf50;
+  font-size: 12px;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 2px 8px;
+  border-radius: 4px;
+  z-index: 3;
+}
