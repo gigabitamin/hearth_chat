@@ -82,20 +82,24 @@ import sys
 DATABASES = {
     "default": dj_database_url.config(
         conn_max_age=600, 
-        ssl_require=False,
-        # PostgreSQL 연결 시 추가 옵션
-        options={
-            'sslmode': 'require' if os.environ.get("RAILWAY_ENVIRONMENT") else 'disable'
-        }
+        ssl_require=False
     )
 }
+
+# Railway 환경에서 PostgreSQL SSL 설정 추가
+if os.environ.get("RAILWAY_ENVIRONMENT") and DATABASES["default"].get("ENGINE", "").endswith("postgresql"):
+    DATABASES["default"]["OPTIONS"] = {
+        'sslmode': 'require'
+    }
 
 # 로컬 MySQL 환경에서만 utf8mb4 옵션 적용 (PostgreSQL 등에서는 절대 실행되지 않도록 보장)
 print("DATABASE ENGINE:", DATABASES["default"].get("ENGINE", "<None>"))
 
+# PostgreSQL 환경에서는 MySQL 설정을 절대 적용하지 않음
 if (
     DATABASES["default"].get("ENGINE", "") == "django.db.backends.mysql"
     and not os.environ.get("RAILWAY_ENVIRONMENT")
+    and "postgresql" not in DATABASES["default"].get("ENGINE", "").lower()
 ):
     DATABASES["default"]["OPTIONS"] = {
         "charset": os.environ.get("LOCAL_MYSQL_CHARSET", "utf8mb4"),
@@ -106,7 +110,7 @@ if (
     }
     print("로컬 MySQL utf8mb4 옵션 적용 완료!")
 else:
-    print("MySQL 전용 옵션은 적용되지 않음")
+    print("MySQL 전용 옵션은 적용되지 않음 (PostgreSQL 또는 Railway 환경)")
 
 if not DATABASES["default"].get("ENGINE"):
     raise Exception("DATABASE_URL 환경변수 또는 ENGINE 설정이 잘못되었습니다. Railway Variables에서 DATABASE_URL을 확인하세요.")
