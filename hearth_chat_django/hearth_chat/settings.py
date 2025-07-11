@@ -38,7 +38,14 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
     print("Railway environment detected - DEBUG mode enabled")
 
 # ALLOWED_HOSTS 설정 개선
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = [
+    "*",  # 개발/테스트용 전체 허용
+    "localhost",
+    "127.0.0.1",
+    "[::1]",
+    "192.168.44.9",
+    "192.168.0.0/16",  # 192.168.*.* 전체 허용
+]
 
 # Railway 환경에서 추가 설정
 if os.environ.get("RAILWAY_ENVIRONMENT"):
@@ -100,9 +107,10 @@ if not CORS_ALLOWED_ORIGINS:
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://192.168.44.9:3000",
+        "http://192.168.44.9:8000",
     ]
 CORS_ALLOWED_ORIGIN_REGEXES = [
-    r"^http://192\.168\.\d+\.\d+:\d+$",  # 내부 IP 허용
+    r"^http://192\.168\.[0-9]+\.[0-9]+(:[0-9]+)?$",  # 192.168.*.*:포트 전체 허용
 ]
 
 # Railway 헬스체크를 위한 추가 설정

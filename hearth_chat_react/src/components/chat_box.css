@@ -7,7 +7,7 @@ body,
   margin: 0 !important;
   padding: 0 !important;
   box-sizing: border-box !important;
-  overflow: hidden !important;
+  /* overflow: hidden !important; */
 }
 
 .chat-container-with-avatars {
@@ -272,6 +272,8 @@ body,
   border-radius: 20px;
   max-width: 70%;
   word-wrap: break-word;
+  max-height: 60vh;
+  overflow-y: auto;
 }
 
 .chat-bubble.sent {
@@ -729,6 +731,15 @@ body,
 @media (max-width: 768px) {
   .chat-input-area {
     padding-bottom: 24px !important;
+  }
+
+  html,
+  body,
+  #root {
+    height: auto !important;
+    min-height: 100vh !important;
+    overflow-x: hidden !important;
+    /* overflow-y: auto !important; // 필요시 주석 해제 */
   }
 }
 

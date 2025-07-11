@@ -166,21 +166,14 @@ const ChatBox = () => {
   const [isTrackingReady, setIsTrackingReady] = useState(false);
   const [isTrackingLoading, setIsTrackingLoading] = useState(true);
 
-  // MediaPipe 준비 상태 감시
+  const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
+
   useEffect(() => {
-    // MediaPipe 초기화 강제 시작
-    if (!faceTrackingService.isReady && !faceTrackingService.isInitializing) {
-      console.log('MediaPipe 초기화 강제 시작...');
-      faceTrackingService.initializeMediaPipe();
-    }
-
-    // 주기적 체크 (상태 표시용)
-    const interval = setInterval(() => {
-      setIsTrackingReady(faceTrackingService.isReady);
-      setIsTrackingLoading(faceTrackingService.isInitializing);
-    }, 2000);
-
-    return () => clearInterval(interval);
+    const handleResize = () => {
+      setViewportHeight(window.innerHeight);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   // 모바일 브라우저에서 실제 보이는 영역의 높이로 --real-vh CSS 변수 설정
@@ -1127,7 +1120,7 @@ const ChatBox = () => {
     const host = window.location.hostname;
 
     // 로컬 환경에서는 Django 서버 포트(8000)를 사용하고, 배포 환경에서는 포트 없이 사용
-    const isLocalhost = host === 'localhost' || host === '127.0.0.1';
+    const isLocalhost = host === 'localhost' || host === '127.0.0.1' || host === '192.168.44.9';
     const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}/ws/chat/`;
 
     console.log('WebSocket 연결 시도:', wsUrl);
@@ -1639,7 +1632,7 @@ const ChatBox = () => {
         <div
           className="chat-section"
           style={{
-            height: (!isCameraActive && !isAiAvatarOn && !isUserAvatarOn) ? '100%' : '50%',
+            height: `${viewportHeight}px`,
             margin: 0,
             padding: 0,
             width: '100%'
@@ -1671,6 +1664,7 @@ const ChatBox = () => {
                       flexDirection: msg.type === 'send' ? 'row-reverse' : 'row',
                       alignItems: 'flex-end',
                       width: '100%',
+                      justifyContent: msg.type === 'send' ? 'flex-end' : 'flex-start',
                     }}
                   >
                     {/* 사용자/AI 메시지 버블+날짜 영역 */}
@@ -1678,7 +1672,7 @@ const ChatBox = () => {
                       style={{
                         display: 'flex',
                         flexDirection: 'column',
-                        alignItems: msg.type === 'send' ? 'flex-start' : 'flex-end',
+                        alignItems: msg.type === 'send' ? 'flex-end' : 'flex-start',
                         height: '100%',
                         maxWidth: '80vw',
                         minWidth: 0,
