@@ -67,14 +67,19 @@ DATABASES = {
     "default": dj_database_url.config(conn_max_age=600, ssl_require=False)
 }
 
-# MySQL 커스텀 백엔드 설정 (로컬 개발 환경에서만)
-if DATABASES["default"].get("ENGINE") == "django.db.backends.mysql":
-    DATABASES["default"]["ENGINE"] = "chat.mysql_backend"
+# 로컬 MySQL 환경에서만 utf8mb4 옵션 적용
+if (
+    DATABASES["default"].get("ENGINE") == "django.db.backends.mysql"
+    and not os.environ.get("RAILWAY_ENVIRONMENT")  # Railway 환경이 아니면(즉, 로컬)
+):
     DATABASES["default"]["OPTIONS"] = {
-        "charset": "utf8mb4",
-        "init_command": "SET character_set_connection=utf8mb4; SET collation_connection=utf8mb4_unicode_ci;",
+        "charset": os.environ.get("LOCAL_MYSQL_CHARSET", "utf8mb4"),
+        "init_command": os.environ.get(
+            "LOCAL_MYSQL_INIT_COMMAND",
+            "SET character_set_connection=utf8mb4; SET collation_connection=utf8mb4_unicode_ci;"
+        ),
     }
-    print("✅ MySQL 커스텀 백엔드 설정 완료!")
+    print("✅ 로컬 MySQL utf8mb4 옵션 적용 완료!")
 
 if not DATABASES["default"].get("ENGINE"):
     raise Exception("DATABASE_URL 환경변수 또는 ENGINE 설정이 잘못되었습니다. Railway Variables에서 DATABASE_URL을 확인하세요.")
