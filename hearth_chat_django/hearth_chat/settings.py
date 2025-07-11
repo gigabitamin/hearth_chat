@@ -174,6 +174,19 @@ ACCOUNT_EMAIL_VERIFICATION = 'optional'
 SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
 SOCIALACCOUNT_QUERY_EMAIL = True
 
+# allauth 소셜 로그인 provider별 설정 (구글 scope 오류 방지)
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        }
+    },
+}
+
 ASGI_APPLICATION = 'hearth_chat.asgi.application'
 
 CHANNEL_LAYERS = {

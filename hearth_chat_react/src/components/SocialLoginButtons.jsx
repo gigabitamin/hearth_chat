@@ -31,6 +31,20 @@ const SOCIALS = [
 ];
 
 export default function SocialLoginButtons() {
+    // 팝업 열기 함수
+    const handleSocialLogin = (url) => (e) => {
+        e.preventDefault();
+        const popupWidth = 480;
+        const popupHeight = 600;
+        const left = window.screenX + (window.outerWidth - popupWidth) / 2;
+        const top = window.screenY + (window.outerHeight - popupHeight) / 2;
+        window.open(
+            url,
+            'social_login_popup',
+            `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes`
+        );
+    };
+
     return (
         <div className={styles['social-login-list']}>
             {SOCIALS.map(social => (
@@ -38,6 +52,7 @@ export default function SocialLoginButtons() {
                     key={social.name}
                     href={social.url}
                     className={`${styles['social-login-btn']} ${social.className}`}
+                    onClick={handleSocialLogin(social.url)}
                 >
                     <img
                         src={social.logo}
@@ -49,4 +64,4 @@ export default function SocialLoginButtons() {
             ))}
         </div>
     );
-} 
+}

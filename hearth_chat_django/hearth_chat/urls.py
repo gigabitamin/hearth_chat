@@ -20,7 +20,7 @@ from django.shortcuts import redirect
 from django.conf import settings
 from django.conf.urls.static import static
 from django.http import HttpResponse
-from .views import ReactAppView
+from .views import ReactAppView, social_connections_api
 from django.views.static import serve as static_serve
 import os
 
@@ -59,6 +59,7 @@ urlpatterns = [
     path('chat/', include("chat.urls")),
     path('health/', health_check, name="health_check"),  # 헬스체크 엔드포인트
     path("manifest.json", manifest_json),  # manifest.json 직접 반환
+    path("api/social-connections/", social_connections_api, name="social_connections_api"),
     path("", ReactAppView.as_view(), name="root"),  # 루트에 React index.html 연결
 ]
 

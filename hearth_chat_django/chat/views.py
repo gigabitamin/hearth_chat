@@ -15,6 +15,7 @@ from django.http import HttpResponseBadRequest
 from django.http import HttpResponse
 from django.contrib.auth import logout as django_logout
 from django.contrib.auth.decorators import login_required
+from allauth.socialaccount.models import SocialAccount
 
 # Create your views here.
 
@@ -117,8 +118,12 @@ def upload_chat_image(request):
 @csrf_exempt
 @require_http_methods(["GET"])
 def user_info(request):
-    """현재 로그인된 사용자 정보 반환 API"""
+    """현재 로그인된 사용자 정보 + 로그인 방법 반환 API"""
     if request.user.is_authenticated:
+        # 소셜 계정 연결 여부 확인
+        social_accounts = list(SocialAccount.objects.filter(user=request.user).values_list('provider', flat=True))
+        has_password = request.user.has_usable_password()
+        is_social_only = bool(social_accounts) and not has_password
         return JsonResponse({
             'status': 'success',
             'user': {
@@ -126,6 +131,9 @@ def user_info(request):
                 'email': request.user.email,
                 'is_superuser': request.user.is_superuser,
                 'is_staff': request.user.is_staff,
+                'social_accounts': social_accounts,
+                'has_password': has_password,
+                'is_social_only': is_social_only,
             }
         })
     else:

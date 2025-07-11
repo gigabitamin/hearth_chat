@@ -40,10 +40,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 cursor.execute(command)
             
             cursor.close()
-            print("✅ WebSocket 연결 시 MySQL utf8mb4 강제 설정 완료!")
+            # print("WebSocket 연결 시 MySQL utf8mb4 강제 설정 완료!")
             
         except Exception as e:
-            print(f"❌ MySQL utf8mb4 설정 오류: {e}")
+            print(f"MySQL utf8mb4 설정 오류: {e}")
 
     @sync_to_async
     def _force_utf8mb4_connection_async(self):
