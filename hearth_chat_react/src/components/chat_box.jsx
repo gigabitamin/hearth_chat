@@ -12,6 +12,7 @@ import 'katex/dist/katex.min.css';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import remarkGfm from 'remark-gfm';
 import { Line as ChartLine } from 'react-chartjs-2';
 import Prism from 'prismjs';
 import 'prismjs/themes/prism-tomorrow.css';
@@ -308,7 +309,8 @@ const ChatBox = () => {
       // 타이핑 효과 시작
       if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
       let i = 0;
-      setDisplayedAiText('');
+      // 타이핑 효과 코드 (주석 처리)
+      /*
       typingIntervalRef.current = setInterval(() => {
         setDisplayedAiText(text.slice(0, i + 1));
         i++;
@@ -316,7 +318,10 @@ const ChatBox = () => {
           clearInterval(typingIntervalRef.current);
           typingIntervalRef.current = null;
         }
-      }, 0); // 타이핑 속도 조절
+      }, 30);
+      */
+      // 한 번에 전체 출력
+      setDisplayedAiText(text);
     };
     const handleEnd = (text) => {
       console.log('TTS 종료(이벤트)');
@@ -1299,6 +1304,7 @@ const ChatBox = () => {
 
   // 메시지 블록 파싱 함수
   function parseMessageBlocks(text) {
+    if (!text || typeof text !== 'string') return [];
     const blocks = [];
     let lastIndex = 0;
     // $$...$$ (블록 수식)
@@ -1329,11 +1335,11 @@ const ChatBox = () => {
         blocks.push({ type: 'markdown', value: text.slice(lastIndex, m.index) });
       }
       if (m.type === 'code') {
-        blocks.push({ type: 'code', value: m.value, language: m.language });
+        blocks.push({ type: 'code', value: m.value || '', language: m.language });
       } else if (m.type === 'chart') {
-        blocks.push({ type: 'chart', value: m.value });
+        blocks.push({ type: 'chart', value: m.value || '' });
       } else if (m.type === 'math') {
-        blocks.push({ type: 'math', value: m.value });
+        blocks.push({ type: 'math', value: m.value || '' });
       }
       lastIndex = m.index + m.length;
     }
@@ -1466,6 +1472,36 @@ const ChatBox = () => {
         )}
       </div>
     );
+  }
+
+  // 메시지 배열 최대 길이 제한 (예: 100개)
+  useEffect(() => {
+    if (messages.length > 100) {
+      setMessages(msgs => msgs.slice(msgs.length - 100));
+    }
+  }, [messages]);
+
+  // 코드블록 뒤에 빈 줄 2개를 자동으로 추가하는 전처리 함수
+  function ensureDoubleNewlineAfterCodeBlocks(text) {
+    if (!text || typeof text !== 'string') return text;
+    // 코드블록 뒤에 이미 빈 줄 2개가 있지 않으면 추가
+    return text.replace(/(```[\s\S]*?```)(?!\n\n)/g, '$1\n\n');
+  }
+
+  // latex 코드블록 안의 $$ ... $$ 수식을 추출해 수식 블록으로 변환하는 전처리 함수
+  function extractLatexBlocks(text) {
+    if (!text || typeof text !== 'string') return text;
+    // latex 코드블록을 찾아서
+    return text.replace(/```latex\s*([\s\S]*?)```/g, (match, p1) => {
+      // $$ ... $$로 감싸진 부분만 추출
+      const latexBlocks = p1.match(/\$\$[\s\S]*?\$\$/g);
+      if (latexBlocks) {
+        // 여러 개의 $$ ... $$가 있을 수 있으니 모두 합쳐서 반환
+        return latexBlocks.join('\n\n');
+      }
+      // $$ ... $$가 없으면 원래 코드블록 유지
+      return match;
+    });
   }
 
   return (
@@ -1626,25 +1662,30 @@ const ChatBox = () => {
                           onClick={() => setViewerImage(msg.imageUrl)}
                         />
                       )}
-                      {msg.text && parseMessageBlocks(msg.type === 'recv' && idx === messages.length - 1 && isAiTalking ? displayedAiText : msg.text).map((block, i) => {
+                      {msg.text && parseMessageBlocks(
+                        msg.type === 'recv' && idx === messages.length - 1 && isAiTalking
+                          ? ensureDoubleNewlineAfterCodeBlocks(extractLatexBlocks(displayedAiText))
+                          : ensureDoubleNewlineAfterCodeBlocks(extractLatexBlocks(msg.text))
+                      ).map((block, i) => {
+                        if (!block || !block.type) return null;
                         if (block.type === 'math') {
                           return (
-                            <span key={i} dangerouslySetInnerHTML={{ __html: katex.renderToString(block.value, { throwOnError: false }) }} />
+                            <span key={i} dangerouslySetInnerHTML={{ __html: katex.renderToString(block.value || '', { throwOnError: false }) }} />
                           );
                         } else if (block.type === 'chart') {
                           return (
-                            <CodeJsonChartCard key={i} code={block.value} language="json" isChartCandidate={true} />
+                            <CodeJsonChartCard key={i} code={block.value || ''} language="json" isChartCandidate={true} />
                           );
                         } else if (block.type === 'code') {
                           return (
-                            <CodeJsonChartCard key={i} code={block.value} language={block.language} isChartCandidate={block.language === 'json'} />
+                            <CodeJsonChartCard key={i} code={block.value || ''} language={block.language} isChartCandidate={block.language === 'json'} />
                           );
                         } else if (block.type === 'markdown') {
                           return (
                             <ReactMarkdown
                               key={i}
-                              children={block.value}
-                              remarkPlugins={[remarkMath]}
+                              children={block.value || ''}
+                              remarkPlugins={[remarkMath, remarkGfm]}
                               rehypePlugins={[rehypeKatex]}
                               components={{
                                 code({ node, inline, className, children, ...props }) {
@@ -1652,6 +1693,13 @@ const ChatBox = () => {
                                     <code className={className} {...props} style={{ background: '#222', color: '#fff', borderRadius: 4, padding: '2px 6px' }}>
                                       {children}
                                     </code>
+                                  );
+                                },
+                                table({ node, ...props }) {
+                                  return (
+                                    <div className="markdown-table-wrapper">
+                                      <table {...props} />
+                                    </div>
                                   );
                                 },
                               }}

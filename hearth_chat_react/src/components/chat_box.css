@@ -249,6 +249,10 @@ body,
   /* 50% 불투명 */
 }
 
+.katex-display {
+  margin-bottom: 1.5em !important;
+}
+
 /* Firefox용 */
 .chat-log {
   scrollbar-width: thin;
@@ -666,4 +670,48 @@ body,
   padding: 2px 8px;
   border-radius: 4px;
   z-index: 3;
+}
+
+/* 마크다운/KaTeX 수식, 표가 마크업 문서 안에 포함될 때도 깨지지 않도록 */
+.chat-bubble .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  word-break: break-all;
+  white-space: pre-line;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 1.5em !important;
+}
+
+.chat-bubble .katex {
+  word-break: break-all;
+  max-width: 100%;
+}
+
+.chat-bubble .markdown-table-wrapper {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.chat-bubble .markdown-table-wrapper table {
+  width: 100%;
+  min-width: 400px;
+  border-collapse: collapse;
+}
+
+/* 표 셀 스타일 개선 (선택) */
+.chat-bubble .markdown-table-wrapper th,
+.chat-bubble .markdown-table-wrapper td {
+  border: 1px solid #888;
+  padding: 4px 8px;
+  text-align: center;
+  background: #181c2b;
+  color: #fff;
+}
+
+/* 채팅 버블 자체도 가로 스크롤 방지 */
+.chat-bubble {
+  max-width: 90vw;
+  word-break: break-all;
+  overflow-x: auto;
 }
