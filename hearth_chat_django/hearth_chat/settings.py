@@ -268,16 +268,16 @@ STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # 추가 static 파일 디렉토리
-  if os.environ.get("RAILWAY_ENVIRONMENT"):
-      STATICFILES_DIRS = [
-          '/app/hearth_chat_react/build/static',
-          '/app/hearth_chat_react/build',  # 루트 파일 포함!
-      ]
-  else:
-      STATICFILES_DIRS = [
-          os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build', 'static'),
-          os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build'),  # 루트 파일 포함!
-      ]
+if os.environ.get("RAILWAY_ENVIRONMENT"):
+    STATICFILES_DIRS = [
+        '/app/hearth_chat_react/build/static',
+        '/app/hearth_chat_react/build',  # 루트 파일 포함!
+    ]
+else:
+    STATICFILES_DIRS = [
+        os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build', 'static'),
+        os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build'),  # 루트 파일 포함!
+    ]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
