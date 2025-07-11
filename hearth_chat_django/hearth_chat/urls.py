@@ -55,6 +55,7 @@ def manifest_json(request):
 urlpatterns = [
     path("favicon.ico", favicon),
     path("admin/", admin.site.urls),
+    path('accounts/', include('allauth.urls')),  # allauth 소셜 로그인 URL
     path('chat/', include("chat.urls")),
     path('health/', health_check, name="health_check"),  # 헬스체크 엔드포인트
     path("manifest.json", manifest_json),  # manifest.json 직접 반환

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import RealisticAvatar3D from './RealisticAvatar3D';
 import EmotionCamera from './EmotionCamera';
 import VoiceRecognition from './VoiceRecognition';
+import LoginModal from './LoginModal';
 import ttsService from '../services/ttsService';
 import readyPlayerMeService from '../services/readyPlayerMe';
 import faceTrackingService from '../services/faceTrackingService';
@@ -130,6 +131,9 @@ const ChatBox = () => {
   const [cameraEmotion, setCameraEmotion] = useState('neutral');
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [isRealTimeMode, setIsRealTimeMode] = useState(false);
+
+  // 로그인 모달 상태
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   // TTS 관련 상태
   const [isTTSEnabled, setIsTTSEnabled] = useState(false);
@@ -1604,6 +1608,28 @@ const ChatBox = () => {
             >
               📷
             </button>
+            {/* 로그인 버튼 - 오른쪽 끝 */}
+            <button
+              onClick={() => setIsLoginModalOpen(true)}
+              className="login-btn-header"
+              style={{
+                marginLeft: 12,
+                background: 'rgba(255,255,255,0.12)',
+                border: 'none',
+                borderRadius: 4,
+                padding: '6px 12px',
+                color: '#fff',
+                fontWeight: 'bold',
+                fontSize: 18,
+                display: 'flex',
+                alignItems: 'center',
+                textDecoration: 'none',
+                cursor: 'pointer',
+              }}
+              title="로그인"
+            >
+              <span role="img" aria-label="login" style={{ marginRight: 6 }}>🔑</span>
+            </button>
           </div>
         </div>
         {/* 차트 렌더링 */}
@@ -1981,6 +2007,11 @@ const ChatBox = () => {
             />
           </div>
         </Modal>
+        {/* 로그인 모달 */}
+        <LoginModal
+          isOpen={isLoginModalOpen}
+          onClose={() => setIsLoginModalOpen(false)}
+        />
       </div>
     </>
   );
