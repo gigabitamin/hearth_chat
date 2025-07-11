@@ -2002,12 +2002,12 @@ function getAiAvatarStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn) {
 }
 function getUserAvatarStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn) {
   if (!isUserAvatarOn) return { display: 'none' };
-  // AI+사용자+카메라: 숨김(오버레이로만)
-  if (isCameraActive && isAiAvatarOn) return { display: 'none' };
+  // AI+사용자+카메라: width 0, opacity 0 등으로 숨김(완전 unmount 대신)
+  if (isCameraActive && isAiAvatarOn) return { width: 0, opacity: 0, pointerEvents: 'none', transition: 'all 0.3s' };
   // AI+사용자: 50% 분할
   if (isAiAvatarOn) return { flex: 1, width: '50%', height: '100%', transition: 'all 0.3s' };
-  // 카메라+사용자: 숨김(오버레이로만)
-  if (isCameraActive) return { display: 'none' };
+  // 카메라+사용자: width 0, opacity 0 등으로 숨김
+  if (isCameraActive) return { width: 0, opacity: 0, pointerEvents: 'none', transition: 'all 0.3s' };
   // 사용자만: 전체
   return { flex: 1, width: '100%', height: '100%', transition: 'all 0.3s' };
 }
