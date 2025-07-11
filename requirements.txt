@@ -23,6 +23,9 @@ requests==2.28.1
 cryptography==45.0.5
 PyJWT==2.10.1
 
+# 이미지 처리 (Django ImageField 필수)
+Pillow==10.1.0
+
 # 기타 필수
 asgiref==3.9.1
 attrs==25.3.0
@@ -145,10 +148,9 @@ zope.interface==7.2
 # roboflow==1.0.0
 # pybboxes==0.1.6
 
-# 이미지 처리 (OpenCV, Pillow 등)
+# 이미지 처리 (OpenCV 등)
 # opencv-python==4.7.0.72
 # opencv-python-headless==4.8.0.74
-# Pillow==10.1.0
 # imageio==2.33.1
 # scikit-image==0.22.0
 
