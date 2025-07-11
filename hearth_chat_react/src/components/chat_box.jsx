@@ -1101,6 +1101,9 @@ const ChatBox = () => {
     setInput('');
     setAttachedImage(null);
     setAttachedImagePreview(null);
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+    }
     // Gemini(백엔드)로 메시지/이미지 전송
     if (ws.current && (messageText || imageUrl)) {
       if (ws.current.readyState === 1) {
@@ -1504,6 +1507,24 @@ const ChatBox = () => {
     });
   }
 
+  // 클립보드에서 이미지 붙여넣기 핸들러
+  const handlePaste = (e) => {
+    if (!e.clipboardData) return;
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) {
+          setAttachedImage(file);
+          setAttachedImagePreview(URL.createObjectURL(file));
+          e.preventDefault();
+          break;
+        }
+      }
+    }
+  };
+
   return (
     <>
       {/* 이미지 뷰어 모달 */}
@@ -1645,69 +1666,96 @@ const ChatBox = () => {
                 return (
                   <div
                     key={idx}
-                    style={{ display: 'flex', flexDirection: msg.type === 'send' ? 'row-reverse' : 'row', alignItems: 'center' }}
+                    style={{
+                      display: 'flex',
+                      flexDirection: msg.type === 'send' ? 'row-reverse' : 'row',
+                      alignItems: 'flex-end',
+                      width: '100%',
+                    }}
                   >
-                    {dateTimeBox}
+                    {/* 사용자/AI 메시지 버블+날짜 영역 */}
                     <div
-                      className={`chat-bubble ${msg.type === 'send' ? 'sent' : 'received'}`}
-                      style={{ marginRight: msg.type === 'send' ? 8 : 0, marginLeft: msg.type === 'send' ? 0 : 8 }}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: msg.type === 'send' ? 'flex-start' : 'flex-end',
+                        height: '100%',
+                        maxWidth: '80vw',
+                        minWidth: 0,
+                        width: '80%',
+                        marginLeft: msg.type === 'send' ? 'auto' : 0,
+                        marginRight: msg.type === 'send' ? 0 : 'auto',
+                      }}
                     >
-                      {/* 이미지+텍스트 조합 출력 */}
-                      {msg.imageUrl && (
-                        <img
-                          src={msg.imageUrl}
-                          alt="첨부 이미지"
-                          className="attached-image-thumb"
-                          style={{ cursor: 'pointer' }}
-                          onClick={() => setViewerImage(msg.imageUrl)}
-                        />
-                      )}
-                      {msg.text && parseMessageBlocks(
-                        msg.type === 'recv' && idx === messages.length - 1 && isAiTalking
-                          ? ensureDoubleNewlineAfterCodeBlocks(extractLatexBlocks(displayedAiText))
-                          : ensureDoubleNewlineAfterCodeBlocks(extractLatexBlocks(msg.text))
-                      ).map((block, i) => {
-                        if (!block || !block.type) return null;
-                        if (block.type === 'math') {
-                          return (
-                            <span key={i} dangerouslySetInnerHTML={{ __html: katex.renderToString(block.value || '', { throwOnError: false }) }} />
-                          );
-                        } else if (block.type === 'chart') {
-                          return (
-                            <CodeJsonChartCard key={i} code={block.value || ''} language="json" isChartCandidate={true} />
-                          );
-                        } else if (block.type === 'code') {
-                          return (
-                            <CodeJsonChartCard key={i} code={block.value || ''} language={block.language} isChartCandidate={block.language === 'json'} />
-                          );
-                        } else if (block.type === 'markdown') {
-                          return (
-                            <ReactMarkdown
-                              key={i}
-                              children={block.value || ''}
-                              remarkPlugins={[remarkMath, remarkGfm]}
-                              rehypePlugins={[rehypeKatex]}
-                              components={{
-                                code({ node, inline, className, children, ...props }) {
-                                  return (
-                                    <code className={className} {...props} style={{ background: '#222', color: '#fff', borderRadius: 4, padding: '2px 6px' }}>
-                                      {children}
-                                    </code>
-                                  );
-                                },
-                                table({ node, ...props }) {
-                                  return (
-                                    <div className="markdown-table-wrapper">
-                                      <table {...props} />
-                                    </div>
-                                  );
-                                },
-                              }}
-                            />
-                          );
-                        }
-                        return null;
-                      })}
+                      <div
+                        className={`chat-bubble ${msg.type === 'send' ? 'sent' : 'received'}`}
+                        style={{ marginRight: msg.type === 'send' ? 8 : 0, marginLeft: msg.type === 'send' ? 0 : 8 }}
+                      >
+                        {/* 이미지+텍스트 조합 출력 */}
+                        {msg.imageUrl && (
+                          <img
+                            src={msg.imageUrl}
+                            alt="첨부 이미지"
+                            className="attached-image-thumb"
+                            style={{ cursor: 'pointer' }}
+                            onClick={() => setViewerImage(msg.imageUrl)}
+                          />
+                        )}
+                        {msg.text && parseMessageBlocks(
+                          msg.type === 'recv' && idx === messages.length - 1 && isAiTalking
+                            ? ensureDoubleNewlineAfterCodeBlocks(extractLatexBlocks(displayedAiText))
+                            : ensureDoubleNewlineAfterCodeBlocks(extractLatexBlocks(msg.text))
+                        ).map((block, i) => {
+                          if (!block || !block.type) return null;
+                          if (block.type === 'math') {
+                            return (
+                              <span key={i} dangerouslySetInnerHTML={{ __html: katex.renderToString(block.value || '', { throwOnError: false }) }} />
+                            );
+                          } else if (block.type === 'chart') {
+                            return (
+                              <CodeJsonChartCard key={i} code={block.value || ''} language="json" isChartCandidate={true} />
+                            );
+                          } else if (block.type === 'code') {
+                            return (
+                              <CodeJsonChartCard key={i} code={block.value || ''} language={block.language} isChartCandidate={block.language === 'json'} />
+                            );
+                          } else if (block.type === 'markdown') {
+                            return (
+                              <ReactMarkdown
+                                key={i}
+                                children={block.value || ''}
+                                remarkPlugins={[remarkMath, remarkGfm]}
+                                rehypePlugins={[rehypeKatex]}
+                                components={{
+                                  code({ node, inline, className, children, ...props }) {
+                                    return (
+                                      <code className={className} {...props} style={{ background: '#222', color: '#fff', borderRadius: 4, padding: '2px 6px' }}>
+                                        {children}
+                                      </code>
+                                    );
+                                  },
+                                  table({ node, ...props }) {
+                                    return (
+                                      <div className="markdown-table-wrapper">
+                                        <table {...props} />
+                                      </div>
+                                    );
+                                  },
+                                }}
+                              />
+                            );
+                          }
+                          return null;
+                        })}
+                      </div>
+                      {/* 날짜 박스는 버블 하단, 같은 라인 오른쪽/왼쪽에 위치 */}
+                      <div style={{ display: 'flex', flexDirection: 'row', justifyContent: msg.type === 'send' ? 'flex-end' : 'flex-start', width: '100%' }}>
+                        {msg.type === 'send' ? (
+                          <div style={{ marginLeft: 'auto' }}>{dateTimeBox}</div>
+                        ) : (
+                          <div style={{ marginRight: 'auto' }}>{dateTimeBox}</div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -1750,6 +1798,7 @@ const ChatBox = () => {
                       e.target.style.height = 'auto';
                       e.target.style.height = e.target.scrollHeight + 'px';
                     }}
+                    onPaste={handlePaste}
                     className="input-flex chat-textarea"
                     rows={1}
                   />

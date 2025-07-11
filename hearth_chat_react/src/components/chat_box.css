@@ -7,6 +7,7 @@ body,
   margin: 0 !important;
   padding: 0 !important;
   box-sizing: border-box !important;
+  overflow: hidden !important;
 }
 
 .chat-container-with-avatars {
@@ -486,19 +487,28 @@ body,
 
 /* 날짜/시간 박스 (채팅 로그용) */
 .chat-date-time-box {
-  color: #888;
-  font-size: 11px;
-  text-align: center;
-  line-height: 1.1;
-  min-width: 36px;
-  max-width: 40px;
+  font-size: 0.85em;
+  color: #b0b0b0;
+  opacity: 0.85;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  height: 100%;
+  flex-direction: row;
+  gap: 2px;
+  margin: 2px 4px 0 4px;
   padding: 0;
-  margin: 0;
+  line-height: 1.2;
+  align-items: flex-end;
+}
+
+/* 사용자 메시지(오른쪽) 날짜/시간 박스: 오른쪽에만 패딩 */
+.chat-bubble.sent+div .chat-date-time-box {
+  padding-right: 8px;
+  padding-left: 0;
+}
+
+/* AI 메시지(왼쪽) 날짜/시간 박스: 왼쪽에만 패딩 */
+.chat-bubble.received+div .chat-date-time-box {
+  padding-left: 8px;
+  padding-right: 0;
 }
 
 .chat-date-time-year,
