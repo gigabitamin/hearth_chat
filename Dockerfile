@@ -14,6 +14,9 @@ COPY hearth_chat_react/ ./
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npm run build
 
+# 소스맵 파일 삭제 (Docker 이미지 크기 최적화)
+RUN find /app/build -type f -name "*.map" -delete
+
 RUN ls -la /app/build/ || echo "build directory not found"
 RUN ls -la /app/build/static/ || echo "static directory not found"
 RUN ls -la /app/build/static/js/ || echo "static/js directory not found"

@@ -13,6 +13,9 @@ ENV NODE_OPTIONS="--max-old-space-size=2048"
 ENV GENERATE_SOURCEMAP=false
 RUN npm run build
 
+# 소스맵 파일 삭제 (Docker 이미지 크기 최적화)
+RUN find /app/build -type f -name "*.map" -delete
+
 # ======================
 # 🟡 2. BACKEND (Django) - 최소 패키지만
 # ======================
