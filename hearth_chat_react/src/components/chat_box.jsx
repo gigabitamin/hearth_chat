@@ -132,7 +132,7 @@ const ChatBox = () => {
   const [isRealTimeMode, setIsRealTimeMode] = useState(false);
 
   // TTS 관련 상태
-  const [isTTSEnabled, setIsTTSEnabled] = useState(true);
+  const [isTTSEnabled, setIsTTSEnabled] = useState(false);
   const [ttsVoice, setTtsVoice] = useState(null);
   const [ttsRate, setTtsRate] = useState(1.5);
   const [ttsPitch, setTtsPitch] = useState(1.5);
@@ -167,6 +167,8 @@ const ChatBox = () => {
   const [isTrackingLoading, setIsTrackingLoading] = useState(true);
 
   const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
+
+  const [chartViewMap, setChartViewMap] = useState({}); // 메시지별 차트뷰 상태
 
   useEffect(() => {
     const handleResize = () => {
@@ -241,6 +243,14 @@ const ChatBox = () => {
       }
     };
   }, []);
+
+  // TTS 상태가 바뀔 때마다 WebSocket 재연결
+  useEffect(() => {
+    if (ws.current) {
+      ws.current.close();
+    }
+    connectWebSocket();
+  }, [isTTSEnabled]);
 
   // 감정 포착 상태 자동 리셋 (3초 후)
   useEffect(() => {
@@ -1059,6 +1069,7 @@ const ChatBox = () => {
 
   // 메시지 전송 함수 수정
   const sendMessage = async (text) => {
+    ttsService.stop(); // 메시지 전송 시 TTS 즉시 중단
     const messageText = text !== undefined ? text : input;
     if (!messageText && !attachedImage) return; // 아무것도 없으면 전송X
     let imageUrl = null;
@@ -1141,6 +1152,8 @@ const ChatBox = () => {
       // TTS로 AI 메시지 재생
       if (isTTSEnabled) {
         speakAIMessage(data.message);
+      } else {
+        setDisplayedAiText(data.message); // 텍스트만 출력
       }
 
       // AI 감정 반응 시스템 적용
@@ -1353,8 +1366,7 @@ const ChatBox = () => {
   };
 
   // 코드/JSON/차트 카드 컴포넌트
-  function CodeJsonChartCard({ code, language, isChartCandidate }) {
-    const [isChartView, setIsChartView] = React.useState(false);
+  function CodeJsonChartCard({ code, language, isChartCandidate, isChartView, onToggleChartView }) {
     const [copyMsg, setCopyMsg] = React.useState('');
     const [isChartModalOpen, setIsChartModalOpen] = React.useState(false);
 
@@ -1455,7 +1467,7 @@ const ChatBox = () => {
           <button
             className="chart-toggle-btn"
             style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}
-            onClick={() => setIsChartView(v => !v)}
+            onClick={onToggleChartView}
             title={isChartView ? '코드로 보기' : '차트로 보기'}
           >
             {isChartView ? <CodeIcon fontSize="small" /> : <InsertChartIcon fontSize="small" />}
@@ -1535,6 +1547,11 @@ const ChatBox = () => {
       }
     }
   };
+
+  const isTTSEnabledRef = useRef(isTTSEnabled);
+  useEffect(() => {
+    isTTSEnabledRef.current = isTTSEnabled;
+  }, [isTTSEnabled]);
 
   return (
     <>
@@ -1719,17 +1736,32 @@ const ChatBox = () => {
                             : ensureDoubleNewlineAfterCodeBlocks(extractLatexBlocks(msg.text))
                         ).map((block, i) => {
                           if (!block || !block.type) return null;
+                          const chartKey = `${idx}_${i}`;
                           if (block.type === 'math') {
                             return (
                               <span key={i} dangerouslySetInnerHTML={{ __html: katex.renderToString(block.value || '', { throwOnError: false }) }} />
                             );
                           } else if (block.type === 'chart') {
                             return (
-                              <CodeJsonChartCard key={i} code={block.value || ''} language="json" isChartCandidate={true} />
+                              <CodeJsonChartCard
+                                key={i}
+                                code={block.value || ''}
+                                language="json"
+                                isChartCandidate={true}
+                                isChartView={!!chartViewMap[chartKey]}
+                                onToggleChartView={() => setChartViewMap(prev => ({ ...prev, [chartKey]: !prev[chartKey] }))}
+                              />
                             );
                           } else if (block.type === 'code') {
                             return (
-                              <CodeJsonChartCard key={i} code={block.value || ''} language={block.language} isChartCandidate={block.language === 'json'} />
+                              <CodeJsonChartCard
+                                key={i}
+                                code={block.value || ''}
+                                language={block.language}
+                                isChartCandidate={block.language === 'json'}
+                                isChartView={!!chartViewMap[chartKey]}
+                                onToggleChartView={() => setChartViewMap(prev => ({ ...prev, [chartKey]: !prev[chartKey] }))}
+                              />
                             );
                           } else if (block.type === 'markdown') {
                             return (
