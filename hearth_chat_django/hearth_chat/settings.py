@@ -83,9 +83,9 @@ DATABASES = {
     "default": dj_database_url.config(conn_max_age=600, ssl_require=False)
 }
 
-# 로컬 MySQL 환경에서만 utf8mb4 옵션 적용
+# 로컬 MySQL 환경에서만 utf8mb4 옵션 적용 (PostgreSQL 등에서는 절대 실행되지 않도록 보장)
 if (
-    DATABASES["default"].get("ENGINE") == "django.db.backends.mysql"
+    DATABASES["default"].get("ENGINE", "") == "django.db.backends.mysql"
     and not os.environ.get("RAILWAY_ENVIRONMENT")  # Railway 환경이 아니면(즉, 로컬)
 ):
     DATABASES["default"]["OPTIONS"] = {
