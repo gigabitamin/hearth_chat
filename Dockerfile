@@ -5,7 +5,8 @@ FROM node:18 AS frontend
 
 WORKDIR /app
 # package.json과 package-lock.json을 모두 복사
-COPY package.json package-lock.json ./
+# COPY package.json package-lock.json ./
+COPY hearth_chat_react/package.json hearth_chat_react/package-lock.json ./
 RUN npm install
 
 COPY hearth_chat_react/ ./
