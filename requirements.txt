@@ -7,6 +7,7 @@ djangorestframework==3.14.0
 # 데이터베이스
 mysqlclient==2.2.1
 dj-database-url==3.0.1
+psycopg2-binary==2.9.9
 
 # 웹서버
 daphne==4.2.1

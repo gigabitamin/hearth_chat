@@ -80,7 +80,14 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
 import sys
 
 DATABASES = {
-    "default": dj_database_url.config(conn_max_age=600, ssl_require=False)
+    "default": dj_database_url.config(
+        conn_max_age=600, 
+        ssl_require=False,
+        # PostgreSQL 연결 시 추가 옵션
+        options={
+            'sslmode': 'require' if os.environ.get("RAILWAY_ENVIRONMENT") else 'disable'
+        }
+    )
 }
 
 # 로컬 MySQL 환경에서만 utf8mb4 옵션 적용 (PostgreSQL 등에서는 절대 실행되지 않도록 보장)
