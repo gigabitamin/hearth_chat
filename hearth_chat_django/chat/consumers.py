@@ -14,12 +14,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.session_id = None
         self.user_emotion_history = []  # 감정 변화 추적
         self.conversation_context = []  # 대화 컨텍스트 저장
-
-        # MySQL 연결을 강제로 utf8mb4로 설정
-        self._force_utf8mb4_connection()
     
     def _force_utf8mb4_connection(self):
-        """MySQL 연결을 강제로 utf8mb4로 설정"""
+        """MySQL 연결을 강제로 utf8mb4로 설정 (동기 버전)"""
         try:
             from django.db import connections
             connection = connections['default']
@@ -48,11 +45,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             print(f"❌ MySQL utf8mb4 설정 오류: {e}")
 
+    @sync_to_async
+    def _force_utf8mb4_connection_async(self):
+        """MySQL 연결을 강제로 utf8mb4로 설정 (비동기 안전 버전)"""
+        return self._force_utf8mb4_connection()
+
     async def connect(self):
         await self.accept()
         # 세션 ID 생성
         self.session_id = str(uuid.uuid4())
         print(f"새로운 WebSocket 연결: {self.session_id}")
+        
+        # MySQL 연결을 강제로 utf8mb4로 설정 (async context에서 안전하게)
+        await self._force_utf8mb4_connection_async()
 
     async def disconnect(self, close_code):
         print(f"WebSocket 연결 종료: {self.session_id}")
