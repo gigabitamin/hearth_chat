@@ -14,12 +14,16 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 import dj_database_url
-
+import sys
 
 load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# MySQL 커스텀 백엔드를 위한 sys.path 추가
+import sys
+sys.path.append(os.path.join(BASE_DIR, 'chat'))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -56,10 +60,21 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# MySQL 커스텀 백엔드 추가
+import sys
 
 DATABASES = {
     "default": dj_database_url.config(conn_max_age=600, ssl_require=False)
 }
+
+# MySQL 커스텀 백엔드 설정 (로컬 개발 환경에서만)
+if DATABASES["default"].get("ENGINE") == "django.db.backends.mysql":
+    DATABASES["default"]["ENGINE"] = "chat.mysql_backend"
+    DATABASES["default"]["OPTIONS"] = {
+        "charset": "utf8mb4",
+        "init_command": "SET character_set_connection=utf8mb4; SET collation_connection=utf8mb4_unicode_ci;",
+    }
+    print("✅ MySQL 커스텀 백엔드 설정 완료!")
 
 if not DATABASES["default"].get("ENGINE"):
     raise Exception("DATABASE_URL 환경변수 또는 ENGINE 설정이 잘못되었습니다. Railway Variables에서 DATABASE_URL을 확인하세요.")

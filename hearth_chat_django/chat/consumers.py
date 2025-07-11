@@ -14,6 +14,39 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.session_id = None
         self.user_emotion_history = []  # 감정 변화 추적
         self.conversation_context = []  # 대화 컨텍스트 저장
+        
+        # MySQL 연결을 강제로 utf8mb4로 설정
+        self._force_utf8mb4_connection()
+    
+    def _force_utf8mb4_connection(self):
+        """MySQL 연결을 강제로 utf8mb4로 설정"""
+        try:
+            from django.db import connections
+            connection = connections['default']
+            
+            if connection.connection is None:
+                connection.ensure_connection()
+            
+            cursor = connection.cursor()
+            
+            # utf8mb4 강제 설정
+            utf8mb4_commands = [
+                "SET character_set_client=utf8mb4",
+                "SET character_set_connection=utf8mb4",
+                "SET character_set_results=utf8mb4", 
+                "SET collation_connection=utf8mb4_unicode_ci",
+                "SET NAMES utf8mb4",
+                "SET sql_mode='STRICT_TRANS_TABLES'"
+            ]
+            
+            for command in utf8mb4_commands:
+                cursor.execute(command)
+            
+            cursor.close()
+            print("✅ WebSocket 연결 시 MySQL utf8mb4 강제 설정 완료!")
+            
+        except Exception as e:
+            print(f"❌ MySQL utf8mb4 설정 오류: {e}")
 
     async def connect(self):
         await self.accept()
@@ -114,11 +147,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """사용자 메시지를 DB에 저장 (감정 정보 포함)"""
         try:
             from .models import Chat
+            # 이모지를 안전하게 처리하기 위해 유니코드 정규화
+            if content:
+                import unicodedata
+                content = unicodedata.normalize('NFC', content)
+            
             result = Chat.save_user_message(content, self.session_id, emotion)
             print(f"사용자 메시지 저장 성공: {result.id} (감정: {emotion})")
             return result
         except Exception as e:
             print(f"사용자 메시지 저장 실패: {e}")
+            # 커스텀 백엔드가 적용되지 않은 경우를 위한 디버깅
+            print(f"커스텀 백엔드 디버깅 - 오류 타입: {type(e)}")
+            print(f"커스텀 백엔드 디버깅 - 오류 내용: {str(e)}")
             raise e
 
     @sync_to_async
@@ -126,11 +167,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """AI 메시지를 DB에 저장"""
         try:
             from .models import Chat
+            # 이모지를 안전하게 처리하기 위해 유니코드 정규화
+            if content:
+                import unicodedata
+                content = unicodedata.normalize('NFC', content)
+            
             result = Chat.save_ai_message(content, self.session_id)
             print(f"AI 메시지 저장 성공: {result.id}")
             return result
         except Exception as e:
             print(f"AI 메시지 저장 실패: {e}")
+            # 커스텀 백엔드가 적용되지 않은 경우를 위한 디버깅
+            print(f"커스텀 백엔드 디버깅 - 오류 타입: {type(e)}")
+            print(f"커스텀 백엔드 디버깅 - 오류 내용: {str(e)}")
             raise e
 
     async def get_ai_response(self, user_message, user_emotion="neutral", image_url=None):

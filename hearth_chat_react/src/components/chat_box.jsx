@@ -1000,8 +1000,13 @@ const ChatBox = () => {
     // 현재 호스트의 IP 주소를 사용하여 WebSocket 연결
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.hostname;
-    // 배포 환경에서는 포트 없이 도메인만 사용
-    ws.current = new WebSocket(`${protocol}//${host}/ws/chat/`);
+    
+    // 로컬 환경에서는 Django 서버 포트(8000)를 사용하고, 배포 환경에서는 포트 없이 사용
+    const isLocalhost = host === 'localhost' || host === '127.0.0.1';
+    const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}/ws/chat/`;
+    
+    console.log('WebSocket 연결 시도:', wsUrl);
+    ws.current = new WebSocket(wsUrl);
 
     ws.current.onopen = () => {
       console.log('WebSocket 연결 성공');
@@ -1039,6 +1044,10 @@ const ChatBox = () => {
 
     ws.current.onclose = () => {
       console.log('WebSocket 연결 종료');
+    };
+
+    ws.current.onerror = (error) => {
+      console.error('WebSocket 연결 오류:', error);
     };
   };
 
@@ -1204,16 +1213,16 @@ const ChatBox = () => {
           </div>
           {/* 사용자 아바타 */}
           <div style={getUserAvatarStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn)}>
-            <RealisticAvatar3D
-              avatarUrl={userAvatar}
-              isTalking={isUserTalking}
-              emotion={userEmotion}
-              position="right"
-              size="100%"
-              showEmotionIndicator={true}
-              emotionCaptureStatus={emotionCaptureStatus.user}
-              enableTracking={isTrackingEnabled}
-            />
+              <RealisticAvatar3D
+                avatarUrl={userAvatar}
+                isTalking={isUserTalking}
+                emotion={userEmotion}
+                position="right"
+                size="100%"
+                showEmotionIndicator={true}
+                emotionCaptureStatus={emotionCaptureStatus.user}
+                enableTracking={isTrackingEnabled}
+              />
           </div>
           {/* 카메라 */}
           <div style={getCameraStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn)}>
@@ -1227,7 +1236,7 @@ const ChatBox = () => {
               enableTracking={isUserAvatarOn}
               showAvatarOverlay={isCameraActive && isUserAvatarOn}
             />
-          </div>
+        </div>
         </div>
         {/* 채팅창 (아래쪽), avatar-container가 없으면 전체를 차지 */}
         <div
