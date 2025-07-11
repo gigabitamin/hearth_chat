@@ -97,7 +97,7 @@ if (
             "SET character_set_connection=utf8mb4; SET collation_connection=utf8mb4_unicode_ci;"
         ),
     }
-    print("✅ 로컬 MySQL utf8mb4 옵션 적용 완료!")
+    print("로컬 MySQL utf8mb4 옵션 적용 완료!")
 else:
     print("MySQL 전용 옵션은 적용되지 않음")
 
@@ -268,14 +268,16 @@ STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # 추가 static 파일 디렉토리
-if os.environ.get("RAILWAY_ENVIRONMENT"):
-    STATICFILES_DIRS = [
-        '/app/hearth_chat_react/build/static',
-    ]
-else:
-    STATICFILES_DIRS = [
-        os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build', 'static'),
-    ]
+  if os.environ.get("RAILWAY_ENVIRONMENT"):
+      STATICFILES_DIRS = [
+          '/app/hearth_chat_react/build/static',
+          '/app/hearth_chat_react/build',  # 루트 파일 포함!
+      ]
+  else:
+      STATICFILES_DIRS = [
+          os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build', 'static'),
+          os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build'),  # 루트 파일 포함!
+      ]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

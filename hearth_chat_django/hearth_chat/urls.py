@@ -68,7 +68,7 @@ urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 # /avatar_vrm/ 경로를 staticfiles/avatar_vrm/로 매핑
 urlpatterns += static('/avatar_vrm/', document_root=settings.STATIC_ROOT + '/avatar_vrm')
 # /logo192.png 등 루트 파일도 직접 매핑
-urlpatterns += static('/logo192.png', document_root=settings.STATIC_ROOT)
+# urlpatterns += static('/logo192.png', document_root=settings.STATIC_ROOT)
 
 # 미디어 파일 서빙 (이미지 업로드 등)
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
