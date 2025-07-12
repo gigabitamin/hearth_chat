@@ -73,6 +73,20 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
     X_FRAME_OPTIONS = 'ALLOWALL'
     print("Railway environment - Security headers relaxed")
 
+    # 세션/CSRF 쿠키 Secure/SameSite/Domain 옵션 명확히 지정
+    SESSION_COOKIE_SAMESITE = "None"
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SAMESITE = "None"
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_DOMAIN = ".hearthchat-production.up.railway.app"
+    CSRF_COOKIE_DOMAIN = ".hearthchat-production.up.railway.app"
+else:
+    # 로컬 개발 환경 (http)
+    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SAMESITE = "Lax"
+    CSRF_COOKIE_SECURE = False
+
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
