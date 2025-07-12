@@ -1579,6 +1579,17 @@ const ChatBox = () => {
       .finally(() => setLoginLoading(false));
   }, []);
 
+  // 로그인 성공 postMessage 수신 시 새로고침
+  useEffect(() => {
+    const handleLoginSuccess = (event) => {
+      if (event.data === 'login_success') {
+        window.location.reload();
+      }
+    };
+    window.addEventListener('message', handleLoginSuccess);
+    return () => window.removeEventListener('message', handleLoginSuccess);
+  }, []);
+
   return (
     <>
       {/* 이미지 뷰어 모달 */}
