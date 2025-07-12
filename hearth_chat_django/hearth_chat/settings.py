@@ -193,6 +193,7 @@ INSTALLED_APPS = [
     # hearth_chat 앱 (SocialApp 자동 생성을 위해)
     'hearth_chat.apps.HearthChatConfig',
 ]
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 
 SITE_ID = 1 # 소셜 로그인 설정을 위한 필수 설정 (1: railway, 2: 로컬)
 
