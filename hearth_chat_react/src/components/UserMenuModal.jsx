@@ -124,7 +124,7 @@ export default function UserMenuModal({ isOpen, onClose }) {
     useEffect(() => {
         if (isOpen) {
             setLoading(true);
-            fetch(`${API_BASE}/api/user/`, { credentials: 'include' })
+            fetch(`${API_BASE}/chat/api/user/`, { credentials: 'include' })
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {
