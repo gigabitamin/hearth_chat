@@ -63,6 +63,9 @@ ENV DATABASE_URL=sqlite:///tmp/db.sqlite3
 WORKDIR /app/hearth_chat_django
 RUN python manage.py collectstatic --noinput
 
+# 운영 배포 시 슈퍼유저 자동 생성
+RUN python manage.py createinitialsuperuser
+
 # 작업 디렉토리를 Django 앱으로 변경
 # WORKDIR /app/hearth_chat_django
 
