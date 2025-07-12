@@ -1141,7 +1141,7 @@ const ChatBox = () => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.hostname;
 
-    // 로컬 환경에서는 Django 서버 포트(8000)를 사용하고, 배포 환경에서는 포트 없이 사용
+    // 환경에 따라 WebSocket URL 설정
     const isLocalhost = host === 'localhost' || host === '127.0.0.1' || host === '192.168.44.9';
     const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}/ws/chat/`;
 

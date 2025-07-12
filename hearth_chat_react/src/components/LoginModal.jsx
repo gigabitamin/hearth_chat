@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import SocialLoginButtons from './SocialLoginButtons';
 import './LoginModal.css';
 
-// 환경변수 기반 API_BASE 자동 설정
-const API_BASE = process.env.REACT_APP_API_BASE || (window.location.origin + '/accounts');
+// 환경에 따라 API_BASE 자동 설정
+const API_BASE = process.env.NODE_ENV === 'production'
+    ? 'https://hearthchat-production.up.railway.app/accounts'
+    : 'http://localhost:8000/accounts';
 
 function getCookie(name) {
     let cookieValue = null;

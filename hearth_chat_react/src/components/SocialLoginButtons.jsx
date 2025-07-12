@@ -1,8 +1,10 @@
 import React from 'react';
-import styles from './SocialLoginButtons.module.css';
+import './SocialLoginButtons.module.css';
 
-// 환경변수 기반 BACKEND_URL 자동 설정
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || window.location.origin;
+// 환경에 따라 BACKEND_URL 자동 설정
+const BACKEND_URL = process.env.NODE_ENV === 'production'
+    ? 'https://hearthchat-production.up.railway.app'
+    : 'http://localhost:8000';
 
 const SOCIALS = [
     {

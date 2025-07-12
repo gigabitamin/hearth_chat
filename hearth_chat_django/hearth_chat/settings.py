@@ -187,7 +187,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.github',
 ]
 
-SITE_ID = 2 # 소셜 로그인 설정을 위한 필수 설정 (1: railway, 2: 로컬)
+SITE_ID = 1 # 소셜 로그인 설정을 위한 필수 설정 (1: railway, 2: 로컬)
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',

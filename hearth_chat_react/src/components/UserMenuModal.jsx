@@ -1,9 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './LoginModal.css';
 
-const API_BASE = '/chat/api';
-// 환경변수 기반 ALLAUTH_BASE 자동 설정
-const ALLAUTH_BASE = (process.env.REACT_APP_API_BASE || (window.location.origin + '/accounts'));
+// 환경에 따라 API_BASE 자동 설정
+const API_BASE = process.env.NODE_ENV === 'production'
+  ? 'https://hearthchat-production.up.railway.app'
+  : 'http://localhost:8000';
+
+const ALLAUTH_BASE = `${API_BASE}/accounts`;
 
 const SOCIAL_PROVIDERS = [
     { provider: 'google', label: 'Google' },
@@ -57,7 +60,7 @@ export default function UserMenuModal({ isOpen, onClose }) {
 
     // 계정 연결 상태 fetch 함수 분리 (JSON API 사용)
     const fetchConnections = () => {
-        fetch('http://localhost:8000/api/social-connections/', { credentials: 'include' })
+        fetch(`${API_BASE}/api/social-connections/`, { credentials: 'include' })
             .then(res => res.json())
             .then(data => {
                 setConnections(data.social_accounts || []);
@@ -80,7 +83,7 @@ export default function UserMenuModal({ isOpen, onClose }) {
         form.append('action', 'disconnect');
         form.append('account', provider);
         try {
-            const res = await fetch('http://localhost:8000/accounts/connections/', {
+            const res = await fetch(`${API_BASE}/accounts/connections/`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'X-CSRFToken': csrftoken },
@@ -101,7 +104,7 @@ export default function UserMenuModal({ isOpen, onClose }) {
     // 소셜 계정 연결(팝업)
     const handleConnect = (provider) => {
         const popup = window.open(
-            `http://localhost:8000/accounts/${provider}/login/?process=connect`,
+            `${API_BASE}/accounts/${provider}/login/?process=connect`,
             'social_connect',
             'width=600,height=700'
         );
@@ -121,7 +124,7 @@ export default function UserMenuModal({ isOpen, onClose }) {
     useEffect(() => {
         if (isOpen) {
             setLoading(true);
-            fetch(`${API_BASE}/user/`, { credentials: 'include' })
+            fetch(`${API_BASE}/api/user/`, { credentials: 'include' })
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {
