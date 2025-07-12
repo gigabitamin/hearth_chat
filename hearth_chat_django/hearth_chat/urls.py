@@ -52,6 +52,24 @@ def manifest_json(request):
     return static_serve(request, os.path.basename(manifest_path), os.path.dirname(manifest_path))
 
 
+def logo192_png(request):
+    """logo192.png 파일 직접 서빙"""
+    if settings.DEBUG:
+        logo_path = os.path.join(settings.BASE_DIR, '..', 'hearth_chat_react', 'build', 'logo192.png')
+    else:
+        logo_path = '/app/hearth_chat_react/build/logo192.png'
+    return static_serve(request, 'logo192.png', os.path.dirname(logo_path))
+
+
+def robots_txt(request):
+    """robots.txt 파일 직접 서빙"""
+    if settings.DEBUG:
+        robots_path = os.path.join(settings.BASE_DIR, '..', 'hearth_chat_react', 'build', 'robots.txt')
+    else:
+        robots_path = '/app/hearth_chat_react/build/robots.txt'
+    return static_serve(request, 'robots.txt', os.path.dirname(robots_path))
+
+
 urlpatterns = [
     path("favicon.ico", favicon),
     path("admin/", admin.site.urls),
@@ -59,6 +77,8 @@ urlpatterns = [
     path('chat/', include("chat.urls")),
     path('health/', health_check, name="health_check"),  # 헬스체크 엔드포인트
     path("manifest.json", manifest_json),  # manifest.json 직접 반환
+    path("logo192.png", logo192_png),  # logo192.png 직접 반환
+    path("robots.txt", robots_txt),  # robots.txt 직접 반환
     path("api/social-connections/", social_connections_api, name="social_connections_api"),
     path("", ReactAppView.as_view(), name="root"),  # 루트에 React index.html 연결
 ]
@@ -68,7 +88,7 @@ urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 # /avatar_vrm/ 경로를 staticfiles/avatar_vrm/로 매핑
 urlpatterns += static('/avatar_vrm/', document_root=settings.STATIC_ROOT + '/avatar_vrm')
 # /logo192.png 등 루트 파일도 직접 매핑
-# urlpatterns += static('/logo192.png', document_root=settings.STATIC_ROOT)
+urlpatterns += static('/logo192.png', document_root=settings.STATIC_ROOT)
 
 # /oauth_logo/ 경로를 staticfiles/oauth_logo/로 매핑
 urlpatterns += static('/oauth_logo/', document_root=settings.STATIC_ROOT + '/oauth_logo')

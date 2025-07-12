@@ -11,7 +11,11 @@ export DJANGO_SUPERUSER_PASSWORD=${DJANGO_SUPERUSER_PASSWORD:-"windmill4u@"}
 echo "📊 데이터베이스 마이그레이션 실행..."
 python manage.py migrate --noinput
 
-# 2. 슈퍼유저 자동 생성 (이미 있으면 비밀번호만 업데이트)
+# 2. 초기 Site 객체 생성 (Django Admin 접속을 위해 필수)
+echo "🌐 초기 Site 객체 생성..."
+python manage.py createinitialsite
+
+# 3. 슈퍼유저 자동 생성 (이미 있으면 비밀번호만 업데이트)
 echo "👑 슈퍼유저 자동 생성/업데이트..."
 echo "사용자명: $DJANGO_SUPERUSER_USERNAME"
 echo "이메일: $DJANGO_SUPERUSER_EMAIL"
@@ -29,11 +33,11 @@ else
         --email "$DJANGO_SUPERUSER_EMAIL" || echo "기본 슈퍼유저 생성도 실패"
 fi
 
-# 3. 정적 파일 수집 (필요시)
+# 4. 정적 파일 수집 (필요시)
 echo "📁 정적 파일 수집..."
 python manage.py collectstatic --noinput
 
-# 4. Daphne 서버 시작
+# 5. Daphne 서버 시작
 PORT=${PORT:-8080}
 echo "🌐 Daphne 서버 시작 (포트: $PORT)..."
 exec daphne -b 0.0.0.0 -p $PORT hearth_chat.asgi:application 

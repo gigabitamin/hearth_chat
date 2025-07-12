@@ -74,13 +74,14 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
     X_FRAME_OPTIONS = 'ALLOWALL'
     print("Railway environment - Security headers relaxed")
 
-    # 세션/CSRF 쿠키 Secure/SameSite/Domain 옵션 명확히 지정
+    # 세션/CSRF 쿠키 설정 수정 (도메인 제거, SameSite만 설정)
     SESSION_COOKIE_SAMESITE = "None"
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SAMESITE = "None"
     CSRF_COOKIE_SECURE = True
-    SESSION_COOKIE_DOMAIN = ".hearthchat-production.up.railway.app"
-    CSRF_COOKIE_DOMAIN = ".hearthchat-production.up.railway.app"
+    # 도메인 설정 제거 (Railway에서 자동으로 설정됨)
+    # SESSION_COOKIE_DOMAIN = ".hearthchat-production.up.railway.app"
+    # CSRF_COOKIE_DOMAIN = ".hearthchat-production.up.railway.app"
 else:
     # 로컬 개발 환경 (http)
     SESSION_COOKIE_SAMESITE = "Lax"
@@ -115,15 +116,19 @@ if (
     DATABASES["default"].get("ENGINE", "") == "django.db.backends.mysql"
     and not os.environ.get("RAILWAY_ENVIRONMENT")
     and "postgresql" not in DATABASES["default"].get("ENGINE", "").lower()
+    and DATABASES["default"].get("ENGINE", "") != "django.db.backends.postgresql"
 ):
-    DATABASES["default"]["OPTIONS"] = {
-        "charset": os.environ.get("LOCAL_MYSQL_CHARSET", "utf8mb4"),
-        "init_command": os.environ.get(
-            "LOCAL_MYSQL_INIT_COMMAND",
-            "SET character_set_connection=utf8mb4; SET collation_connection=utf8mb4_unicode_ci;"
-        ),
-    }
-    print("로컬 MySQL utf8mb4 옵션 적용 완료!")
+    try:
+        DATABASES["default"]["OPTIONS"] = {
+            "charset": os.environ.get("LOCAL_MYSQL_CHARSET", "utf8mb4"),
+            "init_command": os.environ.get(
+                "LOCAL_MYSQL_INIT_COMMAND",
+                "SET character_set_connection=utf8mb4; SET collation_connection=utf8mb4_unicode_ci;"
+            ),
+        }
+        print("로컬 MySQL utf8mb4 옵션 적용 완료!")
+    except Exception as e:
+        print(f"MySQL 설정 오류 (무시됨): {e}")
 else:
     print("MySQL 전용 옵션은 적용되지 않음 (PostgreSQL 또는 Railway 환경)")
 
@@ -188,6 +193,47 @@ INSTALLED_APPS = [
 ]
 
 SITE_ID = 1 # 소셜 로그인 설정을 위한 필수 설정 (1: railway, 2: 로컬)
+
+# Railway 환경에서 Site 객체가 없을 때를 대비한 동적 SITE_ID 설정
+if os.environ.get("RAILWAY_ENVIRONMENT"):
+    try:
+        from django.contrib.sites.models import Site
+        # Site 객체가 있으면 그 ID를 사용, 없으면 1 사용
+        site = Site.objects.first()
+        if site:
+            SITE_ID = site.id
+            print(f"Railway 환경 - SITE_ID 설정: {SITE_ID}")
+        else:
+            print("Railway 환경 - Site 객체가 없음, SITE_ID=1 사용")
+    except Exception as e:
+        print(f"Site 객체 확인 중 오류 (무시됨): {e}")
+        SITE_ID = 1
+    
+    # Site 객체가 없을 때 Django Admin 접속을 위한 패치
+    try:
+        from django.contrib.sites.shortcuts import get_current_site
+        from django.contrib.sites.models import Site
+        
+        def patched_get_current_site(request):
+            try:
+                return get_current_site(request)
+            except Site.DoesNotExist:
+                # Site 객체가 없으면 기본 Site 객체 생성
+                site, created = Site.objects.get_or_create(
+                    id=1,
+                    defaults={
+                        'domain': 'hearthchat-production.up.railway.app',
+                        'name': 'HearthChat Production'
+                    }
+                )
+                return site
+        
+        # 패치 적용
+        import django.contrib.sites.shortcuts
+        django.contrib.sites.shortcuts.get_current_site = patched_get_current_site
+        print("Railway 환경 - Site 객체 자동 생성 패치 적용됨")
+    except Exception as e:
+        print(f"Site 패치 적용 중 오류 (무시됨): {e}")
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
