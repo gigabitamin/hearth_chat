@@ -1,5 +1,5 @@
 import React from 'react';
-import styles from './SocialLoginButtons.module.css';
+import './SocialLoginButtons.module.css';
 
 // 환경에 따라 BACKEND_URL 자동 설정
 const BACKEND_URL = process.env.NODE_ENV === 'production'
@@ -10,25 +10,25 @@ const SOCIALS = [
     {
         name: 'Google',
         url: `${BACKEND_URL}/accounts/google/login/`,
-        className: styles.google,
+        className: 'google',
         logo: process.env.PUBLIC_URL + '/oauth_logo/Google.svg',
     },
     {
         name: 'Kakao',
         url: `${BACKEND_URL}/accounts/kakao/login/`,
-        className: styles.kakao,
+        className: 'kakao',
         logo: process.env.PUBLIC_URL + '/oauth_logo/KakaoTalk.svg',
     },
     {
         name: 'Naver',
         url: `${BACKEND_URL}/accounts/naver/login/`,
-        className: styles.naver,
+        className: 'naver',
         logo: process.env.PUBLIC_URL + '/oauth_logo/Naver.svg',
     },
     {
         name: 'GitHub',
         url: `${BACKEND_URL}/accounts/github/login/`,
-        className: styles.github,
+        className: 'github',
         logo: process.env.PUBLIC_URL + '/oauth_logo/Github.svg',
     },
 ];
@@ -49,12 +49,12 @@ export default function SocialLoginButtons() {
     };
 
     return (
-        <div className={styles['social-login-list']}>
+        <div className="social-login-list">
             {SOCIALS.map(social => (
                 <a
                     key={social.name}
                     href={social.url}
-                    className={`${styles['social-login-btn']} ${social.className}`}
+                    className={`social-login-btn ${social.className}`}
                     onClick={handleSocialLogin(social.url)}
                 >
                     <img
