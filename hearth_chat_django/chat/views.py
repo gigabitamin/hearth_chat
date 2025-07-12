@@ -143,5 +143,20 @@ def user_info(request):
 @require_http_methods(["POST"])
 def logout_api(request):
     """로그아웃 API"""
-    django_logout(request)
-    return JsonResponse({'status': 'success', 'message': 'Logged out'})
+    try:
+        # Django 로그아웃 실행
+        django_logout(request)
+        
+        # 세션 완전 삭제
+        if hasattr(request, 'session'):
+            request.session.flush()
+            request.session.delete()
+        
+        # 응답에서 세션 쿠키 삭제
+        response = JsonResponse({'status': 'success', 'message': 'Logged out'})
+        response.delete_cookie('sessionid')
+        response.delete_cookie('csrftoken')
+        
+        return response
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)

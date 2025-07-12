@@ -3,8 +3,8 @@ import './LoginModal.css';
 
 // 환경에 따라 API_BASE 자동 설정
 const API_BASE = process.env.NODE_ENV === 'production'
-  ? 'https://hearthchat-production.up.railway.app'
-  : 'http://localhost:8000';
+    ? 'https://hearthchat-production.up.railway.app'
+    : 'http://localhost:8000';
 
 const ALLAUTH_BASE = `${API_BASE}/accounts`;
 
@@ -142,15 +142,38 @@ export default function UserMenuModal({ isOpen, onClose }) {
 
     const handleLogout = async () => {
         setLogoutLoading(true);
-        await fetch(`${API_BASE}/logout/`, {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'X-Requested-With': 'XMLHttpRequest' },
-        });
-        setLogoutLoading(false);
-        setUser(null);
-        onClose();
-        window.location.reload(); // 상태 갱신을 위해 새로고침
+        const csrftoken = getCookie('csrftoken');
+        if (!csrftoken) {
+            setError('CSRF 토큰이 없습니다. 새로고침 후 다시 시도해 주세요.');
+            setLogoutLoading(false);
+            return;
+        }
+        try {
+            const res = await fetch(`${API_BASE}/chat/api/logout/`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'Content-Type': 'application/json'
+                },
+            });
+            if (res.ok) {
+                // 로컬 쿠키도 정리
+                document.cookie = 'sessionid=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                document.cookie = 'csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+
+                setLogoutLoading(false);
+                setUser(null);
+                onClose();
+                window.location.reload(); // 상태 갱신을 위해 새로고침
+            } else {
+                setError('로그아웃 실패');
+                setLogoutLoading(false);
+            }
+        } catch (error) {
+            setError('서버 오류');
+            setLogoutLoading(false);
+        }
     };
 
     // 이메일 변경 핸들러
