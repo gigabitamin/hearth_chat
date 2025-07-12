@@ -33,23 +33,7 @@ const SOCIALS = [
     },
 ];
 
-export default function SocialLoginButtons() {
-    // 팝업 열기 함수
-    const handleSocialLogin = (url) => (e) => {
-        e.preventDefault();
-        const popupWidth = 480;
-        const popupHeight = 600;
-        const left = window.screenX + (window.outerWidth - popupWidth) / 2;
-        const top = window.screenY + (window.outerHeight - popupHeight) / 2;
-
-        window.open(
-            url,
-            'social_login_popup',
-            `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes`
-        );
-        // 더 이상 원래 페이지에서 팝업 닫힘/메시지 수신 시 새로고침하지 않음
-    };
-
+export default function SocialLoginButtons({ onSocialLogin }) {
     return (
         <div className="social-login-list">
             {SOCIALS.map(social => (
@@ -57,7 +41,10 @@ export default function SocialLoginButtons() {
                     key={social.name}
                     href={social.url}
                     className={`social-login-btn ${social.className}`}
-                    onClick={handleSocialLogin(social.url)}
+                    onClick={e => {
+                        e.preventDefault();
+                        onSocialLogin(social.url);
+                    }}
                 >
                     <img
                         src={social.logo}

@@ -22,7 +22,7 @@ function getCookie(name) {
     return cookieValue;
 }
 
-const LoginModal = ({ isOpen, onClose }) => {
+const LoginModal = ({ isOpen, onClose, onSocialLogin }) => {
     const [tab, setTab] = useState('login'); // 'login' or 'signup'
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -191,7 +191,7 @@ const LoginModal = ({ isOpen, onClose }) => {
                         <span>또는</span>
                     </div>
                     <div className="login-modal-social">
-                        <SocialLoginButtons />
+                        <SocialLoginButtons onSocialLogin={onSocialLogin} />
                     </div>
                 </div>
             </div>
