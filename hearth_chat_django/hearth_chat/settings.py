@@ -499,4 +499,4 @@ else:
     # 개발 환경에서는 콘솔에 출력
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
-SOCIALACCOUNT_ADAPTER = 'hearth_chat_django.adapters.CustomSocialAccountAdapter'
+SOCIALACCOUNT_ADAPTER = 'hearth_chat.adapters.CustomSocialAccountAdapter'
