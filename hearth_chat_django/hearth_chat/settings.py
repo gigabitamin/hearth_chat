@@ -192,22 +192,24 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.github',
 ]
 
-SITE_ID = 2 # 소셜 로그인 설정을 위한 필수 설정 (1: railway, 2: 로컬)
+SITE_ID = 1 # 소셜 로그인 설정을 위한 필수 설정 (1: railway, 2: 로컬)
 
 # Railway 환경에서 Site 객체가 없을 때를 대비한 동적 SITE_ID 설정
 if os.environ.get("RAILWAY_ENVIRONMENT"):
+    # Railway 환경에서는 항상 SITE_ID = 1 사용
+    SITE_ID = 1
+    print(f"Railway 환경 - SITE_ID 강제 설정: {SITE_ID}")
+    
     try:
         from django.contrib.sites.models import Site
         # Site 객체가 있으면 그 ID를 사용, 없으면 1 사용
         site = Site.objects.first()
         if site:
-            SITE_ID = site.id
-            print(f"Railway 환경 - SITE_ID 설정: {SITE_ID}")
+            print(f"Railway 환경 - 기존 Site 발견: {site.domain}")
         else:
             print("Railway 환경 - Site 객체가 없음, SITE_ID=1 사용")
     except Exception as e:
         print(f"Site 객체 확인 중 오류 (무시됨): {e}")
-        SITE_ID = 1
     
     # Site 객체가 없을 때 Django Admin 접속을 위한 패치
     try:

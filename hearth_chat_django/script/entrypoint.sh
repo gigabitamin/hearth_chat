@@ -34,6 +34,19 @@ except Site.DoesNotExist:
     print(f'Site 생성 완료: {site.domain}')
 "
 
+# 추가 백업: 모든 Site 객체 삭제 후 새로 생성
+echo "🔄 Site 객체 완전 재생성..."
+python manage.py shell -c "
+from django.contrib.sites.models import Site
+Site.objects.all().delete()
+site = Site.objects.create(
+    id=1,
+    domain='hearthchat-production.up.railway.app',
+    name='HearthChat Production'
+)
+print(f'Site 완전 재생성 완료: {site.domain}')
+"
+
 # 3. 슈퍼유저 자동 생성 (이미 있으면 비밀번호만 업데이트)
 echo "👑 슈퍼유저 자동 생성/업데이트..."
 echo "사용자명: $DJANGO_SUPERUSER_USERNAME"
