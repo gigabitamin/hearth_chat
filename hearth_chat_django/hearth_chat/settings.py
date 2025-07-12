@@ -106,7 +106,7 @@ DATABASES = {
 if os.environ.get("RAILWAY_ENVIRONMENT") and DATABASES["default"].get("ENGINE", "").endswith("postgresql"):
     DATABASES["default"]["OPTIONS"] = {
         'sslmode': 'require'
-    }
+}
 
 # 로컬 MySQL 환경에서만 utf8mb4 옵션 적용 (PostgreSQL 등에서는 절대 실행되지 않도록 보장)
 print("DATABASE ENGINE:", DATABASES["default"].get("ENGINE", "<None>"))
@@ -119,13 +119,13 @@ if (
     and DATABASES["default"].get("ENGINE", "") != "django.db.backends.postgresql"
 ):
     try:
-        DATABASES["default"]["OPTIONS"] = {
-            "charset": os.environ.get("LOCAL_MYSQL_CHARSET", "utf8mb4"),
-            "init_command": os.environ.get(
-                "LOCAL_MYSQL_INIT_COMMAND",
-                "SET character_set_connection=utf8mb4; SET collation_connection=utf8mb4_unicode_ci;"
-            ),
-        }
+    DATABASES["default"]["OPTIONS"] = {
+        "charset": os.environ.get("LOCAL_MYSQL_CHARSET", "utf8mb4"),
+        "init_command": os.environ.get(
+            "LOCAL_MYSQL_INIT_COMMAND",
+            "SET character_set_connection=utf8mb4; SET collation_connection=utf8mb4_unicode_ci;"
+        ),
+    }
         print("로컬 MySQL utf8mb4 옵션 적용 완료!")
     except Exception as e:
         print(f"MySQL 설정 오류 (무시됨): {e}")

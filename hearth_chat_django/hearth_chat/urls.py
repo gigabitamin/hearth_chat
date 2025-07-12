@@ -70,6 +70,11 @@ def robots_txt(request):
     return static_serve(request, 'robots.txt', os.path.dirname(robots_path))
 
 
+def ignore_source_maps(request):
+    """소스맵 파일 요청을 무시하고 빈 응답 반환"""
+    return HttpResponse("", content_type="application/json")
+
+
 urlpatterns = [
     path("favicon.ico", favicon),
     path("admin/", admin.site.urls),
@@ -79,6 +84,9 @@ urlpatterns = [
     path("manifest.json", manifest_json),  # manifest.json 직접 반환
     path("logo192.png", logo192_png),  # logo192.png 직접 반환
     path("robots.txt", robots_txt),  # robots.txt 직접 반환
+    # 소스맵 파일들 무시
+    path("static/js/", lambda r: ignore_source_maps(r)),  # .map 파일들
+    path("static/css/", lambda r: ignore_source_maps(r)),  # .map 파일들
     path("api/social-connections/", social_connections_api, name="social_connections_api"),
     path("", ReactAppView.as_view(), name="root"),  # 루트에 React index.html 연결
 ]

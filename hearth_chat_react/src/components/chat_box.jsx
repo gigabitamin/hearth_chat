@@ -1390,21 +1390,21 @@ const ChatBox = () => {
 
       // 기존 형식: 배열 형태의 데이터
       if (Array.isArray(data) && data.length > 0) {
-        const labels = data.map(item => item.name);
-        const keys = Object.keys(data[0]).filter(key => key !== 'name');
-        const colorList = ['#FFD600', '#00E5FF', '#76FF03', '#FF4081', '#FFFFFF'];
-        const datasets = keys.map((key, idx) => ({
-          label: key,
-          data: data.map(item => item[key]),
-          borderColor: colorList[idx % colorList.length],
-          backgroundColor: colorList[idx % colorList.length] + '80',
-          pointBackgroundColor: colorList[idx % colorList.length],
-          borderWidth: 3,
-          pointRadius: 4,
-          tension: 0.3,
-          fill: false,
-        }));
-        return { labels, datasets };
+      const labels = data.map(item => item.name);
+      const keys = Object.keys(data[0]).filter(key => key !== 'name');
+      const colorList = ['#FFD600', '#00E5FF', '#76FF03', '#FF4081', '#FFFFFF'];
+      const datasets = keys.map((key, idx) => ({
+        label: key,
+        data: data.map(item => item[key]),
+        borderColor: colorList[idx % colorList.length],
+        backgroundColor: colorList[idx % colorList.length] + '80',
+        pointBackgroundColor: colorList[idx % colorList.length],
+        borderWidth: 3,
+        pointRadius: 4,
+        tension: 0.3,
+        fill: false,
+      }));
+      return { labels, datasets };
       }
 
       return null;
