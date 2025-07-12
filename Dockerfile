@@ -63,8 +63,8 @@ ENV DATABASE_URL=sqlite:///tmp/db.sqlite3
 WORKDIR /app/hearth_chat_django
 RUN python manage.py collectstatic --noinput
 
-# 반드시 장고 앱 복사 이후에 슈퍼유저 자동 생성
-# RUN python manage.py createinitialsuperuser
+# 반드시 장고 앱 복사 이후에 슈퍼유저 자동 생성 (빌드 타임에 실행)
+RUN python manage.py createinitialsuperuser || echo "Superuser creation skipped during build"
 
 # 작업 디렉토리를 Django 앱으로 변경
 # WORKDIR /app/hearth_chat_django
@@ -81,4 +81,5 @@ RUN chmod +x /usr/local/bin/start.sh
 
 EXPOSE 8000
 
-CMD ["/usr/local/bin/start.sh"]
+# Railway에서 start.sh가 실행되도록 명시적으로 지정
+CMD ["/bin/bash", "/usr/local/bin/start.sh"]
