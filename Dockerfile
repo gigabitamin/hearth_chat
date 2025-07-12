@@ -76,11 +76,11 @@ COPY script/cs.sh /usr/local/bin/cs
 RUN chmod +x /usr/local/bin/dh /usr/local/bin/rh /usr/local/bin/cs
 
 # start.sh 복사 및 실행 권한 부여
-COPY script/start.sh /usr/local/bin/start.sh
+COPY hearth_chat_django/script/start.sh /usr/local/bin/start.sh
 RUN chmod +x /usr/local/bin/start.sh
 
 # entrypoint.sh 복사 및 실행 권한 부여
-COPY script/entrypoint.sh /entrypoint.sh
+COPY hearth_chat_django/script/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 EXPOSE 8000
