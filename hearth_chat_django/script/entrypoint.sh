@@ -34,5 +34,6 @@ echo "📁 정적 파일 수집..."
 python manage.py collectstatic --noinput
 
 # 4. Daphne 서버 시작
-echo "🌐 Daphne 서버 시작 (포트: 8000)..."
-exec daphne -b 0.0.0.0 -p 8000 hearth_chat.asgi:application 
+PORT=${PORT:-8080}
+echo "🌐 Daphne 서버 시작 (포트: $PORT)..."
+exec daphne -b 0.0.0.0 -p $PORT hearth_chat.asgi:application 

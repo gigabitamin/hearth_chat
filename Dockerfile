@@ -83,7 +83,7 @@ RUN chmod +x /usr/local/bin/start.sh
 COPY hearth_chat_django/script/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-EXPOSE 8000
+EXPOSE 8080
 
 # Railway에서 entrypoint.sh가 실행되도록 명시적으로 지정
 ENTRYPOINT ["/entrypoint.sh"]
