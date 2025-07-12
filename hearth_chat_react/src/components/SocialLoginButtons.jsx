@@ -1,7 +1,8 @@
 import React from 'react';
 import styles from './SocialLoginButtons.module.css';
 
-const BACKEND_URL = 'http://localhost:8000';
+// 환경변수 기반 BACKEND_URL 자동 설정
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || window.location.origin;
 
 const SOCIALS = [
     {

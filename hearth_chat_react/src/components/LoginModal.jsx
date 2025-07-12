@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import SocialLoginButtons from './SocialLoginButtons';
 import './LoginModal.css';
 
-const API_BASE = 'http://localhost:8000/accounts';
+// 환경변수 기반 API_BASE 자동 설정
+const API_BASE = process.env.REACT_APP_API_BASE || (window.location.origin + '/accounts');
 
 function getCookie(name) {
     let cookieValue = null;

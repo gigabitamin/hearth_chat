@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import './LoginModal.css';
 
 const API_BASE = '/chat/api';
-const ALLAUTH_BASE = 'http://localhost:8000/accounts';
+// 환경변수 기반 ALLAUTH_BASE 자동 설정
+const ALLAUTH_BASE = (process.env.REACT_APP_API_BASE || (window.location.origin + '/accounts'));
 
 const SOCIAL_PROVIDERS = [
     { provider: 'google', label: 'Google' },
