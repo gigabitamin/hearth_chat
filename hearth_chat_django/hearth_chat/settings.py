@@ -192,7 +192,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.github',
 ]
 
-SITE_ID = 1 # 소셜 로그인 설정을 위한 필수 설정 (1: railway, 2: 로컬)
+SITE_ID = 2 # 소셜 로그인 설정을 위한 필수 설정 (1: railway, 2: 로컬)
 
 # Railway 환경에서 Site 객체가 없을 때를 대비한 동적 SITE_ID 설정
 if os.environ.get("RAILWAY_ENVIRONMENT"):
@@ -211,14 +211,16 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
     
     # Site 객체가 없을 때 Django Admin 접속을 위한 패치
     try:
-        from django.contrib.sites.shortcuts import get_current_site
         from django.contrib.sites.models import Site
+        from django.contrib.sites.shortcuts import get_current_site
         
+        # 기존 get_current_site 함수를 완전히 오버라이드
         def patched_get_current_site(request):
             try:
-                return get_current_site(request)
+                # 기존 방식으로 시도
+                return Site.objects.get_current(request)
             except Site.DoesNotExist:
-                # Site 객체가 없으면 기본 Site 객체 생성
+                # Site 객체가 없으면 자동으로 생성
                 site, created = Site.objects.get_or_create(
                     id=1,
                     defaults={
@@ -226,14 +228,50 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
                         'name': 'HearthChat Production'
                     }
                 )
+                print(f"Site 객체 자동 생성: {site.domain}")
                 return site
         
         # 패치 적용
         import django.contrib.sites.shortcuts
         django.contrib.sites.shortcuts.get_current_site = patched_get_current_site
-        print("Railway 환경 - Site 객체 자동 생성 패치 적용됨")
+        
+        # Site.objects.get_current도 패치
+        def patched_get_current(self, request=None):
+            try:
+                return self.get(pk=SITE_ID)
+            except Site.DoesNotExist:
+                site, created = Site.objects.get_or_create(
+                    id=SITE_ID,
+                    defaults={
+                        'domain': 'hearthchat-production.up.railway.app',
+                        'name': 'HearthChat Production'
+                    }
+                )
+                print(f"Site.objects.get_current 패치 - Site 생성: {site.domain}")
+                return site
+        
+        # Site manager의 get_current 메서드 패치
+        from django.contrib.sites.models import SiteManager
+        SiteManager.get_current = patched_get_current
+        
+        print("Railway 환경 - Site 객체 자동 생성 패치 완전 적용됨")
     except Exception as e:
         print(f"Site 패치 적용 중 오류 (무시됨): {e}")
+    
+    # Django Admin 접속을 위한 추가 설정
+    # allauth에서 Site 객체를 사용하지 않도록 임시 설정
+    ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'https'
+    SOCIALACCOUNT_PROVIDERS = {
+        'google': {
+            'SCOPE': [
+                'profile',
+                'email',
+            ],
+            'AUTH_PARAMS': {
+                'access_type': 'online',
+            }
+        },
+    }
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
