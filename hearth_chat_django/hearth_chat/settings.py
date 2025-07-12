@@ -195,7 +195,7 @@ INSTALLED_APPS = [
 ]
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 
-SITE_ID = 1 # 소셜 로그인 설정을 위한 필수 설정 (1: railway, 2: 로컬)
+SITE_ID = 2 # 소셜 로그인 설정을 위한 필수 설정 (1: railway, 2: 로컬)
 
 # Railway 환경에서 Site 객체가 없을 때를 대비한 동적 SITE_ID 설정
 if os.environ.get("RAILWAY_ENVIRONMENT"):
@@ -290,8 +290,8 @@ ACCOUNT_LOGOUT_ON_GET = True
 # allauth 설정 (deprecated 경고 해결)
 ACCOUNT_LOGIN_METHODS = {'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
-ACCOUNT_EMAIL_VERIFICATION = 'mandatory'  # 이메일 검증 강제 (기본값)
-# ACCOUNT_EMAIL_VERIFICATION = 'optional'  # 이메일 검증 선택사항 (나중에 필요시 주석 해제)
+# ACCOUNT_EMAIL_VERIFICATION = 'mandatory'  # 이메일 검증 강제 (기본값)
+ACCOUNT_EMAIL_VERIFICATION = 'optional'  # 이메일 검증 선택사항 (나중에 필요시 주석 해제)
 SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
 SOCIALACCOUNT_QUERY_EMAIL = True
 
@@ -334,7 +334,7 @@ ROOT_URLCONF = "hearth_chat.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [os.path.join(BASE_DIR, 'templates')],
+        "DIRS": [],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -498,5 +498,3 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
 else:
     # 개발 환경에서는 콘솔에 출력
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-
-SOCIALACCOUNT_ADAPTER = 'hearth_chat.adapters.CustomSocialAccountAdapter'

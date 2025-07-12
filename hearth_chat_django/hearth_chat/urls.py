@@ -20,7 +20,7 @@ from django.shortcuts import redirect
 from django.conf import settings
 from django.conf.urls.static import static
 from django.http import HttpResponse
-from .views import ReactAppView, social_connections_api, social_login_redirect_view
+from .views import ReactAppView, social_connections_api
 from django.views.static import serve as static_serve
 import os
 
@@ -96,7 +96,6 @@ urlpatterns = [
     path("static/js/", lambda r: ignore_source_maps(r)),  # .map 파일들
     path("static/css/", lambda r: ignore_source_maps(r)),  # .map 파일들
     path("api/social-connections/", social_connections_api, name="social_connections_api"),
-    path("social-redirect/", social_login_redirect_view, name='social_login_redirect'),
     path("", ReactAppView.as_view(), name="root"),  # 루트에 React index.html 연결
 ]
 

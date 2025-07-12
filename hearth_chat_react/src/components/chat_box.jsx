@@ -1390,21 +1390,21 @@ const ChatBox = () => {
 
       // 기존 형식: 배열 형태의 데이터
       if (Array.isArray(data) && data.length > 0) {
-        const labels = data.map(item => item.name);
-        const keys = Object.keys(data[0]).filter(key => key !== 'name');
-        const colorList = ['#FFD600', '#00E5FF', '#76FF03', '#FF4081', '#FFFFFF'];
-        const datasets = keys.map((key, idx) => ({
-          label: key,
-          data: data.map(item => item[key]),
-          borderColor: colorList[idx % colorList.length],
-          backgroundColor: colorList[idx % colorList.length] + '80',
-          pointBackgroundColor: colorList[idx % colorList.length],
-          borderWidth: 3,
-          pointRadius: 4,
-          tension: 0.3,
-          fill: false,
-        }));
-        return { labels, datasets };
+      const labels = data.map(item => item.name);
+      const keys = Object.keys(data[0]).filter(key => key !== 'name');
+      const colorList = ['#FFD600', '#00E5FF', '#76FF03', '#FF4081', '#FFFFFF'];
+      const datasets = keys.map((key, idx) => ({
+        label: key,
+        data: data.map(item => item[key]),
+        borderColor: colorList[idx % colorList.length],
+        backgroundColor: colorList[idx % colorList.length] + '80',
+        pointBackgroundColor: colorList[idx % colorList.length],
+        borderWidth: 3,
+        pointRadius: 4,
+        tension: 0.3,
+        fill: false,
+      }));
+      return { labels, datasets };
       }
 
       return null;
@@ -1578,31 +1578,6 @@ const ChatBox = () => {
       .catch(() => setLoginUser(null))
       .finally(() => setLoginLoading(false));
   }, []);
-
-  // 로그인 성공 postMessage 수신 시 모달 닫고 새로고침
-  useEffect(() => {
-    const handleLoginSuccess = (event) => {
-      if (event.data === 'login_success' || event.data === 'connection_success') {
-        setIsLoginModalOpen(false);
-        setTimeout(() => window.location.reload(), 100);
-      }
-    };
-    window.addEventListener('message', handleLoginSuccess);
-    return () => window.removeEventListener('message', handleLoginSuccess);
-  }, []);
-
-  // 소셜 로그인 팝업 오픈 함수 (최상위에서 정의)
-  const openSocialLoginPopup = (url) => {
-    const popupWidth = 480;
-    const popupHeight = 600;
-    const left = window.screenX + (window.outerWidth - popupWidth) / 2;
-    const top = window.screenY + (window.outerHeight - popupHeight) / 2;
-    window.open(
-      url,
-      'social_login_popup',
-      `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes`
-    );
-  };
 
   return (
     <>
@@ -2083,7 +2058,6 @@ const ChatBox = () => {
         <LoginModal
           isOpen={isLoginModalOpen}
           onClose={() => setIsLoginModalOpen(false)}
-          onSocialLogin={openSocialLoginPopup}
         />
         {/* 사용자 메뉴 모달 */}
         <UserMenuModal
