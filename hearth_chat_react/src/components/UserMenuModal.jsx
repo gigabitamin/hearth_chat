@@ -79,25 +79,31 @@ export default function UserMenuModal({ isOpen, onClose }) {
     const handleDisconnect = async (provider) => {
         setConnMsg(null);
         const csrftoken = getCookie('csrftoken');
+        if (!csrftoken) {
+            setConnMsg('CSRF 토큰이 없습니다. 새로고침 후 다시 시도해 주세요.');
+            return;
+        }
         const form = new FormData();
         form.append('action', 'disconnect');
         form.append('account', provider);
         try {
-            const res = await fetch(`${API_BASE}/accounts/connections/`, {
+            const res = await fetch(`${API_BASE}/api/social-connections/`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'X-CSRFToken': csrftoken },
                 body: form,
             });
             if (res.ok) {
-                setConnMsg('연결 해제 성공');
+                const data = await res.json();
+                setConnMsg(data.message || '연결 해제 성공');
                 // 목록 갱신
                 fetchConnections();
             } else {
-                setConnMsg('연결 해제 실패');
+                const errorData = await res.json().catch(() => ({}));
+                setConnMsg(errorData.message || '연결 해제 실패');
             }
-        } catch {
-            setConnMsg('서버 오류');
+        } catch (error) {
+            setConnMsg('서버 오류: ' + error.message);
         }
     };
 
@@ -119,6 +125,14 @@ export default function UserMenuModal({ isOpen, onClose }) {
             }
         };
         window.addEventListener('message', listener);
+
+        // 팝업이 닫힐 때도 연결 목록 갱신
+        const checkClosed = setInterval(() => {
+            if (popup.closed) {
+                clearInterval(checkClosed);
+                fetchConnections();
+            }
+        }, 1000);
     };
 
     useEffect(() => {

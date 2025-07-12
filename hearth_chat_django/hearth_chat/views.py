@@ -69,13 +69,41 @@ def github_login_redirect(request):
 
 @login_required
 def social_connections_api(request):
-    accounts = SocialAccount.objects.filter(user=request.user)
-    data = [
-        {
-            'provider': acc.provider,
-            'uid': acc.uid,
-            'extra_data': acc.extra_data,
-        }
-        for acc in accounts
-    ]
-    return JsonResponse({'social_accounts': data})
+    if request.method == 'GET':
+        # 소셜 계정 목록 조회
+        accounts = SocialAccount.objects.filter(user=request.user)
+        data = [
+            {
+                'provider': acc.provider,
+                'uid': acc.uid,
+                'extra_data': acc.extra_data,
+            }
+            for acc in accounts
+        ]
+        return JsonResponse({'social_accounts': data})
+    
+    elif request.method == 'POST':
+        # 소셜 계정 해제
+        from django.views.decorators.csrf import csrf_exempt
+        from django.utils.decorators import method_decorator
+        
+        action = request.POST.get('action')
+        account = request.POST.get('account')
+        
+        if action == 'disconnect' and account:
+            try:
+                # 해당 소셜 계정 찾기
+                social_account = SocialAccount.objects.get(
+                    user=request.user,
+                    provider=account
+                )
+                social_account.delete()
+                return JsonResponse({'status': 'success', 'message': '계정 연결이 해제되었습니다.'})
+            except SocialAccount.DoesNotExist:
+                return JsonResponse({'status': 'error', 'message': '연결된 계정을 찾을 수 없습니다.'}, status=404)
+            except Exception as e:
+                return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+        else:
+            return JsonResponse({'status': 'error', 'message': '잘못된 요청입니다.'}, status=400)
+    
+    return JsonResponse({'status': 'error', 'message': '지원하지 않는 메서드입니다.'}, status=405)
