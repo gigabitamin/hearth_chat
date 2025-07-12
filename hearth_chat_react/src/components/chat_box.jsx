@@ -1579,11 +1579,12 @@ const ChatBox = () => {
       .finally(() => setLoginLoading(false));
   }, []);
 
-  // 로그인 성공 postMessage 수신 시 새로고침
+  // 로그인 성공 postMessage 수신 시 모달 닫고 새로고침
   useEffect(() => {
     const handleLoginSuccess = (event) => {
       if (event.data === 'login_success' || event.data === 'connection_success') {
-        window.location.reload();
+        setIsLoginModalOpen(false);
+        setTimeout(() => window.location.reload(), 100);
       }
     };
     window.addEventListener('message', handleLoginSuccess);
