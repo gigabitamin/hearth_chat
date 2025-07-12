@@ -114,36 +114,12 @@ export default function UserMenuModal({ isOpen, onClose }) {
         const left = window.screenX + (window.outerWidth - popupWidth) / 2;
         const top = window.screenY + (window.outerHeight - popupHeight) / 2;
 
-        const popup = window.open(
+        window.open(
             `${API_BASE}/accounts/${provider}/login/?process=connect`,
             'social_connect',
             `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes`
         );
-
-        // 팝업창 상태 모니터링
-        const checkPopupStatus = setInterval(() => {
-            if (popup.closed) {
-                clearInterval(checkPopupStatus);
-                // 팝업이 닫히면 연결 목록 갱신
-                fetchConnections();
-            }
-        }, 1000);
-
-        // postMessage 이벤트 리스너 (백엔드에서 연결 완료 시 메시지 전송)
-        const handleMessage = (event) => {
-            console.log('UserMenuModal: 메시지 수신:', event.data);
-            if (event.data === 'social_connected' || event.data === 'connection_success') {
-                console.log('UserMenuModal: 연결 성공 메시지 수신');
-                clearInterval(checkPopupStatus);
-                window.removeEventListener('message', handleMessage);
-                popup.close();
-                setShowConnectionsModal(false);
-                setConnMsg('연결 성공!');
-                // 연결 목록 즉시 갱신
-                fetchConnections();
-            }
-        };
-        window.addEventListener('message', handleMessage);
+        // 더 이상 원래 페이지에서 팝업 닫힘/메시지 수신 시 새로고침하지 않음
     };
 
     useEffect(() => {

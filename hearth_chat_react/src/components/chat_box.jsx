@@ -1582,7 +1582,7 @@ const ChatBox = () => {
   // 로그인 성공 postMessage 수신 시 새로고침
   useEffect(() => {
     const handleLoginSuccess = (event) => {
-      if (event.data === 'login_success') {
+      if (event.data === 'login_success' || event.data === 'connection_success') {
         window.location.reload();
       }
     };
