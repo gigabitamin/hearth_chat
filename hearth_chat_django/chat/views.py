@@ -129,6 +129,7 @@ def user_info(request):
             'user': {
                 'username': request.user.username,
                 'email': request.user.email,
+                'email_verified': request.user.emailaddress_set.filter(verified=True).exists(),
                 'is_superuser': request.user.is_superuser,
                 'is_staff': request.user.is_staff,
                 'social_accounts': social_accounts,

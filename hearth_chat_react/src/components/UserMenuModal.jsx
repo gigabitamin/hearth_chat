@@ -273,6 +273,11 @@ export default function UserMenuModal({ isOpen, onClose }) {
                                         </>
                                     ) : '이메일/비밀번호'}
                                 </div>
+                                {user.email && (
+                                    <div style={{ marginTop: 4, fontSize: 12, color: user.email_verified ? '#4caf50' : '#ff9800' }}>
+                                        이메일: {user.email} {user.email_verified ? '✅' : '⚠️ 미인증'}
+                                    </div>
+                                )}
                             </div>
                             <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                                 <li>

@@ -290,7 +290,8 @@ ACCOUNT_LOGOUT_ON_GET = True
 # allauth 설정 (deprecated 경고 해결)
 ACCOUNT_LOGIN_METHODS = {'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
-ACCOUNT_EMAIL_VERIFICATION = 'optional'
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'  # 이메일 검증 강제 (기본값)
+# ACCOUNT_EMAIL_VERIFICATION = 'optional'  # 이메일 검증 선택사항 (나중에 필요시 주석 해제)
 SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
 SOCIALACCOUNT_QUERY_EMAIL = True
 
@@ -475,3 +476,25 @@ LOGGING = {
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_UNIQUE_EMAIL = True
+
+# 이메일 검증 설정
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'  # 이메일 검증 강제 (기본값)
+# ACCOUNT_EMAIL_VERIFICATION = 'optional'  # 이메일 검증 선택사항 (나중에 필요시 주석 해제)
+ACCOUNT_EMAIL_REQUIRED = True  # 이메일 필수
+ACCOUNT_AUTHENTICATION_METHOD = 'email'  # 이메일로 로그인
+ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 3  # 이메일 확인 링크 유효기간 (3일)
+ACCOUNT_EMAIL_CONFIRMATION_COOLDOWN = 180  # 재전송 대기시간 (3분)
+
+# 이메일 발송 설정 (Railway 환경)
+if os.environ.get("RAILWAY_ENVIRONMENT"):
+    # Railway에서 이메일 발송을 위한 설정
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = 'smtp.gmail.com'  # Gmail SMTP 사용
+    EMAIL_PORT = 587
+    EMAIL_USE_TLS = True
+    EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')  # Gmail 계정
+    EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')  # Gmail 앱 비밀번호
+    DEFAULT_FROM_EMAIL = os.getenv('EMAIL_HOST_USER', 'noreply@hearthchat.com')
+else:
+    # 개발 환경에서는 콘솔에 출력
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
