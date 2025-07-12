@@ -14,6 +14,9 @@ from django.http import JsonResponse
 from allauth.socialaccount.models import SocialAccount
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
+from django.shortcuts import render
+from allauth.socialaccount.models import SocialToken, SocialAccount
+from django.contrib.auth.decorators import login_required
 
 
 class ReactAppView(View):
@@ -107,3 +110,34 @@ def social_connections_api(request):
             return JsonResponse({'status': 'error', 'message': '잘못된 요청입니다.'}, status=400)
     
     return JsonResponse({'status': 'error', 'message': '지원하지 않는 메서드입니다.'}, status=405)
+
+@login_required
+def social_login_redirect_view(request):
+    """소셜 로그인 성공 후 팝업창에서 postMessage를 보내고 닫기"""
+    try:
+        # 사용자의 소셜 계정 정보 가져오기
+        social_account = SocialAccount.objects.filter(user=request.user).first()
+        if social_account:
+            token = SocialToken.objects.get(account=social_account)
+            user_data = {
+                "username": request.user.username,
+                "email": request.user.email,
+                "provider": social_account.provider,
+                "token": token.token,
+            }
+        else:
+            user_data = {
+                "username": request.user.username,
+                "email": request.user.email,
+                "provider": "unknown",
+                "token": None,
+            }
+    except SocialToken.DoesNotExist:
+        user_data = {
+            "username": request.user.username,
+            "email": request.user.email,
+            "provider": "unknown",
+            "token": None,
+        }
+
+    return render(request, "social_login_redirect.html", {"user_data": user_data})
