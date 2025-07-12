@@ -190,6 +190,8 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.kakao',
     'allauth.socialaccount.providers.naver',
     'allauth.socialaccount.providers.github',
+    # hearth_chat 앱 (SocialApp 자동 생성을 위해)
+    'hearth_chat.apps.HearthChatConfig',
 ]
 
 SITE_ID = 1 # 소셜 로그인 설정을 위한 필수 설정 (1: railway, 2: 로컬)
@@ -423,3 +425,47 @@ LOGGING = {
         },
     },
 }
+
+# Railway 환경에서 SocialApp 자동 생성
+if os.environ.get("RAILWAY_ENVIRONMENT"):
+    try:
+        from django.apps import apps
+        if apps.is_installed('allauth.socialaccount'):
+            from allauth.socialaccount.models import SocialApp
+            from allauth.socialaccount.providers.google.provider import GoogleProvider
+            from django.contrib.sites.models import Site
+            
+            # Site가 존재하는지 확인
+            try:
+                site = Site.objects.get_current()
+                
+                # Google SocialApp이 존재하는지 확인하고 없으면 생성
+                google_app, created = SocialApp.objects.get_or_create(
+                    provider=GoogleProvider.id,
+                    name='Google',
+                    defaults={
+                        'client_id': os.getenv('GOOGLE_CLIENT_ID', ''),
+                        'secret': os.getenv('GOOGLE_CLIENT_SECRET', ''),
+                    }
+                )
+                
+                if created:
+                    # Site를 SocialApp에 연결
+                    google_app.sites.add(site)
+                    print(f"SocialApp 자동 생성 완료: {google_app.name} for {site.domain}")
+                else:
+                    # 기존 앱 업데이트
+                    google_app.client_id = os.getenv('GOOGLE_CLIENT_ID', google_app.client_id)
+                    google_app.secret = os.getenv('GOOGLE_CLIENT_SECRET', google_app.secret)
+                    google_app.save()
+                    
+                    # Site 연결 확인
+                    if site not in google_app.sites.all():
+                        google_app.sites.add(site)
+                    
+                    print(f"SocialApp 업데이트 완료: {google_app.name} for {site.domain}")
+                    
+            except Exception as e:
+                print(f"SocialApp 자동 생성 중 오류 (무시됨): {e}")
+    except Exception as e:
+        print(f"SocialApp 설정 중 오류 (무시됨): {e}")

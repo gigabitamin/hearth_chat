@@ -60,6 +60,13 @@ def logo192_png(request):
         logo_path = '/app/hearth_chat_react/build/logo192.png'
     return static_serve(request, 'logo192.png', os.path.dirname(logo_path))
 
+def logo512_png(request):
+    """logo512.png 파일 직접 서빙"""
+    if settings.DEBUG:
+        logo_path = os.path.join(settings.BASE_DIR, '..', 'hearth_chat_react', 'build', 'logo512.png')
+    else:
+        logo_path = '/app/hearth_chat_react/build/logo512.png'
+    return static_serve(request, 'logo512.png', os.path.dirname(logo_path))
 
 def robots_txt(request):
     """robots.txt 파일 직접 서빙"""
@@ -83,6 +90,7 @@ urlpatterns = [
     path('health/', health_check, name="health_check"),  # 헬스체크 엔드포인트
     path("manifest.json", manifest_json),  # manifest.json 직접 반환
     path("logo192.png", logo192_png),  # logo192.png 직접 반환
+    path("logo512.png", logo512_png),  # logo512.png 직접 반환
     path("robots.txt", robots_txt),  # robots.txt 직접 반환
     # 소스맵 파일들 무시
     path("static/js/", lambda r: ignore_source_maps(r)),  # .map 파일들

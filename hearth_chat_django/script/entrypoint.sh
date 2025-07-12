@@ -47,7 +47,39 @@ site = Site.objects.create(
 print(f'Site 완전 재생성 완료: {site.domain}')
 "
 
-# 3. 슈퍼유저 자동 생성 (이미 있으면 비밀번호만 업데이트)
+# SocialApp 강제 생성 (백업 방법)
+echo "🔐 SocialApp 강제 생성..."
+python manage.py shell -c "
+from django.contrib.sites.models import Site
+from allauth.socialaccount.models import SocialApp
+from allauth.socialaccount.providers.google.provider import GoogleProvider
+import os
+
+try:
+    site = Site.objects.get_current()
+    print(f'현재 Site: {site.domain}')
+    
+    # 기존 SocialApp 삭제 후 새로 생성
+    SocialApp.objects.filter(provider=GoogleProvider.id).delete()
+    
+    google_app = SocialApp.objects.create(
+        provider=GoogleProvider.id,
+        name='Google',
+        client_id=os.getenv('GOOGLE_CLIENT_ID', ''),
+        secret=os.getenv('GOOGLE_CLIENT_SECRET', '')
+    )
+    google_app.sites.add(site)
+    print(f'SocialApp 강제 생성 완료: {google_app.name} for {site.domain}')
+except Exception as e:
+    print(f'SocialApp 강제 생성 중 오류: {e}')
+"
+
+# 3. SocialApp 자동 생성 (Google OAuth용)
+echo "🔐 SocialApp 자동 생성..."
+python manage.py create_social_apps
+python manage.py ensure_social_apps
+
+# 4. 슈퍼유저 자동 생성 (이미 있으면 비밀번호만 업데이트)
 echo "👑 슈퍼유저 자동 생성/업데이트..."
 echo "사용자명: $DJANGO_SUPERUSER_USERNAME"
 echo "이메일: $DJANGO_SUPERUSER_EMAIL"
@@ -65,11 +97,11 @@ else
         --email "$DJANGO_SUPERUSER_EMAIL" || echo "기본 슈퍼유저 생성도 실패"
 fi
 
-# 4. 정적 파일 수집 (필요시)
+# 5. 정적 파일 수집 (필요시)
 echo "📁 정적 파일 수집..."
 python manage.py collectstatic --noinput
 
-# 5. Daphne 서버 시작
+# 6. Daphne 서버 시작
 PORT=${PORT:-8080}
 echo "🌐 Daphne 서버 시작 (포트: $PORT)..."
 exec daphne -b 0.0.0.0 -p $PORT hearth_chat.asgi:application 
