@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .models import Chat
+from django.contrib.sessions.models import Session
 
 @admin.register(Chat)
 class ChatAdmin(admin.ModelAdmin):
@@ -22,3 +23,9 @@ class ChatAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+@admin.register(Session)
+class SessionAdmin(admin.ModelAdmin):
+    list_display = ['session_key', 'expire_date']
+    search_fields = ['session_key']
+    ordering = ['-expire_date']

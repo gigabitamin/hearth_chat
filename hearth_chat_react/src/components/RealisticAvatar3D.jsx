@@ -6,6 +6,8 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 import SimpleTestAvatar from './SimpleTestAvatar';
 import faceTrackingService from '../services/faceTrackingService';
+import { AnimationMixer } from 'three';
+import { Quaternion } from 'three';
 
 // VRM 아바타 컴포넌트
 function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess, onLoadError, position, enableTracking = false }) {
@@ -17,6 +19,22 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
     const [mouthOpen, setMouthOpen] = useState(0);
     const [eyeBlink, setEyeBlink] = useState(0);
     const [currentEmotion, setCurrentEmotion] = useState('neutral');
+
+    // === Idle 모션 관련 ===
+    const mixerRef = useRef(null);
+    const idleActionRef = useRef(null);
+    const [idleLoaded, setIdleLoaded] = useState(false);
+    const [idleAnimationEnabled, setIdleAnimationEnabled] = useState(true);
+
+    // === 프로그래밍적 Idle 애니메이션 관련 ===
+    const clockRef = useRef(new THREE.Clock());
+    const [programmaticIdle, setProgrammaticIdle] = useState(false);
+
+    // === Idle 모션 파일 경로 ===
+    // 아래 URL을 원하는 idle/walk/wave 등 glTF 모션 파일로 교체 가능
+    // 예시: Mixamo에서 FBX로 다운받아 glTF로 변환 후 사용
+    // 프로젝트 public 폴더 내 avatar_motion_gltf/Standing_Greeting.gltf 사용
+    const idleMotionUrl = '/avatar_motion_gltf/Standing_Greeting.gltf';
 
     // 트래킹 데이터 상태
     const [trackingData, setTrackingData] = useState({
@@ -48,11 +66,131 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
         }
     }, [trackingData.isDetected, trackingData.eyeBlink.left, trackingData.eyeBlink.right, blinkOffset]);
 
+    // === 프로그래밍적 Idle 애니메이션 함수 ===
+    const createProgrammaticIdleAnimation = useCallback((vrmInstance) => {
+        if (!vrmInstance || !vrmInstance.humanoid) {
+            console.warn('VRM 인스턴스 또는 humanoid가 없습니다');
+            return;
+        }
+
+        console.log('프로그래밍적 idle 애니메이션 초기화 시작');
+
+        const clock = clockRef.current;
+        let animationId = null;
+        let lastUpdateTime = 0;
+        const UPDATE_INTERVAL = 1000 / 30; // 30 FPS로 제한 (성능 최적화)
+
+        const animate = () => {
+            const currentTime = performance.now();
+
+            // 성능 최적화: 30 FPS로 제한
+            if (currentTime - lastUpdateTime < UPDATE_INTERVAL) {
+                animationId = requestAnimationFrame(animate);
+                return;
+            }
+
+            lastUpdateTime = currentTime;
+            const time = clock.getElapsedTime();
+
+            try {
+                // 헤드 본 가져오기 (안전한 방식)
+                const getBoneNode = (boneName) => {
+                    return vrmInstance.humanoid.getNormalizedBoneNode ?
+                        vrmInstance.humanoid.getNormalizedBoneNode(boneName) :
+                        vrmInstance.humanoid.getBoneNode(boneName);
+                };
+
+                const head = getBoneNode('head');
+                const spine = getBoneNode('spine');
+                const leftArm = getBoneNode('leftUpperArm');
+                const rightArm = getBoneNode('rightUpperArm');
+                const chest = getBoneNode('chest');
+
+                // 자연스러운 idle 애니메이션 (더 강한 움직임)
+                if (head) {
+                    // 머리 살짝 흔들림 (더 강하게)
+                    head.rotation.y = Math.sin(time * 0.3) * 0.1;
+                    head.rotation.z = Math.sin(time * 0.2) * 0.05;
+                }
+
+                if (spine) {
+                    // 몸통 살짝 흔들림 (더 강하게)
+                    spine.rotation.z = Math.sin(time * 0.4) * 0.08;
+                }
+
+                // 호흡 효과 (가슴 부분)
+                if (chest) {
+                    chest.scale.y = 1 + Math.sin(time * 0.8) * 0.02;
+                }
+
+            } catch (e) {
+                console.warn('프로그래밍적 idle 애니메이션 오류:', e);
+            }
+
+            animationId = requestAnimationFrame(animate);
+        };
+
+        console.log('프로그래밍적 idle 애니메이션 시작 (30 FPS로 최적화)');
+        animate();
+
+        // 클린업 함수 반환
+        return () => {
+            console.log('프로그래밍적 idle 애니메이션 정리');
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+        };
+    }, []);
+
+
+
+    // === Idle 모션 로딩 및 적용 ===
+    const loadIdleMotion = useCallback((vrmInstance) => {
+        if (!vrmInstance || !idleAnimationEnabled) return;
+        console.log('Idle 모션 로딩 시작...');
+        // 1. VRM 내장 애니메이션 시도
+        let foundIdle = false;
+        try {
+            if (vrmInstance.animationManager) {
+                const animations = vrmInstance.animationManager.animations;
+                const idleAnim = animations.find(anim =>
+                    anim.name.toLowerCase().includes('idle') ||
+                    anim.name.toLowerCase().includes('stand') ||
+                    anim.name.toLowerCase().includes('breath')
+                );
+                if (idleAnim) {
+                    vrmInstance.animationManager.play(idleAnim.name);
+                    setIdleLoaded(true);
+                    foundIdle = true;
+                }
+            }
+            if (!foundIdle && vrmInstance.expressionManager) {
+                // 표정 애니메이션으로 idle 효과 생성
+                const expressions = vrmInstance.expressionManager.expressions;
+                const clock = clockRef.current;
+                const animateExpressions = () => {
+                    const time = clock.getElapsedTime();
+                    if (expressions.neutral) {
+                        vrmInstance.expressionManager.setValue('neutral', 0.8 + Math.sin(time * 0.5) * 0.1);
+                    }
+                    requestAnimationFrame(animateExpressions);
+                };
+                animateExpressions();
+                setIdleLoaded(true);
+            }
+        } catch (e) {
+            console.warn('VRM 내장 애니메이션 사용 실패:', e);
+        }
+        // 2. 프로그래밍적 idle 모션 항상 활성화
+        setProgrammaticIdle(true);
+    }, [idleAnimationEnabled, idleMotionUrl]);
+
     // VRM 모델 로딩
     useEffect(() => {
         if (!avatarUrl) return;
         setVrm(null);
         setError(null);
+        setIdleLoaded(false);
         const loader = new GLTFLoader();
         loader.register((parser) => new VRMLoaderPlugin(parser));
         loader.load(
@@ -152,24 +290,57 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
                             rightForeArm: !!rightForeArm
                         });
 
-                        // T자 모양에서 팔을 더 많이 내린 상태로 설정
+                        // x, y축은 0, z축만 조정
+                        const ARM_DOWN_Z = Math.PI / 4; // 약 45도
+                        const FOREARM_BEND_Z = Math.PI / 15; // 약 12도
+
+                        // 모든 축을 0으로 (T자 기본 포즈)
                         if (leftArm) {
-                            // 왼팔을 T자에서 더 많이 내리기
-                            leftArm.rotation.set(0, 0, -Math.PI / 3);
-                            console.log('왼팔 포즈 설정 완료 (T자에서 더 내림)');
+                            leftArm.rotation.x = 0;
+                            leftArm.rotation.y = 0;
+                            leftArm.rotation.z = -ARM_DOWN_Z;
                         }
                         if (rightArm) {
-                            // 오른팔을 T자에서 더 많이 내리기
-                            rightArm.rotation.set(0, 0, Math.PI / 3);
-                            console.log('오른팔 포즈 설정 완료 (T자에서 더 내림)');
+                            rightArm.rotation.x = 0;
+                            rightArm.rotation.y = 0;
+                            rightArm.rotation.z = ARM_DOWN_Z;
                         }
                         if (leftForeArm) {
-                            // 왼팔꿈치를 T자에서 더 많이 내리기
-                            leftForeArm.rotation.set(0, 0, -Math.PI / 6);
+                            leftForeArm.rotation.x = 0;
+                            leftForeArm.rotation.y = 0;
+                            leftForeArm.rotation.z = 0;
                         }
                         if (rightForeArm) {
-                            // 오른팔꿈치를 T자에서 더 많이 내리기
-                            rightForeArm.rotation.set(0, 0, Math.PI / 6);
+                            rightForeArm.rotation.x = 0;
+                            rightForeArm.rotation.y = 0;
+                            rightForeArm.rotation.z = 0;
+                        }
+                        // 척추와 가슴을 살짝 앞으로
+                        const spine = getBoneNode('spine');
+                        const chest = getBoneNode('chest');
+                        if (spine) spine.rotation.x = -Math.PI / 60;   // 약 -3도
+                        if (chest) chest.rotation.x = -Math.PI / 80;   // 약 -2도
+
+                        // 어깨 회전 추가
+                        const leftShoulder = getBoneNode('leftShoulder');
+                        const rightShoulder = getBoneNode('rightShoulder');
+
+                        // 어깨는 살짝만 내림
+                        if (leftShoulder) {
+                            leftShoulder.rotation.x = 0;
+                            leftShoulder.rotation.y = 0;
+                            // leftShoulder.rotation.z = 0;
+                            // leftShoulder.rotation.X = -Math.PI / 4; // 약 -10도
+                            // leftShoulder.rotation.Y = -Math.PI / 4; // 약 -10도
+                            leftShoulder.rotation.z = -Math.PI / 8; // 약 -10도
+                        }
+                        if (rightShoulder) {
+                            rightShoulder.rotation.x = 0;
+                            rightShoulder.rotation.y = 0;
+                            // rightShoulder.rotation.z = 0;
+                            // rightShoulder.rotation.X = Math.PI / 4; // 약 10도
+                            // rightShoulder.rotation.Y = Math.PI / 4; // 약 10도
+                            rightShoulder.rotation.z = Math.PI / 8; // 약 10도
                         }
 
                         console.log('포즈 설정 완료');
@@ -201,7 +372,33 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
                 vrmInstance.scene.scale.set(1.2, 1.2, 1.2);
 
                 setVrm(vrmInstance);
-                if (onLoadSuccess) onLoadSuccess();
+                if (onLoadSuccess) onLoadSuccess(vrmInstance);
+
+                // === Idle 모션 로딩 시작 ===
+                loadIdleMotion(vrmInstance);
+
+                // === 정자세(arms down) 포즈 쿼터니언 적용 ===
+                const getBoneNode = (boneName) => {
+                    return vrmInstance.humanoid.getNormalizedBoneNode ?
+                        vrmInstance.humanoid.getNormalizedBoneNode(boneName) :
+                        vrmInstance.humanoid.getBoneNode(boneName);
+                };
+                // === 정자세(arms down) 포즈 쿼터니언 적용 ===
+                const armsDownPose = {
+                    leftUpperArm: { x: -0.1, y: 0.1, z: 0.7, w: 0.7 },
+                    leftLowerArm: { x: 0, y: 0, z: 0, w: 1 },
+                    leftHand: { x: 0, y: 0, z: 0, w: 1 },
+                    rightUpperArm: { x: -0.1, y: -0.1, z: -0.7, w: 0.7 },
+                    rightLowerArm: { x: 0, y: 0, z: 0, w: 1 },
+                    rightHand: { x: 0, y: 0, z: 0, w: 1 }
+                };
+                Object.entries(armsDownPose).forEach(([boneName, quat]) => {
+                    const node = getBoneNode(boneName);
+                    if (node) {
+                        node.quaternion.set(quat.x, quat.y, quat.z, quat.w);
+                    }
+                });
+                vrmInstance.scene.updateMatrixWorld(true);
 
                 console.log('VRM 모델 초기화 완료:', {
                     hasHumanoid: !!vrmInstance.humanoid,
@@ -215,7 +412,45 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
                 if (onLoadError) onLoadError(e);
             }
         );
-    }, [avatarUrl, onLoadSuccess, onLoadError, position]);
+    }, [avatarUrl, onLoadSuccess, onLoadError, position, loadIdleMotion]);
+
+    // === 프로그래밍적 Idle 애니메이션 활성화 ===
+    useEffect(() => {
+        if (programmaticIdle && vrm) {
+            console.log('프로그래밍적 idle 애니메이션 시작');
+            const cleanup = createProgrammaticIdleAnimation(vrm);
+
+            return () => {
+                if (cleanup) cleanup();
+            };
+        }
+    }, [programmaticIdle, vrm, createProgrammaticIdleAnimation]);
+
+    // === Idle 애니메이션 상태 디버깅 ===
+    useEffect(() => {
+        if (programmaticIdle) {
+            console.log('Idle 애니메이션 활성화됨:', {
+                idleLoaded,
+                programmaticIdle,
+                idleAnimationEnabled,
+                vrmExists: !!vrm
+            });
+        }
+    }, [idleLoaded, programmaticIdle, idleAnimationEnabled, vrm]);
+
+    // === 애니메이션 믹서 업데이트 ===
+    useFrame((state, delta) => {
+        if (mixerRef.current) {
+            mixerRef.current.update(delta);
+        }
+
+        if (vrm) {
+            // VRM 업데이트
+            if (vrm.update) {
+                vrm.update(delta);
+            }
+        }
+    });
 
     // 트래킹 서비스 연동
     useEffect(() => {
@@ -573,7 +808,7 @@ function RealisticAvatar3D({
     const [useFallbackAvatar, setUseFallbackAvatar] = useState(false);
 
     // VRM 로딩 성공/실패 콜백 (useCallback으로 안정화)
-    const handleLoadSuccess = useCallback(() => {
+    const handleLoadSuccess = useCallback((vrmInstance) => {
         console.log('VRM 아바타 로딩 성공!');
         setGltfLoaded(true);
         setUseFallbackAvatar(false);

@@ -11,7 +11,7 @@ class Chat(models.Model):
     
     # 기본 정보
     message_type = models.CharField(max_length=10, choices=MESSAGE_TYPE_CHOICES, verbose_name='메시지 타입')
-    content = models.TextField(verbose_name='메시지 내용', db_collation='utf8mb4_unicode_ci')
+    content = models.TextField(verbose_name='메시지 내용')
     timestamp = models.DateTimeField(default=timezone.now, verbose_name='전송 시간')
     
     # 세션 관리 (나중에 사용자별 구분을 위해)

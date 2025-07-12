@@ -1,29 +1,89 @@
-# 1. Python 베이스 이미지
-FROM python:3.11-slim
+# ======================
+# 🔵 1. FRONTEND 빌드 단계
+# ======================
+FROM node:18 AS frontend
 
-# 2. 작업 디렉토리 생성
+WORKDIR /app
+# package.json과 package-lock.json을 모두 복사
+# COPY package.json package-lock.json ./
+COPY hearth_chat_react/package.json hearth_chat_react/package-lock.json ./
+RUN npm install
+
+COPY hearth_chat_react/ ./
+# 메모리 제한 설정으로 빌드 안정성 향상
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+RUN npm run build
+
+# 소스맵 파일 삭제 (Docker 이미지 크기 최적화)
+RUN find /app/build -type f -name "*.map" -delete
+
+RUN ls -la /app/build/ || echo "build directory not found"
+RUN ls -la /app/build/static/ || echo "static directory not found"
+RUN ls -la /app/build/static/js/ || echo "static/js directory not found"
+RUN ls -la /app/build/avatar_vrm/ || echo "avatar_vrm directory not found"
+
+# ======================
+# 🟡 2. BACKEND (Django)
+# ======================
+FROM python:3.11.5-slim
+
+# 시스템 필수 패키지 설치 (pkg-config 추가)
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    pkg-config \
+    default-libmysqlclient-dev \
+    postgresql-client \
+    # Pillow 의존성
+    libjpeg-dev \
+    libpng-dev \
+    libfreetype6-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-# 3. 시스템 패키지 설치 (node, npm, 빌드툴 등)
-RUN apt-get update && apt-get install -y build-essential libpq-dev ffmpeg nodejs npm
+COPY requirements.txt ./
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# 4. 파이썬 패키지 설치
-COPY hearth_chat_django/requirements.txt ./hearth_chat_django/
-RUN pip install --upgrade pip && pip install -r hearth_chat_django/requirements.txt
+# 🔁 프론트 빌드 결과물 복사
+COPY --from=frontend /app/build/ /app/hearth_chat_react/build/
+RUN ls -la /app/hearth_chat_react/build/ || echo "build directory not found"
+RUN ls -la /app/hearth_chat_react/build/static/ || echo "static directory not found"
+RUN ls -la /app/hearth_chat_react/build/static/js/ || echo "static/js directory not found"
 
-# 5. 소스 전체 복사 (여기서 .dockerignore가 적용됨)
-COPY . .
+# 장고 앱 복사 (이후에만 커스텀 커맨드 실행 가능)
+COPY hearth_chat_django/ ./hearth_chat_django/
 
-# 6. React 빌드
-WORKDIR /app/hearth_chat_react
-RUN npm install && npm run build
+# React 빌드 결과물 복사 (이미 있음)
+COPY --from=frontend /app/build/ /app/hearth_chat_react/build/
 
-# 7. Django static 파일 수집
+# 빌드 타임에 collectstatic 실행
+ENV DATABASE_URL=sqlite:///tmp/db.sqlite3
 WORKDIR /app/hearth_chat_django
 RUN python manage.py collectstatic --noinput
 
-# 8. 포트 지정 (Railway는 8000, 8080 등 사용 가능)
-EXPOSE 8000
+# 반드시 장고 앱 복사 이후에 슈퍼유저 자동 생성 (빌드 타임에 실행)
+# RUN python manage.py createinitialsuperuser || echo "Superuser creation skipped during build"
 
-# 9. Daphne로 ASGI 서버 실행
-CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "hearth_chat_django.asgi:application"]
+# 작업 디렉토리를 Django 앱으로 변경
+# WORKDIR /app/hearth_chat_django
+
+# 실행 스크립트 복사
+COPY script/dh.sh /usr/local/bin/dh
+COPY script/rh.sh /usr/local/bin/rh
+COPY script/cs.sh /usr/local/bin/cs
+RUN chmod +x /usr/local/bin/dh /usr/local/bin/rh /usr/local/bin/cs
+
+# start.sh 복사 및 실행 권한 부여
+COPY hearth_chat_django/script/start.sh /usr/local/bin/start.sh
+RUN chmod +x /usr/local/bin/start.sh
+
+# entrypoint.sh 복사 및 실행 권한 부여
+COPY hearth_chat_django/script/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+EXPOSE 8080
+
+# Railway에서 entrypoint.sh가 실행되도록 명시적으로 지정
+ENTRYPOINT ["/entrypoint.sh"]

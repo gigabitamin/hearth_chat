@@ -7,6 +7,7 @@ body,
   margin: 0 !important;
   padding: 0 !important;
   box-sizing: border-box !important;
+  /* overflow: hidden !important; */
 }
 
 .chat-container-with-avatars {
@@ -249,6 +250,10 @@ body,
   /* 50% 불투명 */
 }
 
+.katex-display {
+  margin-bottom: 1.5em !important;
+}
+
 /* Firefox용 */
 .chat-log {
   scrollbar-width: thin;
@@ -267,6 +272,8 @@ body,
   border-radius: 20px;
   max-width: 70%;
   word-wrap: break-word;
+  max-height: 60vh;
+  overflow-y: auto;
 }
 
 .chat-bubble.sent {
@@ -482,19 +489,28 @@ body,
 
 /* 날짜/시간 박스 (채팅 로그용) */
 .chat-date-time-box {
-  color: #888;
-  font-size: 11px;
-  text-align: center;
-  line-height: 1.1;
-  min-width: 36px;
-  max-width: 40px;
+  font-size: 0.85em;
+  color: #b0b0b0;
+  opacity: 0.85;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  height: 100%;
+  flex-direction: row;
+  gap: 2px;
+  margin: 2px 4px 0 4px;
   padding: 0;
-  margin: 0;
+  line-height: 1.2;
+  align-items: flex-end;
+}
+
+/* 사용자 메시지(오른쪽) 날짜/시간 박스: 오른쪽에만 패딩 */
+.chat-bubble.sent+div .chat-date-time-box {
+  padding-right: 8px;
+  padding-left: 0;
+}
+
+/* AI 메시지(왼쪽) 날짜/시간 박스: 왼쪽에만 패딩 */
+.chat-bubble.received+div .chat-date-time-box {
+  padding-left: 8px;
+  padding-right: 0;
 }
 
 .chat-date-time-year,
@@ -613,4 +629,128 @@ body,
   border: none;
   cursor: pointer;
   z-index: 10000;
+}
+
+/* 코드/JSON/차트 카드 스타일 */
+.code-json-card {
+  background: #23272f;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 0;
+  margin: 12px 0;
+  position: relative;
+  overflow-x: auto;
+}
+
+.code-json-card pre {
+  background: transparent;
+  color: #fff;
+  font-family: 'Fira Mono', 'Consolas', 'Menlo', monospace;
+  font-size: 15px;
+  border: none;
+  margin: 0;
+  padding: 18px 16px 16px 16px;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.copy-btn,
+.chart-toggle-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #bbb;
+  transition: color 0.2s;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.copy-btn:hover,
+.chart-toggle-btn:hover {
+  color: #4caf50;
+  background: #333;
+}
+
+.copy-msg {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  color: #4caf50;
+  font-size: 12px;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 2px 8px;
+  border-radius: 4px;
+  z-index: 3;
+}
+
+/* 마크다운/KaTeX 수식, 표가 마크업 문서 안에 포함될 때도 깨지지 않도록 */
+.chat-bubble .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  word-break: break-all;
+  white-space: pre-line;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 1.5em !important;
+}
+
+.chat-bubble .katex {
+  word-break: break-all;
+  max-width: 100%;
+}
+
+.chat-bubble .markdown-table-wrapper {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.chat-bubble .markdown-table-wrapper table {
+  width: 100%;
+  min-width: 400px;
+  border-collapse: collapse;
+}
+
+/* 표 셀 스타일 개선 (선택) */
+.chat-bubble .markdown-table-wrapper th,
+.chat-bubble .markdown-table-wrapper td {
+  border: 1px solid #888;
+  padding: 4px 8px;
+  text-align: center;
+  background: #181c2b;
+  color: #fff;
+}
+
+/* 채팅 버블 자체도 가로 스크롤 방지 */
+.chat-bubble {
+  max-width: 90vw;
+  word-break: break-all;
+  overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+  .chat-input-area {
+    padding-bottom: 24px !important;
+  }
+
+  html,
+  body,
+  #root {
+    height: auto !important;
+    min-height: 100vh !important;
+    overflow-x: hidden !important;
+    /* overflow-y: auto !important; // 필요시 주석 해제 */
+  }
+}
+
+.chat-bubble,
+.katex-display,
+.markdown-table-wrapper {
+  max-width: 100%;
+  overflow-x: auto;
+  box-sizing: border-box;
+  padding-left: 12px;
+  padding-right: 12px;
+  word-break: break-all;
+  white-space: pre-line;
 }

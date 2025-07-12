@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } f
 import './VoiceRecognition.css';
 import speechRecognitionService from '../services/speechRecognitionService';
 
-const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true, continuous = false, onStart, onStop, onAutoSend }, ref) => {
+const VoiceRecognition = forwardRef(({ isTTSSpeaking, onResult, onInterimResult, enabled = true, continuous = false, onStart, onStop, onAutoSend }, ref) => {
     const [isListening, setIsListening] = useState(false);
     const [isSupported, setIsSupported] = useState(false);
     const [currentLanguage, setCurrentLanguage] = useState('ko-KR');
@@ -83,6 +83,8 @@ const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true
     const lastFinalTextRef = useRef('');
     const lastRecognizedTextRef = useRef(''); // 마지막 인식된 텍스트 저장
     const interimTextRef = useRef(''); // 마지막 interim(중간) 텍스트 저장
+    const isSilenceHandledRef = useRef(false); // 침묵 감지 중복 방지
+    const lastSentTextRef = useRef(''); // 마지막 전송된 텍스트
 
     // 외부에서 호출할 수 있는 메서드들
     useImperativeHandle(ref, () => ({
@@ -134,7 +136,7 @@ const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true
         const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
         const minWords = isMobile ? 1 : 2; // 모바일에서는 1단어도 허용
         const minConfidence = isMobile ? 0.3 : 0.6; // 모바일에서는 더 낮은 신뢰도 허용
-        
+
         speechRecognitionService.on('result', (finalText, additionalInfo) => {
             lastFinalTextRef.current = finalText;
             lastRecognizedTextRef.current = finalText; // 항상 최신 텍스트 저장
@@ -149,15 +151,15 @@ const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true
             // 단어 수/신뢰도 기준 적용 (모바일에서는 더 관대하게)
             const wordCount = cleanText.split(/\s+/).length;
             const confidence = additionalInfo?.confidence ?? 1.0;
-            console.log('음성인식 결과 검증:', { 
-                text: cleanText, 
-                wordCount, 
-                confidence, 
-                minWords, 
-                minConfidence, 
-                isMobile 
+            console.log('음성인식 결과 검증:', {
+                text: cleanText,
+                wordCount,
+                confidence,
+                minWords,
+                minConfidence,
+                isMobile
             });
-            
+
             if (wordCount < minWords || confidence < minConfidence) {
                 // 너무 짧거나 신뢰도 낮으면 무시
                 console.log('품질 기준 미달로 무시됨');
@@ -204,7 +206,7 @@ const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true
         setAdvancedSettings(initialSettings);
 
         // 4-1단계: 향상된 기능 이벤트 리스너
-        // 음성 감지 시 타이머 취소
+        // 음성 감지 시 타이머 취소 및 침묵 처리 플래그 초기화
         speechRecognitionService.on('voice-detected', () => {
             setIsVoiceDetected(true);
             setCurrentRecognitionInfo(prev => ({ ...prev, status: '음성 감지됨' }));
@@ -212,6 +214,7 @@ const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true
                 clearTimeout(silenceTimerRef.current);
                 silenceTimerRef.current = null;
             }
+            isSilenceHandledRef.current = false; // 침묵 감지 플래그 초기화
         });
 
         // 침묵 감지 시 타이머 시작
@@ -222,22 +225,19 @@ const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true
             if (silenceTimerRef.current) {
                 clearTimeout(silenceTimerRef.current);
             }
-            // 자동전송 트리거 (interim이 있으면 interim, 아니면 lastRecognized)
+            // 중복 침묵 감지 방지
+            if (isSilenceHandledRef.current) return;
+            isSilenceHandledRef.current = true;
+            // TTS 재생 중에는 침묵 감지 이벤트 자체를 무시
+            if (isTTSSpeaking) return;
             let textToSend = interimTextRef.current && interimTextRef.current.trim() ? interimTextRef.current : lastRecognizedTextRef.current;
+            // 마지막 전송된 문장과 동일하면 무시
+            if (textToSend && textToSend === lastSentTextRef.current) return;
             if (typeof onAutoSend === 'function') {
                 console.log('onAutoSend 호출 (VoiceRecognition.jsx)', textToSend);
                 onAutoSend(textToSend);
+                lastSentTextRef.current = textToSend;
             }
-            silenceTimerRef.current = setTimeout(() => {
-                if (lastFinalTextRef.current && lastFinalTextRef.current.trim()) {
-                    if (onResult) onResult(lastFinalTextRef.current);
-                    lastFinalTextRef.current = '';
-                }
-                speechRecognitionService.stop();
-                setTimeout(() => {
-                    speechRecognitionService.start();
-                }, 200);
-            }, 1000);
         });
 
         speechRecognitionService.on('enhanced-stats', (stats) => {
@@ -271,7 +271,7 @@ const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true
                 clearTimeout(silenceTimerRef.current);
             }
         };
-    }, [onResult, onInterimResult, isListening, continuous, enabled, onStart, onAutoSend]);
+    }, [onResult, onInterimResult, isListening, continuous, enabled, onStart, onAutoSend, isTTSSpeaking]);
 
     // enabled prop이 변경될 때 자동으로 start/stop
     useEffect(() => {
@@ -294,7 +294,7 @@ const VoiceRecognition = forwardRef(({ onResult, onInterimResult, enabled = true
                         setError('음성인식을 시작할 수 없습니다: ' + error.message);
                     }
                 };
-                
+
                 startRecognition();
             } else {
                 // 자동 재시작/연속 옵션 강제 OFF

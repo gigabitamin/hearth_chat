@@ -2,11 +2,47 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import RealisticAvatar3D from './RealisticAvatar3D';
 import EmotionCamera from './EmotionCamera';
 import VoiceRecognition from './VoiceRecognition';
+import LoginModal from './LoginModal';
+import UserMenuModal from './UserMenuModal';
 import ttsService from '../services/ttsService';
 import readyPlayerMeService from '../services/readyPlayerMe';
 import faceTrackingService from '../services/faceTrackingService';
 import './chat_box.css';
 import axios from 'axios';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import remarkGfm from 'remark-gfm';
+import { Line as ChartLine } from 'react-chartjs-2';
+import Prism from 'prismjs';
+import 'prismjs/themes/prism-tomorrow.css';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import InsertChartIcon from '@mui/icons-material/InsertChart';
+import CodeIcon from '@mui/icons-material/Code';
+
+// Chart.js core 등록 필수!
+import {
+  Chart as ChartJS,
+  LineElement,
+  PointElement,
+  CategoryScale,
+  LinearScale,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+
+ChartJS.register(
+  LineElement,
+  PointElement,
+  CategoryScale,
+  LinearScale,
+  Title,
+  Tooltip,
+  Legend
+);
 
 // 모달 컴포넌트 추가
 const Modal = ({ open, onClose, children }) => {
@@ -14,12 +50,75 @@ const Modal = ({ open, onClose, children }) => {
   return (
     <div className="voice-modal-overlay" onClick={onClose}>
       <div className="voice-modal-content" onClick={e => e.stopPropagation()}>
-        <button className="voice-modal-close" onClick={onClose}>닫기</button>
+        <button className="voice-modal-close" onClick={onClose}>❌</button>
         {children}
       </div>
     </div>
   );
 };
+
+// 테스트용 차트 데이터 및 컴포넌트
+// const testChartData = [
+//   { name: '1월', 방문자수: 4000, 매출: 2400, 비용: 2400 },
+//   { name: '2월', 방문자수: 3000, 매출: 1398, 비용: 2210 },
+//   { name: '3월', 방문자수: 2000, 매출: 9800, 비용: 2290 },
+//   { name: '4월', 방문자수: 2780, 매출: 3908, 비용: 2000 },
+//   { name: '5월', 방문자수: 1890, 매출: 4800, 비용: 2181 },
+//   { name: '6월', 방문자수: 2390, 매출: 3800, 비용: 2500 },
+//   { name: '7월', 방문자수: 3490, 매출: 4300, 비용: 2100 }
+// ];
+
+// Chart.js용 데이터 및 옵션
+const chartData = {
+  labels: ['1월', '2월', '3월', '4월', '5월', '6월', '7월'],
+  datasets: [
+    {
+      label: '방문자수',
+      data: [4000, 3000, 2000, 2780, 1890, 2390, 3490],
+      borderColor: '#8884d8',
+      backgroundColor: 'rgba(136,132,216,0.2)',
+      fill: false,
+      tension: 0.3,
+    },
+    {
+      label: '매출',
+      data: [2400, 1398, 9800, 3908, 4800, 3800, 4300],
+      borderColor: '#82ca9d',
+      backgroundColor: 'rgba(130,202,157,0.2)',
+      fill: false,
+      tension: 0.3,
+    },
+    {
+      label: '비용',
+      data: [2400, 2210, 2290, 2000, 2181, 2500, 2100],
+      borderColor: '#ff7300',
+      backgroundColor: 'rgba(255,115,0,0.2)',
+      fill: false,
+      tension: 0.3,
+    },
+  ],
+};
+
+const chartOptions = {
+  responsive: true,
+  plugins: {
+    legend: {
+      position: 'top',
+    },
+    title: {
+      display: true,
+      text: '월별 방문자수/매출/비용',
+    },
+  },
+};
+
+function MyChart() {
+  return (
+    <div style={{ width: '100%', maxWidth: 700, margin: '0 auto', background: '#fff', borderRadius: 12, marginBottom: 16, padding: 16 }}>
+      <ChartLine data={chartData} options={chartOptions} />
+    </div>
+  );
+}
 
 const ChatBox = () => {
   const [messages, setMessages] = useState([]);
@@ -34,8 +133,17 @@ const ChatBox = () => {
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [isRealTimeMode, setIsRealTimeMode] = useState(false);
 
+  // 로그인 모달 상태
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  // 사용자 메뉴 모달 상태
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  // 로그인 사용자 정보
+  const [loginUser, setLoginUser] = useState(null);
+  // 로그인 상태 로딩
+  const [loginLoading, setLoginLoading] = useState(true);
+
   // TTS 관련 상태
-  const [isTTSEnabled, setIsTTSEnabled] = useState(true);
+  const [isTTSEnabled, setIsTTSEnabled] = useState(false);
   const [ttsVoice, setTtsVoice] = useState(null);
   const [ttsRate, setTtsRate] = useState(1.5);
   const [ttsPitch, setTtsPitch] = useState(1.5);
@@ -69,21 +177,16 @@ const ChatBox = () => {
   const [isTrackingReady, setIsTrackingReady] = useState(false);
   const [isTrackingLoading, setIsTrackingLoading] = useState(true);
 
-  // MediaPipe 준비 상태 감시
+  const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
+
+  const [chartViewMap, setChartViewMap] = useState({}); // 메시지별 차트뷰 상태
+
   useEffect(() => {
-    // MediaPipe 초기화 강제 시작
-    if (!faceTrackingService.isReady && !faceTrackingService.isInitializing) {
-      console.log('MediaPipe 초기화 강제 시작...');
-      faceTrackingService.initializeMediaPipe();
-    }
-
-    // 주기적 체크 (상태 표시용)
-    const interval = setInterval(() => {
-      setIsTrackingReady(faceTrackingService.isReady);
-      setIsTrackingLoading(faceTrackingService.isInitializing);
-    }, 2000);
-
-    return () => clearInterval(interval);
+    const handleResize = () => {
+      setViewportHeight(window.innerHeight);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   // 모바일 브라우저에서 실제 보이는 영역의 높이로 --real-vh CSS 변수 설정
@@ -152,6 +255,14 @@ const ChatBox = () => {
     };
   }, []);
 
+  // TTS 상태가 바뀔 때마다 WebSocket 재연결
+  useEffect(() => {
+    if (ws.current) {
+      ws.current.close();
+    }
+    connectWebSocket();
+  }, [isTTSEnabled]);
+
   // 감정 포착 상태 자동 리셋 (3초 후)
   useEffect(() => {
     const resetUserEmotionCapture = setTimeout(() => {
@@ -183,6 +294,8 @@ const ChatBox = () => {
   const [lipSyncInterval, setLipSyncInterval] = useState(null);
   const [lipSyncSequence, setLipSyncSequence] = useState([]);
   const [currentLipSyncIndex, setCurrentLipSyncIndex] = useState(0);
+  // 립싱크 마지막 프레임을 기억
+  const [lastLipSyncValue, setLastLipSyncValue] = useState(0);
 
   // 타이핑 효과 interval ref 추가
   const typingIntervalRef = useRef(null);
@@ -210,7 +323,8 @@ const ChatBox = () => {
       // 타이핑 효과 시작
       if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
       let i = 0;
-      setDisplayedAiText('');
+      // 타이핑 효과 코드 (주석 처리)
+      /*
       typingIntervalRef.current = setInterval(() => {
         setDisplayedAiText(text.slice(0, i + 1));
         i++;
@@ -218,13 +332,30 @@ const ChatBox = () => {
           clearInterval(typingIntervalRef.current);
           typingIntervalRef.current = null;
         }
-      }, 30); // 타이핑 속도 조절
+      }, 30);
+      */
+      // 한 번에 전체 출력
+      setDisplayedAiText(text);
     };
     const handleEnd = (text) => {
       console.log('TTS 종료(이벤트)');
       setIsAiTalking(false);
       setTtsSpeaking(false);
-      setMouthTrigger(0);
+      // 립싱크 애니메이션: 1초간 랜덤 입모양 반복 후 닫기 (일시 비활성화)
+      /*
+      let animCount = 0;
+      const animMax = 10; // 1초(100ms*10)
+      const animInterval = setInterval(() => {
+        // 0(닫힘)~4(최대) 중 랜덤
+        setMouthTrigger(Math.floor(Math.random() * 5));
+        animCount++;
+        if (animCount >= animMax) {
+          clearInterval(animInterval);
+          setMouthTrigger(0); // 마지막엔 닫기
+          setLastLipSyncValue(0);
+        }
+      }, 100);
+      */
       // 타이핑 효과 종료 및 전체 메시지 표시
       if (typingIntervalRef.current) {
         clearInterval(typingIntervalRef.current);
@@ -312,18 +443,20 @@ const ChatBox = () => {
           };
           const triggerValue = mouthShapeValues[currentPhoneme.mouthShape] || 0;
           setMouthTrigger(triggerValue);
-          console.log('립싱크:', currentPhoneme.phoneme, currentPhoneme.mouthShape, triggerValue, '시간:', elapsedTime);
+          setLastLipSyncValue(triggerValue); // 마지막 립싱크 값 저장
+          // console.log('립싱크:', currentPhoneme.phoneme, currentPhoneme.mouthShape, triggerValue, '시간:', elapsedTime);
         } else {
-          // 현재 시간에 해당하는 음소가 없으면 중립
-          setMouthTrigger(0);
+          // 현재 시간에 해당하는 음소가 없으면 마지막 립싱크 값 유지
+          setMouthTrigger(lastLipSyncValue);
         }
 
         // TTS 종료 시점 체크
         if (elapsedTime >= totalDuration) {
           clearInterval(interval);
           setLipSyncInterval(null);
-          setMouthTrigger(0);
-          console.log('[LIP SYNC] 립싱크 종료');
+          // 립싱크가 먼저 끝나도 TTS가 끝날 때까지 마지막 입모양 유지
+          setMouthTrigger(lastLipSyncValue);
+          console.log('[LIP SYNC] 립싱크 종료, 마지막 프레임 유지');
         }
       }, 50); // 50ms 간격으로 더 빠르게 업데이트
 
@@ -333,14 +466,17 @@ const ChatBox = () => {
       };
     } else if (ttsSpeaking) {
       console.log('[LIP SYNC] 기본 립싱크 시작 (fallback)');
-      // 기존 단순 립싱크 (fallback)
       const baseInterval = 200;
       const rateMultiplier = ttsRate || 1.0;
       const lipSyncInterval = Math.max(100, Math.min(400, baseInterval / rateMultiplier));
       console.log('기본 립싱크 간격 설정:', lipSyncInterval, 'ms (TTS 속도:', rateMultiplier, ')');
 
       const interval = setInterval(() => {
-        setMouthTrigger(prev => prev + 1);
+        setMouthTrigger(prev => {
+          const next = prev + 1;
+          setLastLipSyncValue(next);
+          return next;
+        });
       }, lipSyncInterval);
       setLipSyncInterval(interval);
       return () => {
@@ -355,6 +491,25 @@ const ChatBox = () => {
       }
     }
   }, [ttsSpeaking, ttsRate, lipSyncSequence]);
+
+  // LaTeX 수식 렌더링 함수 (원상복구)
+  const renderLatexInText = (text) => {
+    return text || '';
+  };
+
+  // 수식 블록 전처리 함수
+  const preprocessLatexBlocks = (text) => {
+    if (!text) return '';
+    // 코드블록(```latex ... ```, ``` ... ```)을 $$...$$로 변환
+    let processed = text.replace(/```(?:latex)?([\s\S]*?)```/g, (match, p1) => {
+      return `$$${p1.trim()}$$`;
+    });
+    // 따옴표(‘ ’, ", ")로 감싼 수식도 $$...$$로 변환 (너무 짧은 경우는 무시)
+    processed = processed.replace(/[‘'“”"]([\s\S]{5,}?)[’'“”"]/g, (match, p1) => {
+      return `$$${p1.trim()}$$`;
+    });
+    return processed;
+  };
 
   // TTS 서비스 초기화
   const initializeTTSService = () => {
@@ -925,6 +1080,7 @@ const ChatBox = () => {
 
   // 메시지 전송 함수 수정
   const sendMessage = async (text) => {
+    ttsService.stop(); // 메시지 전송 시 TTS 즉시 중단
     const messageText = text !== undefined ? text : input;
     if (!messageText && !attachedImage) return; // 아무것도 없으면 전송X
     let imageUrl = null;
@@ -960,14 +1116,22 @@ const ChatBox = () => {
     setInput('');
     setAttachedImage(null);
     setAttachedImagePreview(null);
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+    }
     // Gemini(백엔드)로 메시지/이미지 전송
     if (ws.current && (messageText || imageUrl)) {
-      ws.current.send(
-        JSON.stringify({
-          message: messageText || '',
-          imageUrl: imageUrl || '',
-        })
-      );
+      if (ws.current.readyState === 1) {
+        ws.current.send(
+          JSON.stringify({
+            message: messageText || '',
+            imageUrl: imageUrl || '',
+          })
+        );
+      } else {
+        alert('서버와의 연결이 아직 완료되지 않았습니다. 잠시 후 다시 시도해 주세요.');
+        console.warn('WebSocket이 아직 OPEN 상태가 아닙니다. 현재 상태:', ws.current.readyState);
+      }
     }
   };
 
@@ -976,8 +1140,13 @@ const ChatBox = () => {
     // 현재 호스트의 IP 주소를 사용하여 WebSocket 연결
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.hostname;
-    const port = '8000'; // Django 백엔드 포트
-    ws.current = new WebSocket(`${protocol}//${host}:${port}/ws/chat/`);
+
+    // 환경에 따라 WebSocket URL 설정
+    const isLocalhost = host === 'localhost' || host === '127.0.0.1' || host === '192.168.44.9';
+    const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}/ws/chat/`;
+
+    console.log('WebSocket 연결 시도:', wsUrl);
+    ws.current = new WebSocket(wsUrl);
 
     ws.current.onopen = () => {
       console.log('WebSocket 연결 성공');
@@ -994,6 +1163,8 @@ const ChatBox = () => {
       // TTS로 AI 메시지 재생
       if (isTTSEnabled) {
         speakAIMessage(data.message);
+      } else {
+        setDisplayedAiText(data.message); // 텍스트만 출력
       }
 
       // AI 감정 반응 시스템 적용
@@ -1015,6 +1186,10 @@ const ChatBox = () => {
 
     ws.current.onclose = () => {
       console.log('WebSocket 연결 종료');
+    };
+
+    ws.current.onerror = (error) => {
+      console.error('WebSocket 연결 오류:', error);
     };
   };
 
@@ -1093,6 +1268,316 @@ const ChatBox = () => {
     return () => window.removeEventListener('keydown', handleEsc);
   }, [viewerImage]);
 
+  // 아바타 on/off 상태 추가
+  const [isUserAvatarOn, setIsUserAvatarOn] = useState(false); // 기본값 off
+  const [isAiAvatarOn, setIsAiAvatarOn] = useState(false); // 기본값 off
+
+  // 수식과 일반 텍스트를 분리 렌더링하는 함수 (katex 직접 사용)
+  const renderMessageWithLatex = (text) => {
+    if (!text) return null;
+    // $$...$$ 블록 수식 분리
+    const blockParts = text.split(/(\$\$[^$]+\$\$)/g);
+    return blockParts.map((part, i) => {
+      if (/^\$\$[^$]+\$\$$/.test(part)) {
+        const math = part.replace(/^\$\$|\$\$$/g, '');
+        return (
+          <div
+            key={i}
+            dangerouslySetInnerHTML={{
+              __html: katex.renderToString(math, { displayMode: true, throwOnError: false }),
+            }}
+          />
+        );
+      } else {
+        // 인라인 수식 분리
+        const inlineParts = part.split(/(\$[^$]+\$)/g);
+        return inlineParts.map((inline, j) => {
+          if (/^\$[^$]+\$/.test(inline)) {
+            const math = inline.replace(/^\$|\$$/g, '');
+            return (
+              <span
+                key={j}
+                dangerouslySetInnerHTML={{
+                  __html: katex.renderToString(math, { displayMode: false, throwOnError: false }),
+                }}
+              />
+            );
+          } else {
+            // 일반 텍스트 (줄바꿈 처리)
+            return inline.split(/\n/g).map((line, k) => (
+              <span key={k}>
+                {line}
+                {k < inline.split(/\n/g).length - 1 && <br />}
+              </span>
+            ));
+          }
+        });
+      }
+    });
+  };
+
+  // 차트 렌더링 함수
+  const renderChartIfData = (text) => {
+    // 차트 렌더링 비활성화 (recharts 제거)
+    return null;
+  };
+
+  // 메시지 블록 파싱 함수
+  function parseMessageBlocks(text) {
+    if (!text || typeof text !== 'string') return [];
+    const blocks = [];
+    let lastIndex = 0;
+    // $$...$$ (블록 수식)
+    const blockMathRegex = /\$\$([\s\S]+?)\$\$/g;
+    // ```json ... ``` (차트 데이터)
+    const chartRegex = /```json\s*([\s\S]+?)```/g;
+    // ```언어 ... ``` (코드블록)
+    const codeBlockRegex = /```(\w+)?\s*([\s\S]+?)```/g;
+
+    // 두 정규식 모두 찾아서 출현 순서대로 분할
+    let match;
+    const matches = [];
+    while ((match = blockMathRegex.exec(text)) !== null) {
+      matches.push({ type: 'math', value: match[1], index: match.index, length: match[0].length });
+    }
+    while ((match = chartRegex.exec(text)) !== null) {
+      matches.push({ type: 'chart', value: match[1], index: match.index, length: match[0].length });
+    }
+    while ((match = codeBlockRegex.exec(text)) !== null) {
+      // chartRegex와 중복되는 부분은 chart로만 처리
+      if (match[1] === 'json') continue;
+      matches.push({ type: 'code', value: match[2], language: match[1] || 'javascript', index: match.index, length: match[0].length });
+    }
+    matches.sort((a, b) => a.index - b.index);
+
+    for (const m of matches) {
+      if (lastIndex < m.index) {
+        blocks.push({ type: 'markdown', value: text.slice(lastIndex, m.index) });
+      }
+      if (m.type === 'code') {
+        blocks.push({ type: 'code', value: m.value || '', language: m.language });
+      } else if (m.type === 'chart') {
+        blocks.push({ type: 'chart', value: m.value || '' });
+      } else if (m.type === 'math') {
+        blocks.push({ type: 'math', value: m.value || '' });
+      }
+      lastIndex = m.index + m.length;
+    }
+    if (lastIndex < text.length) {
+      blocks.push({ type: 'markdown', value: text.slice(lastIndex) });
+    }
+    return blocks;
+  }
+
+  // 차트 렌더링 함수
+  const renderChartBlock = (value, key) => {
+    // 차트 렌더링 비활성화 (recharts 제거)
+    // 차트 데이터 텍스트만 출력
+    return <pre key={key}>{value}</pre>;
+  };
+
+  // 코드/JSON/차트 카드 컴포넌트
+  function CodeJsonChartCard({ code, language, isChartCandidate, isChartView, onToggleChartView }) {
+    const [copyMsg, setCopyMsg] = React.useState('');
+    const [isChartModalOpen, setIsChartModalOpen] = React.useState(false);
+
+    // 차트 변환 함수
+    function convertToChartData(data) {
+      // Chart.js 형식 데이터인지 확인 (labels와 datasets가 있는 경우)
+      if (data.labels && data.datasets && Array.isArray(data.labels) && Array.isArray(data.datasets)) {
+        return data; // 이미 Chart.js 형식이면 그대로 반환
+      }
+
+      // 기존 형식: 배열 형태의 데이터
+      if (Array.isArray(data) && data.length > 0) {
+      const labels = data.map(item => item.name);
+      const keys = Object.keys(data[0]).filter(key => key !== 'name');
+      const colorList = ['#FFD600', '#00E5FF', '#76FF03', '#FF4081', '#FFFFFF'];
+      const datasets = keys.map((key, idx) => ({
+        label: key,
+        data: data.map(item => item[key]),
+        borderColor: colorList[idx % colorList.length],
+        backgroundColor: colorList[idx % colorList.length] + '80',
+        pointBackgroundColor: colorList[idx % colorList.length],
+        borderWidth: 3,
+        pointRadius: 4,
+        tension: 0.3,
+        fill: false,
+      }));
+      return { labels, datasets };
+      }
+
+      return null;
+    }
+
+    let chartData = null;
+    let isJson = false;
+    try {
+      const parsed = typeof code === 'string' ? JSON.parse(code) : code;
+      // Chart.js 형식 또는 기존 배열 형식 모두 감지
+      if ((parsed.labels && parsed.datasets) || (Array.isArray(parsed) && parsed[0]?.name)) {
+        isJson = true;
+        chartData = convertToChartData(parsed);
+        console.log('Chart detection:', { isChartCandidate, isJson, chartData, parsed });
+      }
+    } catch (e) {
+      console.log('JSON parse error:', e);
+    }
+
+    // JSON 파싱이 성공하고 차트 데이터가 있으면 차트 후보로 인식
+    if (isJson && chartData) {
+      console.log('Chart candidate detected!');
+    }
+
+    // 차트 옵션: 어두운 배경에서 잘 보이도록 색상 지정
+    const chartOptions = {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: { color: '#fff' },
+        },
+        title: {
+          display: false,
+          color: '#fff',
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: '#fff' },
+          grid: { color: 'rgba(255,255,255,0.1)' },
+        },
+        y: {
+          ticks: { color: '#fff' },
+          grid: { color: 'rgba(255,255,255,0.1)' },
+        },
+      },
+    };
+
+    // 클립보드 복사
+    const handleCopy = () => {
+      navigator.clipboard.writeText(code);
+      setCopyMsg('복사됨!');
+      setTimeout(() => setCopyMsg(''), 1000);
+    };
+
+    // 차트 모달 닫기
+    const closeModal = () => setIsChartModalOpen(false);
+
+    return (
+      <div className="code-json-card" style={{ position: 'relative', margin: '12px 0' }}>
+        <button
+          className="copy-btn"
+          style={{ position: 'absolute', top: 8, right: (isChartCandidate || (isJson && chartData)) ? 40 : 8, zIndex: 2 }}
+          onClick={handleCopy}
+          title="클립보드 복사"
+        >
+          <ContentCopyIcon fontSize="small" />
+        </button>
+        {(isChartCandidate || (isJson && chartData)) && (
+          <button
+            className="chart-toggle-btn"
+            style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}
+            onClick={onToggleChartView}
+            title={isChartView ? '코드로 보기' : '차트로 보기'}
+          >
+            {isChartView ? <CodeIcon fontSize="small" /> : <InsertChartIcon fontSize="small" />}
+          </button>
+        )}
+        {(isChartCandidate || (isJson && chartData)) && isChartView && chartData ? (
+          <div onClick={() => setIsChartModalOpen(true)} style={{ cursor: 'zoom-in' }}>
+            <ChartLine data={chartData} options={chartOptions} />
+          </div>
+        ) : (
+          <pre style={{ background: '#222', color: '#fff', borderRadius: 6, padding: 12, overflowX: 'auto', margin: 0 }}
+            dangerouslySetInnerHTML={{
+              __html: Prism.highlight(code, Prism.languages[language] || Prism.languages.javascript, language)
+            }}
+          />
+        )}
+        {copyMsg && <span className="copy-msg" style={{ position: 'absolute', top: 8, left: 8, color: '#4caf50', fontSize: 12 }}>{copyMsg}</span>}
+        {/* 차트 확대 모달 */}
+        {isChartModalOpen && (
+          <div className="chart-modal-overlay" onClick={closeModal} style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="chart-modal-content" onClick={e => e.stopPropagation()} style={{ background: '#23272f', borderRadius: 16, padding: 32, maxWidth: '90vw', maxHeight: '90vh', boxShadow: '0 4px 24px rgba(0,0,0,0.3)' }}>
+              <button onClick={closeModal} style={{ position: 'absolute', top: 24, right: 32, background: 'none', border: 'none', color: '#fff', fontSize: 28, cursor: 'pointer', zIndex: 10000 }}>✖</button>
+              <div style={{ width: '80vw', height: '60vh', minWidth: 320, minHeight: 240 }}>
+                <ChartLine data={chartData} options={chartOptions} />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // 메시지 배열 최대 길이 제한 (예: 100개)
+  useEffect(() => {
+    if (messages.length > 100) {
+      setMessages(msgs => msgs.slice(msgs.length - 100));
+    }
+  }, [messages]);
+
+  // 코드블록 뒤에 빈 줄 2개를 자동으로 추가하는 전처리 함수
+  function ensureDoubleNewlineAfterCodeBlocks(text) {
+    if (!text || typeof text !== 'string') return text;
+    // 코드블록 뒤에 이미 빈 줄 2개가 있지 않으면 추가
+    return text.replace(/(```[\s\S]*?```)(?!\n\n)/g, '$1\n\n');
+  }
+
+  // latex 코드블록 안의 $$ ... $$ 수식을 추출해 수식 블록으로 변환하는 전처리 함수
+  function extractLatexBlocks(text) {
+    if (!text || typeof text !== 'string') return text;
+    // latex 코드블록을 찾아서
+    return text.replace(/```latex\s*([\s\S]*?)```/g, (match, p1) => {
+      // $$ ... $$로 감싸진 부분만 추출
+      const latexBlocks = p1.match(/\$\$[\s\S]*?\$\$/g);
+      if (latexBlocks) {
+        // 여러 개의 $$ ... $$가 있을 수 있으니 모두 합쳐서 반환
+        return latexBlocks.join('\n\n');
+      }
+      // $$ ... $$가 없으면 원래 코드블록 유지
+      return match;
+    });
+  }
+
+  // 클립보드에서 이미지 붙여넣기 핸들러
+  const handlePaste = (e) => {
+    if (!e.clipboardData) return;
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) {
+          setAttachedImage(file);
+          setAttachedImagePreview(URL.createObjectURL(file));
+          e.preventDefault();
+          break;
+        }
+      }
+    }
+  };
+
+  const isTTSEnabledRef = useRef(isTTSEnabled);
+  useEffect(() => {
+    isTTSEnabledRef.current = isTTSEnabled;
+  }, [isTTSEnabled]);
+
+  // 로그인 상태 확인
+  useEffect(() => {
+    fetch('/chat/api/user/', { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success') {
+          setLoginUser(data.user);
+        } else {
+          setLoginUser(null);
+        }
+      })
+      .catch(() => setLoginUser(null))
+      .finally(() => setLoginLoading(false));
+  }, []);
 
   return (
     <>
@@ -1109,32 +1594,110 @@ const ChatBox = () => {
           <div className="chat-title">
             Hearth <span role="img" aria-label="fire">🔥</span> Chat
           </div>
+          {/* 버튼 렌더링 부분(마이크, 카메라, 트래킹, 아바타 토글) */}
           <div className="header-btn-group">
             <button
               onClick={() => setIsVoiceMenuOpen(true)}
               className={`voice-menu-btn-header${isVoiceMenuOpen ? ' active' : ''}`}
             >
-              🎤음성
+              🎤
             </button>
-            {/* 상단 버튼들 - 카메라 버튼만 복구 (주석처리) */}
+            {/* AI 아바타 토글 */}
+            <button className="icon-btn" onClick={() => setIsAiAvatarOn(v => !v)} title="AI 아바타 토글">
+              <span role="img" aria-label="ai-avatar" style={{ opacity: isAiAvatarOn ? 1 : 0.3 }}>🤖</span>
+            </button>
+            {/* 사용자 아바타 토글 + 트래킹 통합 */}
+            <button className="icon-btn" onClick={async () => {
+              setIsUserAvatarOn(v => {
+                const next = !v;
+                setIsTrackingEnabled(next);
+                if (next) {
+                  // 트래킹 서비스 시작
+                  faceTrackingService.startCamera();
+                } else {
+                  // 트래킹 서비스 중지
+                  faceTrackingService.stopCamera();
+                }
+                return next;
+              });
+            }} title="사용자 아바타/트래킹 토글">
+              <span role="img" aria-label="user-avatar" style={{ opacity: isUserAvatarOn ? 1 : 0.3 }}>👤</span>
+            </button>
+            {/* 카메라 버튼 */}
             <button
               onClick={toggleCamera}
               className={`camera-btn-header${isCameraActive ? ' active' : ''}`}
             >
-              📷카메라
+              📷
             </button>
-            <button
-              onClick={toggleTracking}
-              className={`tracking-btn-header${isTrackingEnabled ? ' active' : ''}`}
-            >
-              👀트래킹
-            </button>
+            {/* 로그인/내 계정 버튼 - 오른쪽 끝 */}
+            {loginLoading ? null : loginUser ? (
+              <button
+                onClick={() => setIsUserMenuOpen(true)}
+                className="login-btn-header"
+                style={{
+                  marginLeft: 12,
+                  background: 'rgba(255,255,255,0.12)',
+                  border: 'none',
+                  borderRadius: 4,
+                  padding: '6px 12px',
+                  color: '#fff',
+                  fontWeight: 'bold',
+                  fontSize: 18,
+                  display: 'flex',
+                  alignItems: 'center',
+                  textDecoration: 'none',
+                  cursor: 'pointer',
+                }}
+                title="내 계정"
+              >
+                <span role="img" aria-label="user" style={{ marginRight: 6 }}>👤</span>
+                {loginUser.username || '내 계정'}
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsLoginModalOpen(true)}
+                className="login-btn-header"
+                style={{
+                  marginLeft: 12,
+                  background: 'rgba(255,255,255,0.12)',
+                  border: 'none',
+                  borderRadius: 4,
+                  padding: '6px 12px',
+                  color: '#fff',
+                  fontWeight: 'bold',
+                  fontSize: 18,
+                  display: 'flex',
+                  alignItems: 'center',
+                  textDecoration: 'none',
+                  cursor: 'pointer',
+                }}
+                title="로그인"
+              >
+                <span role="img" aria-label="login" style={{ marginRight: 6 }}>🔑</span>
+              </button>
+            )}
           </div>
         </div>
-        {/* 아바타들을 위쪽에 좌우로 배치 */}
-        <div className="avatar-container">
-          {/* 왼쪽: AI 아바타 */}
-          <div className="avatar-section">
+        {/* 차트 렌더링 */}
+        {/* <MyChart /> */}
+        {/* 아바타/카메라를 항상 렌더링하고, style로만 분할/숨김/오버레이 처리 */}
+        <div
+          className="avatar-container"
+          style={{
+            display: (!isCameraActive && !isAiAvatarOn && !isUserAvatarOn) ? 'none' : 'flex',
+            flexDirection: 'row',
+            width: '100%',
+            height: (!isCameraActive && !isAiAvatarOn && !isUserAvatarOn) ? 0 : '50%',
+            margin: 0,
+            padding: 0,
+            position: 'relative',
+            minHeight: 0,
+            minWidth: 0,
+          }}
+        >
+          {/* AI 아바타 */}
+          <div style={getAiAvatarStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn)}>
             <RealisticAvatar3D
               avatarUrl={aiAvatar}
               isTalking={isAiTalking}
@@ -1146,38 +1709,43 @@ const ChatBox = () => {
               emotionCaptureStatus={emotionCaptureStatus.ai}
             />
           </div>
-          {/* 오른쪽: 사용자 아바타 (카메라/트래킹 연동) */}
-          <div className="avatar-section">
-            {isCameraActive ? (
-              <EmotionCamera
-                isActive={isCameraActive}
-                emotion={cameraEmotion}
-                setEmotion={setCameraEmotion}
-                setEmotionDisplay={setEmotionDisplay}
-                setEmotionCaptureStatus={setEmotionCaptureStatus}
-                enableTracking={isTrackingEnabled}
-                userAvatar={userAvatar}
-                userEmotion={userEmotion}
-                isUserTalking={isUserTalking}
-                mouthTrigger={mouthTrigger}
-                emotionCaptureStatus={emotionCaptureStatus.user}
-              />
-            ) : (
-              <RealisticAvatar3D
-                avatarUrl={userAvatar}
-                isTalking={isUserTalking}
-                emotion={userEmotion}
-                position="right"
-                size="100%"
-                showEmotionIndicator={true}
-                emotionCaptureStatus={emotionCaptureStatus.user}
-                enableTracking={isTrackingEnabled}
-              />
-            )}
+          {/* 사용자 아바타 */}
+          <div style={getUserAvatarStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn)}>
+            <RealisticAvatar3D
+              avatarUrl={userAvatar}
+              isTalking={isUserTalking}
+              emotion={userEmotion}
+              position="right"
+              size="100%"
+              showEmotionIndicator={true}
+              emotionCaptureStatus={emotionCaptureStatus.user}
+              enableTracking={isTrackingEnabled}
+            />
+          </div>
+          {/* 카메라 */}
+          <div style={getCameraStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn)}>
+            <EmotionCamera
+              isActive={isCameraActive}
+              userAvatar={userAvatar}
+              userEmotion={userEmotion}
+              isUserTalking={isUserTalking}
+              mouthTrigger={mouthTrigger}
+              emotionCaptureStatus={emotionCaptureStatus.user}
+              enableTracking={isUserAvatarOn}
+              showAvatarOverlay={isCameraActive && isUserAvatarOn}
+            />
           </div>
         </div>
-        {/* 채팅창 (아래쪽), paddingBottom:28 */}
-        <div className="chat-section">
+        {/* 채팅창 (아래쪽), avatar-container가 없으면 전체를 차지 */}
+        <div
+          className="chat-section"
+          style={{
+            height: `${viewportHeight}px`,
+            margin: 0,
+            padding: 0,
+            width: '100%'
+          }}
+        >
           <div className="chat-container">
             <div className="chat-log" ref={chatScrollRef}>
               {messages.map((msg, idx) => {
@@ -1199,26 +1767,112 @@ const ChatBox = () => {
                 return (
                   <div
                     key={idx}
-                    style={{ display: 'flex', flexDirection: msg.type === 'send' ? 'row-reverse' : 'row', alignItems: 'center' }}
+                    style={{
+                      display: 'flex',
+                      flexDirection: msg.type === 'send' ? 'row-reverse' : 'row',
+                      alignItems: 'flex-end',
+                      width: '100%',
+                      justifyContent: msg.type === 'send' ? 'flex-end' : 'flex-start',
+                    }}
                   >
-                    {dateTimeBox}
+                    {/* 사용자/AI 메시지 버블+날짜 영역 */}
                     <div
-                      className={`chat-bubble ${msg.type === 'send' ? 'sent' : 'received'}`}
-                      style={{ marginRight: msg.type === 'send' ? 8 : 0, marginLeft: msg.type === 'send' ? 0 : 8 }}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: msg.type === 'send' ? 'flex-end' : 'flex-start',
+                        height: '100%',
+                        maxWidth: '80vw',
+                        minWidth: 0,
+                        width: '80%',
+                        marginLeft: msg.type === 'send' ? 'auto' : 0,
+                        marginRight: msg.type === 'send' ? 0 : 'auto',
+                      }}
                     >
-                      {/* 이미지+텍스트 조합 출력 */}
-                      {msg.imageUrl && (
-                        <img
-                          src={msg.imageUrl}
-                          alt="첨부 이미지"
-                          className="attached-image-thumb"
-                          style={{ cursor: 'pointer' }}
-                          onClick={() => setViewerImage(msg.imageUrl)}
-                        />
-                      )}
-                      {msg.text && (
-                        <div>{msg.type === 'recv' && idx === messages.length - 1 && isAiTalking ? displayedAiText : msg.text}</div>
-                      )}
+                      <div
+                        className={`chat-bubble ${msg.type === 'send' ? 'sent' : 'received'}`}
+                        style={{ marginRight: msg.type === 'send' ? 8 : 0, marginLeft: msg.type === 'send' ? 0 : 8 }}
+                      >
+                        {/* 이미지+텍스트 조합 출력 */}
+                        {msg.imageUrl && (
+                          <img
+                            src={msg.imageUrl}
+                            alt="첨부 이미지"
+                            className="attached-image-thumb"
+                            style={{ cursor: 'pointer' }}
+                            onClick={() => setViewerImage(msg.imageUrl)}
+                          />
+                        )}
+                        {msg.text && parseMessageBlocks(
+                          msg.type === 'recv' && idx === messages.length - 1 && isAiTalking
+                            ? ensureDoubleNewlineAfterCodeBlocks(extractLatexBlocks(displayedAiText))
+                            : ensureDoubleNewlineAfterCodeBlocks(extractLatexBlocks(msg.text))
+                        ).map((block, i) => {
+                          if (!block || !block.type) return null;
+                          const chartKey = `${idx}_${i}`;
+                          if (block.type === 'math') {
+                            return (
+                              <span key={i} dangerouslySetInnerHTML={{ __html: katex.renderToString(block.value || '', { throwOnError: false }) }} />
+                            );
+                          } else if (block.type === 'chart') {
+                            return (
+                              <CodeJsonChartCard
+                                key={i}
+                                code={block.value || ''}
+                                language="json"
+                                isChartCandidate={true}
+                                isChartView={!!chartViewMap[chartKey]}
+                                onToggleChartView={() => setChartViewMap(prev => ({ ...prev, [chartKey]: !prev[chartKey] }))}
+                              />
+                            );
+                          } else if (block.type === 'code') {
+                            return (
+                              <CodeJsonChartCard
+                                key={i}
+                                code={block.value || ''}
+                                language={block.language}
+                                isChartCandidate={block.language === 'json'}
+                                isChartView={!!chartViewMap[chartKey]}
+                                onToggleChartView={() => setChartViewMap(prev => ({ ...prev, [chartKey]: !prev[chartKey] }))}
+                              />
+                            );
+                          } else if (block.type === 'markdown') {
+                            return (
+                              <ReactMarkdown
+                                key={i}
+                                children={block.value || ''}
+                                remarkPlugins={[remarkMath, remarkGfm]}
+                                rehypePlugins={[rehypeKatex]}
+                                components={{
+                                  code({ node, inline, className, children, ...props }) {
+                                    return (
+                                      <code className={className} {...props} style={{ background: '#222', color: '#fff', borderRadius: 4, padding: '2px 6px' }}>
+                                        {children}
+                                      </code>
+                                    );
+                                  },
+                                  table({ node, ...props }) {
+                                    return (
+                                      <div className="markdown-table-wrapper">
+                                        <table {...props} />
+                                      </div>
+                                    );
+                                  },
+                                }}
+                              />
+                            );
+                          }
+                          return null;
+                        })}
+                      </div>
+                      {/* 날짜 박스는 버블 하단, 같은 라인 오른쪽/왼쪽에 위치 */}
+                      <div style={{ display: 'flex', flexDirection: 'row', justifyContent: msg.type === 'send' ? 'flex-end' : 'flex-start', width: '100%' }}>
+                        {msg.type === 'send' ? (
+                          <div style={{ marginLeft: 'auto' }}>{dateTimeBox}</div>
+                        ) : (
+                          <div style={{ marginRight: 'auto' }}>{dateTimeBox}</div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -1261,6 +1915,7 @@ const ChatBox = () => {
                       e.target.style.height = 'auto';
                       e.target.style.height = e.target.scrollHeight + 'px';
                     }}
+                    onPaste={handlePaste}
                     className="input-flex chat-textarea"
                     rows={1}
                   />
@@ -1399,9 +2054,54 @@ const ChatBox = () => {
             />
           </div>
         </Modal>
+        {/* 로그인 모달 */}
+        <LoginModal
+          isOpen={isLoginModalOpen}
+          onClose={() => setIsLoginModalOpen(false)}
+        />
+        {/* 사용자 메뉴 모달 */}
+        <UserMenuModal
+          isOpen={isUserMenuOpen}
+          onClose={() => setIsUserMenuOpen(false)}
+        />
       </div>
     </>
   );
 };
 
 export default ChatBox;
+
+function getAiAvatarStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn) {
+  // AI 아바타가 꺼져있으면 숨김
+  if (!isAiAvatarOn) return { display: 'none' };
+  // AI+사용자+카메라: 50% 분할
+  if (isCameraActive && isUserAvatarOn) return { flex: 1, width: '50%', height: '100%', transition: 'all 0.3s' };
+  // AI+카메라: 50% 분할
+  if (isCameraActive) return { flex: 1, width: '50%', height: '100%', transition: 'all 0.3s' };
+  // AI+사용자: 50% 분할
+  if (isUserAvatarOn) return { flex: 1, width: '50%', height: '100%', transition: 'all 0.3s' };
+  // AI만: 전체
+  return { flex: 1, width: '100%', height: '100%', transition: 'all 0.3s' };
+}
+function getUserAvatarStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn) {
+  if (!isUserAvatarOn) return { display: 'none' };
+  // AI+사용자+카메라: width 0, opacity 0 등으로 숨김(완전 unmount 대신)
+  if (isCameraActive && isAiAvatarOn) return { width: 0, opacity: 0, pointerEvents: 'none', transition: 'all 0.3s' };
+  // AI+사용자: 50% 분할
+  if (isAiAvatarOn) return { flex: 1, width: '50%', height: '100%', transition: 'all 0.3s' };
+  // 카메라+사용자: width 0, opacity 0 등으로 숨김
+  if (isCameraActive) return { width: 0, opacity: 0, pointerEvents: 'none', transition: 'all 0.3s' };
+  // 사용자만: 전체
+  return { flex: 1, width: '100%', height: '100%', transition: 'all 0.3s' };
+}
+function getCameraStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn) {
+  if (!isCameraActive) return { display: 'none' };
+  // AI+카메라: 50% 분할
+  if (isAiAvatarOn && !isUserAvatarOn) return { flex: 1, width: '50%', height: '100%', transition: 'all 0.3s' };
+  // AI+사용자+카메라: 50% 분할(오버레이)
+  if (isAiAvatarOn && isUserAvatarOn) return { flex: 1, width: '50%', height: '100%', transition: 'all 0.3s', position: 'relative', zIndex: 2 };
+  // 카메라+사용자: 전체(오버레이)
+  if (isUserAvatarOn) return { flex: 1, width: '100%', height: '100%', transition: 'all 0.3s', position: 'relative', zIndex: 2 };
+  // 카메라만: 전체
+  return { flex: 1, width: '100%', height: '100%', transition: 'all 0.3s' };
+}

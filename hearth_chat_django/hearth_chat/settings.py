@@ -13,29 +13,164 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import os
 from dotenv import load_dotenv
-import db_settings
+import dj_database_url
+import sys
 
 load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# MySQL 커스텀 백엔드를 위한 sys.path 추가
+import sys
+sys.path.append(os.path.join(BASE_DIR, 'chat'))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-# SECRET_KEY = "django-insecure-&y=mhcf4s2r17atnzv5%g&1ey=iy_e%nw(wl+l*kc=^7-5s*)e"
-SECRET_KEY = db_settings.SECRET_KEY
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "your-default-secret-key")
+DEBUG = os.environ.get("DEBUG", "False") == "True"
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Railway 배포 시 디버깅을 위해 임시로 DEBUG 활성화
+if os.environ.get("RAILWAY_ENVIRONMENT"):
+    DEBUG = True
+    print("Railway environment detected - DEBUG mode enabled")
 
-ALLOWED_HOSTS = db_settings.ALLOWED_HOSTS
+# ALLOWED_HOSTS 설정 개선
+ALLOWED_HOSTS = [
+    "*",  # 개발/테스트용 전체 허용
+    "localhost",
+    "127.0.0.1",
+    "[::1]",
+    "192.168.44.9",
+    "192.168.0.0/16",  # 192.168.*.* 전체 허용
+]
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:8000',
+    'http://localhost:3000',
+    'http://127.0.0.1:8000',
+    'http://127.0.0.1:3000',    
+    'http://192.168.44.9:8000',
+    'http://192.168.44.9:3000',    
+    'https://hearthchat-production.up.railway.app',
+]
 
+
+# Railway 환경에서 추가 설정
+if os.environ.get("RAILWAY_ENVIRONMENT"):
+    # 헬스체크를 위한 추가 설정
+    SECURE_SSL_REDIRECT = False
+    SECURE_PROXY_SSL_HEADER = None
+    print("Railway environment - SSL settings configured")
+    
+    # Railway 환경에서 CORS 완전 해제
+    CORS_ALLOW_ALL_ORIGINS = True
+    print("Railway environment - CORS_ALLOW_ALL_ORIGINS enabled")
+    
+    # Railway 환경에서 모든 요청 허용
+    SECURE_CONTENT_TYPE_NOSNIFF = False
+    SECURE_BROWSER_XSS_FILTER = False
+    X_FRAME_OPTIONS = 'ALLOWALL'
+    print("Railway environment - Security headers relaxed")
+
+    # 세션/CSRF 쿠키 설정 수정 (도메인 제거, SameSite만 설정)
+    SESSION_COOKIE_SAMESITE = "None"
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SAMESITE = "None"
+    CSRF_COOKIE_SECURE = True
+    # 도메인 설정 제거 (Railway에서 자동으로 설정됨)
+    # SESSION_COOKIE_DOMAIN = ".hearthchat-production.up.railway.app"
+    # CSRF_COOKIE_DOMAIN = ".hearthchat-production.up.railway.app"
+else:
+    # 로컬 개발 환경 (http)
+    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SAMESITE = "Lax"
+    CSRF_COOKIE_SECURE = False
+
+# Database
+# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+
+# MySQL 커스텀 백엔드 추가
+import sys
+
+DATABASES = {
+    "default": dj_database_url.config(
+        conn_max_age=600, 
+        ssl_require=False
+    )
+}
+
+# Railway 환경에서 PostgreSQL SSL 설정 추가
+if os.environ.get("RAILWAY_ENVIRONMENT") and DATABASES["default"].get("ENGINE", "").endswith("postgresql"):
+    DATABASES["default"]["OPTIONS"] = {
+        'sslmode': 'require'
+}
+
+# 로컬 MySQL 환경에서만 utf8mb4 옵션 적용 (PostgreSQL 등에서는 절대 실행되지 않도록 보장)
+print("DATABASE ENGINE:", DATABASES["default"].get("ENGINE", "<None>"))
+
+# PostgreSQL 환경에서는 MySQL 설정을 절대 적용하지 않음
+if (
+    DATABASES["default"].get("ENGINE", "") == "django.db.backends.mysql"
+    and not os.environ.get("RAILWAY_ENVIRONMENT")
+    and "postgresql" not in DATABASES["default"].get("ENGINE", "").lower()
+    and DATABASES["default"].get("ENGINE", "") != "django.db.backends.postgresql"
+):
+    try:
+        DATABASES["default"]["OPTIONS"] = {
+            "charset": os.environ.get("LOCAL_MYSQL_CHARSET", "utf8mb4"),
+            "init_command": os.environ.get(
+                "LOCAL_MYSQL_INIT_COMMAND",
+                "SET character_set_connection=utf8mb4; SET collation_connection=utf8mb4_unicode_ci;"
+            ),
+        }
+        print("로컬 MySQL utf8mb4 옵션 적용 완료!")
+    except Exception as e:
+        print(f"MySQL 설정 오류 (무시됨): {e}")
+else:
+    print("MySQL 전용 옵션은 적용되지 않음 (PostgreSQL 또는 Railway 환경)")
+
+if not DATABASES["default"].get("ENGINE"):
+    raise Exception("DATABASE_URL 환경변수 또는 ENGINE 설정이 잘못되었습니다. Railway Variables에서 DATABASE_URL을 확인하세요.")
+
+# Gemini API 키
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+
+# CORS
+CORS_ALLOW_ALL_ORIGINS = False  # 운영 환경에서는 False가 안전
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = [
+    origin for origin in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
+    if origin and "://" in origin
+]
+if not CORS_ALLOWED_ORIGINS:
+    CORS_ALLOWED_ORIGINS = [
+        "https://hearthchat-production.up.railway.app",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://192.168.44.9:3000",
+        "http://192.168.44.9:8000",
+    ]
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^http://192\.168\.[0-9]+\.[0-9]+(:[0-9]+)?$",  # 192.168.*.*:포트 전체 허용
+]
+
+# Railway 헬스체크를 위한 추가 설정
+CORS_ALLOWED_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
 
 # Application definition
-
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -46,7 +181,132 @@ INSTALLED_APPS = [
     'chat',
     'channels',
     'corsheaders',
+    # allauth 관련 앱
+    'django.contrib.sites',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+    'allauth.socialaccount.providers.kakao',
+    'allauth.socialaccount.providers.naver',
+    'allauth.socialaccount.providers.github',
+    # hearth_chat 앱 (SocialApp 자동 생성을 위해)
+    'hearth_chat.apps.HearthChatConfig',
 ]
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+
+SITE_ID = 2 # 소셜 로그인 설정을 위한 필수 설정 (1: railway, 2: 로컬)
+
+# Railway 환경에서 Site 객체가 없을 때를 대비한 동적 SITE_ID 설정
+if os.environ.get("RAILWAY_ENVIRONMENT"):
+    # Railway 환경에서는 항상 SITE_ID = 1 사용
+    SITE_ID = 1
+    print(f"Railway 환경 - SITE_ID 강제 설정: {SITE_ID}")
+    
+    try:
+        from django.contrib.sites.models import Site
+        # Site 객체가 있으면 그 ID를 사용, 없으면 1 사용
+        site = Site.objects.first()
+        if site:
+            print(f"Railway 환경 - 기존 Site 발견: {site.domain}")
+        else:
+            print("Railway 환경 - Site 객체가 없음, SITE_ID=1 사용")
+    except Exception as e:
+        print(f"Site 객체 확인 중 오류 (무시됨): {e}")
+    
+    # Site 객체가 없을 때 Django Admin 접속을 위한 패치
+    try:
+        from django.contrib.sites.models import Site
+        from django.contrib.sites.shortcuts import get_current_site
+        
+        # 기존 get_current_site 함수를 완전히 오버라이드
+        def patched_get_current_site(request):
+            try:
+                # 기존 방식으로 시도
+                return Site.objects.get_current(request)
+            except Site.DoesNotExist:
+                # Site 객체가 없으면 자동으로 생성
+                site, created = Site.objects.get_or_create(
+                    id=1,
+                    defaults={
+                        'domain': 'hearthchat-production.up.railway.app',
+                        'name': 'HearthChat Production'
+                    }
+                )
+                print(f"Site 객체 자동 생성: {site.domain}")
+                return site
+        
+        # 패치 적용
+        import django.contrib.sites.shortcuts
+        django.contrib.sites.shortcuts.get_current_site = patched_get_current_site
+        
+        # Site.objects.get_current도 패치
+        def patched_get_current(self, request=None):
+            try:
+                return self.get(pk=SITE_ID)
+            except Site.DoesNotExist:
+                site, created = Site.objects.get_or_create(
+                    id=SITE_ID,
+                    defaults={
+                        'domain': 'hearthchat-production.up.railway.app',
+                        'name': 'HearthChat Production'
+                    }
+                )
+                print(f"Site.objects.get_current 패치 - Site 생성: {site.domain}")
+                return site
+        
+        # Site manager의 get_current 메서드 패치
+        from django.contrib.sites.models import SiteManager
+        SiteManager.get_current = patched_get_current
+        
+        print("Railway 환경 - Site 객체 자동 생성 패치 완전 적용됨")
+    except Exception as e:
+        print(f"Site 패치 적용 중 오류 (무시됨): {e}")
+    
+    # Django Admin 접속을 위한 추가 설정
+    # allauth에서 Site 객체를 사용하지 않도록 임시 설정
+    ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'https'
+    SOCIALACCOUNT_PROVIDERS = {
+        'google': {
+            'SCOPE': [
+                'profile',
+                'email',
+            ],
+            'AUTH_PARAMS': {
+                'access_type': 'online',
+            }
+        },
+    }
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/'
+ACCOUNT_LOGOUT_ON_GET = True
+
+# allauth 설정 (deprecated 경고 해결)
+ACCOUNT_LOGIN_METHODS = {'email'}
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
+# ACCOUNT_EMAIL_VERIFICATION = 'mandatory'  # 이메일 검증 강제 (기본값)
+ACCOUNT_EMAIL_VERIFICATION = 'optional'  # 이메일 검증 선택사항 (나중에 필요시 주석 해제)
+SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
+SOCIALACCOUNT_QUERY_EMAIL = True
+
+# allauth 소셜 로그인 provider별 설정 (구글 scope 오류 방지)
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        }
+    },
+}
 
 ASGI_APPLICATION = 'hearth_chat.asgi.application'
 
@@ -66,6 +326,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "allauth.account.middleware.AccountMiddleware",  # allauth 미들웨어 추가
 ]
 
 ROOT_URLCONF = "hearth_chat.urls"
@@ -87,18 +348,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "hearth_chat.wsgi.application"
 
-
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.sqlite3",
-#         "NAME": BASE_DIR / "db.sqlite3",
-#     }
-# }
-DATABASES = db_settings.DATABASES
-
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
@@ -117,7 +366,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
@@ -133,28 +381,120 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# 추가 static 파일 디렉토리
+if os.environ.get("RAILWAY_ENVIRONMENT"):
+    STATICFILES_DIRS = [
+        '/app/hearth_chat_react/build/static',
+        '/app/hearth_chat_react/build',  # 루트 파일 포함!
+    ]
+else:
+    STATICFILES_DIRS = [
+        os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build', 'static'),
+        os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build'),  # 루트 파일 포함!
+    ]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# CORS 설정
-CORS_ALLOW_ALL_ORIGINS = True  # 개발 환경에서만 사용
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = db_settings.CORS_ALLOWED_ORIGINS + [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://192.168.44.9:3000",
-]
-CORS_ALLOWED_ORIGIN_REGEXES = [
-    r"^http://192\.168\.\d+\.\d+:\d+$",  # 내부 IP 허용
-]
-
-
-
 # 미디어 파일(업로드 이미지 등) 설정
 MEDIA_ROOT = os.path.join(BASE_DIR, '..', 'hearth_chat_media')
 # MEDIA_ROOT = os.path.abspath(MEDIA_ROOT)  # 절대경로로 변환 (권장)
 MEDIA_URL = '/media/'
+
+# 로깅 설정 추가
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
+
+# Railway 환경에서 SocialApp 자동 생성
+# if os.environ.get("RAILWAY_ENVIRONMENT"):
+#     try:
+#         from django.apps import apps
+#         if apps.is_installed('allauth.socialaccount'):
+#             from allauth.socialaccount.models import SocialApp
+#             from allauth.socialaccount.providers.google.provider import GoogleProvider
+#             from django.contrib.sites.models import Site
+#             
+#             # Site가 존재하는지 확인
+#             try:
+#                 site = Site.objects.get_current()
+#                 
+#                 # Google SocialApp이 존재하는지 확인하고 없으면 생성
+#                 google_app, created = SocialApp.objects.get_or_create(
+#                     provider=GoogleProvider.id,
+#                     name='Google',
+#                     defaults={
+#                         'client_id': os.getenv('GOOGLE_CLIENT_ID', ''),
+#                         'secret': os.getenv('GOOGLE_CLIENT_SECRET', ''),
+#                     }
+#                 )
+#                 
+#                 if created:
+#                     # Site를 SocialApp에 연결
+#                     google_app.sites.add(site)
+#                     print(f"SocialApp 자동 생성 완료: {google_app.name} for {site.domain}")
+#                 else:
+#                     # 기존 앱 업데이트
+#                     google_app.client_id = os.getenv('GOOGLE_CLIENT_ID', google_app.client_id)
+#                     google_app.secret = os.getenv('GOOGLE_CLIENT_SECRET', google_app.secret)
+#                     google_app.save()
+#                     
+#                     # Site 연결 확인
+#                     if site not in google_app.sites.all():
+#                         google_app.sites.add(site)
+#                     
+#                     print(f"SocialApp 업데이트 완료: {google_app.name} for {site.domain}")
+#                     
+#             except Exception as e:
+#                 print(f"SocialApp 자동 생성 중 오류 (무시됨): {e}")
+#     except Exception as e:
+#         print(f"SocialApp 설정 중 오류 (무시됨): {e}")
+
+# allauth 회원가입 시 email을 고유값으로 사용하도록 설정
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_UNIQUE_EMAIL = True
+
+# 이메일 검증 설정
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'  # 이메일 검증 강제 (기본값)
+# ACCOUNT_EMAIL_VERIFICATION = 'optional'  # 이메일 검증 선택사항 (나중에 필요시 주석 해제)
+ACCOUNT_EMAIL_REQUIRED = True  # 이메일 필수
+ACCOUNT_AUTHENTICATION_METHOD = 'email'  # 이메일로 로그인
+ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 3  # 이메일 확인 링크 유효기간 (3일)
+ACCOUNT_EMAIL_CONFIRMATION_COOLDOWN = 180  # 재전송 대기시간 (3분)
+
+# 이메일 발송 설정 (Railway 환경)
+if os.environ.get("RAILWAY_ENVIRONMENT"):
+    # Railway에서 이메일 발송을 위한 설정
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = 'smtp.gmail.com'  # Gmail SMTP 사용
+    EMAIL_PORT = 587
+    EMAIL_USE_TLS = True
+    EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')  # Gmail 계정
+    EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')  # Gmail 앱 비밀번호
+    DEFAULT_FROM_EMAIL = os.getenv('EMAIL_HOST_USER', 'noreply@hearthchat.com')
+else:
+    # 개발 환경에서는 콘솔에 출력
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

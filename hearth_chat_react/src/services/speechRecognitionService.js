@@ -124,7 +124,9 @@ class SpeechRecognitionService {
                 // 모바일에서는 더 관대한 설정 사용
                 this.recognitionQuality.minConfidence = 0.1; // 더 낮은 신뢰도 임계값
                 this.recognitionQuality.minWords = 1; // 최소 1단어
-                this.recognitionQuality.silenceTimeout = 3000; // 더 긴 침묵 시간
+                this.recognitionQuality.silenceTimeout = 2000; // 2초로 통일
+            } else {
+                this.recognitionQuality.silenceTimeout = 2000; // 2초로 통일
             }
 
             // 이벤트 리스너 설정

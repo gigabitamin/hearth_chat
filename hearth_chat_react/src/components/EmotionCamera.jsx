@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import './EmotionCamera.css';
 import RealisticAvatar3D from './RealisticAvatar3D';
 
-const EmotionCamera = ({ isActive = true, hideControls = false, userAvatar, userEmotion, isUserTalking, mouthTrigger, emotionCaptureStatus, enableTracking }) => {
+const EmotionCamera = ({ isActive = true, hideControls = false, userAvatar, userEmotion, isUserTalking, mouthTrigger, emotionCaptureStatus, enableTracking, showAvatarOverlay }) => {
     const videoRef = useRef(null);
     const streamRef = useRef(null);
     const [isCameraOn, setIsCameraOn] = useState(false);
@@ -46,6 +46,7 @@ const EmotionCamera = ({ isActive = true, hideControls = false, userAvatar, user
         } catch (err) {
             console.error('웹캠 시작 실패:', err);
             setError(`웹캠에 접근할 수 없습니다: ${err.message}`);
+            alert(`웹캠에 접근할 수 없습니다: ${err.message}`);
         }
     }, []);
 
@@ -120,33 +121,35 @@ const EmotionCamera = ({ isActive = true, hideControls = false, userAvatar, user
                     className="camera-video custom-camera-video"
                 />
                 {/* 사용자 아바타 오버레이 */}
-                <div
-                    style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '40%',
-                        height: '40%',
-                        opacity: 0.40,
-                        pointerEvents: 'none',
-                        zIndex: 10,
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        justifyContent: 'flex-start',
-                    }}
-                >
-                    <RealisticAvatar3D
-                        avatarUrl={userAvatar}
-                        isTalking={isUserTalking}
-                        emotion={userEmotion}
-                        mouthTrigger={mouthTrigger}
-                        position="right"
-                        size="100%"
-                        showEmotionIndicator={false}
-                        emotionCaptureStatus={emotionCaptureStatus}
-                        enableTracking={enableTracking}
-                    />
-                </div>
+                {showAvatarOverlay && (
+                    <div
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '40%',
+                            height: '40%',
+                            opacity: 0.40,
+                            pointerEvents: 'none',
+                            zIndex: 10,
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            justifyContent: 'flex-start',
+                        }}
+                    >
+                        <RealisticAvatar3D
+                            avatarUrl={userAvatar}
+                            isTalking={isUserTalking}
+                            emotion={userEmotion}
+                            mouthTrigger={mouthTrigger}
+                            position="right"
+                            size="100%"
+                            showEmotionIndicator={false}
+                            emotionCaptureStatus={emotionCaptureStatus}
+                            enableTracking={enableTracking}
+                        />
+                    </div>
+                )}
                 {/* 오류 메시지 */}
                 {error && (
                     <div className="error-message">

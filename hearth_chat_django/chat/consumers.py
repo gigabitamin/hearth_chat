@@ -14,12 +14,50 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.session_id = None
         self.user_emotion_history = []  # 감정 변화 추적
         self.conversation_context = []  # 대화 컨텍스트 저장
+    
+    def _force_utf8mb4_connection(self):
+        """MySQL 연결을 강제로 utf8mb4로 설정 (동기 버전)"""
+        try:
+            from django.db import connections
+            connection = connections['default']
+            
+            if connection.connection is None:
+                connection.ensure_connection()
+            
+            cursor = connection.cursor()
+            
+            # utf8mb4 강제 설정
+            utf8mb4_commands = [
+                "SET character_set_client=utf8mb4",
+                "SET character_set_connection=utf8mb4",
+                "SET character_set_results=utf8mb4", 
+                "SET collation_connection=utf8mb4_unicode_ci",
+                "SET NAMES utf8mb4",
+                "SET sql_mode='STRICT_TRANS_TABLES'"
+            ]
+            
+            for command in utf8mb4_commands:
+                cursor.execute(command)
+            
+            cursor.close()
+            # print("WebSocket 연결 시 MySQL utf8mb4 강제 설정 완료!")
+            
+        except Exception as e:
+            print(f"MySQL utf8mb4 설정 오류: {e}")
+
+    @sync_to_async
+    def _force_utf8mb4_connection_async(self):
+        """MySQL 연결을 강제로 utf8mb4로 설정 (비동기 안전 버전)"""
+        return self._force_utf8mb4_connection()
 
     async def connect(self):
         await self.accept()
         # 세션 ID 생성
         self.session_id = str(uuid.uuid4())
         print(f"새로운 WebSocket 연결: {self.session_id}")
+        
+        # MySQL 연결을 강제로 utf8mb4로 설정 (async context에서 안전하게)
+        await self._force_utf8mb4_connection_async()
 
     async def disconnect(self, close_code):
         print(f"WebSocket 연결 종료: {self.session_id}")
@@ -51,8 +89,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.save_user_message(user_message or '[이미지 첨부]', user_emotion)
 
         try:
+            print("[DEBUG] get_ai_response 호출 직전 (user_message:", user_message, ", user_emotion:", user_emotion, ", image_url:", image_url, ")")
             ai_response = await self.get_ai_response(user_message, user_emotion, image_url)
-            print(f"AI 응답 받음: {ai_response}")
+            print(f"[DEBUG] get_ai_response 호출 후, AI 응답 받음: {ai_response}")
             
             # AI 응답을 DB에 저장
             print(f"AI 응답 저장 시도: {ai_response}")
@@ -113,11 +152,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """사용자 메시지를 DB에 저장 (감정 정보 포함)"""
         try:
             from .models import Chat
+            # 이모지를 안전하게 처리하기 위해 유니코드 정규화
+            if content:
+                import unicodedata
+                content = unicodedata.normalize('NFC', content)
+            
             result = Chat.save_user_message(content, self.session_id, emotion)
             print(f"사용자 메시지 저장 성공: {result.id} (감정: {emotion})")
             return result
         except Exception as e:
             print(f"사용자 메시지 저장 실패: {e}")
+            # 커스텀 백엔드가 적용되지 않은 경우를 위한 디버깅
+            print(f"커스텀 백엔드 디버깅 - 오류 타입: {type(e)}")
+            print(f"커스텀 백엔드 디버깅 - 오류 내용: {str(e)}")
             raise e
 
     @sync_to_async
@@ -125,11 +172,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """AI 메시지를 DB에 저장"""
         try:
             from .models import Chat
+            # 이모지를 안전하게 처리하기 위해 유니코드 정규화
+            if content:
+                import unicodedata
+                content = unicodedata.normalize('NFC', content)
+            
             result = Chat.save_ai_message(content, self.session_id)
             print(f"AI 메시지 저장 성공: {result.id}")
             return result
         except Exception as e:
             print(f"AI 메시지 저장 실패: {e}")
+            # 커스텀 백엔드가 적용되지 않은 경우를 위한 디버깅
+            print(f"커스텀 백엔드 디버깅 - 오류 타입: {type(e)}")
+            print(f"커스텀 백엔드 디버깅 - 오류 내용: {str(e)}")
             raise e
 
     async def get_ai_response(self, user_message, user_emotion="neutral", image_url=None):
@@ -142,6 +197,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         @sync_to_async
         def call_gemini():
+            print("[Gemini] 호출 시작 (user_emotion:", user_emotion, ", user_message:", user_message[:30], ")")
             # 감정 변화 추세 분석
             emotion_trend = self.get_emotion_trend()
             # 감정 전략 등 기존 코드 유지
@@ -195,6 +251,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                 {"role": "user", "content": user_message or "이미지 분석을 요청했지만 파일을 찾을 수 없습니다."}
                             ]
                         )
+                        print(f"[Gemini] 파일 없음 텍스트 응답: {response.choices[0].message.content[:100]}")
                         return response.choices[0].message.content
                     
                     # 파일을 base64로 읽어오기
@@ -217,14 +274,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             ]}
                         ]
                     )
+                    print(f"[Gemini] OpenAI 라이브러리 멀티모달 응답: {response.choices[0].message.content[:100]}")
                     return response.choices[0].message.content
                     
                 except Exception as e:
-                    print(f"OpenAI 라이브러리 멀티모달 실패: {e}")
+                    print(f"[Gemini] OpenAI 라이브러리 멀티모달 실패: {e}")
                     # 백업: REST API 방식 시도
                     try:
                         GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-                        GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent"
+                        GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent"
                         
                         payload = {
                             "contents": [
@@ -250,10 +308,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         response.raise_for_status()
                         result = response.json()
                         gemini_text = result["candidates"][0]["content"]["parts"][0]["text"]
+                        print(f"[Gemini] REST API 멀티모달 응답: {gemini_text[:100]}")
                         return gemini_text
                         
                     except Exception as e2:
-                        print(f"REST API 멀티모달도 실패: {e2}")
+                        print(f"[Gemini] REST API 멀티모달도 실패: {e2}")
                         # 최종 백업: 텍스트만으로 처리
                         client = OpenAI(
                             api_key=os.environ.get("GEMINI_API_KEY"),
@@ -266,20 +325,26 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                 {"role": "user", "content": user_message or "이미지 분석을 시도했지만 실패했습니다. 텍스트로만 응답드립니다."}
                             ]
                         )
+                        print(f"[Gemini] 최종 백업 텍스트 응답: {response.choices[0].message.content[:100]}")
                         return response.choices[0].message.content
             # 2. 텍스트-only: 기존 OpenAI 라이브러리 방식
             else:
-                client = OpenAI(
-                    api_key=os.environ.get("GEMINI_API_KEY"),
-                    base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
-                )
-                response = client.chat.completions.create(
-                    model="gemini-2.5-flash",
-                    messages=[
-                        {"role": "system", "content": system_content},
-                        {"role": "user", "content": user_message}
-                    ]
-                )
-                return response.choices[0].message.content
+                try:
+                    client = OpenAI(
+                        api_key=os.environ.get("GEMINI_API_KEY"),
+                        base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+                    )
+                    response = client.chat.completions.create(
+                        model="gemini-2.5-flash",
+                        messages=[
+                            {"role": "system", "content": system_content},
+                            {"role": "user", "content": user_message}
+                        ]
+                    )
+                    print(f"[Gemini] 텍스트 응답: {response.choices[0].message.content[:100]}")
+                    return response.choices[0].message.content
+                except Exception as e:
+                    print(f"[Gemini] 텍스트 응답 실패: {e}")
+                    return "[Gemini] 응답 생성 중 오류가 발생했습니다."
 
         return await call_gemini()

@@ -12,8 +12,15 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.http import HttpResponseBadRequest
+from django.http import HttpResponse
+from django.contrib.auth import logout as django_logout
+from django.contrib.auth.decorators import login_required
+from allauth.socialaccount.models import SocialAccount
 
 # Create your views here.
+
+def chat_home(request):
+    return HttpResponse("Chat 메인 페이지입니다.")
 
 @csrf_exempt
 @require_http_methods(["GET"])
@@ -107,3 +114,50 @@ def upload_chat_image(request):
         'file_url': chat_obj.attach_image.url if chat_obj.attach_image else None,
         'chat_id': chat_obj.id
     })
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def user_info(request):
+    """현재 로그인된 사용자 정보 + 로그인 방법 반환 API"""
+    if request.user.is_authenticated:
+        # 소셜 계정 연결 여부 확인
+        social_accounts = list(SocialAccount.objects.filter(user=request.user).values_list('provider', flat=True))
+        has_password = request.user.has_usable_password()
+        is_social_only = bool(social_accounts) and not has_password
+        return JsonResponse({
+            'status': 'success',
+            'user': {
+                'username': request.user.username,
+                'email': request.user.email,
+                'email_verified': request.user.emailaddress_set.filter(verified=True).exists(),
+                'is_superuser': request.user.is_superuser,
+                'is_staff': request.user.is_staff,
+                'social_accounts': social_accounts,
+                'has_password': has_password,
+                'is_social_only': is_social_only,
+            }
+        })
+    else:
+        return JsonResponse({'status': 'error', 'message': 'Not authenticated'}, status=401)
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def logout_api(request):
+    """로그아웃 API"""
+    try:
+        # Django 로그아웃 실행
+        django_logout(request)
+        
+        # 세션 완전 삭제
+        if hasattr(request, 'session'):
+            request.session.flush()
+            request.session.delete()
+        
+        # 응답에서 세션 쿠키 삭제
+        response = JsonResponse({'status': 'success', 'message': 'Logged out'})
+        response.delete_cookie('sessionid')
+        response.delete_cookie('csrftoken')
+        
+        return response
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)

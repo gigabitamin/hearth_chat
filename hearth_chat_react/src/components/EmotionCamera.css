@@ -34,6 +34,8 @@
     border-radius: 8px;
     background: #000;
     object-fit: cover;
+    transform: scaleX(-1);
+    /* 거울모드(좌우반전) 추가 */
 }
 
 /* 카메라 위쪽 감정 표시 (작은 크기) */
