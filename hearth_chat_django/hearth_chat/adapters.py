@@ -1,9 +1,8 @@
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
+from django.shortcuts import resolve_url
 
 class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
     def get_login_redirect_url(self, request):
-        print("=== get_login_redirect_url 호출됨 ===")
-        return '/accounts/popup-close/'
+        return resolve_url('/social-redirect/')
     def get_connect_redirect_url(self, request, socialaccount):
-        print("=== get_connect_redirect_url 호출됨 ===")
-        return '/accounts/popup-close/' 
+        return resolve_url('/social-redirect/') 
