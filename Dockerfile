@@ -52,7 +52,7 @@ RUN ls -la /app/hearth_chat_react/build/ || echo "build directory not found"
 RUN ls -la /app/hearth_chat_react/build/static/ || echo "static directory not found"
 RUN ls -la /app/hearth_chat_react/build/static/js/ || echo "static/js directory not found"
 
-# 장고 앱 복사
+# 장고 앱 복사 (이후에만 커스텀 커맨드 실행 가능)
 COPY hearth_chat_django/ ./hearth_chat_django/
 
 # React 빌드 결과물 복사 (이미 있음)
@@ -63,7 +63,7 @@ ENV DATABASE_URL=sqlite:///tmp/db.sqlite3
 WORKDIR /app/hearth_chat_django
 RUN python manage.py collectstatic --noinput
 
-# 운영 배포 시 슈퍼유저 자동 생성
+# 반드시 장고 앱 복사 이후에 슈퍼유저 자동 생성
 RUN python manage.py createinitialsuperuser
 
 # 작업 디렉토리를 Django 앱으로 변경
