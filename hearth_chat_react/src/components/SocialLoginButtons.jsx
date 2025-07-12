@@ -41,11 +41,34 @@ export default function SocialLoginButtons() {
         const popupHeight = 600;
         const left = window.screenX + (window.outerWidth - popupWidth) / 2;
         const top = window.screenY + (window.outerHeight - popupHeight) / 2;
-        window.open(
+
+        const popup = window.open(
             url,
             'social_login_popup',
             `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes`
         );
+
+        // 팝업창 상태 모니터링
+        const checkPopupStatus = setInterval(() => {
+            if (popup.closed) {
+                clearInterval(checkPopupStatus);
+                // 팝업이 닫히면 페이지 새로고침하여 로그인 상태 갱신
+                window.location.reload();
+            }
+        }, 1000);
+
+        // postMessage 이벤트 리스너 (백엔드에서 로그인 완료 시 메시지 전송)
+        const handleMessage = (event) => {
+            console.log('SocialLoginButtons: 메시지 수신:', event.data);
+            if (event.data === 'login_success' || event.data === 'social_login_complete') {
+                console.log('SocialLoginButtons: 로그인 성공 메시지 수신');
+                clearInterval(checkPopupStatus);
+                window.removeEventListener('message', handleMessage);
+                popup.close();
+                window.location.reload();
+            }
+        };
+        window.addEventListener('message', handleMessage);
     };
 
     return (

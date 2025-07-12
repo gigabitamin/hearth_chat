@@ -20,7 +20,7 @@
 </div>
 <script>
     if (window.opener && window.location.search.includes('process=connect')) {
-        window.opener.postMessage('social_connected', '*');
+        window.opener.postMessage('connection_success', '*');
         setTimeout(() => window.close(), 500);
     }
 </script>

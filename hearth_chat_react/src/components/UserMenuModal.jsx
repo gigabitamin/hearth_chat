@@ -109,30 +109,41 @@ export default function UserMenuModal({ isOpen, onClose }) {
 
     // 소셜 계정 연결(팝업)
     const handleConnect = (provider) => {
+        const popupWidth = 480;
+        const popupHeight = 600;
+        const left = window.screenX + (window.outerWidth - popupWidth) / 2;
+        const top = window.screenY + (window.outerHeight - popupHeight) / 2;
+
         const popup = window.open(
             `${API_BASE}/accounts/${provider}/login/?process=connect`,
             'social_connect',
-            'width=600,height=700'
+            `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes`
         );
-        // 팝업에서 인증 완료 후 postMessage로 알림
-        const listener = (event) => {
-            if (event.data === 'social_connected') {
+
+        // 팝업창 상태 모니터링
+        const checkPopupStatus = setInterval(() => {
+            if (popup.closed) {
+                clearInterval(checkPopupStatus);
+                // 팝업이 닫히면 연결 목록 갱신
+                fetchConnections();
+            }
+        }, 1000);
+
+        // postMessage 이벤트 리스너 (백엔드에서 연결 완료 시 메시지 전송)
+        const handleMessage = (event) => {
+            console.log('UserMenuModal: 메시지 수신:', event.data);
+            if (event.data === 'social_connected' || event.data === 'connection_success') {
+                console.log('UserMenuModal: 연결 성공 메시지 수신');
+                clearInterval(checkPopupStatus);
+                window.removeEventListener('message', handleMessage);
+                popup.close();
                 setShowConnectionsModal(false);
                 setConnMsg('연결 성공!');
-                window.removeEventListener('message', listener);
                 // 연결 목록 즉시 갱신
                 fetchConnections();
             }
         };
-        window.addEventListener('message', listener);
-
-        // 팝업이 닫힐 때도 연결 목록 갱신
-        const checkClosed = setInterval(() => {
-            if (popup.closed) {
-                clearInterval(checkClosed);
-                fetchConnections();
-            }
-        }, 1000);
+        window.addEventListener('message', handleMessage);
     };
 
     useEffect(() => {

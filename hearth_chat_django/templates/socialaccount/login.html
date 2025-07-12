@@ -335,7 +335,7 @@
 
         // 팝업 창에서 부모 창으로 메시지 전송
         if (window.opener) {
-            window.opener.postMessage('social_login_completed', '*');
+            window.opener.postMessage('login_success', '*');
             setTimeout(() => {
                 window.close();
             }, 1000);
@@ -370,7 +370,7 @@
     {% if user.is_authenticated %}
     <script>
         if (window.opener) {
-            window.opener.postMessage('social_connected', '*');
+            window.opener.postMessage('connection_success', '*');
             window.close();
         }
     </script>
