@@ -1,5 +1,5 @@
 import React from 'react';
-import './SocialLoginButtons.css';
+import './SocialLoginButtons.module.css';
 
 // 환경에 따라 BACKEND_URL 자동 설정
 const BACKEND_URL = process.env.NODE_ENV === 'production'
