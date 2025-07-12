@@ -2,15 +2,20 @@ from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 
 class Command(BaseCommand):
-    help = 'Create initial superuser if not exists (for Railway deploy)'
+    help = 'Create or update initial superuser for Railway deploy'
 
     def handle(self, *args, **options):
         User = get_user_model()
         username = 'gigabitamin'
         email = 'gigabitamin@gmail.com'
         password = 'windmill4u@'
-        if not User.objects.filter(username=username).exists():
-            User.objects.create_superuser(username=username, email=email, password=password)
-            self.stdout.write(self.style.SUCCESS(f'Superuser {username} created.'))
+        user, created = User.objects.get_or_create(username=username, defaults={'email': email})
+        user.email = email
+        user.is_superuser = True
+        user.is_staff = True
+        user.set_password(password)
+        user.save()
+        if created:
+            self.stdout.write(f'Superuser {username} created.')
         else:
-            self.stdout.write(self.style.WARNING(f'Superuser {username} already exists.')) 
+            self.stdout.write(f'Superuser {username} password updated.') 
