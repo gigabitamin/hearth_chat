@@ -9,25 +9,25 @@ const BACKEND_URL = process.env.NODE_ENV === 'production'
 const SOCIALS = [
     {
         name: 'Google',
-        url: `${BACKEND_URL}/accounts/google/login/`,
+        url: `${BACKEND_URL}/accounts/google/login/?process=login`,
         className: 'google',
         logo: process.env.PUBLIC_URL + '/oauth_logo/Google.svg',
     },
     {
         name: 'Kakao',
-        url: `${BACKEND_URL}/accounts/kakao/login/`,
+        url: `${BACKEND_URL}/accounts/kakao/login/?process=login`,
         className: 'kakao',
         logo: process.env.PUBLIC_URL + '/oauth_logo/KakaoTalk.svg',
     },
     {
         name: 'Naver',
-        url: `${BACKEND_URL}/accounts/naver/login/`,
+        url: `${BACKEND_URL}/accounts/naver/login/?process=login`,
         className: 'naver',
         logo: process.env.PUBLIC_URL + '/oauth_logo/Naver.svg',
     },
     {
         name: 'GitHub',
-        url: `${BACKEND_URL}/accounts/github/login/`,
+        url: `${BACKEND_URL}/accounts/github/login/?process=login`,
         className: 'github',
         logo: process.env.PUBLIC_URL + '/oauth_logo/Github.svg',
     },
