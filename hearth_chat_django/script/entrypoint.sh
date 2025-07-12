@@ -34,17 +34,28 @@ except Site.DoesNotExist:
     print(f'Site 생성 완료: {site.domain}')
 "
 
-# 추가 백업: 모든 Site 객체 삭제 후 새로 생성
-echo "🔄 Site 객체 완전 재생성..."
+# Site 객체 확인 및 업데이트 (삭제하지 않고 기존 유지)
+echo "🔄 Site 객체 확인 및 업데이트..."
 python manage.py shell -c "
 from django.contrib.sites.models import Site
-Site.objects.all().delete()
-site = Site.objects.create(
-    id=1,
-    domain='hearthchat-production.up.railway.app',
-    name='HearthChat Production'
-)
-print(f'Site 완전 재생성 완료: {site.domain}')
+try:
+    site = Site.objects.get(id=1)
+    # 기존 Site가 있으면 업데이트만
+    if site.domain != 'hearthchat-production.up.railway.app':
+        site.domain = 'hearthchat-production.up.railway.app'
+        site.name = 'HearthChat Production'
+        site.save()
+        print(f'Site 업데이트 완료: {site.domain}')
+    else:
+        print(f'Site 이미 올바르게 설정됨: {site.domain}')
+except Site.DoesNotExist:
+    # Site가 없을 때만 새로 생성
+    site = Site.objects.create(
+        id=1,
+        domain='hearthchat-production.up.railway.app',
+        name='HearthChat Production'
+    )
+    print(f'Site 새로 생성 완료: {site.domain}')
 "
 
 # SocialApp 강제 생성 비활성화 (관리자가 수동으로 관리)
