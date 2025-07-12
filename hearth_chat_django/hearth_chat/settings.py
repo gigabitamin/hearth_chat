@@ -53,6 +53,7 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:3000',    
     'http://192.168.44.9:8000',
     'http://192.168.44.9:3000',    
+    'https://hearthchat-production.up.railway.app',
 ]
 
 
