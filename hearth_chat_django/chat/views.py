@@ -134,6 +134,7 @@ def user_info(request):
     """현재 로그인된 사용자 정보 + 로그인 방법 반환 API"""
     if request.user.is_authenticated:
         # 소셜 계정 연결 여부 확인
+        from allauth.socialaccount.models import SocialAccount
         social_accounts = list(SocialAccount.objects.filter(user=request.user).values_list('provider', flat=True))
         has_password = request.user.has_usable_password()
         is_social_only = bool(social_accounts) and not has_password
@@ -400,9 +401,27 @@ class UserSettingsView(APIView):
     def get(self, request):
         settings, _ = UserSettings.objects.get_or_create(user=request.user)
         serializer = UserSettingsSerializer(settings)
-        return Response(serializer.data)
+        user_data = {
+            "username": request.user.username,
+            "email": request.user.email,
+            "email_verified": request.user.emailaddress_set.filter(verified=True).exists() if hasattr(request.user, 'emailaddress_set') else False,
+            "is_superuser": request.user.is_superuser,
+            "is_staff": request.user.is_staff,
+        }
+        return Response({
+            "user": user_data,
+            "settings": serializer.data
+        })
 
     def post(self, request):
+        settings, _ = UserSettings.objects.get_or_create(user=request.user)
+        serializer = UserSettingsSerializer(settings, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+
+    def patch(self, request):
         settings, _ = UserSettings.objects.get_or_create(user=request.user)
         serializer = UserSettingsSerializer(settings, data=request.data, partial=True)
         if serializer.is_valid():

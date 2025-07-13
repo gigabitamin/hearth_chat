@@ -2,9 +2,15 @@ import React, { useState, useEffect } from 'react';
 import './LoginModal.css';
 
 // 환경에 따라 API_BASE 자동 설정
-const API_BASE = process.env.NODE_ENV === 'production'
+const hostname = window.location.hostname;
+const isProd = process.env.NODE_ENV === 'production';
+const API_BASE = isProd
     ? 'https://hearthchat-production.up.railway.app'
-    : `http://${window.location.hostname}:8000`;
+    : (hostname === 'localhost' || hostname === '127.0.0.1')
+        ? 'http://localhost:8000'
+        : hostname === '192.168.44.9'
+            ? 'http://192.168.44.9:8000'
+            : `http://${hostname}:8000`;
 
 const ALLAUTH_BASE = `${API_BASE}/accounts`;
 
@@ -38,7 +44,7 @@ function getCookie(name) {
     return cookieValue;
 }
 
-export default function UserMenuModal({ isOpen, onClose }) {
+export default function UserMenuModal({ isOpen, onClose, loginUser }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -124,22 +130,29 @@ export default function UserMenuModal({ isOpen, onClose }) {
 
     useEffect(() => {
         if (isOpen) {
+            console.log('UserMenuModal opened, loginUser:', loginUser);
             setLoading(true);
-            fetch(`${API_BASE}/chat/api/user/`, { credentials: 'include' })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        setUser(data.user);
-                        setError(null);
-                    } else {
-                        setUser(null);
-                        setError(data.message || '로그인 정보 없음');
-                    }
-                })
-                .catch(() => setError('서버 오류'))
-                .finally(() => setLoading(false));
+            if (loginUser) {
+                setUser(loginUser);
+                setError(null);
+                setLoading(false);
+            } else {
+                fetch(`${API_BASE}/api/chat/user/`, { credentials: 'include' })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            setUser(data.user);
+                            setError(null);
+                        } else {
+                            setUser(null);
+                            setError(data.message || '로그인 정보 없음');
+                        }
+                    })
+                    .catch(() => setError('서버 오류'))
+                    .finally(() => setLoading(false));
+            }
         }
-    }, [isOpen]);
+    }, [isOpen, loginUser]);
 
     const handleLogout = async () => {
         setLogoutLoading(true);
@@ -150,7 +163,7 @@ export default function UserMenuModal({ isOpen, onClose }) {
             return;
         }
         try {
-            const res = await fetch(`${API_BASE}/chat/api/logout/`, {
+            const res = await fetch(`${API_BASE}/api/chat/logout/`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: {

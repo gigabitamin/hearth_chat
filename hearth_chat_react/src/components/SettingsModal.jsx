@@ -6,7 +6,11 @@ const tabList = [
   { key: 'voice', label: '음성인식' },
   { key: 'camera', label: '카메라' },
   { key: 'avatar', label: '아바타' },
+  { key: 'ai', label: 'AI 응답' },
   { key: 'notify', label: '알림' },
+  { key: 'chat', label: '채팅' },
+  { key: 'display', label: '화면' },
+  { key: 'sound', label: '소리' },
   { key: 'etc', label: '기타' },
 ];
 
@@ -18,11 +22,18 @@ const SettingsModal = ({ isOpen, onClose, tab, setTab, userSettings, setUserSett
   const saveSetting = async (patchObj) => {
     setSaving(true);
     try {
-              // 환경에 따라 API URL 설정
-        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const apiUrl = isLocalhost ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
-        
-        const res = await fetch(`${apiUrl}/api/chat/user/settings/`, {
+      // 환경에 따라 API_BASE 자동 설정
+      const hostname = window.location.hostname;
+      const isProd = process.env.NODE_ENV === 'production';
+      const API_BASE = isProd
+        ? 'https://hearthchat-production.up.railway.app'
+        : (hostname === 'localhost' || hostname === '127.0.0.1')
+          ? 'http://localhost:8000'
+          : hostname === '192.168.44.9'
+            ? 'http://192.168.44.9:8000'
+            : `http://${hostname}:8000`;
+
+      const res = await fetch(`${API_BASE}/api/chat/user/settings/`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -134,7 +145,26 @@ const SettingsModal = ({ isOpen, onClose, tab, setTab, userSettings, setUserSett
               </label>
             </div>
           )}
+          {tab === 'ai' && (
+            <div>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={!!userSettings?.ai_response_enabled}
+                  onChange={e => saveSetting({ ai_response_enabled: e.target.checked })}
+                  disabled={saving}
+                />
+                AI 응답 사용
+              </label>
+              <div style={{ marginTop: 12, fontSize: '0.9em', color: '#666' }}>
+                AI 응답을 끄면 AI가 메시지에 응답하지 않습니다.
+              </div>
+            </div>
+          )}
           {tab === 'notify' && <div>알림 설정 (예: 소리, 팝업 등)</div>}
+          {tab === 'chat' && <div>채팅 설정</div>}
+          {tab === 'display' && <div>화면 설정</div>}
+          {tab === 'sound' && <div>소리 설정</div>}
           {tab === 'etc' && <div>기타 설정</div>}
         </div>
       </div>

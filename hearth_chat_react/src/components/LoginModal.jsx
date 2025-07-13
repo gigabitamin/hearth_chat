@@ -3,9 +3,15 @@ import SocialLoginButtons from './SocialLoginButtons';
 import './LoginModal.css';
 
 // 환경에 따라 API_BASE 자동 설정
-const API_BASE = process.env.NODE_ENV === 'production'
-    ? 'https://hearthchat-production.up.railway.app/accounts'
-    : `http://${window.location.hostname}:8000/accounts`;
+const hostname = window.location.hostname;
+const isProd = process.env.NODE_ENV === 'production';
+const API_BASE = isProd
+    ? 'https://hearthchat-production.up.railway.app'
+    : (hostname === 'localhost' || hostname === '127.0.0.1')
+        ? 'http://localhost:8000'
+        : hostname === '192.168.44.9'
+            ? 'http://192.168.44.9:8000'
+            : `http://${hostname}:8000`;
 
 function getCookie(name) {
     let cookieValue = null;
@@ -59,7 +65,7 @@ const LoginModal = ({ isOpen, onClose, onSocialLogin }) => {
             return;
         }
         try {
-            const res = await fetch(`${API_BASE}/login/`, {
+            const res = await fetch(`${API_BASE}/api/chat/login/`, {
                 method: 'POST',
                 credentials: 'include',
                 body: form,
@@ -99,7 +105,7 @@ const LoginModal = ({ isOpen, onClose, onSocialLogin }) => {
             return;
         }
         try {
-            const res = await fetch(`${API_BASE}/signup/`, {
+            const res = await fetch(`${API_BASE}/api/chat/signup/`, {
                 method: 'POST',
                 credentials: 'include',
                 body: form,

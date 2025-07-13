@@ -134,6 +134,25 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }
         )
 
+        # AI 응답 ON/OFF 분기 처리
+        from asgiref.sync import sync_to_async
+        @sync_to_async
+        def get_ai_response_enabled(user):
+            from .models import UserSettings
+            try:
+                settings = UserSettings.objects.get(user=user)
+                return settings.ai_response_enabled
+            except Exception:
+                return True  # 기본값 True
+
+        user = getattr(self, 'scope', {}).get('user', None)
+        ai_response_enabled = True
+        if user and hasattr(user, 'is_authenticated') and user.is_authenticated:
+            ai_response_enabled = await get_ai_response_enabled(user)
+        if not ai_response_enabled:
+            print('[AI 응답 OFF] 사용자 설정에 따라 AI 응답을 건너뜁니다.')
+            return
+
         try:
             print("[DEBUG] get_ai_response 호출 직전 (user_message:", user_message, ", user_emotion:", user_emotion, ", image_url:", image_url, ")")
             ai_response = await self.get_ai_response(user_message, user_emotion, image_url)

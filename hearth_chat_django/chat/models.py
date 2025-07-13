@@ -230,6 +230,9 @@ class UserSettings(models.Model):
     ai_avatar_enabled = models.BooleanField(default=True, verbose_name='AI 아바타 활성화')
     user_avatar_enabled = models.BooleanField(default=False, verbose_name='사용자 아바타 활성화')
     
+    # AI 응답 설정
+    ai_response_enabled = models.BooleanField(default=True, verbose_name='AI 응답 활성화')
+    
     # 기타 설정
     theme = models.CharField(max_length=20, default='dark', verbose_name='테마')
     language = models.CharField(max_length=10, default='ko', verbose_name='언어')

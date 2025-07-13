@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import LoginModal from './LoginModal';
 import './ChatRoomList.css';
+import { useNavigate } from 'react-router-dom';
 
 const AI_PROVIDERS = [
     { value: 'GEMINI', label: 'Gemini' },
@@ -25,7 +26,19 @@ function getCookie(name) {
 }
 const csrftoken = getCookie('csrftoken');
 
-const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, checkLoginStatus }) => {
+// 환경에 따라 API_BASE 자동 설정
+const hostname = window.location.hostname;
+const isProd = process.env.NODE_ENV === 'production';
+const API_BASE = isProd
+    ? 'https://hearthchat-production.up.railway.app'
+    : (hostname === 'localhost' || hostname === '127.0.0.1')
+        ? 'http://localhost:8000'
+        : hostname === '192.168.44.9'
+            ? 'http://192.168.44.9:8000'
+            : `http://${hostname}:8000`;
+
+const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, checkLoginStatus, onUserMenuOpen }) => {
+    const navigate = useNavigate();
     const [rooms, setRooms] = useState([]);
     const [publicRooms, setPublicRooms] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -115,7 +128,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
             const apiUrl = isLocalhost ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
 
-            const response = await fetch(`${apiUrl}/api/chat/rooms/`, {
+            const response = await fetch(`${API_BASE}/api/chat/rooms/`, {
                 credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
@@ -140,7 +153,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
             const apiUrl = isLocalhost ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
 
-            const response = await fetch(`${apiUrl}/api/chat/rooms/public/`, {
+            const response = await fetch(`${API_BASE}/api/chat/rooms/public/`, {
                 credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
@@ -176,7 +189,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
             const apiUrl = isLocalhost ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
 
-            const response = await fetch(`${apiUrl}/api/chat/rooms/`, {
+            const response = await fetch(`${API_BASE}/api/chat/rooms/`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: {
@@ -216,7 +229,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
             const apiUrl = isLocalhost ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
 
-            const response = await fetch(`${apiUrl}/api/chat/rooms/${roomId}/`, {
+            const response = await fetch(`${API_BASE}/api/chat/rooms/${roomId}/`, {
                 method: 'DELETE',
                 credentials: 'include',
                 headers: {
@@ -243,7 +256,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
             const apiUrl = isLocalhost ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
 
-            const response = await fetch(`${apiUrl}/api/chat/rooms/${roomId}/join/`, {
+            const response = await fetch(`${API_BASE}/api/chat/rooms/${roomId}/join/`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: {
@@ -315,7 +328,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                 <div>
                     {loginLoading ? null : loginUser ? (
                         <button
-                            onClick={() => {/* 사용자 메뉴 열기 */ }}
+                            onClick={() => { onUserMenuOpen(); }}
                             className="login-btn"
                             style={buttonStyle}
                             title="내 계정"
@@ -414,6 +427,18 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                         ➕
                                     </button>
                                 )}
+                                {/* 입장하기 버튼 추가 (모든 방에 표시) */}
+                                <button
+                                    onClick={e => {
+                                        e.stopPropagation();
+                                        navigate(`/room/${room.id}`);
+                                    }}
+                                    className="enter-room-btn"
+                                    title="이 방으로 바로 입장"
+                                    style={{ marginLeft: 8 }}
+                                >
+                                    입장하기
+                                </button>
                             </div>
                         </div>
                     ))}

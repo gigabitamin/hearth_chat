@@ -29,6 +29,7 @@ class UserSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserSettings
         exclude = ['id', 'created_at', 'updated_at']
+    ai_response_enabled = serializers.BooleanField(required=False)
 
 class VoiceCallSerializer(serializers.ModelSerializer):
     caller = UserSerializer(read_only=True)

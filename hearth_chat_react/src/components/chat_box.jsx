@@ -22,6 +22,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import InsertChartIcon from '@mui/icons-material/InsertChart';
 import CodeIcon from '@mui/icons-material/Code';
 import SettingsModal from './SettingsModal';
+import { useNavigate } from 'react-router-dom';
 
 // Chart.js core 등록 필수!
 import {
@@ -121,7 +122,7 @@ function MyChart() {
   );
 }
 
-const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, userSettings, setUserSettings }) => {
+const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, userSettings, setUserSettings, onUserMenuOpen }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [userAvatar, setUserAvatar] = useState(null);
@@ -230,6 +231,8 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   const selectedRoomRef = useRef(selectedRoom);
   const loginUserRef = useRef(loginUser);
 
+  const navigate = useNavigate();
+
   useEffect(() => {
     selectedRoomRef.current = selectedRoom;
   }, [selectedRoom]);
@@ -247,6 +250,11 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       }
     }
   }, [selectedRoom]);
+
+  // selectedRoom이 바뀔 때마다 메시지 초기화
+  useEffect(() => {
+    setMessages([]);
+  }, [selectedRoom?.id]);
 
   // WebSocket 연결/해제 및 join/leave 관리
   useEffect(() => {
@@ -282,32 +290,41 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       // (이전 코드와 달리 onopen에서 join_room을 직접 보내지 않음)
     };
     ws.current.onmessage = (e) => {
+      console.log('[WebSocket] onmessage 수신:', e.data);
       try {
         const data = JSON.parse(e.data);
         if (data.type === 'user_message' && data.message) {
           if (data.roomId === selectedRoomRef.current?.id) {
             const isMyMessage = data.sender === loginUserRef.current?.username;
-            setMessages(prev => [...prev, {
-              id: Date.now(),
-              type: isMyMessage ? 'send' : 'recv',
-              text: data.message,
-              date: data.timestamp,
-              sender: data.sender,
-              emotion: data.emotion,
-              imageUrl: null
-            }]);
+            setMessages(prev => {
+              const newMessages = [...prev, {
+                id: Date.now(),
+                type: isMyMessage ? 'send' : 'recv',
+                text: data.message,
+                date: data.timestamp,
+                sender: data.sender,
+                emotion: data.emotion,
+                imageUrl: null
+              }];
+              console.log('[setMessages] user_message 추가 후 상태:', newMessages);
+              return newMessages;
+            });
           }
         } else if (data.type === 'ai_message' && data.message) {
           if (data.roomId === selectedRoomRef.current?.id) {
-            setMessages(prev => [...prev, {
-              id: Date.now(),
-              type: 'recv',
-              text: data.message,
-              date: data.timestamp,
-              sender: 'AI',
-              emotion: null,
-              imageUrl: null
-            }]);
+            setMessages(prev => {
+              const newMessages = [...prev, {
+                id: Date.now(),
+                type: 'recv',
+                text: data.message,
+                date: data.timestamp,
+                sender: 'AI',
+                emotion: null,
+                imageUrl: null
+              }];
+              console.log('[setMessages] ai_message 추가 후 상태:', newMessages);
+              return newMessages;
+            });
             setCurrentAiMessage(data.message);
             setIsAiTalking(true);
             if (isTTSEnabled) {
@@ -2264,7 +2281,10 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         {/* 타이틀+음성/카메라/트래킹 버튼 헤더 */}
         <div className="chat-header">
           <div className="chat-title">
-            Hearth <span role="img" aria-label="fire">🔥</span> Chat
+            <button onClick={() => navigate('/')} className="back-btn">
+              ← 대화방 목록
+            </button>
+            <span style={{ marginLeft: 8, fontWeight: 700 }}>{selectedRoom?.name}</span>
           </div>
           {/* 버튼 렌더링 부분(마이크, 카메라, 트래킹, 아바타 토글) */}
           <div className="header-btn-group">
@@ -2305,7 +2325,10 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
             {/* 로그인/내 계정 버튼 - 오른쪽 끝 */}
             {loginLoading ? null : loginUser ? (
               <button
-                onClick={() => setIsUserMenuOpen(true)}
+                onClick={() => {
+                  console.log('내 계정 버튼 클릭!');
+                  onUserMenuOpen();
+                }}
                 className="login-btn-header"
                 style={buttonStyle}
                 title="내 계정"
@@ -2395,7 +2418,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         <div
           className="chat-section"
           style={{
-            height: `${viewportHeight}px`,
+            height: '100%',
             margin: 0,
             padding: 0,
             width: '100%'
