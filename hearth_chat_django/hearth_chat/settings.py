@@ -192,10 +192,77 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.github',
     # hearth_chat 앱 (SocialApp 자동 생성을 위해)
     'hearth_chat.apps.HearthChatConfig',
+    'rest_framework',
 ]
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 
 SITE_ID = 2 # 소셜 로그인 설정을 위한 필수 설정 (1: railway, 2: 로컬)
+
+# 로컬 환경에서 Site 객체가 없을 때를 대비한 동적 SITE_ID 설정
+if not os.environ.get("RAILWAY_ENVIRONMENT"):
+    # 로컬 환경에서는 SITE_ID = 2 사용
+    SITE_ID = 2
+    print(f"로컬 환경 - SITE_ID 설정: {SITE_ID}")
+    
+    try:
+        from django.contrib.sites.models import Site
+        # Site 객체가 있으면 그 ID를 사용, 없으면 2 사용
+        site = Site.objects.first()
+        if site:
+            print(f"로컬 환경 - 기존 Site 발견: {site.domain}")
+        else:
+            print("로컬 환경 - Site 객체가 없음, SITE_ID=2 사용")
+    except Exception as e:
+        print(f"Site 객체 확인 중 오류 (무시됨): {e}")
+    
+    # 로컬 환경에서 Site 객체가 없을 때 Django Admin 접속을 위한 패치
+    try:
+        from django.contrib.sites.models import Site
+        from django.contrib.sites.shortcuts import get_current_site
+        
+        # 기존 get_current_site 함수를 완전히 오버라이드
+        def patched_get_current_site_local(request):
+            try:
+                # 기존 방식으로 시도
+                return Site.objects.get_current(request)
+            except Site.DoesNotExist:
+                # Site 객체가 없으면 자동으로 생성
+                site, created = Site.objects.get_or_create(
+                    id=2,
+                    defaults={
+                        'domain': 'localhost:8000',
+                        'name': 'localhost'
+                    }
+                )
+                print(f"로컬 Site 객체 자동 생성: {site.domain}")
+                return site
+        
+        # 패치 적용
+        import django.contrib.sites.shortcuts
+        django.contrib.sites.shortcuts.get_current_site = patched_get_current_site_local
+        
+        # Site.objects.get_current도 패치
+        def patched_get_current_local(self, request=None):
+            try:
+                return self.get(pk=SITE_ID)
+            except Site.DoesNotExist:
+                site, created = Site.objects.get_or_create(
+                    id=SITE_ID,
+                    defaults={
+                        'domain': 'localhost:8000',
+                        'name': 'localhost'
+                    }
+                )
+                print(f"로컬 Site.objects.get_current 패치 - Site 생성: {site.domain}")
+                return site
+        
+        # Site manager의 get_current 메서드 패치
+        from django.contrib.sites.models import SiteManager
+        SiteManager.get_current = patched_get_current_local
+        
+        print("로컬 환경 - Site 객체 자동 생성 패치 완전 적용됨")
+    except Exception as e:
+        print(f"로컬 Site 패치 적용 중 오류 (무시됨): {e}")
 
 # Railway 환경에서 Site 객체가 없을 때를 대비한 동적 SITE_ID 설정
 if os.environ.get("RAILWAY_ENVIRONMENT"):
@@ -283,17 +350,25 @@ AUTHENTICATION_BACKENDS = [
     'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
-LOGIN_REDIRECT_URL = '/'
+LOGIN_REDIRECT_URL = '/accounts/popup-close/'
 LOGOUT_REDIRECT_URL = '/'
 ACCOUNT_LOGOUT_ON_GET = True
 
-# allauth 설정 (deprecated 경고 해결)
+# allauth 설정 (최신 버전 호환)
 ACCOUNT_LOGIN_METHODS = {'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
-# ACCOUNT_EMAIL_VERIFICATION = 'mandatory'  # 이메일 검증 강제 (기본값)
-ACCOUNT_EMAIL_VERIFICATION = 'optional'  # 이메일 검증 선택사항 (나중에 필요시 주석 해제)
+ACCOUNT_EMAIL_VERIFICATION = 'optional'  # 이메일 검증 선택사항 (권장)
 SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
 SOCIALACCOUNT_QUERY_EMAIL = True
+
+# 이메일 기반 인증 설정
+ACCOUNT_UNIQUE_EMAIL = True
+
+# 이메일 확인 관련 설정
+ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 3  # 이메일 확인 링크 유효기간 (3일)
+ACCOUNT_RATE_LIMITS = {
+    'confirm_email': '1/m',  # 이메일 확인 재전송 제한 (1분에 1회)
+}
 
 # allauth 소셜 로그인 provider별 설정 (구글 scope 오류 방지)
 SOCIALACCOUNT_PROVIDERS = {
@@ -334,7 +409,7 @@ ROOT_URLCONF = "hearth_chat.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [os.path.join(BASE_DIR, 'templates')],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -472,18 +547,9 @@ LOGGING = {
 #     except Exception as e:
 #         print(f"SocialApp 설정 중 오류 (무시됨): {e}")
 
-# allauth 회원가입 시 email을 고유값으로 사용하도록 설정
-ACCOUNT_USER_MODEL_USERNAME_FIELD = None
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_UNIQUE_EMAIL = True
-
-# 이메일 검증 설정
-ACCOUNT_EMAIL_VERIFICATION = 'mandatory'  # 이메일 검증 강제 (기본값)
-# ACCOUNT_EMAIL_VERIFICATION = 'optional'  # 이메일 검증 선택사항 (나중에 필요시 주석 해제)
-ACCOUNT_EMAIL_REQUIRED = True  # 이메일 필수
-ACCOUNT_AUTHENTICATION_METHOD = 'email'  # 이메일로 로그인
-ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 3  # 이메일 확인 링크 유효기간 (3일)
-ACCOUNT_EMAIL_CONFIRMATION_COOLDOWN = 180  # 재전송 대기시간 (3분)
+# 이메일 검증 설정 (중복 제거 - 위에서 이미 설정됨)
+# ACCOUNT_EMAIL_VERIFICATION = 'optional'  # 이메일 검증 선택사항 (권장)
+# ACCOUNT_EMAIL_VERIFICATION = 'mandatory'  # 이메일 검증 강제 (나중에 필요시 주석 해제)
 
 # 이메일 발송 설정 (Railway 환경)
 if os.environ.get("RAILWAY_ENVIRONMENT"):
@@ -498,3 +564,17 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
 else:
     # 개발 환경에서는 콘솔에 출력
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+SOCIALACCOUNT_ADAPTER = 'hearth_chat.adapters.CustomSocialAccountAdapter'
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
+    'PAGE_SIZE': 20,
+}

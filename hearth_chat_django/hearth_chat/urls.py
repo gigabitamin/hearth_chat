@@ -16,11 +16,11 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.conf import settings
 from django.conf.urls.static import static
 from django.http import HttpResponse
-from .views import ReactAppView, social_connections_api
+from .views import ReactAppView, social_connections_api, social_login_redirect_view, get_csrf_token
 from django.views.static import serve as static_serve
 import os
 
@@ -82,11 +82,17 @@ def ignore_source_maps(request):
     return HttpResponse("", content_type="application/json")
 
 
+def popup_close_view(request):
+    """소셜 로그인 완료 후 팝업창 닫기 뷰"""
+    return render(request, 'socialaccount/popup_close.html')
+
+
 urlpatterns = [
     path("favicon.ico", favicon),
     path("admin/", admin.site.urls),
     path('accounts/', include('allauth.urls')),  # allauth 소셜 로그인 URL
     path('chat/', include("chat.urls")),
+    path('api/chat/', include('chat.urls')),  # chat API 엔드포인트
     path('health/', health_check, name="health_check"),  # 헬스체크 엔드포인트
     path("manifest.json", manifest_json),  # manifest.json 직접 반환
     path("logo192.png", logo192_png),  # logo192.png 직접 반환
@@ -96,6 +102,9 @@ urlpatterns = [
     path("static/js/", lambda r: ignore_source_maps(r)),  # .map 파일들
     path("static/css/", lambda r: ignore_source_maps(r)),  # .map 파일들
     path("api/social-connections/", social_connections_api, name="social_connections_api"),
+    path("social-redirect/", social_login_redirect_view, name='social_login_redirect'),
+    path("api/csrf/", get_csrf_token, name="get_csrf_token"),  # CSRF 토큰 제공 엔드포인트
+    path("accounts/popup-close/", popup_close_view, name="popup_close"),  # 팝업창 닫기 URL
     path("", ReactAppView.as_view(), name="root"),  # 루트에 React index.html 연결
 ]
 

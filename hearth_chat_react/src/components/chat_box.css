@@ -754,3 +754,167 @@ body,
   word-break: break-all;
   white-space: pre-line;
 }
+
+.group-chat-2x2-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 16px;
+  width: 100%;
+  max-width: 600px;
+  margin: 32px auto 24px auto;
+  min-height: 320px;
+}
+
+.group-chat-cell {
+  background: #23272f;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 18px 8px 12px 8px;
+  color: #fff;
+  font-size: 16px;
+}
+
+.group-chat-avatar {
+  margin-bottom: 8px;
+}
+
+.group-chat-name {
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.group-chat-status {
+  font-size: 18px;
+  margin-bottom: 2px;
+}
+
+.group-chat-waiting {
+  color: #bbb;
+  font-size: 15px;
+  font-style: italic;
+}
+
+.group-chat-media {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px;
+  margin-bottom: 8px;
+}
+
+/* WebRTC 스트림 관련 스타일 */
+.local-stream-container,
+.remote-stream-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.local-stream-placeholder,
+.remote-stream-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 60px;
+  background: #333;
+  border-radius: 8px;
+  color: #888;
+  font-size: 12px;
+  text-align: center;
+}
+
+.local-stream-controls {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 12px;
+  padding: 4px 8px;
+  z-index: 10;
+}
+
+.stream-control-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 14px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  opacity: 0.7;
+}
+
+.stream-control-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.stream-control-btn.active {
+  opacity: 1;
+  background: rgba(76, 175, 80, 0.3);
+}
+
+.stream-control-btn.active:hover {
+  background: rgba(76, 175, 80, 0.5);
+}
+
+/* 그룹 채팅 셀 내부 비디오 스타일 */
+.group-chat-cell video {
+  width: 80px;
+  height: 60px;
+  border-radius: 8px;
+  background: #111;
+  object-fit: cover;
+}
+
+/* 그룹 채팅 셀 반응형 */
+@media (max-width: 768px) {
+  .group-chat-2x2-grid {
+    gap: 12px;
+    margin: 24px auto 16px auto;
+    min-height: 280px;
+  }
+
+  .group-chat-cell {
+    min-height: 100px;
+    padding: 12px 6px 8px 6px;
+    font-size: 14px;
+  }
+
+  .group-chat-media {
+    min-height: 50px;
+  }
+
+  .local-stream-placeholder,
+  .remote-stream-placeholder {
+    width: 60px;
+    height: 45px;
+    font-size: 10px;
+  }
+
+  .group-chat-cell video {
+    width: 60px;
+    height: 45px;
+  }
+
+  .stream-control-btn {
+    font-size: 12px;
+    padding: 3px 5px;
+  }
+}

@@ -5,7 +5,7 @@ import './LoginModal.css';
 // 환경에 따라 API_BASE 자동 설정
 const API_BASE = process.env.NODE_ENV === 'production'
     ? 'https://hearthchat-production.up.railway.app/accounts'
-    : 'http://localhost:8000/accounts';
+    : `http://${window.location.hostname}:8000/accounts`;
 
 function getCookie(name) {
     let cookieValue = null;
@@ -22,7 +22,7 @@ function getCookie(name) {
     return cookieValue;
 }
 
-const LoginModal = ({ isOpen, onClose }) => {
+const LoginModal = ({ isOpen, onClose, onSocialLogin }) => {
     const [tab, setTab] = useState('login'); // 'login' or 'signup'
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -191,7 +191,7 @@ const LoginModal = ({ isOpen, onClose }) => {
                         <span>또는</span>
                     </div>
                     <div className="login-modal-social">
-                        <SocialLoginButtons />
+                        <SocialLoginButtons onSocialLogin={onSocialLogin} />
                     </div>
                 </div>
             </div>

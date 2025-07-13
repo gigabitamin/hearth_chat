@@ -16,6 +16,19 @@ from django.http import HttpResponse
 from django.contrib.auth import logout as django_logout
 from django.contrib.auth.decorators import login_required
 from allauth.socialaccount.models import SocialAccount
+from rest_framework import viewsets, generics, permissions, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from .models import ChatRoom, Chat, ChatRoomParticipant, UserSettings
+from .serializers import ChatRoomSerializer, ChatSerializer, ChatRoomParticipantSerializer, UserSettingsSerializer
+from django.contrib.auth.models import User
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from django.shortcuts import get_object_or_404
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+import json
+from django.db import models
 
 # Create your views here.
 
@@ -161,3 +174,238 @@ def logout_api(request):
         return response
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+class ChatRoomViewSet(viewsets.ModelViewSet):
+    queryset = ChatRoom.objects.all()
+    serializer_class = ChatRoomSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        # 공개방은 모두, 비공개방은 참여자만
+        return ChatRoom.objects.filter(
+            models.Q(is_public=True) | models.Q(chatroomparticipant__user=user)
+        ).distinct()
+    
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        # 공개방은 누구나, 비공개방은 참여자만
+        if not instance.is_public and not instance.participants.filter(id=request.user.id).exists():
+            return Response({'error': '비공개 방입니다.'}, status=403)
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def public(self, request):
+        """전체 공개방 목록"""
+        queryset = ChatRoom.objects.filter(is_public=True).order_by('-created_at')
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def join(self, request, pk=None):
+        """공개방 입장"""
+        room = self.get_object()
+        
+        if not room.is_public:
+            return Response({'error': '비공개 방입니다.'}, status=400)
+        
+        # 이미 참여 중인지 확인
+        if ChatRoomParticipant.objects.filter(room=room, user=request.user).exists():
+            return Response({'error': '이미 참여 중인 방입니다.'}, status=400)
+        
+        # 참여자로 추가
+        ChatRoomParticipant.objects.create(room=room, user=request.user)
+        
+        return Response({'message': '방에 입장했습니다.'})
+
+    def perform_create(self, serializer):
+        """대화방 생성 시 WebSocket으로 실시간 알림"""
+        # 공개/비공개 설정 처리
+        is_public = serializer.validated_data.get('is_public', False)
+        room = serializer.save(is_public=is_public)
+        
+        # 대화방 생성자 자동 참여 (방장으로 설정)
+        ChatRoomParticipant.objects.get_or_create(
+            room=room, 
+            user=self.request.user,
+            defaults={'is_owner': True}
+        )
+        
+        # WebSocket으로 대화방 목록 업데이트 알림
+        try:
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                'chat_room_list',
+                {
+                    'type': 'room_list_update',
+                    'message': {
+                        'type': 'room_created',
+                        'room_id': room.id,
+                        'room_name': room.name,
+                        'creator': self.request.user.username,
+                        'is_public': room.is_public
+                    }
+                }
+            )
+        except Exception as e:
+            print(f"WebSocket 알림 실패: {e}")
+        
+        return room
+
+    @action(detail=True, methods=['post'])
+    def join(self, request, pk=None):
+        room = self.get_object()
+        participant, created = ChatRoomParticipant.objects.get_or_create(room=room, user=request.user)
+        
+        # WebSocket으로 참여 알림
+        try:
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                'chat_room_list',
+                {
+                    'type': 'room_list_update',
+                    'message': {
+                        'type': 'user_joined',
+                        'room_id': room.id,
+                        'user': request.user.username
+                    }
+                }
+            )
+        except Exception as e:
+            print(f"WebSocket 알림 실패: {e}")
+        
+        return Response({'joined': True, 'room_id': room.id})
+
+    @action(detail=True, methods=['post'])
+    def leave(self, request, pk=None):
+        room = self.get_object()
+        ChatRoomParticipant.objects.filter(room=room, user=request.user).delete()
+        
+        # WebSocket으로 나가기 알림
+        try:
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                'chat_room_list',
+                {
+                    'type': 'room_list_update',
+                    'message': {
+                        'type': 'user_left',
+                        'room_id': room.id,
+                        'user': request.user.username
+                    }
+                }
+            )
+        except Exception as e:
+            print(f"WebSocket 알림 실패: {e}")
+        
+        return Response({'left': True, 'room_id': room.id})
+
+    def destroy(self, request, *args, **kwargs):
+        """대화방 삭제 (방장 또는 관리자만 가능)"""
+        room = self.get_object()
+        
+        # 방장 또는 관리자 권한 확인
+        is_owner = ChatRoomParticipant.objects.filter(
+            room=room, 
+            user=request.user, 
+            is_owner=True
+        ).exists()
+        is_admin = request.user.is_superuser or request.user.is_staff
+        
+        if not (is_owner or is_admin):
+            return Response(
+                {'error': '방장 또는 관리자만 대화방을 삭제할 수 있습니다.'}, 
+                status=403
+            )
+        
+        # 대화방 삭제 전 WebSocket 알림
+        try:
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                'chat_room_list',
+                {
+                    'type': 'room_list_update',
+                    'message': {
+                        'type': 'room_deleted',
+                        'room_id': room.id,
+                        'room_name': room.name,
+                        'deleted_by': request.user.username
+                    }
+                }
+            )
+        except Exception as e:
+            print(f"WebSocket 알림 실패: {e}")
+        
+        # 대화방 삭제
+        room.delete()
+        return Response({'deleted': True, 'room_id': room.id})
+
+class ChatViewSet(viewsets.ModelViewSet):
+    queryset = Chat.objects.all()
+    serializer_class = ChatSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        room_id = self.request.query_params.get('room')
+        offset = int(self.request.query_params.get('offset', 0))
+        limit = int(self.request.query_params.get('limit', 20))
+        if room_id:
+            return Chat.objects.filter(room_id=room_id).order_by('-timestamp')[offset:offset+limit]
+        return Chat.objects.none()
+
+    def perform_create(self, serializer):
+        serializer.save(sender=self.request.user)
+    
+    @action(detail=False, methods=['get'])
+    def messages(self, request):
+        """방별 메시지 조회 API"""
+        room_id = request.query_params.get('room')
+        offset = int(request.query_params.get('offset', 0))
+        limit = int(request.query_params.get('limit', 20))
+        
+        if not room_id:
+            return Response({'error': 'room parameter is required'}, status=400)
+        
+        try:
+            # 해당 방의 메시지 조회
+            messages = Chat.objects.filter(room_id=room_id).order_by('-timestamp')[offset:offset+limit]
+            
+            # 프론트엔드에서 기대하는 형태로 변환
+            message_list = []
+            for msg in messages:
+                message_data = {
+                    'id': msg.id,
+                    'type': 'send' if msg.sender == request.user else 'recv',
+                    'text': msg.content,
+                    'date': msg.timestamp.isoformat(),
+                    'sender': msg.sender.username if msg.sender else 'AI',
+                    'emotion': msg.emotion if hasattr(msg, 'emotion') else None,
+                    'imageUrl': msg.attach_image.url if msg.attach_image else None
+                }
+                message_list.append(message_data)
+            
+            return Response({
+                'results': message_list,
+                'count': len(message_list),
+                'has_more': len(message_list) == limit
+            })
+            
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+
+class UserSettingsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        settings, _ = UserSettings.objects.get_or_create(user=request.user)
+        serializer = UserSettingsSerializer(settings)
+        return Response(serializer.data)
+
+    def post(self, request):
+        settings, _ = UserSettings.objects.get_or_create(user=request.user)
+        serializer = UserSettingsSerializer(settings, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)

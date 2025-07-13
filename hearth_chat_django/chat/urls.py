@@ -1,11 +1,12 @@
-from django.urls import path
-from . import consumers, views
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views import ChatRoomViewSet, ChatViewSet, UserSettingsView
+
+router = DefaultRouter()
+router.register(r'rooms', ChatRoomViewSet, basename='room')
+router.register(r'messages', ChatViewSet, basename='message')
 
 urlpatterns = [
-    path('', views.chat_home, name='chat_home'),  # /chat/ 메인 페이지
-    path('api/chat/history/', views.get_chat_history, name='chat_history'),
-    path('api/chat/sessions/', views.get_all_sessions, name='all_sessions'),
-    path('api/chat/upload_image/', views.upload_chat_image, name='upload_chat_image'),
-    path('api/user/', views.user_info, name='user_info'),
-    path('api/logout/', views.logout_api, name='logout_api'),
+    path('user/settings/', UserSettingsView.as_view(), name='user-settings'),
 ]
+urlpatterns += router.urls

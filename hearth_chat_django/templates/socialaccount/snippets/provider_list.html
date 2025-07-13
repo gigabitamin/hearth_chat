@@ -1,0 +1,75 @@
+{% load socialaccount %}
+
+{% get_providers as socialaccount_providers %}
+
+{% for provider in socialaccount_providers %}
+{% if provider.social_app %}
+<a href="{% provider_login_url provider.id process=process scope=scope auth_params=auth_params %}"
+    class="social-provider-btn {{ provider.id }}-btn">
+    {% if provider.id == 'google' %}
+    <span>Google로 로그인</span>
+    {% elif provider.id == 'kakao' %}
+    <span>카카오로 로그인</span>
+    {% elif provider.id == 'naver' %}
+    <span>네이버로 로그인</span>
+    {% elif provider.id == 'github' %}
+    <span>GitHub로 로그인</span>
+    {% else %}
+    <span>{{ provider.name }}로 로그인</span>
+    {% endif %}
+</a>
+{% endif %}
+{% endfor %}
+
+<style>
+    .social-provider-btn {
+        display: block;
+        width: 100%;
+        padding: 12px 20px;
+        margin-bottom: 10px;
+        border: none;
+        border-radius: 4px;
+        text-decoration: none;
+        text-align: center;
+        font-size: 16px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .google-btn {
+        background: #4285f4;
+        color: white;
+    }
+
+    .google-btn:hover {
+        background: #3367d6;
+    }
+
+    .kakao-btn {
+        background: #fee500;
+        color: #000;
+    }
+
+    .kakao-btn:hover {
+        background: #fdd800;
+    }
+
+    .naver-btn {
+        background: #03c75a;
+        color: white;
+    }
+
+    .naver-btn:hover {
+        background: #02b351;
+    }
+
+    .github-btn {
+        background: #24292e;
+        color: white;
+    }
+
+    .github-btn:hover {
+        background: #1a1e22;
+    }
+</style>

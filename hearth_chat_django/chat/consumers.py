@@ -56,11 +56,23 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.session_id = str(uuid.uuid4())
         print(f"새로운 WebSocket 연결: {self.session_id}")
         
+        # 대화방 목록 업데이트 그룹에 참여
+        await self.channel_layer.group_add(
+            'chat_room_list',
+            self.channel_name
+        )
+        
         # MySQL 연결을 강제로 utf8mb4로 설정 (async context에서 안전하게)
         await self._force_utf8mb4_connection_async()
 
     async def disconnect(self, close_code):
         print(f"WebSocket 연결 종료: {self.session_id}")
+        
+        # 대화방 목록 업데이트 그룹에서 나가기
+        await self.channel_layer.group_discard(
+            'chat_room_list',
+            self.channel_name
+        )
 
     async def receive(self, text_data):
         print("WebSocket 메시지 수신:", text_data)
@@ -73,9 +85,29 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.send(text_data=json.dumps({'message': "잘못된 형식의 메시지입니다. JSON 형식으로 보내주세요."}))
             return
         
+        # WebRTC 시그널링 메시지 처리
+        message_type = data.get("type", "")
+        if message_type in ["offer", "answer", "candidate", "participants_update"]:
+            await self.handle_webrtc_signaling(data)
+            return
+        
+        # 방 입장 메시지 처리
+        if message_type == "join_room":
+            room_id = data.get("roomId", "")
+            if room_id:
+                # 해당 방의 그룹에 참여
+                await self.channel_layer.group_add(
+                    f'chat_room_{room_id}',
+                    self.channel_name
+                )
+                print(f"[JOIN] 세션 {self.session_id}가 방 {room_id} 그룹에 입장 (채널: {self.channel_name})")
+            return
+        
+        # 기존 채팅 메시지 처리
         user_message = data.get("message", "")
         user_emotion = data.get("emotion", "neutral")  # 감정 정보 추출
         image_url = data.get("imageUrl", "")
+        room_id = data.get("roomId", "")  # 대화방 ID 추가
 
         if not user_message and not image_url:
             await self.send(text_data=json.dumps({'message': "메시지와 이미지가 모두 비어 있습니다."}))
@@ -85,8 +117,22 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.update_emotion_history(user_emotion)
         
         # 사용자 메시지를 DB에 저장 (감정 정보 포함)
-        print(f"사용자 메시지 저장 시도: {user_message} (감정: {user_emotion}) 이미지: {image_url}")
-        await self.save_user_message(user_message or '[이미지 첨부]', user_emotion)
+        print(f"사용자 메시지 저장 시도: {user_message} (감정: {user_emotion}) 이미지: {image_url} 방ID: {room_id}")
+        user_message_obj = await self.save_user_message(user_message or '[이미지 첨부]', room_id, user_emotion)
+
+        # 사용자 메시지를 방의 모든 참여자에게 브로드캐스트
+        print(f"[SEND] 사용자 메시지 group_send: chat_room_{room_id} (채널: {self.channel_name})")
+        await self.channel_layer.group_send(
+            f'chat_room_{room_id}',
+            {
+                'type': 'user_message',
+                'message': user_message or '[이미지 첨부]',
+                'roomId': room_id,
+                'sender': user_message_obj.sender.username if user_message_obj.sender else 'Unknown',
+                'timestamp': user_message_obj.timestamp.isoformat(),
+                'emotion': user_emotion
+            }
+        )
 
         try:
             print("[DEBUG] get_ai_response 호출 직전 (user_message:", user_message, ", user_emotion:", user_emotion, ", image_url:", image_url, ")")
@@ -95,7 +141,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             
             # AI 응답을 DB에 저장
             print(f"AI 응답 저장 시도: {ai_response}")
-            await self.save_ai_message(ai_response)
+            ai_message_obj = await self.save_ai_message(ai_response, room_id)
             
             # 대화 컨텍스트 업데이트
             self.conversation_context.append({
@@ -107,12 +153,80 @@ class ChatConsumer(AsyncWebsocketConsumer):
             if len(self.conversation_context) > 10:
                 self.conversation_context = self.conversation_context[-10:]
             
-            await self.send(text_data=json.dumps({'message': ai_response}))
+            # AI 응답을 방의 모든 참여자에게 브로드캐스트
+            print(f"[SEND] AI 메시지 group_send: chat_room_{room_id} (채널: {self.channel_name})")
+            await self.channel_layer.group_send(
+                f'chat_room_{room_id}',
+                {
+                    'type': 'ai_message',
+                    'message': ai_response,
+                    'roomId': room_id,
+                    'timestamp': ai_message_obj.timestamp.isoformat()
+                }
+            )
         except Exception as e:
             print("WebSocket 처리 중 오류 발생:", e)
             error_message = f"AI 오류: {str(e)}"
-            await self.save_ai_message(error_message)
-            await self.send(text_data=json.dumps({'message': error_message}))
+            await self.save_ai_message(error_message, room_id)
+            await self.send(text_data=json.dumps({
+                'message': error_message,
+                'roomId': room_id,
+                'type': 'chat_message'
+            }))
+
+    async def room_list_update(self, event):
+        """대화방 목록 업데이트 메시지 처리"""
+        message = event['message']
+        await self.send(text_data=json.dumps({
+            'type': 'room_list_update',
+            'data': message
+        }))
+
+    async def user_message(self, event):
+        """사용자 메시지 처리"""
+        print(f"[RECV] user_message: {event} (채널: {self.channel_name})")
+        await self.send(text_data=json.dumps({
+            'type': 'user_message',
+            'message': event['message'],
+            'roomId': event['roomId'],
+            'sender': event['sender'],
+            'timestamp': event['timestamp'],
+            'emotion': event.get('emotion', 'neutral')
+        }))
+
+    async def ai_message(self, event):
+        """AI 메시지 처리"""
+        print(f"[RECV] ai_message: {event} (채널: {self.channel_name})")
+        await self.send(text_data=json.dumps({
+            'type': 'ai_message',
+            'message': event['message'],
+            'roomId': event['roomId'],
+            'timestamp': event['timestamp']
+        }))
+
+    async def handle_webrtc_signaling(self, data):
+        """WebRTC 시그널링 메시지 처리"""
+        message_type = data.get("type", "")
+        target_user = data.get("targetUser", "")
+        sender_user = data.get("senderUser", "")
+        
+        print(f"WebRTC 시그널링 처리: {message_type} from {sender_user} to {target_user}")
+        
+        # 시그널링 메시지를 해당 사용자에게 전달
+        if target_user and target_user != sender_user:
+            # 실제 구현에서는 사용자별 WebSocket 연결을 관리해야 함
+            # 현재는 모든 연결된 클라이언트에게 브로드캐스트
+            await self.send(text_data=json.dumps({
+                "type": message_type,
+                "senderUser": sender_user,
+                "targetUser": target_user,
+                "data": data.get("data", {}),
+                "candidate": data.get("candidate", {}),
+                "sdp": data.get("sdp", "")
+            }))
+        else:
+            # 참가자 목록 업데이트 등 전체 브로드캐스트
+            await self.send(text_data=json.dumps(data))
 
     def update_emotion_history(self, current_emotion):
         """감정 변화 추적"""
@@ -148,7 +262,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return "stable"
 
     @sync_to_async
-    def save_user_message(self, content, emotion="neutral"):
+    def save_user_message(self, content, room_id, emotion="neutral"):
         """사용자 메시지를 DB에 저장 (감정 정보 포함)"""
         try:
             from .models import Chat
@@ -157,7 +271,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 import unicodedata
                 content = unicodedata.normalize('NFC', content)
             
-            result = Chat.save_user_message(content, self.session_id, emotion)
+            result = Chat.save_user_message(content, room_id, emotion)
             print(f"사용자 메시지 저장 성공: {result.id} (감정: {emotion})")
             return result
         except Exception as e:
@@ -168,7 +282,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             raise e
 
     @sync_to_async
-    def save_ai_message(self, content):
+    def save_ai_message(self, content, room_id):
         """AI 메시지를 DB에 저장"""
         try:
             from .models import Chat
@@ -177,7 +291,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 import unicodedata
                 content = unicodedata.normalize('NFC', content)
             
-            result = Chat.save_ai_message(content, self.session_id)
+            result = Chat.save_ai_message(content, room_id)
             print(f"AI 메시지 저장 성공: {result.id}")
             return result
         except Exception as e:

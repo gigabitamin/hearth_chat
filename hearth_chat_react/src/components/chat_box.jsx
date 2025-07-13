@@ -21,6 +21,7 @@ import 'prismjs/themes/prism-tomorrow.css';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import InsertChartIcon from '@mui/icons-material/InsertChart';
 import CodeIcon from '@mui/icons-material/Code';
+import SettingsModal from './SettingsModal';
 
 // Chart.js core 등록 필수!
 import {
@@ -120,7 +121,7 @@ function MyChart() {
   );
 }
 
-const ChatBox = () => {
+const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, userSettings, setUserSettings }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [userAvatar, setUserAvatar] = useState(null);
@@ -133,14 +134,40 @@ const ChatBox = () => {
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [isRealTimeMode, setIsRealTimeMode] = useState(false);
 
+  // 상대방 메시지 랜덤 색상 관리
+  const [senderColors, setSenderColors] = useState({});
+
+  // 랜덤 색상 생성 함수
+  const getRandomColor = () => {
+    const colors = [
+      '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+      '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
+      '#F8C471', '#82E0AA', '#F1948A', '#85C1E9', '#D7BDE2'
+    ];
+    return colors[Math.floor(Math.random() * colors.length)];
+  };
+
+  // 발신자별 색상 가져오기
+  const getSenderColor = (sender) => {
+    if (!sender || sender === loginUser?.username || sender === 'AI') {
+      return null; // 내 메시지와 AI 메시지는 기본 색상 사용
+    }
+
+    if (!senderColors[sender]) {
+      setSenderColors(prev => ({
+        ...prev,
+        [sender]: getRandomColor()
+      }));
+      return getRandomColor();
+    }
+
+    return senderColors[sender];
+  };
+
   // 로그인 모달 상태
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   // 사용자 메뉴 모달 상태
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  // 로그인 사용자 정보
-  const [loginUser, setLoginUser] = useState(null);
-  // 로그인 상태 로딩
-  const [loginLoading, setLoginLoading] = useState(true);
 
   // TTS 관련 상태
   const [isTTSEnabled, setIsTTSEnabled] = useState(false);
@@ -180,6 +207,387 @@ const ChatBox = () => {
   const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
 
   const [chartViewMap, setChartViewMap] = useState({}); // 메시지별 차트뷰 상태
+
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [messageOffset, setMessageOffset] = useState(0);
+
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState('tts'); // tts, voice, camera, avatar, notify, etc
+
+  // 그룹 채팅방 참가자 목록 상태 (실시간 갱신)
+  const [groupParticipants, setGroupParticipants] = useState([]);
+
+  // WebRTC 관련 상태 추가
+  const [localStream, setLocalStream] = useState(null);
+  const [isLocalVideoEnabled, setIsLocalVideoEnabled] = useState(false);
+  const [isLocalAudioEnabled, setIsLocalAudioEnabled] = useState(false);
+  const [localVideoRef, setLocalVideoRef] = useState(null);
+  const [remoteStreams, setRemoteStreams] = useState({}); // { userId: MediaStream }
+  const [peerConnections, setPeerConnections] = useState({}); // { userId: RTCPeerConnection }
+
+  // selectedRoom, loginUser를 useRef로 관리
+  const selectedRoomRef = useRef(selectedRoom);
+  const loginUserRef = useRef(loginUser);
+
+  useEffect(() => {
+    selectedRoomRef.current = selectedRoom;
+  }, [selectedRoom]);
+  useEffect(() => {
+    loginUserRef.current = loginUser;
+  }, [loginUser]);
+
+  // 그룹 채팅방 입장 시 participants 초기화
+  useEffect(() => {
+    if (selectedRoom?.room_type === 'group') {
+      if (selectedRoom.participants && Array.isArray(selectedRoom.participants)) {
+        setGroupParticipants(selectedRoom.participants.slice(0, 4));
+      } else {
+        setGroupParticipants([]);
+      }
+    }
+  }, [selectedRoom]);
+
+  // WebSocket 연결/해제 및 join/leave 관리
+  useEffect(() => {
+    if (!selectedRoom || !selectedRoom.id) return;
+    // 기존 연결 해제
+    if (ws.current) {
+      try {
+        if (ws.current.readyState === 1) {
+          ws.current.send(JSON.stringify({ type: 'leave_room', roomId: selectedRoomRef.current?.id }));
+        }
+        ws.current.close();
+      } catch { }
+    }
+    // 새 연결 생성
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.hostname;
+    const isLocalhost = host === 'localhost' || host === '127.0.0.1';
+    const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}:8000/ws/chat/`;
+    ws.current = new window.WebSocket(wsUrl);
+
+    // join_room 메시지 전송을 readyState가 1(OPEN)일 때까지 반복 시도
+    let joinSent = false;
+    const joinInterval = setInterval(() => {
+      if (ws.current && ws.current.readyState === 1 && !joinSent) {
+        ws.current.send(JSON.stringify({ type: 'join_room', roomId: selectedRoom.id }));
+        joinSent = true;
+        console.log('[WebSocket] join_room 메시지 전송:', selectedRoom.id);
+        clearInterval(joinInterval);
+      }
+    }, 50);
+
+    ws.current.onopen = () => {
+      // (이전 코드와 달리 onopen에서 join_room을 직접 보내지 않음)
+    };
+    ws.current.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data.type === 'user_message' && data.message) {
+          if (data.roomId === selectedRoomRef.current?.id) {
+            const isMyMessage = data.sender === loginUserRef.current?.username;
+            setMessages(prev => [...prev, {
+              id: Date.now(),
+              type: isMyMessage ? 'send' : 'recv',
+              text: data.message,
+              date: data.timestamp,
+              sender: data.sender,
+              emotion: data.emotion,
+              imageUrl: null
+            }]);
+          }
+        } else if (data.type === 'ai_message' && data.message) {
+          if (data.roomId === selectedRoomRef.current?.id) {
+            setMessages(prev => [...prev, {
+              id: Date.now(),
+              type: 'recv',
+              text: data.message,
+              date: data.timestamp,
+              sender: 'AI',
+              emotion: null,
+              imageUrl: null
+            }]);
+            setCurrentAiMessage(data.message);
+            setIsAiTalking(true);
+            if (isTTSEnabled) {
+              speakAIMessage(data.message);
+            } else {
+              setDisplayedAiText(data.message);
+            }
+            const aiEmotionResponse = getAIEmotionResponse(userEmotion, data.message);
+            setAiEmotion(aiEmotionResponse.primary);
+            setEmotionDisplay(prev => ({ ...prev, ai: aiEmotionResponse.primary }));
+            setEmotionCaptureStatus(prev => ({ ...prev, ai: true }));
+            setTimeout(() => {
+              setAiEmotion('neutral');
+              setEmotionDisplay(prev => ({ ...prev, ai: 'neutral' }));
+              setEmotionCaptureStatus(prev => ({ ...prev, ai: false }));
+            }, aiEmotionResponse.duration);
+          }
+        }
+      } catch (error) {
+        console.error('WebSocket 메시지 처리 중 오류:', error);
+      }
+    };
+    ws.current.onclose = () => { };
+    ws.current.onerror = (error) => { console.error('WebSocket 연결 오류:', error); };
+    // 방 나갈 때 leave_room 및 연결 해제
+    return () => {
+      clearInterval(joinInterval);
+      if (ws.current) {
+        try {
+          if (ws.current.readyState === 1) {
+            ws.current.send(JSON.stringify({ type: 'leave_room', roomId: selectedRoomRef.current?.id }));
+          }
+          ws.current.close();
+        } catch { }
+      }
+    };
+  }, [selectedRoom?.id, loginUser?.username]);
+
+  // 4명 미만이면 빈 자리 채우기
+  const groupParticipantsDisplay = selectedRoom?.room_type === 'group'
+    ? [...groupParticipants.slice(0, 4), ...Array(4 - groupParticipants.length).fill(null)].slice(0, 4)
+    : [];
+
+  // WebRTC 로컬 스트림 초기화
+  const initializeLocalStream = async () => {
+    try {
+      console.log('로컬 스트림 초기화 시작...');
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true
+      });
+      setLocalStream(stream);
+      console.log('로컬 스트림 초기화 완료:', stream);
+
+      // 로컬 비디오 요소에 스트림 연결
+      if (localVideoRef) {
+        localVideoRef.srcObject = stream;
+      }
+    } catch (error) {
+      console.error('로컬 스트림 초기화 실패:', error);
+    }
+  };
+
+  // 로컬 비디오 on/off 토글
+  const toggleLocalVideo = () => {
+    if (localStream) {
+      const videoTrack = localStream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        setIsLocalVideoEnabled(videoTrack.enabled);
+        console.log('로컬 비디오 토글:', videoTrack.enabled ? 'ON' : 'OFF');
+      }
+    }
+  };
+
+  // 로컬 오디오 on/off 토글
+  const toggleLocalAudio = () => {
+    if (localStream) {
+      const audioTrack = localStream.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        setIsLocalAudioEnabled(audioTrack.enabled);
+        console.log('로컬 오디오 토글:', audioTrack.enabled ? 'ON' : 'OFF');
+      }
+    }
+  };
+
+  // 그룹 채팅방 입장 시 로컬 스트림 초기화
+  useEffect(() => {
+    if (selectedRoom?.room_type === 'group') {
+      initializeLocalStream();
+    }
+    return () => {
+      // 컴포넌트 언마운트 시 스트림 정리
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        setLocalStream(null);
+      }
+      // PeerConnection 정리
+      Object.values(peerConnections).forEach(pc => pc.close());
+      setPeerConnections({});
+      setRemoteStreams({});
+    };
+  }, [selectedRoom?.room_type]);
+
+  // 로컬 스트림이 준비되면 기존 참가자들에게 Offer 전송
+  useEffect(() => {
+    if (selectedRoom?.room_type === 'group' && localStream && loginUser && groupParticipants.length > 0) {
+      groupParticipants.forEach(participant => {
+        if (participant.id !== loginUser.id && !peerConnections[participant.id]) {
+          console.log(`새로운 참가자 ${participant.id}에게 Offer 전송`);
+          createAndSendOffer(participant.id);
+        }
+      });
+    }
+  }, [localStream, groupParticipants, loginUser, selectedRoom?.room_type]);
+
+  // 로컬 비디오 ref 설정
+  const setLocalVideoRefHandler = (el) => {
+    setLocalVideoRef(el);
+    if (el && localStream) {
+      el.srcObject = localStream;
+    }
+  };
+
+  // WebRTC 시그널링 처리
+  const handleWebRTCSignaling = (data) => {
+    const { type, senderUser, targetUser, data: signalData, candidate, sdp } = data;
+
+    if (type === 'offer') {
+      handleOffer(senderUser, sdp);
+    } else if (type === 'answer') {
+      handleAnswer(senderUser, sdp);
+    } else if (type === 'candidate') {
+      handleCandidate(senderUser, candidate);
+    }
+  };
+
+  // Offer 처리
+  const handleOffer = async (senderUser, sdp) => {
+    try {
+      const pc = new RTCPeerConnection({
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+      });
+
+      // 로컬 스트림 추가
+      if (localStream) {
+        localStream.getTracks().forEach(track => {
+          pc.addTrack(track, localStream);
+        });
+      }
+
+      // 원격 스트림 처리
+      pc.ontrack = (event) => {
+        setRemoteStreams(prev => ({
+          ...prev,
+          [senderUser]: event.streams[0]
+        }));
+      };
+
+      // ICE candidate 처리
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          ws.current.send(JSON.stringify({
+            type: 'candidate',
+            senderUser: loginUser?.id,
+            targetUser: senderUser,
+            candidate: event.candidate
+          }));
+        }
+      };
+
+      // Offer 설정
+      await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp }));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      // Answer 전송
+      ws.current.send(JSON.stringify({
+        type: 'answer',
+        senderUser: loginUser?.id,
+        targetUser: senderUser,
+        sdp: answer.sdp
+      }));
+
+      setPeerConnections(prev => ({
+        ...prev,
+        [senderUser]: pc
+      }));
+
+    } catch (error) {
+      console.error('Offer 처리 실패:', error);
+    }
+  };
+
+  // Answer 처리
+  const handleAnswer = async (senderUser, sdp) => {
+    try {
+      const pc = peerConnections[senderUser];
+      if (pc) {
+        await pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp }));
+      }
+    } catch (error) {
+      console.error('Answer 처리 실패:', error);
+    }
+  };
+
+  // ICE Candidate 처리
+  const handleCandidate = async (senderUser, candidate) => {
+    try {
+      const pc = peerConnections[senderUser];
+      if (pc) {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+    } catch (error) {
+      console.error('ICE Candidate 처리 실패:', error);
+    }
+  };
+
+  // Offer 생성 및 전송
+  const createAndSendOffer = async (targetUser) => {
+    try {
+      const pc = new RTCPeerConnection({
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+      });
+
+      // 로컬 스트림 추가
+      if (localStream) {
+        localStream.getTracks().forEach(track => {
+          pc.addTrack(track, localStream);
+        });
+      }
+
+      // 원격 스트림 처리
+      pc.ontrack = (event) => {
+        setRemoteStreams(prev => ({
+          ...prev,
+          [targetUser]: event.streams[0]
+        }));
+      };
+
+      // ICE candidate 처리
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          ws.current.send(JSON.stringify({
+            type: 'candidate',
+            senderUser: loginUser?.id,
+            targetUser: targetUser,
+            candidate: event.candidate
+          }));
+        }
+      };
+
+      // Offer 생성
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      // Offer 전송
+      ws.current.send(JSON.stringify({
+        type: 'offer',
+        senderUser: loginUser?.id,
+        targetUser: targetUser,
+        sdp: offer.sdp
+      }));
+
+      setPeerConnections(prev => ({
+        ...prev,
+        [targetUser]: pc
+      }));
+
+    } catch (error) {
+      console.error('Offer 생성 실패:', error);
+    }
+  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -582,6 +990,11 @@ const ChatBox = () => {
 
   // 감정 분석 (더 정교한 키워드 기반)
   const analyzeEmotion = (text) => {
+    // text가 undefined, null, 또는 빈 문자열인 경우 처리
+    if (!text || typeof text !== 'string') {
+      return 'neutral';
+    }
+
     const lowerText = text.toLowerCase();
 
     // 기쁨 관련 키워드
@@ -704,16 +1117,18 @@ const ChatBox = () => {
 
     const response = emotionResponses[userEmotion] || emotionResponses["neutral"];
 
-    // AI 메시지 내용도 고려하여 감정 조정
-    const messageEmotion = analyzeEmotion(aiMessage);
-    if (messageEmotion !== 'neutral') {
-      // 메시지 감정과 사용자 감정을 조합
-      if (userEmotion === 'sad' && messageEmotion === 'happy') {
-        response.primary = 'caring'; // 위로하는 기쁨
-        response.intensity = 0.7;
-      } else if (userEmotion === 'angry' && messageEmotion === 'happy') {
-        response.primary = 'calm'; // 차분한 이해
-        response.intensity = 0.6;
+    // AI 메시지 내용도 고려하여 감정 조정 (안전하게 처리)
+    if (aiMessage && typeof aiMessage === 'string') {
+      const messageEmotion = analyzeEmotion(aiMessage);
+      if (messageEmotion !== 'neutral') {
+        // 메시지 감정과 사용자 감정을 조합
+        if (userEmotion === 'sad' && messageEmotion === 'happy') {
+          response.primary = 'caring'; // 위로하는 기쁨
+          response.intensity = 0.7;
+        } else if (userEmotion === 'angry' && messageEmotion === 'happy') {
+          response.primary = 'calm'; // 차분한 이해
+          response.intensity = 0.6;
+        }
       }
     }
 
@@ -737,7 +1152,8 @@ const ChatBox = () => {
       // AI가 먼저 말하기 시작
       ws.current.send(JSON.stringify({
         message: starter,
-        emotion: emotion
+        emotion: emotion,
+        roomId: selectedRoom?.id || null
       }));
       setMessages((prev) => [...prev, { type: 'recv', text: starter }]);
       setCurrentAiMessage(starter);
@@ -1078,61 +1494,79 @@ const ChatBox = () => {
     setAttachedImagePreview(null);
   };
 
-  // 메시지 전송 함수 수정
-  const sendMessage = async (text) => {
-    ttsService.stop(); // 메시지 전송 시 TTS 즉시 중단
-    const messageText = text !== undefined ? text : input;
-    if (!messageText && !attachedImage) return; // 아무것도 없으면 전송X
-    let imageUrl = null;
-    if (attachedImage) {
-      // 이미지 서버 업로드
+  // 이미지 업로드 후 전송
+  const handleImageUploadAndSend = async () => {
+    if (!attachedImage || !ws.current || ws.current.readyState !== 1) return;
+
+    try {
+      // FormData로 이미지 업로드
       const formData = new FormData();
       formData.append('file', attachedImage);
-      formData.append('content', messageText);
-      try {
-        const res = await axios.post('/chat/api/chat/upload_image/', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-        if (res.data.status === 'success') {
-          imageUrl = res.data.file_url;
-        } else {
-          alert('이미지 업로드 실패: ' + (res.data.message || '알 수 없는 오류'));
-          return;
-        }
-      } catch (err) {
-        alert('이미지 업로드 실패: ' + (err.response?.data?.message || err.message));
-        return;
+      formData.append('content', input || '이미지 첨부');
+
+      // 환경에 따라 API URL 설정
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const apiUrl = isLocalhost ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
+
+      const res = await axios.post(`${apiUrl}/chat/api/chat/upload_image/`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        withCredentials: true,
+      });
+
+      if (res.data.success) {
+        // WebSocket으로 이미지 URL 전송
+        const messageData = {
+          message: input || '이미지 첨부',
+          imageUrl: res.data.file_url,
+          roomId: selectedRoom?.id || null
+        };
+
+        ws.current.send(JSON.stringify(messageData));
+
+        // 메시지 목록에 추가
+        setMessages((prev) => [...prev, {
+          type: 'send',
+          text: input || '이미지 첨부',
+          imageUrl: res.data.file_url,
+          date: new Date().toISOString()
+        }]);
+
+        setInput('');
+        setAttachedImage(null);
+        setAttachedImagePreview(null);
+
+        setTimeout(() => {
+          if (chatScrollRef.current) {
+            chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+          }
+        }, 0);
       }
+    } catch (error) {
+      console.error('이미지 업로드 실패:', error);
+      alert('이미지 업로드에 실패했습니다.');
     }
-    setMessages(prev => ([
-      ...prev,
-      {
-        type: 'send',
-        text: messageText || (imageUrl ? '' : ''),
-        imageUrl: imageUrl,
-        date: new Date().toISOString(),
-      }
-    ]));
+  };
+
+  // 메시지 전송 함수 수정
+  const sendMessage = () => {
+    if (!input.trim() || !ws.current || ws.current.readyState !== 1) return;
+
+    // room_id를 포함하여 메시지 전송
+    const messageData = {
+      message: input,
+      roomId: selectedRoom?.id || null
+    };
+
+    ws.current.send(JSON.stringify(messageData));
+    setMessages((prev) => [...prev, { type: 'send', text: input, date: new Date().toISOString() }]);
     setInput('');
-    setAttachedImage(null);
-    setAttachedImagePreview(null);
-    if (inputRef.current) {
-      inputRef.current.style.height = 'auto';
-    }
-    // Gemini(백엔드)로 메시지/이미지 전송
-    if (ws.current && (messageText || imageUrl)) {
-      if (ws.current.readyState === 1) {
-        ws.current.send(
-          JSON.stringify({
-            message: messageText || '',
-            imageUrl: imageUrl || '',
-          })
-        );
-      } else {
-        alert('서버와의 연결이 아직 완료되지 않았습니다. 잠시 후 다시 시도해 주세요.');
-        console.warn('WebSocket이 아직 OPEN 상태가 아닙니다. 현재 상태:', ws.current.readyState);
+    setTimeout(() => {
+      if (chatScrollRef.current) {
+        chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
       }
-    }
+    }, 0);
   };
 
   // WebSocket 연결
@@ -1142,8 +1576,8 @@ const ChatBox = () => {
     const host = window.location.hostname;
 
     // 환경에 따라 WebSocket URL 설정
-    const isLocalhost = host === 'localhost' || host === '127.0.0.1' || host === '192.168.44.9';
-    const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}/ws/chat/`;
+    const isLocalhost = host === 'localhost' || host === '127.0.0.1';
+    const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}:8000/ws/chat/`;
 
     console.log('WebSocket 연결 시도:', wsUrl);
     ws.current = new WebSocket(wsUrl);
@@ -1153,35 +1587,71 @@ const ChatBox = () => {
     };
 
     ws.current.onmessage = (e) => {
-      const data = JSON.parse(e.data);
-      setMessages((prev) => [...prev, { type: 'recv', text: data.message }]);
-      setCurrentAiMessage(data.message);
+      try {
+        const data = JSON.parse(e.data);
 
-      // AI가 응답할 때 애니메이션
-      setIsAiTalking(true);
-
-      // TTS로 AI 메시지 재생
-      if (isTTSEnabled) {
-        speakAIMessage(data.message);
-      } else {
-        setDisplayedAiText(data.message); // 텍스트만 출력
+        // 방별 메시지 필터링 (항상 최신 selectedRoom, loginUser 참조)
+        if (data.type === 'user_message' && data.message) {
+          if (data.roomId === selectedRoomRef.current?.id) {
+            const isMyMessage = data.sender === loginUserRef.current?.username;
+            const newMessage = {
+              id: Date.now(),
+              type: isMyMessage ? 'send' : 'recv',
+              text: data.message,
+              date: data.timestamp,
+              sender: data.sender,
+              emotion: data.emotion,
+              imageUrl: null
+            };
+            setMessages((prev) => [...prev, newMessage]);
+          }
+        } else if (data.type === 'ai_message' && data.message) {
+          if (data.roomId === selectedRoomRef.current?.id) {
+            const newMessage = {
+              id: Date.now(),
+              type: 'recv',
+              text: data.message,
+              date: data.timestamp,
+              sender: 'AI',
+              emotion: null,
+              imageUrl: null
+            };
+            setMessages((prev) => [...prev, newMessage]);
+            setCurrentAiMessage(data.message);
+            setIsAiTalking(true);
+            if (isTTSEnabled) {
+              speakAIMessage(data.message);
+            } else {
+              setDisplayedAiText(data.message);
+            }
+            const aiEmotionResponse = getAIEmotionResponse(userEmotion, data.message);
+            setAiEmotion(aiEmotionResponse.primary);
+            setEmotionDisplay(prev => ({ ...prev, ai: aiEmotionResponse.primary }));
+            setEmotionCaptureStatus(prev => ({ ...prev, ai: true }));
+            setTimeout(() => {
+              setAiEmotion('neutral');
+              setEmotionDisplay(prev => ({ ...prev, ai: 'neutral' }));
+              setEmotionCaptureStatus(prev => ({ ...prev, ai: false }));
+            }, aiEmotionResponse.duration);
+          }
+        } else if (data.type === 'room_list_update') {
+          // 대화방 목록 업데이트는 그대로 처리
+          console.log('대화방 목록 업데이트:', data);
+        } else if (data.message) {
+          setMessages((prev) => [...prev, { type: 'recv', text: data.message, date: data.date }]);
+          setCurrentAiMessage(data.message);
+          setIsAiTalking(true);
+          if (isTTSEnabled) {
+            speakAIMessage(data.message);
+          } else {
+            setDisplayedAiText(data.message);
+          }
+        } else {
+          console.warn('WebSocket 메시지에 message 필드가 없습니다:', data);
+        }
+      } catch (error) {
+        console.error('WebSocket 메시지 처리 중 오류:', error);
       }
-
-      // AI 감정 반응 시스템 적용
-      const aiEmotionResponse = getAIEmotionResponse(userEmotion, data.message);
-      console.log('AI 감정 반응:', aiEmotionResponse.description);
-
-      // AI 아바타 감정 설정
-      setAiEmotion(aiEmotionResponse.primary);
-      setEmotionDisplay(prev => ({ ...prev, ai: aiEmotionResponse.primary }));
-      setEmotionCaptureStatus(prev => ({ ...prev, ai: true }));
-
-      // 감정 지속 시간 후 neutral로 복귀
-      setTimeout(() => {
-        setAiEmotion('neutral');
-        setEmotionDisplay(prev => ({ ...prev, ai: 'neutral' }));
-        setEmotionCaptureStatus(prev => ({ ...prev, ai: false }));
-      }, aiEmotionResponse.duration);
     };
 
     ws.current.onclose = () => {
@@ -1352,7 +1822,7 @@ const ChatBox = () => {
 
     for (const m of matches) {
       if (lastIndex < m.index) {
-        blocks.push({ type: 'markdown', value: text.slice(lastIndex, m.index) });
+        blocks.push({ type: 'text', value: text.slice(lastIndex, m.index) });
       }
       if (m.type === 'code') {
         blocks.push({ type: 'code', value: m.value || '', language: m.language });
@@ -1364,7 +1834,7 @@ const ChatBox = () => {
       lastIndex = m.index + m.length;
     }
     if (lastIndex < text.length) {
-      blocks.push({ type: 'markdown', value: text.slice(lastIndex) });
+      blocks.push({ type: 'text', value: text.slice(lastIndex) });
     }
     return blocks;
   }
@@ -1390,21 +1860,21 @@ const ChatBox = () => {
 
       // 기존 형식: 배열 형태의 데이터
       if (Array.isArray(data) && data.length > 0) {
-      const labels = data.map(item => item.name);
-      const keys = Object.keys(data[0]).filter(key => key !== 'name');
-      const colorList = ['#FFD600', '#00E5FF', '#76FF03', '#FF4081', '#FFFFFF'];
-      const datasets = keys.map((key, idx) => ({
-        label: key,
-        data: data.map(item => item[key]),
-        borderColor: colorList[idx % colorList.length],
-        backgroundColor: colorList[idx % colorList.length] + '80',
-        pointBackgroundColor: colorList[idx % colorList.length],
-        borderWidth: 3,
-        pointRadius: 4,
-        tension: 0.3,
-        fill: false,
-      }));
-      return { labels, datasets };
+        const labels = data.map(item => item.name);
+        const keys = Object.keys(data[0]).filter(key => key !== 'name');
+        const colorList = ['#FFD600', '#00E5FF', '#76FF03', '#FF4081', '#FFFFFF'];
+        const datasets = keys.map((key, idx) => ({
+          label: key,
+          data: data.map(item => item[key]),
+          borderColor: colorList[idx % colorList.length],
+          backgroundColor: colorList[idx % colorList.length] + '80',
+          pointBackgroundColor: colorList[idx % colorList.length],
+          borderWidth: 3,
+          pointRadius: 4,
+          tension: 0.3,
+          fill: false,
+        }));
+        return { labels, datasets };
       }
 
       return null;
@@ -1564,20 +2034,128 @@ const ChatBox = () => {
     isTTSEnabledRef.current = isTTSEnabled;
   }, [isTTSEnabled]);
 
-  // 로그인 상태 확인
+  // 로그인 성공 postMessage 수신 시 모달 닫고 새로고침
   useEffect(() => {
-    fetch('/chat/api/user/', { credentials: 'include' })
-      .then(res => res.json())
-      .then(data => {
-        if (data.status === 'success') {
-          setLoginUser(data.user);
-        } else {
-          setLoginUser(null);
-        }
-      })
-      .catch(() => setLoginUser(null))
-      .finally(() => setLoginLoading(false));
+    const handleLoginSuccess = (event) => {
+      if (event.data === 'login_success' || event.data === 'connection_success') {
+        setIsLoginModalOpen(false);
+        setTimeout(() => window.location.reload(), 100);
+      }
+    };
+    window.addEventListener('message', handleLoginSuccess);
+    return () => window.removeEventListener('message', handleLoginSuccess);
   }, []);
+
+  // 소셜 로그인 팝업 오픈 함수 (최상위에서 정의)
+  const openSocialLoginPopup = (url) => {
+    const popupWidth = 480;
+    const popupHeight = 600;
+    const left = window.screenX + (window.outerWidth - popupWidth) / 2;
+    const top = window.screenY + (window.outerHeight - popupHeight) / 2;
+    window.open(
+      url,
+      'social_login_popup',
+      `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes`
+    );
+  };
+
+  const buttonStyle = {
+    marginLeft: 12,
+    background: 'rgba(255,255,255,0.12)',
+    border: 'none',
+    borderRadius: 4,
+    padding: '6px 12px',
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+    display: 'flex',
+    alignItems: 'center',
+    textDecoration: 'none',
+    cursor: 'pointer',
+    minWidth: 100,
+    justifyContent: 'center',
+  };
+
+  // 메시지 불러오기 함수
+  const fetchMessages = async (roomId, offset = 0, limit = 20, append = false) => {
+    if (!roomId) return;
+    setLoadingMessages(true);
+    try {
+      // 환경에 따라 API URL 설정
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const apiUrl = isLocalhost ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
+
+      console.log('메시지 조회 API 호출:', `${apiUrl}/api/chat/messages/messages/?room=${roomId}&limit=${limit}&offset=${offset}`);
+
+      const res = await fetch(`${apiUrl}/api/chat/messages/messages/?room=${roomId}&limit=${limit}&offset=${offset}`, {
+        credentials: 'include',
+      });
+
+      console.log('메시지 조회 응답 상태:', res.status);
+
+      if (res.ok) {
+        const data = await res.json();
+        console.log('메시지 조회 결과:', data);
+
+        if (append) {
+          setMessages(prev => [...data.results.reverse(), ...prev]);
+        } else {
+          setMessages(data.results.reverse());
+        }
+        setHasMore(data.has_more);
+        setMessageOffset(offset + data.results.length);
+      } else {
+        console.error('메시지 조회 실패:', res.status, res.statusText);
+      }
+    } catch (error) {
+      console.error('메시지 조회 중 오류:', error);
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  // 대화방이 바뀔 때마다 메시지 초기화 및 불러오기 + join_room 메시지 전송 보장
+  useEffect(() => {
+    if (selectedRoom && selectedRoom.id) {
+      setMessages([]);
+      setMessageOffset(0);
+      setHasMore(true);
+      fetchMessages(selectedRoom.id, 0, 20, false);
+      // 방에 입장 메시지 전송 (WebSocket 연결이 이미 되어 있으면 바로 전송)
+      if (ws.current && ws.current.readyState === 1) {
+        ws.current.send(JSON.stringify({
+          type: 'join_room',
+          roomId: selectedRoom.id
+        }));
+      }
+    }
+  }, [selectedRoom]);
+
+  // 스크롤 상단 도달 시 이전 메시지 추가 로드
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!chatScrollRef.current || loadingMessages || !hasMore) return;
+      if (chatScrollRef.current.scrollTop < 50) {
+        // 이전 메시지 추가 로드
+        fetchMessages(selectedRoom.id, messageOffset, 20, true);
+      }
+    };
+    const ref = chatScrollRef.current;
+    if (ref) ref.addEventListener('scroll', handleScroll);
+    return () => { if (ref) ref.removeEventListener('scroll', handleScroll); };
+  }, [selectedRoom, messageOffset, hasMore, loadingMessages]);
+
+  // userSettings가 바뀔 때마다 각 상태에 자동 반영
+  useEffect(() => {
+    if (!userSettings) return;
+    if (userSettings.ttsEnabled !== undefined) setIsTTSEnabled(userSettings.ttsEnabled);
+    if (userSettings.ttsRate !== undefined) setTtsRate(userSettings.ttsRate);
+    if (userSettings.ttsPitch !== undefined) setTtsPitch(userSettings.ttsPitch);
+    if (userSettings.voiceRecognitionEnabled !== undefined) setIsVoiceRecognitionEnabled(userSettings.voiceRecognitionEnabled);
+    if (userSettings.cameraActive !== undefined) setIsCameraActive(userSettings.cameraActive);
+    if (userSettings.avatarOn !== undefined) setIsUserAvatarOn(userSettings.avatarOn);
+    // ... 필요시 추가 ...
+  }, [userSettings]);
 
   return (
     <>
@@ -1589,6 +2167,100 @@ const ChatBox = () => {
         </div>
       )}
       <div className="chat-container-with-avatars">
+        {/* 그룹 채팅방 2x2 UI */}
+        {selectedRoom?.room_type === 'group' && (
+          <div className="group-chat-2x2-grid">
+            {groupParticipantsDisplay.map((user, idx) => {
+              const isMe = user && loginUser && user.id === loginUser.id;
+              return (
+                <div key={idx} className="group-chat-cell">
+                  {user ? (
+                    <>
+                      <div className="group-chat-media">
+                        {/* 본인: 내 카메라/마이크, 타인: 상대방 스트림/아바타 */}
+                        {isMe ? (
+                          // 본인: 로컬 스트림 표시
+                          <div className="local-stream-container">
+                            {localStream && isLocalVideoEnabled ? (
+                              <video
+                                ref={setLocalVideoRefHandler}
+                                autoPlay
+                                muted
+                                playsInline
+                                style={{ width: 80, height: 60, borderRadius: 8, background: '#111' }}
+                              />
+                            ) : (
+                              <div className="local-stream-placeholder">
+                                <span role="img" aria-label="camera-off" style={{ fontSize: 24 }}>📷</span>
+                                <div style={{ fontSize: 10, marginTop: 4 }}>카메라 OFF</div>
+                              </div>
+                            )}
+                            {/* 로컬 스트림 제어 버튼들 */}
+                            <div className="local-stream-controls">
+                              <button
+                                onClick={toggleLocalVideo}
+                                className={`stream-control-btn ${isLocalVideoEnabled ? 'active' : ''}`}
+                                title={isLocalVideoEnabled ? '카메라 끄기' : '카메라 켜기'}
+                              >
+                                {isLocalVideoEnabled ? '📹' : '❌'}
+                              </button>
+                              <button
+                                onClick={toggleLocalAudio}
+                                className={`stream-control-btn ${isLocalAudioEnabled ? 'active' : ''}`}
+                                title={isLocalAudioEnabled ? '마이크 끄기' : '마이크 켜기'}
+                              >
+                                {isLocalAudioEnabled ? '🎤' : '🔇'}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          // 타인: 원격 스트림 또는 아바타 표시
+                          <div className="remote-stream-container">
+                            {remoteStreams[user.id] ? (
+                              <video
+                                ref={el => {
+                                  if (el) {
+                                    el.srcObject = remoteStreams[user.id];
+                                    window[`peerVideoRef_${user.id}`] = el;
+                                  }
+                                }}
+                                autoPlay
+                                playsInline
+                                style={{ width: 80, height: 60, borderRadius: 8, background: '#111' }}
+                              />
+                            ) : (
+                              <div className="remote-stream-placeholder">
+                                <span role="img" aria-label="avatar" style={{ fontSize: 48 }}>
+                                  {user.avatar ? <img src={user.avatar} alt="avatar" style={{ width: 48, height: 48, borderRadius: '50%' }} /> : '🧑'}
+                                </span>
+                                <div style={{ fontSize: 10, marginTop: 4, color: '#888' }}>연결 대기</div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div className="group-chat-name">{isMe ? '나' : user.name}</div>
+                      <div className="group-chat-status">
+                        {isMe ? (
+                          <>
+                            {isLocalVideoEnabled ? '📹' : '❌'} {isLocalAudioEnabled ? '🎤' : '🔇'}
+                            <span style={{ marginLeft: 6, color: '#ff9800', fontSize: 13 }}>(나)</span>
+                          </>
+                        ) : (
+                          <>
+                            {user.video ? '📹' : '❌'} {user.audio ? '🎤' : '🔇'}
+                          </>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="group-chat-waiting">참가 대기</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
         {/* 타이틀+음성/카메라/트래킹 버튼 헤더 */}
         <div className="chat-header">
           <div className="chat-title">
@@ -1635,20 +2307,7 @@ const ChatBox = () => {
               <button
                 onClick={() => setIsUserMenuOpen(true)}
                 className="login-btn-header"
-                style={{
-                  marginLeft: 12,
-                  background: 'rgba(255,255,255,0.12)',
-                  border: 'none',
-                  borderRadius: 4,
-                  padding: '6px 12px',
-                  color: '#fff',
-                  fontWeight: 'bold',
-                  fontSize: 18,
-                  display: 'flex',
-                  alignItems: 'center',
-                  textDecoration: 'none',
-                  cursor: 'pointer',
-                }}
+                style={buttonStyle}
                 title="내 계정"
               >
                 <span role="img" aria-label="user" style={{ marginRight: 6 }}>👤</span>
@@ -1658,25 +2317,21 @@ const ChatBox = () => {
               <button
                 onClick={() => setIsLoginModalOpen(true)}
                 className="login-btn-header"
-                style={{
-                  marginLeft: 12,
-                  background: 'rgba(255,255,255,0.12)',
-                  border: 'none',
-                  borderRadius: 4,
-                  padding: '6px 12px',
-                  color: '#fff',
-                  fontWeight: 'bold',
-                  fontSize: 18,
-                  display: 'flex',
-                  alignItems: 'center',
-                  textDecoration: 'none',
-                  cursor: 'pointer',
-                }}
+                style={buttonStyle}
                 title="로그인"
               >
                 <span role="img" aria-label="login" style={{ marginRight: 6 }}>🔑</span>
               </button>
             )}
+            {/* 설정(톱니바퀴) 버튼 */}
+            <button
+              onClick={() => setIsSettingsModalOpen(true)}
+              className="settings-btn-header"
+              style={{ marginLeft: 12, background: 'rgba(255,255,255,0.12)', border: 'none', borderRadius: 4, padding: '6px 12px', color: '#fff', fontSize: 18, cursor: 'pointer' }}
+              title="설정"
+            >
+              <span role="img" aria-label="settings">⚙️</span>
+            </button>
           </div>
         </div>
         {/* 차트 렌더링 */}
@@ -1749,6 +2404,11 @@ const ChatBox = () => {
           <div className="chat-container">
             <div className="chat-log" ref={chatScrollRef}>
               {messages.map((msg, idx) => {
+                console.log(`메시지 ${idx} 렌더링:`, msg);
+                console.log(`메시지 ${idx} 텍스트 내용:`, msg.text);
+                console.log(`메시지 ${idx} 타입:`, msg.type);
+                console.log(`메시지 ${idx} 발신자:`, msg.sender);
+
                 // 날짜/시간 포맷 함수
                 const dateObj = msg.date ? new Date(msg.date) : new Date();
                 const yyyy = dateObj.getFullYear();
@@ -1791,7 +2451,12 @@ const ChatBox = () => {
                     >
                       <div
                         className={`chat-bubble ${msg.type === 'send' ? 'sent' : 'received'}`}
-                        style={{ marginRight: msg.type === 'send' ? 8 : 0, marginLeft: msg.type === 'send' ? 0 : 8 }}
+                        style={{
+                          marginRight: msg.type === 'send' ? 8 : 0,
+                          marginLeft: msg.type === 'send' ? 0 : 8,
+                          backgroundColor: msg.type === 'send' ? undefined : getSenderColor(msg.sender),
+                          color: msg.type === 'send' ? undefined : (getSenderColor(msg.sender) ? '#fff' : undefined)
+                        }}
                       >
                         {/* 이미지+텍스트 조합 출력 */}
                         {msg.imageUrl && (
@@ -1803,67 +2468,105 @@ const ChatBox = () => {
                             onClick={() => setViewerImage(msg.imageUrl)}
                           />
                         )}
-                        {msg.text && parseMessageBlocks(
-                          msg.type === 'recv' && idx === messages.length - 1 && isAiTalking
+                        {msg.text && (() => {
+                          const textToParse = msg.type === 'recv' && idx === messages.length - 1 && isAiTalking
                             ? ensureDoubleNewlineAfterCodeBlocks(extractLatexBlocks(displayedAiText))
-                            : ensureDoubleNewlineAfterCodeBlocks(extractLatexBlocks(msg.text))
-                        ).map((block, i) => {
-                          if (!block || !block.type) return null;
-                          const chartKey = `${idx}_${i}`;
-                          if (block.type === 'math') {
-                            return (
-                              <span key={i} dangerouslySetInnerHTML={{ __html: katex.renderToString(block.value || '', { throwOnError: false }) }} />
-                            );
-                          } else if (block.type === 'chart') {
-                            return (
-                              <CodeJsonChartCard
-                                key={i}
-                                code={block.value || ''}
-                                language="json"
-                                isChartCandidate={true}
-                                isChartView={!!chartViewMap[chartKey]}
-                                onToggleChartView={() => setChartViewMap(prev => ({ ...prev, [chartKey]: !prev[chartKey] }))}
-                              />
-                            );
-                          } else if (block.type === 'code') {
-                            return (
-                              <CodeJsonChartCard
-                                key={i}
-                                code={block.value || ''}
-                                language={block.language}
-                                isChartCandidate={block.language === 'json'}
-                                isChartView={!!chartViewMap[chartKey]}
-                                onToggleChartView={() => setChartViewMap(prev => ({ ...prev, [chartKey]: !prev[chartKey] }))}
-                              />
-                            );
-                          } else if (block.type === 'markdown') {
-                            return (
-                              <ReactMarkdown
-                                key={i}
-                                children={block.value || ''}
-                                remarkPlugins={[remarkMath, remarkGfm]}
-                                rehypePlugins={[rehypeKatex]}
-                                components={{
-                                  code({ node, inline, className, children, ...props }) {
-                                    return (
-                                      <code className={className} {...props} style={{ background: '#222', color: '#fff', borderRadius: 4, padding: '2px 6px' }}>
-                                        {children}
-                                      </code>
-                                    );
-                                  },
-                                  table({ node, ...props }) {
-                                    return (
-                                      <div className="markdown-table-wrapper">
-                                        <table {...props} />
-                                      </div>
-                                    );
-                                  },
-                                }}
-                              />
-                            );
-                          }
-                          return null;
-                        })}
+                            : ensureDoubleNewlineAfterCodeBlocks(extractLatexBlocks(msg.text));
+                          const blocks = parseMessageBlocks(textToParse);
+                          console.log(`메시지 ${idx} 파싱 결과:`, { text: msg.text, blocks });
+                          return blocks.map((block, i) => {
+                            if (!block || !block.type) return null;
+                            const chartKey = `${idx}_${i}`;
+                            if (block.type === 'math') {
+                              return (
+                                <span key={i} dangerouslySetInnerHTML={{ __html: katex.renderToString(block.value || '', { throwOnError: false }) }} />
+                              );
+                            } else if (block.type === 'chart') {
+                              return (
+                                <CodeJsonChartCard
+                                  key={i}
+                                  code={block.value || ''}
+                                  language="json"
+                                  isChartCandidate={true}
+                                  isChartView={!!chartViewMap[chartKey]}
+                                  onToggleChartView={() => setChartViewMap(prev => ({ ...prev, [chartKey]: !prev[chartKey] }))}
+                                />
+                              );
+                            } else if (block.type === 'code') {
+                              return (
+                                <CodeJsonChartCard
+                                  key={i}
+                                  code={block.value || ''}
+                                  language={block.language}
+                                  isChartCandidate={block.language === 'json'}
+                                  isChartView={!!chartViewMap[chartKey]}
+                                  onToggleChartView={() => setChartViewMap(prev => ({ ...prev, [chartKey]: !prev[chartKey] }))}
+                                />
+                              );
+                            } else if (block.type === 'markdown') {
+                              return (
+                                <ReactMarkdown
+                                  key={i}
+                                  children={block.value || ''}
+                                  remarkPlugins={[remarkMath, remarkGfm]}
+                                  rehypePlugins={[rehypeKatex]}
+                                  components={{
+                                    code({ node, inline, className, children, ...props }) {
+                                      return (
+                                        <code className={className} {...props} style={{ background: '#222', color: '#fff', borderRadius: 4, padding: '2px 6px' }}>
+                                          {children}
+                                        </code>
+                                      );
+                                    },
+                                    table({ node, ...props }) {
+                                      return (
+                                        <div className="markdown-table-wrapper">
+                                          <table {...props} />
+                                        </div>
+                                      );
+                                    },
+                                  }}
+                                />
+                              );
+                            } else if (block.type === 'text') {
+                              // 일반 텍스트 블록 처리 추가
+                              return (
+                                <span key={i}>{block.value || ''}</span>
+                              );
+                            } else if (block.type === 'markdown') {
+                              // 마크다운 블록 처리 (하위 호환성)
+                              return (
+                                <ReactMarkdown
+                                  key={i}
+                                  children={block.value || ''}
+                                  remarkPlugins={[remarkMath, remarkGfm]}
+                                  rehypePlugins={[rehypeKatex]}
+                                  components={{
+                                    code({ node, inline, className, children, ...props }) {
+                                      return (
+                                        <code className={className} {...props} style={{ background: '#222', color: '#fff', borderRadius: 4, padding: '2px 6px' }}>
+                                          {children}
+                                        </code>
+                                      );
+                                    },
+                                    table({ node, ...props }) {
+                                      return (
+                                        <div className="markdown-table-wrapper">
+                                          <table {...props} />
+                                        </div>
+                                      );
+                                    },
+                                  }}
+                                />
+                              );
+                            }
+                            return null;
+                          });
+                        })()}
+                        {/* 메시지가 비어있거나 파싱에 실패한 경우 기본 텍스트 표시 */}
+                        {(!msg.text || msg.text.trim() === '') && (
+                          <span style={{ color: '#999', fontStyle: 'italic' }}>메시지 내용을 불러올 수 없습니다.</span>
+                        )}
                       </div>
                       {/* 날짜 박스는 버블 하단, 같은 라인 오른쪽/왼쪽에 위치 */}
                       <div style={{ display: 'flex', flexDirection: 'row', justifyContent: msg.type === 'send' ? 'flex-end' : 'flex-start', width: '100%' }}>
@@ -1919,7 +2622,12 @@ const ChatBox = () => {
                     className="input-flex chat-textarea"
                     rows={1}
                   />
-                  <button onClick={() => sendMessage()} className="unified-btn">🔥</button>
+                  <button
+                    onClick={() => attachedImage ? handleImageUploadAndSend() : sendMessage()}
+                    className="unified-btn"
+                  >
+                    {attachedImage ? '📤' : '🔥'}
+                  </button>
                 </div>
               </div>
             </div>
@@ -2058,11 +2766,20 @@ const ChatBox = () => {
         <LoginModal
           isOpen={isLoginModalOpen}
           onClose={() => setIsLoginModalOpen(false)}
+          onSocialLogin={openSocialLoginPopup}
         />
         {/* 사용자 메뉴 모달 */}
         <UserMenuModal
           isOpen={isUserMenuOpen}
           onClose={() => setIsUserMenuOpen(false)}
+        />
+        <SettingsModal
+          isOpen={isSettingsModalOpen}
+          onClose={() => setIsSettingsModalOpen(false)}
+          tab={settingsTab}
+          setTab={setSettingsTab}
+          userSettings={userSettings}
+          setUserSettings={setUserSettings}
         />
       </div>
     </>
