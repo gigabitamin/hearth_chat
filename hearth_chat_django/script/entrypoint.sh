@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# Django 앱 디렉토리로 이동
+cd /app/hearth_chat_django
+
 # DB 마이그레이션
 python manage.py migrate --noinput
 
