@@ -13,8 +13,14 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import os
 from dotenv import load_dotenv
-import dj_database_url
 import sys
+
+# dj_database_url을 안전하게 import
+try:
+    import dj_database_url
+except ImportError:
+    print("Warning: dj_database_url not found. Using default database configuration.")
+    dj_database_url = None
 
 load_dotenv()
 
@@ -95,18 +101,32 @@ else:
 # MySQL 커스텀 백엔드 추가
 import sys
 
-DATABASES = {
-    "default": dj_database_url.config(
-        conn_max_age=600, 
-        ssl_require=False
-    )
-}
+# DATABASES 설정을 안전하게 구성
+if dj_database_url:
+    DATABASES = {
+        "default": dj_database_url.config(
+            conn_max_age=600, 
+            ssl_require=False
+        )
+    }
+else:
+    # dj_database_url이 없을 때 기본 설정
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 # Railway 환경에서 PostgreSQL SSL 설정 추가
 if os.environ.get("RAILWAY_ENVIRONMENT") and DATABASES["default"].get("ENGINE", "").endswith("postgresql"):
     DATABASES["default"]["OPTIONS"] = {
         'sslmode': 'require'
-}
+    }
+    print("Railway PostgreSQL SSL 설정 적용됨")
+elif DATABASES["default"].get("ENGINE", "").endswith("postgresql"):
+    # PostgreSQL이지만 Railway가 아닌 경우
+    print("PostgreSQL 감지됨 (Railway 아님)")
 
 # 로컬 MySQL 환경에서만 utf8mb4 옵션 적용 (PostgreSQL 등에서는 절대 실행되지 않도록 보장)
 print("DATABASE ENGINE:", DATABASES["default"].get("ENGINE", "<None>"))
