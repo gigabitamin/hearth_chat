@@ -156,25 +156,6 @@ def user_info(request):
         return JsonResponse({'status': 'error', 'message': 'Not authenticated'}, status=401)
 
 @csrf_exempt
-@require_http_methods(["GET"])
-def login_status(request):
-    """로그인 상태 확인 API"""
-    if request.user.is_authenticated:
-        return JsonResponse({
-            'status': 'success',
-            'authenticated': True,
-            'user_id': request.user.id,
-            'username': request.user.username,
-            'email': request.user.email
-        })
-    else:
-        return JsonResponse({
-            'status': 'error',
-            'authenticated': False,
-            'message': 'Not authenticated'
-        }, status=401)
-
-@csrf_exempt
 @require_http_methods(["POST"])
 def logout_api(request):
     """로그아웃 API"""
@@ -436,8 +417,21 @@ class UserSettingsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        settings, _ = UserSettings.objects.get_or_create(user=request.user)
-        serializer = UserSettingsSerializer(settings)
+        try:
+            settings, _ = UserSettings.objects.get_or_create(user=request.user)
+            serializer = UserSettingsSerializer(settings)
+            settings_data = serializer.data
+        except Exception as e:
+            print(f"UserSettings 오류 (기본값 사용): {e}")
+            # UserSettings 테이블이 없거나 오류 발생 시 기본값 사용
+            settings_data = {
+                "ai_response_enabled": True,
+                "ai_model": "gemini",
+                "ai_temperature": 0.7,
+                "ai_max_tokens": 1000,
+                "ai_system_prompt": "당신은 친근하고 도움이 되는 AI 어시스턴트입니다."
+            }
+        
         user_data = {
             "id": request.user.id, # id 필드 추가
             "username": request.user.username,
@@ -448,21 +442,29 @@ class UserSettingsView(APIView):
         }
         return Response({
             "user": user_data,
-            "settings": serializer.data
+            "settings": settings_data
         })
 
     def post(self, request):
-        settings, _ = UserSettings.objects.get_or_create(user=request.user)
-        serializer = UserSettingsSerializer(settings, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=400)
+        try:
+            settings, _ = UserSettings.objects.get_or_create(user=request.user)
+            serializer = UserSettingsSerializer(settings, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=400)
+        except Exception as e:
+            print(f"UserSettings POST 오류: {e}")
+            return Response({'error': '설정을 저장할 수 없습니다.'}, status=500)
 
     def patch(self, request):
-        settings, _ = UserSettings.objects.get_or_create(user=request.user)
-        serializer = UserSettingsSerializer(settings, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=400)
+        try:
+            settings, _ = UserSettings.objects.get_or_create(user=request.user)
+            serializer = UserSettingsSerializer(settings, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=400)
+        except Exception as e:
+            print(f"UserSettings PATCH 오류: {e}")
+            return Response({'error': '설정을 업데이트할 수 없습니다.'}, status=500)
