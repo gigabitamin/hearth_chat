@@ -157,6 +157,20 @@ body,
   position: relative;
 }
 
+/* WebSocket 연결 상태 표시 */
+.ws-status-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.ws-status-indicator:hover {
+  transform: scale(1.1);
+}
+
 .header-btn-group {
   display: flex;
   align-items: center;
@@ -749,7 +763,37 @@ body,
     height: 100% !important;
     min-height: 100vh !important;
     overflow-x: hidden !important;
-    /* overflow-y: auto !important; // 필요시 주석 해제 */
+    overflow-y: hidden !important;
+  }
+
+  .chat-container-with-avatars {
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .avatar-container {
+    min-height: 60px;
+    max-height: 30vh;
+  }
+
+  .chat-section {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .chat-log {
+    padding-bottom: 60px;
+  }
+
+  .chat-input-box {
+    width: 90%;
+    margin: 0 auto;
+  }
+
+  .input-flex {
+    font-size: 16px;
+    padding: 8px 40px 8px 8px;
   }
 }
 

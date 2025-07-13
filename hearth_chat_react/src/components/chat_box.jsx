@@ -216,6 +216,9 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState('tts'); // tts, voice, camera, avatar, notify, etc
 
+  // WebSocket 연결 상태 추적
+  const [wsConnectionStatus, setWsConnectionStatus] = useState('disconnected'); // 'connecting', 'connected', 'disconnected', 'error'
+
   // 그룹 채팅방 참가자 목록 상태 (실시간 갱신)
   const [groupParticipants, setGroupParticipants] = useState([]);
 
@@ -256,109 +259,197 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     setMessages([]);
   }, [selectedRoom?.id]);
 
+  // 안전한 WebSocket 메시지 전송 함수
+  const safeWebSocketSend = (message) => {
+    if (!ws.current || ws.current.readyState !== 1) {
+      console.warn('[WebSocket] 연결되지 않음, 메시지 전송 실패');
+      return false;
+    }
+
+    try {
+      ws.current.send(JSON.stringify(message));
+      return true;
+    } catch (error) {
+      console.error('[WebSocket] 메시지 전송 실패:', error);
+      return false;
+    }
+  };
+
   // WebSocket 연결/해제 및 join/leave 관리
   useEffect(() => {
     if (!selectedRoom || !selectedRoom.id) return;
+
     // 기존 연결 해제
     if (ws.current) {
       try {
         if (ws.current.readyState === 1) {
-          ws.current.send(JSON.stringify({ type: 'leave_room', roomId: selectedRoomRef.current?.id }));
+          safeWebSocketSend({ type: 'leave_room', roomId: selectedRoomRef.current?.id });
         }
         ws.current.close();
-      } catch { }
+      } catch (error) {
+        console.error('[WebSocket] 기존 연결 해제 중 오류:', error);
+      }
     }
+
     // 새 연결 생성
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.hostname;
     const isLocalhost = host === 'localhost' || host === '127.0.0.1';
     const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}:8000/ws/chat/`;
-    ws.current = new window.WebSocket(wsUrl);
+
+    console.log('[WebSocket] 연결 시도:', wsUrl);
+    setWsConnectionStatus('connecting');
+
+    try {
+      ws.current = new window.WebSocket(wsUrl);
+    } catch (error) {
+      console.error('[WebSocket] 연결 생성 실패:', error);
+      setWsConnectionStatus('error');
+      return;
+    }
 
     // join_room 메시지 전송을 readyState가 1(OPEN)일 때까지 반복 시도
     let joinSent = false;
     const joinInterval = setInterval(() => {
       if (ws.current && ws.current.readyState === 1 && !joinSent) {
-        ws.current.send(JSON.stringify({ type: 'join_room', roomId: selectedRoom.id }));
-        joinSent = true;
-        console.log('[WebSocket] join_room 메시지 전송:', selectedRoom.id);
-        clearInterval(joinInterval);
+        const joinMessage = { type: 'join_room', roomId: selectedRoom.id };
+        if (safeWebSocketSend(joinMessage)) {
+          joinSent = true;
+          console.log('[WebSocket] join_room 메시지 전송:', selectedRoom.id);
+          clearInterval(joinInterval);
+        }
       }
-    }, 50);
+    }, 500); // 500ms 간격으로 안전하게 처리
 
     ws.current.onopen = () => {
-      // (이전 코드와 달리 onopen에서 join_room을 직접 보내지 않음)
+      console.log('[WebSocket] 연결 성공');
+      setWsConnectionStatus('connected');
+
+      // 연결 후 약간의 지연을 두고 join_room 메시지 전송
+      setTimeout(() => {
+        if (!joinSent && ws.current && ws.current.readyState === 1) {
+          const joinMessage = { type: 'join_room', roomId: selectedRoom.id };
+          if (safeWebSocketSend(joinMessage)) {
+            joinSent = true;
+            console.log('[WebSocket] onopen에서 join_room 전송:', selectedRoom.id);
+          }
+        }
+      }, 200); // 100ms에서 200ms로 증가하여 더 안전하게 처리
     };
     ws.current.onmessage = (e) => {
       console.log('[WebSocket] onmessage 수신:', e.data);
       try {
         const data = JSON.parse(e.data);
+        if (data.roomId !== selectedRoomRef.current?.id) {
+          console.log('[WebSocket] 다른 방 메시지 무시:', data.roomId);
+          return;
+        }
+        // 방향 판별 통일
+        const username = loginUserRef.current?.username;
+        const userId = loginUserRef.current?.id;
         if (data.type === 'user_message' && data.message) {
-          if (data.roomId === selectedRoomRef.current?.id) {
-            const isMyMessage = data.sender === loginUserRef.current?.username;
-            setMessages(prev => {
-              const newMessages = [...prev, {
-                id: Date.now(),
-                type: isMyMessage ? 'send' : 'recv',
-                text: data.message,
-                date: data.timestamp,
-                sender: data.sender,
-                emotion: data.emotion,
-                imageUrl: null
-              }];
-              console.log('[setMessages] user_message 추가 후 상태:', newMessages);
-              return newMessages;
-            });
+          let isMine = false;
+          if (data.sender_type === 'user') {
+            isMine = (data.username === username) || (data.user_id === userId);
+          } else if (data.sender) {
+            isMine = (data.sender === username);
           }
-        } else if (data.type === 'ai_message' && data.message) {
-          if (data.roomId === selectedRoomRef.current?.id) {
-            setMessages(prev => {
-              const newMessages = [...prev, {
-                id: Date.now(),
-                type: 'recv',
-                text: data.message,
-                date: data.timestamp,
-                sender: 'AI',
-                emotion: null,
-                imageUrl: null
-              }];
-              console.log('[setMessages] ai_message 추가 후 상태:', newMessages);
-              return newMessages;
-            });
-            setCurrentAiMessage(data.message);
-            setIsAiTalking(true);
-            if (isTTSEnabled) {
-              speakAIMessage(data.message);
-            } else {
-              setDisplayedAiText(data.message);
+          setMessages(prev => {
+            const isDuplicate = prev.some(msg =>
+              msg.text === data.message &&
+              msg.sender === (data.username || data.sender) &&
+              Math.abs(new Date(msg.date) - new Date(data.timestamp)) < 1000
+            );
+            if (isDuplicate) {
+              console.log('[WebSocket] 중복 메시지 무시:', data.message);
+              return prev;
             }
-            const aiEmotionResponse = getAIEmotionResponse(userEmotion, data.message);
-            setAiEmotion(aiEmotionResponse.primary);
-            setEmotionDisplay(prev => ({ ...prev, ai: aiEmotionResponse.primary }));
-            setEmotionCaptureStatus(prev => ({ ...prev, ai: true }));
-            setTimeout(() => {
-              setAiEmotion('neutral');
-              setEmotionDisplay(prev => ({ ...prev, ai: 'neutral' }));
-              setEmotionCaptureStatus(prev => ({ ...prev, ai: false }));
-            }, aiEmotionResponse.duration);
+            const newMessage = {
+              id: Date.now() + Math.random(),
+              type: isMine ? 'send' : 'recv',
+              text: data.message,
+              date: data.timestamp,
+              sender: data.username || data.sender,
+              emotion: data.emotion,
+              imageUrl: data.imageUrl || null,
+              sender_type: data.sender_type,
+              username: data.username,
+              user_id: data.user_id,
+            };
+            return [...prev, newMessage];
+          });
+        } else if (data.type === 'ai_message' && data.message) {
+          setMessages(prev => {
+            const isDuplicate = prev.some(msg =>
+              msg.text === data.message &&
+              msg.sender === 'AI' &&
+              Math.abs(new Date(msg.date) - new Date(data.timestamp)) < 1000
+            );
+            if (isDuplicate) {
+              console.log('[WebSocket] 중복 AI 메시지 무시:', data.message);
+              return prev;
+            }
+            const newMessage = {
+              id: Date.now() + Math.random(),
+              type: 'recv',
+              text: data.message,
+              date: data.timestamp,
+              sender: 'AI',
+              emotion: null,
+              imageUrl: data.imageUrl || null,
+              sender_type: 'ai',
+            };
+            return [...prev, newMessage];
+          });
+          setCurrentAiMessage(data.message);
+          setIsAiTalking(true);
+          if (isTTSEnabled) {
+            speakAIMessage(data.message);
+          } else {
+            setDisplayedAiText(data.message);
           }
+          const aiEmotionResponse = getAIEmotionResponse(userEmotion, data.message);
+          setAiEmotion(aiEmotionResponse.primary);
+          setEmotionDisplay(prev => ({ ...prev, ai: aiEmotionResponse.primary }));
+          setEmotionCaptureStatus(prev => ({ ...prev, ai: true }));
+          setTimeout(() => {
+            setAiEmotion('neutral');
+            setEmotionDisplay(prev => ({ ...prev, ai: 'neutral' }));
+            setEmotionCaptureStatus(prev => ({ ...prev, ai: false }));
+          }, aiEmotionResponse.duration);
         }
       } catch (error) {
         console.error('WebSocket 메시지 처리 중 오류:', error);
       }
     };
-    ws.current.onclose = () => { };
-    ws.current.onerror = (error) => { console.error('WebSocket 연결 오류:', error); };
+    ws.current.onclose = () => {
+      console.log('[WebSocket] 연결 종료');
+      setWsConnectionStatus('disconnected');
+
+      // 연결이 끊어지면 3초 후 재연결 시도 (단, 컴포넌트가 마운트된 상태일 때만)
+      setTimeout(() => {
+        if (selectedRoomRef.current?.id && ws.current) {
+          console.log('[WebSocket] 재연결 시도...');
+          setWsConnectionStatus('connecting');
+        }
+      }, 3000);
+    };
+    ws.current.onerror = (error) => {
+      console.error('[WebSocket] 연결 오류:', error);
+      setWsConnectionStatus('error');
+    };
     // 방 나갈 때 leave_room 및 연결 해제
     return () => {
       clearInterval(joinInterval);
       if (ws.current) {
         try {
           if (ws.current.readyState === 1) {
-            ws.current.send(JSON.stringify({ type: 'leave_room', roomId: selectedRoomRef.current?.id }));
+            safeWebSocketSend({ type: 'leave_room', roomId: selectedRoomRef.current?.id });
           }
           ws.current.close();
-        } catch { }
+        } catch (error) {
+          console.error('[WebSocket] 연결 해제 중 오류:', error);
+        }
       }
     };
   }, [selectedRoom?.id, loginUser?.username]);
@@ -1567,23 +1658,36 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   };
 
   // 메시지 전송 함수 수정
-  const sendMessage = () => {
-    if (!input.trim() || !ws.current || ws.current.readyState !== 1) return;
+  const sendMessage = (messageText = null) => {
+    const textToSend = messageText || input;
+    if (!textToSend.trim()) return;
 
-    // room_id를 포함하여 메시지 전송
+    // WebSocket 연결 상태 확인
+    if (!ws.current || ws.current.readyState !== 1) {
+      console.warn('[sendMessage] WebSocket이 연결되지 않음. 상태:', ws.current?.readyState);
+      alert('연결이 끊어졌습니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+
     const messageData = {
-      message: input,
+      message: textToSend,
       roomId: selectedRoom?.id || null
     };
 
-    ws.current.send(JSON.stringify(messageData));
-    setMessages((prev) => [...prev, { type: 'send', text: input, date: new Date().toISOString() }]);
-    setInput('');
+    console.log('[sendMessage] 전송:', messageData);
+    if (!safeWebSocketSend(messageData)) {
+      console.error('[sendMessage] 메시지 전송 실패');
+      return;
+    }
+    // setMessages((prev) => [...prev, localMessage]); // <-- 로컬 추가 제거
+    if (!messageText) {
+      setInput('');
+    }
     setTimeout(() => {
       if (chatScrollRef.current) {
         chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
       }
-    }, 0);
+    }, 100);
   };
 
   // WebSocket 연결
@@ -1610,7 +1714,10 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         // 방별 메시지 필터링 (항상 최신 selectedRoom, loginUser 참조)
         if (data.type === 'user_message' && data.message) {
           if (data.roomId === selectedRoomRef.current?.id) {
-            const isMyMessage = data.sender === loginUserRef.current?.username;
+            // fetchMessages와 동일한 판별 로직 사용
+            const username = loginUserRef.current?.username;
+            const userId = loginUserRef.current?.id;
+            const isMyMessage = (data.sender === username) || (data.user_id === userId);
             const newMessage = {
               id: Date.now(),
               type: isMyMessage ? 'send' : 'recv',
@@ -2113,11 +2220,44 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       if (res.ok) {
         const data = await res.json();
         console.log('메시지 조회 결과:', data);
-
+        const username = loginUserRef.current?.username;
+        const userId = loginUserRef.current?.id;
+        console.log('내 username:', username, '내 userId:', userId);
+        if (!userId) {
+          console.warn('userId가 undefined입니다! 로그인 상태/응답을 확인하세요.');
+        }
+        const mappedMessages = (data.results || []).map(msg => {
+          // 방향 판별 통일
+          let isMine = false;
+          if (msg.sender_type === 'user') {
+            if (userId !== undefined && userId !== null) {
+              isMine = Number(msg.user_id) === Number(userId);
+              console.log('내 userId:', userId, 'msg.user_id:', msg.user_id, 'isMine:', isMine);
+            } else {
+              isMine = msg.username === username;
+              console.log('userId 없음, username 비교:', msg.username, username, 'isMine:', isMine);
+            }
+          }
+          let sender = '';
+          if (msg.sender_type === 'user') {
+            sender = msg.username || '사용자';
+          } else if (msg.sender_type === 'ai') {
+            sender = msg.ai_name || 'AI';
+          } else if (msg.sender_type === 'system') {
+            sender = 'System';
+          } else {
+            sender = msg.sender || '알 수 없음';
+          }
+          return {
+            ...msg,
+            sender: sender,
+            type: isMine ? 'send' : 'recv',
+          };
+        });
         if (append) {
-          setMessages(prev => [...data.results.reverse(), ...prev]);
+          setMessages(prev => [...mappedMessages.reverse(), ...prev]);
         } else {
-          setMessages(data.results.reverse());
+          setMessages(mappedMessages.reverse());
         }
         setHasMore(data.has_more);
         setMessageOffset(offset + data.results.length);
@@ -2288,6 +2428,30 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           </div>
           {/* 버튼 렌더링 부분(마이크, 카메라, 트래킹, 아바타 토글) */}
           <div className="header-btn-group">
+            {/* WebSocket 연결 상태 표시 */}
+            <div
+              className="ws-status-indicator"
+              title={`WebSocket: ${wsConnectionStatus}`}
+              style={{
+                marginRight: 8,
+                fontSize: 12,
+                padding: '2px 6px',
+                borderRadius: 4,
+                background: wsConnectionStatus === 'connected' ? 'rgba(76, 175, 80, 0.2)' :
+                  wsConnectionStatus === 'connecting' ? 'rgba(255, 152, 0, 0.2)' :
+                    'rgba(244, 67, 54, 0.2)',
+                color: wsConnectionStatus === 'connected' ? '#4caf50' :
+                  wsConnectionStatus === 'connecting' ? '#ff9800' : '#f44336',
+                cursor: 'pointer'
+              }}
+              onClick={() => {
+                console.log('[WebSocket] 현재 상태:', wsConnectionStatus);
+                console.log('[WebSocket] readyState:', ws.current?.readyState);
+              }}
+            >
+              {wsConnectionStatus === 'connected' ? '🟢' :
+                wsConnectionStatus === 'connecting' ? '🟡' : '🔴'}
+            </div>
             <button
               onClick={() => setIsVoiceMenuOpen(true)}
               className={`voice-menu-btn-header${isVoiceMenuOpen ? ' active' : ''}`}
@@ -2439,9 +2603,26 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                 const dd = String(dateObj.getDate()).padStart(2, '0');
                 const hh = String(dateObj.getHours()).padStart(2, '0');
                 const min = String(dateObj.getMinutes()).padStart(2, '0');
-                // 날짜/시간 박스 JSX
+
+                // 발신자 라벨 결정
+                let senderLabel = '';
+                if (msg.sender_type === 'user' && msg.username) {
+                  senderLabel = msg.username;
+                } else if (msg.sender_type === 'ai' && msg.ai_name) {
+                  senderLabel = msg.ai_name;
+                } else if (msg.sender_type === 'system') {
+                  senderLabel = 'System';
+                } else if (msg.sender) {
+                  senderLabel = msg.sender;
+                } else if (msg.type === 'send') {
+                  senderLabel = loginUserRef.current?.username || '나';
+                } else {
+                  senderLabel = 'AI';
+                }
+
                 const dateTimeBox = (
                   <div className="chat-date-time-box">
+                    <div className="chat-date-time-sender">{senderLabel}</div>
                     <div className="chat-date-time-year">{yyyy}-</div>
                     <div className="chat-date-time-md">{mm}-{dd}</div>
                     <div className="chat-date-time-hm">{hh}:{min}</div>

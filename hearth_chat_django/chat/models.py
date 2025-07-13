@@ -103,81 +103,86 @@ class ChatRoomParticipant(models.Model):
 
 class Chat(models.Model):
     MESSAGE_TYPE_CHOICES = [
+        ('text', '텍스트'),
+        ('image', '이미지'),
+        ('system', '시스템'),
+    ]
+    SENDER_TYPE_CHOICES = [
         ('user', '사용자'),
         ('ai', 'AI'),
         ('system', '시스템'),
     ]
-    
     # 대화방 연결
     room = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, verbose_name='대화방', null=True, blank=True)
-    sender = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='발신자', null=True, blank=True)
-    
-    # 기본 정보
-    message_type = models.CharField(max_length=10, choices=MESSAGE_TYPE_CHOICES, verbose_name='메시지 타입')
+    # sender(기존) 대신 아래 필드 사용
+    sender_type = models.CharField(max_length=10, choices=SENDER_TYPE_CHOICES, verbose_name='발신자 타입')  # user, ai, system
+    username = models.CharField(max_length=100, null=True, blank=True, verbose_name='유저 이름')  # user일 때만
+    user_id = models.BigIntegerField(null=True, blank=True, verbose_name='유저 ID')  # user일 때만
+    ai_name = models.CharField(max_length=50, null=True, blank=True, verbose_name='AI 이름')  # ai일 때만 (gpt, gemini, clude 등)
+    ai_type = models.CharField(max_length=50, null=True, blank=True, verbose_name='AI 타입')  # ai일 때만 (openai, google 등)
+    # 메시지 정보
+    message_type = models.CharField(max_length=10, choices=MESSAGE_TYPE_CHOICES, verbose_name='메시지 타입')  # text, image, system 등
     content = models.TextField(verbose_name='메시지 내용')
     timestamp = models.DateTimeField(default=timezone.now, verbose_name='전송 시간')
-    
     # 세션 관리 (나중에 사용자별 구분을 위해)
     session_id = models.CharField(max_length=100, blank=True, null=True, verbose_name='세션 ID')
-    
     # 감정 정보 (사용자 메시지에만 적용)
     emotion = models.CharField(max_length=20, blank=True, null=True, verbose_name='감정 상태')
-    
     # 이미지 파일 경로 (선택적)
     attach_image = models.ImageField(
         upload_to='image/chat_attach/',  # 원하는 하위 폴더 경로
         blank=True, null=True, verbose_name='첨부 이미지'
     )
-    
     # 메타 정보
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='생성 시간')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='수정 시간')
-    
     class Meta:
         ordering = ['timestamp']
         verbose_name = '채팅 메시지'
         verbose_name_plural = '채팅 메시지들'
         db_table = 'chat_chat'
-    
     def __str__(self):
-        return f"{self.get_message_type_display()} - {self.content[:50]}..."
+        if self.sender_type == 'user':
+            sender = self.username or f"User({self.user_id})"
+        elif self.sender_type == 'ai':
+            sender = self.ai_name or self.ai_type or 'AI'
+        else:
+            sender = '시스템'
+        return f"{sender} - {self.get_message_type_display()} - {self.content[:50]}..."
     
     @classmethod
-    def save_user_message(cls, content, session_id=None, emotion=None):
+    def save_user_message(cls, content, session_id=None, emotion=None, user=None):
         """사용자 메시지 저장 (감정 정보 포함)"""
-        # session_id를 room_id로 사용 (임시 해결책)
-        # 실제로는 WebSocket에서 room_id를 전달받아야 함
         room_id = session_id
         if room_id and str(room_id).isdigit():
             try:
                 room = ChatRoom.objects.get(id=int(room_id))
-                sender = None  # WebSocket에서는 sender 정보가 없으므로 None
             except ChatRoom.DoesNotExist:
-                # 방이 없으면 기본 AI 방 생성
                 room = ChatRoom.objects.filter(room_type='ai').first()
                 if not room:
                     room = ChatRoom.create_ai_chat_room(User.objects.first(), 'GEMINI')
-                sender = None
         else:
-            # session_id가 없거나 유효하지 않으면 기본 AI 방 사용
             room = ChatRoom.objects.filter(room_type='ai').first()
             if not room:
                 room = ChatRoom.create_ai_chat_room(User.objects.first(), 'GEMINI')
-            sender = None
-        
+        username = user.username if user and hasattr(user, 'username') else None
+        user_id = user.id if user and hasattr(user, 'id') else None
         return cls.objects.create(
             room=room,
-            sender=sender,
-            message_type='user',
+            sender_type='user',
+            username=username,
+            user_id=user_id,
+            ai_name=None,
+            ai_type=None,
+            message_type='text',
             content=content,
             session_id=session_id,
             emotion=emotion
         )
     
     @classmethod
-    def save_ai_message(cls, content, session_id=None):
+    def save_ai_message(cls, content, session_id=None, ai_name='Gemini', ai_type='google'):
         """AI 메시지 저장"""
-        # session_id를 room_id로 사용 (임시 해결책)
         room_id = session_id
         if room_id and str(room_id).isdigit():
             try:
@@ -190,11 +195,14 @@ class Chat(models.Model):
             room = ChatRoom.objects.filter(room_type='ai').first()
             if not room:
                 room = ChatRoom.create_ai_chat_room(User.objects.first(), 'GEMINI')
-        
         return cls.objects.create(
             room=room,
-            sender=None,  # AI는 발신자가 없음
-            message_type='ai',
+            sender_type='ai',
+            username=None,
+            user_id=None,
+            ai_name=ai_name,
+            ai_type=ai_type,
+            message_type='text',
             content=content,
             session_id=session_id
         )

@@ -141,6 +141,7 @@ def user_info(request):
         return JsonResponse({
             'status': 'success',
             'user': {
+                'id': request.user.id,  # id 필드 추가
                 'username': request.user.username,
                 'email': request.user.email,
                 'email_verified': request.user.emailaddress_set.filter(verified=True).exists(),
@@ -375,13 +376,30 @@ class ChatViewSet(viewsets.ModelViewSet):
             # 프론트엔드에서 기대하는 형태로 변환
             message_list = []
             for msg in messages:
+                # 새 모델 구조에 맞게 sender, type 등 판별
+                if msg.sender_type == 'user':
+                    sender_label = msg.username or f"User({msg.user_id})"
+                    is_mine = (request.user.username == msg.username) or (request.user.id == msg.user_id)
+                elif msg.sender_type == 'ai':
+                    sender_label = msg.ai_name or msg.ai_type or 'AI'
+                    is_mine = False
+                elif msg.sender_type == 'system':
+                    sender_label = 'System'
+                    is_mine = False
+                else:
+                    sender_label = msg.username or msg.ai_name or 'Unknown'
+                    is_mine = False
                 message_data = {
                     'id': msg.id,
-                    'type': 'send' if msg.sender == request.user else 'recv',
+                    'type': 'send' if is_mine else 'recv',
                     'text': msg.content,
                     'date': msg.timestamp.isoformat(),
-                    'sender': msg.sender.username if msg.sender else 'AI',
-                    'emotion': msg.emotion if hasattr(msg, 'emotion') else None,
+                    'sender': sender_label,
+                    'sender_type': msg.sender_type,
+                    'username': msg.username,
+                    'user_id': msg.user_id,  # user_id 필드 추가
+                    'ai_name': msg.ai_name,
+                    'emotion': getattr(msg, 'emotion', None),
                     'imageUrl': msg.attach_image.url if msg.attach_image else None
                 }
                 message_list.append(message_data)
@@ -402,6 +420,7 @@ class UserSettingsView(APIView):
         settings, _ = UserSettings.objects.get_or_create(user=request.user)
         serializer = UserSettingsSerializer(settings)
         user_data = {
+            "id": request.user.id, # id 필드 추가
             "username": request.user.username,
             "email": request.user.email,
             "email_verified": request.user.emailaddress_set.filter(verified=True).exists() if hasattr(request.user, 'emailaddress_set') else False,

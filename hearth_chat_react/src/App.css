@@ -169,34 +169,57 @@
 @media (max-width: 768px) {
   .app-container {
     flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
   }
 
   .room-list-container {
     width: 100%;
-    height: 50vh;
-    /* 전체 높이의 절반 */
-    min-height: 220px;
-    /* 너무 작아지지 않게 최소 높이 */
-    max-height: 70vh;
-    /* 너무 커지지 않게 최대 높이 */
+    height: 40vh;
+    min-height: 200px;
+    max-height: 60vh;
     border-right: none;
     border-bottom: 1px solid #e9ecef;
     overflow-y: auto;
-    /* 세로 스크롤만 */
     overflow-x: hidden;
-    /* 가로 스크롤 제거 */
   }
 
   .welcome-container {
     flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .welcome-content {
+    padding: 20px;
   }
 
   .welcome-content h1 {
-    font-size: 2rem;
+    font-size: 1.8rem;
+    margin-bottom: 15px;
   }
 
   .welcome-content p {
-    font-size: 1rem;
+    font-size: 0.9rem;
+  }
+
+  .chat-container {
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+  }
+}
+
+/* 모바일에서 스크롤바 숨기기 */
+@media (max-width: 768px) {
+  .room-list-container::-webkit-scrollbar {
+    width: 0;
+    background: transparent;
+  }
+
+  .room-list-container {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
 }
 

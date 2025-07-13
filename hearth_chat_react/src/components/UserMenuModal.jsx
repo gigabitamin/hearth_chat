@@ -138,19 +138,19 @@ export default function UserMenuModal({ isOpen, onClose, loginUser }) {
                 setLoading(false);
             } else {
                 fetch(`${API_BASE}/api/chat/user/`, { credentials: 'include' })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            setUser(data.user);
-                            setError(null);
-                        } else {
-                            setUser(null);
-                            setError(data.message || '로그인 정보 없음');
-                        }
-                    })
-                    .catch(() => setError('서버 오류'))
-                    .finally(() => setLoading(false));
-            }
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        setUser(data.user);
+                        setError(null);
+                    } else {
+                        setUser(null);
+                        setError(data.message || '로그인 정보 없음');
+                    }
+                })
+                .catch(() => setError('서버 오류'))
+                .finally(() => setLoading(false));
+        }
         }
     }, [isOpen, loginUser]);
 
