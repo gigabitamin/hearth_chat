@@ -19,6 +19,9 @@ python manage.py migrate --noinput 2>&1 | tee /tmp/migrate.log || {
     }
 }
 
+echo "Ensuring superuser exists..."
+python manage.py createinitialsuperuser || echo "Superuser creation skipped at runtime"
+
 # 정적 파일 수집 (실패해도 계속 진행)
 echo "Collecting static files..."
 python manage.py collectstatic --noinput || echo "collectstatic failed, continuing..."
