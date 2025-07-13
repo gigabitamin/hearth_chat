@@ -6,7 +6,7 @@ djangorestframework==3.14.0
 
 # 데이터베이스
 mysqlclient==2.2.1
-# dj-database-url==3.0.1  # 환경변수 DB URL 파싱용, 필요시만 사용
+dj-database-url==3.0.1  # 환경변수 DB URL 파싱용
 # PyMySQL==1.1.0  # mysqlclient 대신 pure python 드라이버 필요시만 사용
 
 # 웹서버/비동기
