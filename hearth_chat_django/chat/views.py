@@ -156,6 +156,25 @@ def user_info(request):
         return JsonResponse({'status': 'error', 'message': 'Not authenticated'}, status=401)
 
 @csrf_exempt
+@require_http_methods(["GET"])
+def login_status(request):
+    """로그인 상태 확인 API"""
+    if request.user.is_authenticated:
+        return JsonResponse({
+            'status': 'success',
+            'authenticated': True,
+            'user_id': request.user.id,
+            'username': request.user.username,
+            'email': request.user.email
+        })
+    else:
+        return JsonResponse({
+            'status': 'error',
+            'authenticated': False,
+            'message': 'Not authenticated'
+        }, status=401)
+
+@csrf_exempt
 @require_http_methods(["POST"])
 def logout_api(request):
     """로그아웃 API"""

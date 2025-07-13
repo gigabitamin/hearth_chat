@@ -65,7 +65,7 @@ const LoginModal = ({ isOpen, onClose, onSocialLogin }) => {
             return;
         }
         try {
-            const res = await fetch(`${API_BASE}/api/chat/login/`, {
+            const res = await fetch(`${API_BASE}/accounts/login/`, {
                 method: 'POST',
                 credentials: 'include',
                 body: form,
@@ -105,7 +105,7 @@ const LoginModal = ({ isOpen, onClose, onSocialLogin }) => {
             return;
         }
         try {
-            const res = await fetch(`${API_BASE}/api/chat/signup/`, {
+            const res = await fetch(`${API_BASE}/accounts/signup/`, {
                 method: 'POST',
                 credentials: 'include',
                 body: form,
