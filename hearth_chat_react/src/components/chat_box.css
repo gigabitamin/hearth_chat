@@ -980,3 +980,11 @@ body,
     margin: 0 auto;
   }
 }
+
+.ai-questioner-username {
+  font-size: 0.8em;
+  color: #ffd700;
+  font-weight: 500;
+  margin-bottom: 2px;
+  margin-left: 4px;
+}

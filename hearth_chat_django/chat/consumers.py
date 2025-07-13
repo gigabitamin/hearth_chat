@@ -123,6 +123,23 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         # 사용자 메시지를 방의 모든 참여자에게 브로드캐스트
         print(f"[SEND] 사용자 메시지 group_send: chat_room_{room_id} (채널: {self.channel_name})")
+        try:
+            debug_event = {
+                'type': 'user_message',
+                'message': user_message or '[이미지 첨부]',
+                'roomId': room_id,
+                'sender': (
+                    user_message_obj.username if user_message_obj and hasattr(user_message_obj, 'sender_type') and user_message_obj.sender_type == 'user' else (
+                        user_message_obj.ai_name if user_message_obj and hasattr(user_message_obj, 'sender_type') and user_message_obj.sender_type == 'ai' else 'System'
+                    )
+                ) if user_message_obj else 'Unknown',
+                'user_id': user_message_obj.user_id if user_message_obj and hasattr(user_message_obj, 'user_id') else None,
+                'timestamp': user_message_obj.timestamp.isoformat() if user_message_obj and hasattr(user_message_obj, 'timestamp') else None,
+                'emotion': user_emotion
+            }
+            print(f"[DEBUG][group_send][user_message] event: ", json.dumps(debug_event, ensure_ascii=False, indent=2))
+        except Exception as e:
+            print(f"[DEBUG][group_send][user_message] event 출력 오류: {e}")
         await self.channel_layer.group_send(
             f'chat_room_{room_id}',
             {
@@ -180,13 +197,27 @@ class ChatConsumer(AsyncWebsocketConsumer):
             
             # AI 응답을 방의 모든 참여자에게 브로드캐스트
             print(f"[SEND] AI 메시지 group_send: chat_room_{room_id} (채널: {self.channel_name})")
+            try:
+                debug_event = {
+                    'type': 'ai_message',
+                    'message': ai_response,
+                    'roomId': room_id,
+                    'timestamp': ai_message_obj.timestamp.isoformat() if ai_message_obj and hasattr(ai_message_obj, 'timestamp') else None,
+                    'questioner_username': user_message_obj.username if user_message_obj and hasattr(user_message_obj, 'username') else None
+                }
+                print(f"[DEBUG][group_send][ai_message] event: ", json.dumps(debug_event, ensure_ascii=False, indent=2))
+            except Exception as e:
+                print(f"[DEBUG][group_send][ai_message] event 출력 오류: {e}")
             await self.channel_layer.group_send(
                 f'chat_room_{room_id}',
                 {
                     'type': 'ai_message',
                     'message': ai_response,
                     'roomId': room_id,
-                    'timestamp': ai_message_obj.timestamp.isoformat()
+                    'timestamp': ai_message_obj.timestamp.isoformat(),
+                    'questioner_username': user_message_obj.username if user_message_obj else None,
+                    'ai_name': ai_message_obj.ai_name if ai_message_obj else 'AI',
+                    'sender': ai_message_obj.ai_name if ai_message_obj else 'AI',
                 }
             )
         except Exception as e:
@@ -208,8 +239,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
         }))
 
     async def user_message(self, event):
-        """사용자 메시지 처리"""
         print(f"[RECV] user_message: {event} (채널: {self.channel_name})")
+        try:
+            debug_event = dict(event) if isinstance(event, dict) else event
+            print(f"[DEBUG][self.send][user_message] event: ", json.dumps(debug_event, ensure_ascii=False, indent=2))
+        except Exception as e:
+            print(f"[DEBUG][self.send][user_message] event 출력 오류: {e}")
         await self.send(text_data=json.dumps({
             'type': 'user_message',
             'message': event['message'],
@@ -221,13 +256,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
         }))
 
     async def ai_message(self, event):
-        """AI 메시지 처리"""
         print(f"[RECV] ai_message: {event} (채널: {self.channel_name})")
+        try:
+            debug_event = dict(event) if isinstance(event, dict) else event
+            print(f"[DEBUG][self.send][ai_message] event: ", json.dumps(debug_event, ensure_ascii=False, indent=2))
+        except Exception as e:
+            print(f"[DEBUG][self.send][ai_message] event 출력 오류: {e}")
         await self.send(text_data=json.dumps({
             'type': 'ai_message',
             'message': event['message'],
             'roomId': event['roomId'],
-            'timestamp': event['timestamp']
+            'timestamp': event['timestamp'],
+            'questioner_username': event.get('questioner_username'),
+            'ai_name': event.get('ai_name', 'AI'),
+            'sender': event.get('ai_name', 'AI'),
         }))
 
     async def handle_webrtc_signaling(self, data):

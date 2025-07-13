@@ -344,62 +344,67 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           console.log('[WebSocket] 다른 방 메시지 무시:', data.roomId);
           return;
         }
-        // 방향 판별 통일
         const username = loginUserRef.current?.username;
         const userId = loginUserRef.current?.id;
         if (data.type === 'user_message' && data.message) {
-          let isMine = false;
-          if (data.sender_type === 'user') {
-            isMine = (data.username === username) || (data.user_id === userId);
-          } else if (data.sender) {
-            isMine = (data.sender === username);
-          }
-          setMessages(prev => {
-            const isDuplicate = prev.some(msg =>
-              msg.text === data.message &&
-              msg.sender === (data.username || data.sender) &&
-              Math.abs(new Date(msg.date) - new Date(data.timestamp)) < 1000
-            );
-            if (isDuplicate) {
-              console.log('[WebSocket] 중복 메시지 무시:', data.message);
-              return prev;
+          const isMyMessage = (data.sender === username) || (data.user_id === userId);
+          const newMessage = {
+            id: Date.now(),
+            type: isMyMessage ? 'send' : 'recv',
+            text: data.message,
+            date: data.timestamp,
+            sender: data.sender,
+            sender_type: 'user',
+            user_id: data.user_id,
+            emotion: data.emotion,
+            imageUrl: null
+          };
+          setMessages((prev) => {
+            let next;
+            if (isMyMessage) {
+              // echo 메시지라면 pending 메시지 제거
+              next = [
+                ...prev.filter(msg => !(msg.pending && msg.text === data.message)),
+                newMessage
+              ];
+              console.log('[setMessages][onmessage][echo] pending 제거 후:', next);
+            } else {
+              next = [...prev, newMessage];
+              console.log('[setMessages][onmessage][상대] 추가 후:', next);
             }
-            const newMessage = {
-              id: Date.now() + Math.random(),
-              type: isMine ? 'send' : 'recv',
-              text: data.message,
-              date: data.timestamp,
-              sender: data.username || data.sender,
-              emotion: data.emotion,
-              imageUrl: data.imageUrl || null,
-              sender_type: data.sender_type,
-              username: data.username,
-              user_id: data.user_id,
-            };
-            return [...prev, newMessage];
+            return next;
           });
         } else if (data.type === 'ai_message' && data.message) {
-          setMessages(prev => {
-            const isDuplicate = prev.some(msg =>
-              msg.text === data.message &&
-              msg.sender === 'AI' &&
-              Math.abs(new Date(msg.date) - new Date(data.timestamp)) < 1000
-            );
-            if (isDuplicate) {
-              console.log('[WebSocket] 중복 AI 메시지 무시:', data.message);
+          const newMessage = {
+            id: Date.now(),
+            type: 'recv',
+            text: data.message,
+            date: data.timestamp,
+            sender: 'AI',
+            sender_type: 'ai',
+            questioner_username: data.questioner_username,
+            ai_name: data.ai_name, // AI 이름 포함
+            emotion: null,
+            imageUrl: null
+          };
+          setMessages((prev) => {
+            // 중복 메시지 방지: 동일 timestamp/text/questioner_username/ai_name이 이미 있으면 추가하지 않음
+            if (prev.some(m => m.type === 'ai' && m.date === data.timestamp && m.text === data.message && m.questioner_username === data.questioner_username && m.ai_name === data.ai_name)) {
               return prev;
             }
-            const newMessage = {
-              id: Date.now() + Math.random(),
-              type: 'recv',
+            const newMsg = {
+              id: data.id || `ai_${data.timestamp}`,
+              type: 'ai',
               text: data.message,
               date: data.timestamp,
-              sender: 'AI',
-              emotion: null,
-              imageUrl: data.imageUrl || null,
-              sender_type: 'ai',
+              sender: data.ai_name, // sender는 항상 ai_name
+              ai_name: data.ai_name,
+              questioner_username: data.questioner_username,
+              pending: false,
             };
-            return [...prev, newMessage];
+            const arr = [...prev, newMsg];
+            console.log('[setMessages][ai_message 수신] 전체:', arr);
+            return arr;
           });
           setCurrentAiMessage(data.message);
           setIsAiTalking(true);
@@ -418,6 +423,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
             setEmotionCaptureStatus(prev => ({ ...prev, ai: false }));
           }, aiEmotionResponse.duration);
         }
+        // 기타 message 타입에서는 setMessages를 호출하지 않음
       } catch (error) {
         console.error('WebSocket 메시지 처리 중 오류:', error);
       }
@@ -735,7 +741,93 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     console.log('ChatBox 컴포넌트 마운트됨');
 
     // WebSocket 연결
-    connectWebSocket();
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.hostname;
+    const isLocalhost = host === 'localhost' || host === '127.0.0.1';
+    const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}:8000/ws/chat/`;
+
+    console.log('WebSocket 연결 시도:', wsUrl);
+    ws.current = new WebSocket(wsUrl);
+
+    ws.current.onopen = () => {
+      console.log('WebSocket 연결 성공');
+    };
+
+    ws.current.onclose = () => {
+      console.log('WebSocket 연결 종료');
+    };
+
+    ws.current.onerror = (error) => {
+      console.error('WebSocket 연결 오류:', error);
+    };
+
+    // WebSocket 메시지 수신 처리 (재연결 시에도 동일하게)
+    ws.current.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        const username = loginUserRef.current?.username;
+        const userId = loginUserRef.current?.id;
+        if (data.type === 'user_message' && data.message) {
+          const isMyMessage = (data.sender === username) || (data.user_id === userId);
+          // 서버 echo 메시지에 client_id가 있으면, 해당 pending 메시지 제거
+          setMessages((prev) => {
+            let arr = prev;
+            // 1. client_id로 매칭 제거(가장 정확)
+            if (data.client_id) {
+              arr = arr.filter(
+                (msg) => !(msg.pending && msg.client_id === data.client_id)
+              );
+            } else {
+              // 2. fallback: text+timestamp+sender로 매칭
+              arr = arr.filter(
+                (msg) =>
+                  !(
+                    msg.pending &&
+                    msg.text === data.message &&
+                    msg.sender === data.sender &&
+                    Math.abs(new Date(msg.date).getTime() - new Date(data.timestamp).getTime()) < 2000
+                  )
+              );
+            }
+            // 서버 메시지 추가
+            const newMsg = {
+              id: data.id || `${data.sender}_${data.timestamp}`,
+              type: isMyMessage ? 'send' : 'recv',
+              text: data.message,
+              date: data.timestamp,
+              sender: data.sender,
+              user_id: data.user_id,
+              pending: false,
+            };
+            const result = [...arr, newMsg];
+            console.log('[setMessages][user_message 수신] 전체:', result);
+            return result;
+          });
+        } else if (data.type === 'ai_message' && data.message) {
+          setMessages((prev) => {
+            // 중복 메시지 방지: 동일 timestamp/text/questioner_username/ai_name이 이미 있으면 추가하지 않음
+            if (prev.some(m => m.type === 'ai' && m.date === data.timestamp && m.text === data.message && m.questioner_username === data.questioner_username && m.ai_name === data.ai_name)) {
+              return prev;
+            }
+            const newMsg = {
+              id: data.id || `ai_${data.timestamp}`,
+              type: 'ai',
+              text: data.message,
+              date: data.timestamp,
+              sender: data.ai_name, // sender는 항상 ai_name
+              ai_name: data.ai_name,
+              questioner_username: data.questioner_username,
+              pending: false,
+            };
+            const arr = [...prev, newMsg];
+            console.log('[setMessages][ai_message 수신] 전체:', arr);
+            return arr;
+          });
+        }
+      } catch (err) {
+        console.error('[WebSocket onmessage] 파싱 오류:', err, e.data);
+      }
+    };
 
     // TTS 서비스 초기화
     initializeTTSService();
@@ -776,7 +868,93 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     if (ws.current) {
       ws.current.close();
     }
-    connectWebSocket();
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.hostname;
+    const isLocalhost = host === 'localhost' || host === '127.0.0.1';
+    const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}:8000/ws/chat/`;
+
+    console.log('WebSocket 재연결 시도:', wsUrl);
+    ws.current = new WebSocket(wsUrl);
+
+    ws.current.onopen = () => {
+      console.log('WebSocket 재연결 성공');
+    };
+
+    ws.current.onclose = () => {
+      console.log('WebSocket 연결 종료');
+    };
+
+    ws.current.onerror = (error) => {
+      console.error('WebSocket 연결 오류:', error);
+    };
+
+    // WebSocket 메시지 수신 처리 (재연결 시에도 동일하게)
+    ws.current.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        const username = loginUserRef.current?.username;
+        const userId = loginUserRef.current?.id;
+        if (data.type === 'user_message' && data.message) {
+          const isMyMessage = (data.sender === username) || (data.user_id === userId);
+          // 서버 echo 메시지에 client_id가 있으면, 해당 pending 메시지 제거
+          setMessages((prev) => {
+            let arr = prev;
+            // 1. client_id로 매칭 제거(가장 정확)
+            if (data.client_id) {
+              arr = arr.filter(
+                (msg) => !(msg.pending && msg.client_id === data.client_id)
+              );
+            } else {
+              // 2. fallback: text+timestamp+sender로 매칭
+              arr = arr.filter(
+                (msg) =>
+                  !(
+                    msg.pending &&
+                    msg.text === data.message &&
+                    msg.sender === data.sender &&
+                    Math.abs(new Date(msg.date).getTime() - new Date(data.timestamp).getTime()) < 2000
+                  )
+              );
+            }
+            // 서버 메시지 추가
+            const newMsg = {
+              id: data.id || `${data.sender}_${data.timestamp}`,
+              type: isMyMessage ? 'send' : 'recv',
+              text: data.message,
+              date: data.timestamp,
+              sender: data.sender,
+              user_id: data.user_id,
+              pending: false,
+            };
+            const result = [...arr, newMsg];
+            console.log('[setMessages][user_message 수신] 전체:', result);
+            return result;
+          });
+        } else if (data.type === 'ai_message' && data.message) {
+          setMessages((prev) => {
+            // 중복 메시지 방지: 동일 timestamp/text/questioner_username/ai_name이 이미 있으면 추가하지 않음
+            if (prev.some(m => m.type === 'ai' && m.date === data.timestamp && m.text === data.message && m.questioner_username === data.questioner_username && m.ai_name === data.ai_name)) {
+              return prev;
+            }
+            const newMsg = {
+              id: data.id || `ai_${data.timestamp}`,
+              type: 'ai',
+              text: data.message,
+              date: data.timestamp,
+              sender: data.ai_name, // sender는 항상 ai_name
+              ai_name: data.ai_name,
+              questioner_username: data.questioner_username,
+              pending: false,
+            };
+            const arr = [...prev, newMsg];
+            console.log('[setMessages][ai_message 수신] 전체:', arr);
+            return arr;
+          });
+        }
+      } catch (err) {
+        console.error('[WebSocket onmessage] 파싱 오류:', err, e.data);
+      }
+    };
   }, [isTTSEnabled]);
 
   // 감정 포착 상태 자동 리셋 (3초 후)
@@ -1657,21 +1835,22 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     }
   };
 
-  // 메시지 전송 함수 수정
+  // 메시지 전송 함수
   const sendMessage = (messageText = null) => {
     const textToSend = messageText || input;
     if (!textToSend.trim()) return;
 
-    // WebSocket 연결 상태 확인
     if (!ws.current || ws.current.readyState !== 1) {
       console.warn('[sendMessage] WebSocket이 연결되지 않음. 상태:', ws.current?.readyState);
       alert('연결이 끊어졌습니다. 잠시 후 다시 시도해주세요.');
       return;
     }
 
+    const clientId = `${Date.now()}_${Math.random()}`;
     const messageData = {
       message: textToSend,
-      roomId: selectedRoom?.id || null
+      roomId: selectedRoom?.id || null,
+      client_id: clientId, // 클라이언트 고유 식별자
     };
 
     console.log('[sendMessage] 전송:', messageData);
@@ -1679,113 +1858,26 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       console.error('[sendMessage] 메시지 전송 실패');
       return;
     }
-    // setMessages((prev) => [...prev, localMessage]); // <-- 로컬 추가 제거
-    if (!messageText) {
-      setInput('');
-    }
-    setTimeout(() => {
-      if (chatScrollRef.current) {
-        chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
-      }
-    }, 100);
+    // 내 메시지 로컬에 즉시 추가 (pending 플래그, client_id 포함)
+    setMessages((prev) => {
+      const newMsg = {
+        id: clientId,
+        type: 'send',
+        text: textToSend,
+        date: new Date().toISOString(),
+        sender: loginUserRef.current?.username,
+        user_id: loginUserRef.current?.id,
+        pending: true,
+        client_id: clientId,
+      };
+      const arr = [...prev, newMsg];
+      console.log('[setMessages][pending 추가] 전체:', arr);
+      return arr;
+    });
+    setInput('');
   };
 
-  // WebSocket 연결
-  const connectWebSocket = () => {
-    // 현재 호스트의 IP 주소를 사용하여 WebSocket 연결
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.hostname;
 
-    // 환경에 따라 WebSocket URL 설정
-    const isLocalhost = host === 'localhost' || host === '127.0.0.1';
-    const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}:8000/ws/chat/`;
-
-    console.log('WebSocket 연결 시도:', wsUrl);
-    ws.current = new WebSocket(wsUrl);
-
-    ws.current.onopen = () => {
-      console.log('WebSocket 연결 성공');
-    };
-
-    ws.current.onmessage = (e) => {
-      try {
-        const data = JSON.parse(e.data);
-
-        // 방별 메시지 필터링 (항상 최신 selectedRoom, loginUser 참조)
-        if (data.type === 'user_message' && data.message) {
-          if (data.roomId === selectedRoomRef.current?.id) {
-            // fetchMessages와 동일한 판별 로직 사용
-            const username = loginUserRef.current?.username;
-            const userId = loginUserRef.current?.id;
-            const isMyMessage = (data.sender === username) || (data.user_id === userId);
-            const newMessage = {
-              id: Date.now(),
-              type: isMyMessage ? 'send' : 'recv',
-              text: data.message,
-              date: data.timestamp,
-              sender: data.sender,
-              emotion: data.emotion,
-              imageUrl: null
-            };
-            setMessages((prev) => [...prev, newMessage]);
-          }
-        } else if (data.type === 'ai_message' && data.message) {
-          if (data.roomId === selectedRoomRef.current?.id) {
-            const newMessage = {
-              id: Date.now(),
-              type: 'recv',
-              text: data.message,
-              date: data.timestamp,
-              sender: 'AI',
-              emotion: null,
-              imageUrl: null
-            };
-            setMessages((prev) => [...prev, newMessage]);
-            setCurrentAiMessage(data.message);
-            setIsAiTalking(true);
-            if (isTTSEnabled) {
-              speakAIMessage(data.message);
-            } else {
-              setDisplayedAiText(data.message);
-            }
-            const aiEmotionResponse = getAIEmotionResponse(userEmotion, data.message);
-            setAiEmotion(aiEmotionResponse.primary);
-            setEmotionDisplay(prev => ({ ...prev, ai: aiEmotionResponse.primary }));
-            setEmotionCaptureStatus(prev => ({ ...prev, ai: true }));
-            setTimeout(() => {
-              setAiEmotion('neutral');
-              setEmotionDisplay(prev => ({ ...prev, ai: 'neutral' }));
-              setEmotionCaptureStatus(prev => ({ ...prev, ai: false }));
-            }, aiEmotionResponse.duration);
-          }
-        } else if (data.type === 'room_list_update') {
-          // 대화방 목록 업데이트는 그대로 처리
-          console.log('대화방 목록 업데이트:', data);
-        } else if (data.message) {
-          setMessages((prev) => [...prev, { type: 'recv', text: data.message, date: data.date }]);
-          setCurrentAiMessage(data.message);
-          setIsAiTalking(true);
-          if (isTTSEnabled) {
-            speakAIMessage(data.message);
-          } else {
-            setDisplayedAiText(data.message);
-          }
-        } else {
-          console.warn('WebSocket 메시지에 message 필드가 없습니다:', data);
-        }
-      } catch (error) {
-        console.error('WebSocket 메시지 처리 중 오류:', error);
-      }
-    };
-
-    ws.current.onclose = () => {
-      console.log('WebSocket 연결 종료');
-    };
-
-    ws.current.onerror = (error) => {
-      console.error('WebSocket 연결 오류:', error);
-    };
-  };
 
   // 컴포넌트 언마운트 시 타이머 정리 및 TTS 중지
   useEffect(() => {
@@ -2659,9 +2751,16 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                           marginRight: msg.type === 'send' ? 8 : 0,
                           marginLeft: msg.type === 'send' ? 0 : 8,
                           backgroundColor: msg.type === 'send' ? undefined : getSenderColor(msg.sender),
-                          color: msg.type === 'send' ? undefined : (getSenderColor(msg.sender) ? '#fff' : undefined)
+                          color: msg.type === 'send' ? undefined : (getSenderColor(msg.sender) ? '#fff' : undefined),
+                          position: 'relative',
                         }}
                       >
+                        {/* AI 응답일 때 질문자 username 표시 - 상단 */}
+                        {msg.type === 'ai' && msg.questioner_username && (
+                          <div className="ai-questioner-username">
+                            {msg.questioner_username}
+                          </div>
+                        )}
                         {/* 이미지+텍스트 조합 출력 */}
                         {msg.imageUrl && (
                           <img
@@ -2777,7 +2876,11 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                         {msg.type === 'send' ? (
                           <div style={{ marginLeft: 'auto' }}>{dateTimeBox}</div>
                         ) : (
-                          <div style={{ marginRight: 'auto' }}>{dateTimeBox}</div>
+                          <div style={{ marginRight: 'auto' }}>
+                            {/* AI 메시지일 때는 ai_name, 그 외에는 sender */}
+                            {msg.type === 'ai' ? msg.ai_name : msg.sender}
+                            {dateTimeBox}
+                          </div>
                         )}
                       </div>
                     </div>
