@@ -33,10 +33,16 @@ const SettingsModal = ({ isOpen, onClose, tab, setTab, userSettings, setUserSett
             ? 'http://192.168.44.9:8000'
             : `http://${hostname}:8000`;
 
+      // CSRF 토큰 추출
+      const csrftoken = document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
+
       const res = await fetch(`${API_BASE}/api/chat/user/settings/`, {
         method: 'PATCH',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrftoken,
+        },
         body: JSON.stringify(patchObj),
       });
       if (res.ok) {
