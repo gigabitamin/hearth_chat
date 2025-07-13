@@ -6,12 +6,17 @@ cd /app/hearth_chat_django
 
 echo "Starting Django application..."
 
-# DB 마이그레이션 (더 강력한 재시도)
+# DB 마이그레이션 (실패 로그 저장 및 출력)
 echo "Running database migrations..."
-python manage.py migrate --noinput || {
+python manage.py migrate --noinput 2>&1 | tee /tmp/migrate.log || {
     echo "Migration failed, trying to create tables..."
-    python manage.py makemigrations --noinput || echo "makemigrations failed"
-    python manage.py migrate --noinput || echo "Migration failed again, continuing..."
+    python manage.py makemigrations --noinput 2>&1 | tee /tmp/makemigrations.log || echo "makemigrations failed"
+    python manage.py migrate --noinput 2>&1 | tee /tmp/migrate_retry.log || {
+        echo "Migration failed again, see logs below:"
+        cat /tmp/migrate.log
+        cat /tmp/makemigrations.log
+        cat /tmp/migrate_retry.log
+    }
 }
 
 # 정적 파일 수집 (실패해도 계속 진행)
