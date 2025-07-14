@@ -27,103 +27,28 @@ import os
 from django.views.generic import TemplateView
 
 urlpatterns = [
-    # ... 기존 URL 패턴 ...
-    path("", ReactAppView.as_view(), name="root"),
-    re_path(r"^(?!api/|admin/|static/|media/).*$", ReactAppView.as_view()),  # SPA fallback: API, admin, 정적/미디어 제외
-]
-
-
-def home_redirect(request):
-    """루트 URL을 admin으로 리다이렉트"""
-    return redirect('admin:index')
-
-
-def health_check(request):
-    """Railway 헬스체크용 엔드포인트"""
-    return HttpResponse(b"OK", content_type="text/plain")
-
-
-def root_response(request):
-    return HttpResponse(b"OK", content_type="text/plain")
-
-
-def favicon(request):
-    return HttpResponse(b"", content_type="image/x-icon")
-
-
-def manifest_json(request):
-    # Railway 환경에서는 build 폴더 경로가 다름
-    if settings.DEBUG:
-        manifest_path = os.path.join(settings.BASE_DIR, '..', 'hearth_chat_react', 'build', 'manifest.json')
-    else:
-        manifest_path = '/app/hearth_chat_react/build/manifest.json'
-    return static_serve(request, os.path.basename(manifest_path), os.path.dirname(manifest_path))
-
-
-def logo192_png(request):
-    """logo192.png 파일 직접 서빙"""
-    if settings.DEBUG:
-        logo_path = os.path.join(settings.BASE_DIR, '..', 'hearth_chat_react', 'build', 'logo192.png')
-    else:
-        logo_path = '/app/hearth_chat_react/build/logo192.png'
-    return static_serve(request, 'logo192.png', os.path.dirname(logo_path))
-
-def logo512_png(request):
-    """logo512.png 파일 직접 서빙"""
-    if settings.DEBUG:
-        logo_path = os.path.join(settings.BASE_DIR, '..', 'hearth_chat_react', 'build', 'logo512.png')
-    else:
-        logo_path = '/app/hearth_chat_react/build/logo512.png'
-    return static_serve(request, 'logo512.png', os.path.dirname(logo_path))
-
-def robots_txt(request):
-    """robots.txt 파일 직접 서빙"""
-    if settings.DEBUG:
-        robots_path = os.path.join(settings.BASE_DIR, '..', 'hearth_chat_react', 'build', 'robots.txt')
-    else:
-        robots_path = '/app/hearth_chat_react/build/robots.txt'
-    return static_serve(request, 'robots.txt', os.path.dirname(robots_path))
-
-
-def ignore_source_maps(request):
-    """소스맵 파일 요청을 무시하고 빈 응답 반환"""
-    return HttpResponse(b"", content_type="application/json")
-
-
-def popup_close_view(request):
-    """소셜 로그인 완료 후 팝업창 닫기 뷰"""
-    return render(request, 'socialaccount/popup_close.html')
-
-
-urlpatterns = [
-    path("favicon.ico", favicon),
+    path("favicon.ico", lambda r: HttpResponse(b"", content_type="image/x-icon")),
     path("admin/", admin.site.urls),
-    path('accounts/', include('allauth.urls')),  # allauth 소셜 로그인 URL
+    path('accounts/', include('allauth.urls')),
     path('api/chat/', include('chat.urls')),
-    path('health/', health_check, name="health_check"),  # 헬스체크 엔드포인트
-    path("manifest.json", manifest_json),  # manifest.json 직접 반환
-    path("logo192.png", logo192_png),  # logo192.png 직접 반환
-    path("logo512.png", logo512_png),  # logo512.png 직접 반환
-    path("robots.txt", robots_txt),  # robots.txt 직접 반환
-    # 소스맵 파일들 무시
-    path("static/js/", lambda r: ignore_source_maps(r)),  # .map 파일들
-    path("static/css/", lambda r: ignore_source_maps(r)),  # .map 파일들
+    path('health/', lambda r: HttpResponse(b"OK", content_type="text/plain"), name="health_check"),
+    path("manifest.json", lambda r: static_serve(r, 'manifest.json', os.path.dirname(os.path.join(settings.BASE_DIR, '..', 'hearth_chat_react', 'build', 'manifest.json')))),
+    path("logo192.png", lambda r: static_serve(r, 'logo192.png', os.path.dirname(os.path.join(settings.BASE_DIR, '..', 'hearth_chat_react', 'build', 'logo192.png')))),
+    path("logo512.png", lambda r: static_serve(r, 'logo512.png', os.path.dirname(os.path.join(settings.BASE_DIR, '..', 'hearth_chat_react', 'build', 'logo512.png')))),
+    path("robots.txt", lambda r: static_serve(r, 'robots.txt', os.path.dirname(os.path.join(settings.BASE_DIR, '..', 'hearth_chat_react', 'build', 'robots.txt')))),
+    path("static/js/", lambda r: HttpResponse(b"", content_type="application/json")),
+    path("static/css/", lambda r: HttpResponse(b"", content_type="application/json")),
     path("api/social-connections/", social_connections_api, name="social_connections_api"),
     path("social-redirect/", social_login_redirect_view, name='social_login_redirect'),
-    path("api/csrf/", get_csrf_token, name="get_csrf_token"),  # CSRF 토큰 제공 엔드포인트
-    path("accounts/popup-close/", popup_close_view, name="popup_close"),  # 팝업창 닫기 URL
-    path("", ReactAppView.as_view(), name="root"),  # 루트에 React index.html 연결
+    path("api/csrf/", get_csrf_token, name="get_csrf_token"),
+    path("accounts/popup-close/", lambda r: render(r, 'socialaccount/popup_close.html'), name="popup_close"),
+    path("", ReactAppView.as_view(), name="root"),
+    re_path(r"^(?!api/|admin/|static/|media/).*$", ReactAppView.as_view()),  # SPA fallback
 ]
 
-# 운영 환경에서도 static 파일 서빙
+# static, media 등 추가
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-# /avatar_vrm/ 경로를 staticfiles/avatar_vrm/로 매핑
 urlpatterns += static('/avatar_vrm/', document_root=settings.STATIC_ROOT + '/avatar_vrm')
-# /logo192.png 등 루트 파일도 직접 매핑
 urlpatterns += static('/logo192.png', document_root=settings.STATIC_ROOT)
-
-# /oauth_logo/ 경로를 staticfiles/oauth_logo/로 매핑
 urlpatterns += static('/oauth_logo/', document_root=settings.STATIC_ROOT + '/oauth_logo')
-
-# 미디어 파일 서빙 (이미지 업로드 등)
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
