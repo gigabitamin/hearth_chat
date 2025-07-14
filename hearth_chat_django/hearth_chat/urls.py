@@ -24,6 +24,14 @@ from .views import ReactAppView, social_connections_api, social_login_redirect_v
 from django.views.static import serve as static_serve
 import os
 
+from django.views.generic import TemplateView
+
+urlpatterns = [
+    # ... 기존 URL 패턴 ...
+    path('', ReactAppView.as_view(), name="root"),  # 이미 있을 것
+    re_path(r'^(?:.*)/?$', ReactAppView.as_view()),  # 이 줄 추가!
+]
+
 
 def home_redirect(request):
     """루트 URL을 admin으로 리다이렉트"""

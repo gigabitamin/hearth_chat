@@ -592,7 +592,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
     'PAGE_SIZE': 20,
 }
- 
+
 # redis 설정 (운영/배포/로컬 모두 환경변수 REDIS_URL 기반)
 # 실서비스(운영/배포)에서는 반드시 channels_redis.core.RedisChannelLayer만 사용
 # (메모리 채널(InMemoryChannelLayer)은 실시간 채팅, 알림 등에서 서버가 여러 대일 때 절대 동작하지 않음)
@@ -606,3 +606,4 @@ CHANNEL_LAYERS = {
     },
 }
 
+print("REDIS_URL:", REDIS_URL)
