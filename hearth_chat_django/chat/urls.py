@@ -13,12 +13,11 @@ urlpatterns = [
     path('user/settings/', UserSettingsView.as_view(), name='user-settings'),
     path('user/', user_info, name='user_info'),
     path('', views.chat_home, name='chat_home'),  # /chat/ 메인 페이지
-    path('api/chat/history/', views.get_chat_history, name='chat_history'),
-    path('api/chat/sessions/', views.get_all_sessions, name='all_sessions'),
-    path('api/chat/upload_image/', views.upload_chat_image, name='upload_chat_image'),
-    path('api/user/', views.user_info, name='user_info'),
-    path('api/logout/', views.logout_api, name='logout_api'),
-    path('api/chat/logout/', views.logout_api, name='logout_api_chat'),
+    path('history/', views.get_chat_history, name='chat_history'),
+    path('sessions/', views.get_all_sessions, name='all_sessions'),
+    path('upload_image/', views.upload_chat_image, name='upload_chat_image'),
+    path('user/', views.user_info, name='user_info'),
+    path('logout/', views.logout_api, name='logout_api'),
 ]
 
 urlpatterns += router.urls
