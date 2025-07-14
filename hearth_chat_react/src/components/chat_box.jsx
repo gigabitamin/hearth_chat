@@ -295,7 +295,8 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.hostname;
     const isLocalhost = host === 'localhost' || host === '127.0.0.1';
-    const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}:8000/ws/chat/`;
+    // 배포 환경에서는 포트 없이 wss://도메인/ws/chat/로 연결
+    const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}/ws/chat/`;
 
     console.log('[WebSocket] 연결 시도:', wsUrl);
     setWsConnectionStatus('connecting');
@@ -744,7 +745,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.hostname;
     const isLocalhost = host === 'localhost' || host === '127.0.0.1';
-    const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}:8000/ws/chat/`;
+    const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}/ws/chat/`;
 
     console.log('WebSocket 연결 시도:', wsUrl);
     ws.current = new WebSocket(wsUrl);
@@ -871,7 +872,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.hostname;
     const isLocalhost = host === 'localhost' || host === '127.0.0.1';
-    const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}:8000/ws/chat/`;
+    const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}/ws/chat/`;
 
     console.log('WebSocket 재연결 시도:', wsUrl);
     ws.current = new WebSocket(wsUrl);
