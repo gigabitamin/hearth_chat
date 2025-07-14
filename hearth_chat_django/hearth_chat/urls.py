@@ -15,7 +15,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.shortcuts import redirect, render
 from django.conf import settings
 from django.conf.urls.static import static
@@ -28,8 +28,8 @@ from django.views.generic import TemplateView
 
 urlpatterns = [
     # ... 기존 URL 패턴 ...
-    path('', ReactAppView.as_view(), name="root"),  # 이미 있을 것
-    re_path(r'^(?:.*)/?$', ReactAppView.as_view()),  # 이 줄 추가!
+    path("", ReactAppView.as_view(), name="root"),
+    re_path(r"^(?:.*)/?$", ReactAppView.as_view()),  # SPA fallback
 ]
 
 
