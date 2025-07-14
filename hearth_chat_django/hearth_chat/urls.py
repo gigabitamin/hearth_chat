@@ -29,7 +29,7 @@ from django.views.generic import TemplateView
 urlpatterns = [
     # ... 기존 URL 패턴 ...
     path("", ReactAppView.as_view(), name="root"),
-    re_path(r"^(?:.*)/?$", ReactAppView.as_view()),  # SPA fallback
+    re_path(r"^(?!api/|admin/|static/|media/).*$", ReactAppView.as_view()),  # SPA fallback: API, admin, 정적/미디어 제외
 ]
 
 
@@ -40,15 +40,15 @@ def home_redirect(request):
 
 def health_check(request):
     """Railway 헬스체크용 엔드포인트"""
-    return HttpResponse("OK", content_type="text/plain")
+    return HttpResponse(b"OK", content_type="text/plain")
 
 
 def root_response(request):
-    return HttpResponse("OK", content_type="text/plain")
+    return HttpResponse(b"OK", content_type="text/plain")
 
 
 def favicon(request):
-    return HttpResponse("", content_type="image/x-icon")
+    return HttpResponse(b"", content_type="image/x-icon")
 
 
 def manifest_json(request):
@@ -87,7 +87,7 @@ def robots_txt(request):
 
 def ignore_source_maps(request):
     """소스맵 파일 요청을 무시하고 빈 응답 반환"""
-    return HttpResponse("", content_type="application/json")
+    return HttpResponse(b"", content_type="application/json")
 
 
 def popup_close_view(request):
