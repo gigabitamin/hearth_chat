@@ -11,6 +11,7 @@ dj-database-url==3.0.1
 # 웹서버
 daphne==4.2.1
 channels==4.2.2
+channels_redis==4.2.0
 
 # 환경변수
 python-dotenv==1.0.1

@@ -12,6 +12,7 @@ cachetools==5.3.2
 certifi==2022.12.7
 cffi==1.17.1
 channels==4.2.2
+channels_redis==4.2.0
 chardet==5.2.0
 charset-normalizer==2.0.12
 click==8.1.7

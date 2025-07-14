@@ -13,6 +13,7 @@ psycopg2-binary==2.9.9  # PostgreSQL 드라이버 (Railway용)
 # 웹서버/비동기
 channels==4.2.2
 daphne==4.2.1
+channels_redis==4.2.0
 
 # 환경변수
 python-dotenv==1.0.1
