@@ -1793,7 +1793,9 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
       // 환경에 따라 API URL 설정
       const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      const apiUrl = isLocalhost ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
+      const apiUrl = isLocalhost
+        ? 'http://localhost:8000'
+        : `${window.location.protocol}//${window.location.hostname}`;
 
       const res = await axios.post(`${apiUrl}/chat/api/chat/upload_image/`, formData, {
         headers: {
@@ -2300,7 +2302,9 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     try {
       // 환경에 따라 API URL 설정
       const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      const apiUrl = isLocalhost ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
+      const apiUrl = isLocalhost
+        ? 'http://localhost:8000'
+        : `${window.location.protocol}//${window.location.hostname}`;
 
       console.log('메시지 조회 API 호출:', `${apiUrl}/api/chat/messages/messages/?room=${roomId}&limit=${limit}&offset=${offset}`);
 
