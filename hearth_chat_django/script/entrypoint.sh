@@ -20,7 +20,7 @@ python manage.py migrate --noinput 2>&1 | tee /tmp/migrate.log || {
 }
 
 echo "Ensuring Site object exists for production..."
-python manage.py shell -c "from django.contrib.sites.models import Site; Site.objects.get_or_create(id=1, defaults={'domain': 'hearthchat-production.up.railway.app', 'name': 'HearthChat Production'})"
+python manage.py createsiteobject || echo "Site object creation failed"
 
 echo "Ensuring superuser exists..."
 python manage.py createinitialsuperuser || echo "Superuser creation skipped at runtime"
