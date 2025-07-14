@@ -14,6 +14,7 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 import sys
+from django.core.exceptions import ObjectDoesNotExist  # 추가
 
 # dj_database_url을 안전하게 import
 try:
@@ -245,7 +246,7 @@ if not os.environ.get("RAILWAY_ENVIRONMENT"):
             try:
                 # 기존 방식으로 시도
                 return Site.objects.get_current(request)
-            except Site.DoesNotExist:
+            except ObjectDoesNotExist:
                 # Site 객체가 없으면 자동으로 생성
                 site, created = Site.objects.get_or_create(
                     id=2,
@@ -265,7 +266,7 @@ if not os.environ.get("RAILWAY_ENVIRONMENT"):
         def patched_get_current_local(self, request=None):
             try:
                 return self.get(pk=SITE_ID)
-            except Site.DoesNotExist:
+            except ObjectDoesNotExist:
                 site, created = Site.objects.get_or_create(
                     id=SITE_ID,
                     defaults={
@@ -311,7 +312,7 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
             try:
                 # 기존 방식으로 시도
                 return Site.objects.get_current(request)
-            except Site.DoesNotExist:
+            except ObjectDoesNotExist:
                 # Site 객체가 없으면 자동으로 생성
                 site, created = Site.objects.get_or_create(
                     id=1,
@@ -331,7 +332,7 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
         def patched_get_current(self, request=None):
             try:
                 return self.get(pk=SITE_ID)
-            except Site.DoesNotExist:
+            except ObjectDoesNotExist:
                 site, created = Site.objects.get_or_create(
                     id=SITE_ID,
                     defaults={
@@ -592,7 +593,7 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 20,
 }
  
-# redis 설정 
+# redis 설정 (운영/배포/로컬 모두 환경변수 REDIS_URL 기반)
 # 실서비스(운영/배포)에서는 반드시 channels_redis.core.RedisChannelLayer만 사용
 # (메모리 채널(InMemoryChannelLayer)은 실시간 채팅, 알림 등에서 서버가 여러 대일 때 절대 동작하지 않음)
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
