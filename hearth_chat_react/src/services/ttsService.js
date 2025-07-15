@@ -1,4 +1,4 @@
-class TTSService {
+class TTSService {    
     constructor() {
         // speechSynthesis 지원 확인
         if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -382,84 +382,64 @@ class TTSService {
         return sequence;
     }
 
+    // 음성 목록이 준비될 때까지 대기
+    async waitForVoices(timeout = 2000) {
+        const start = Date.now();
+        while (this.synthesis && this.synthesis.getVoices().length === 0) {
+            if (Date.now() - start > timeout) break;
+            await new Promise(res => setTimeout(res, 100));
+        }
+    }
+
     // 텍스트를 음성으로 변환
-    speak(text, options = {}) {
-        if (!this.isSupported || !this.synthesis) {
-            console.warn('TTS가 지원되지 않습니다.');
+    async speak(text, options = {}) {
+        console.log('[TTS] speak 호출됨', text, options);
+        if (!this.isSupported() || !this.synthesis) {
+            console.warn('[TTS] 지원 안함');
             return Promise.reject(new Error('TTS가 지원되지 않는 브라우저입니다.'));
         }
-
         if (!text || this.isSpeaking) {
+            console.warn('[TTS] 텍스트 없음 또는 이미 재생 중');
             return Promise.reject(new Error('이미 재생 중이거나 텍스트가 없습니다.'));
         }
-
-        // TTS용 텍스트 정리
         const cleanedText = this.cleanTextForTTS(text);
         if (!cleanedText) {
+            console.warn('[TTS] 정리된 텍스트 없음');
             return Promise.reject(new Error('TTS로 읽을 수 있는 텍스트가 없습니다.'));
         }
-
+        await this.waitForVoices();
         return new Promise((resolve, reject) => {
             try {
-                // 기존 음성 중지
                 this.stop();
-
-                // 새로운 utterance 생성 (정리된 텍스트 사용)
                 this.utterance = new SpeechSynthesisUtterance(cleanedText);
-
-                // 음성 설정 적용
-                this.utterance.voice = options.voice || this.voiceSettings.voice;
+                console.log('[TTS] utterance 생성', this.utterance);
+                // 음성 객체 할당
+                if (options.voice) {
+                    const voices = this.synthesis.getVoices();
+                    if (typeof options.voice === 'string') {
+                        this.utterance.voice = voices.find(v => v.name === options.voice) || null;
+                        console.log('[TTS] voice 할당', this.utterance.voice);
+                    } else {
+                        this.utterance.voice = options.voice;
+                        console.log('[TTS] voice 객체 직접 할당', this.utterance.voice);
+                    }
+                }
                 this.utterance.rate = options.rate || this.voiceSettings.rate;
                 this.utterance.pitch = options.pitch || this.voiceSettings.pitch;
                 this.utterance.volume = options.volume || this.voiceSettings.volume;
-
-                // 립싱크 시퀀스 생성 (예상 재생 시간 계산)
-                const estimatedDuration = cleanedText.length * 150; // 글자당 약 150ms (더 정확한 시간)
-                const lipSyncSequence = this.generateLipSyncSequence(cleanedText, estimatedDuration);
-
-                // 이벤트 리스너 설정
-                this.utterance.onstart = () => {
-                    this.isSpeaking = true;
-                    console.log('TTS 시작 (원본):', text.substring(0, 50) + '...');
-                    console.log('TTS 시작 (정리됨):', cleanedText.substring(0, 50) + '...');
-                    console.log('립싱크 시퀀스:', lipSyncSequence.length, '개 음소');
-                    if (this.onSpeakStart) this.onSpeakStart(text, lipSyncSequence); // 립싱크 시퀀스도 함께 전달
-                };
-
-                this.utterance.onend = () => {
-                    this.isSpeaking = false;
-                    console.log('TTS 종료');
-                    if (this.onSpeakEnd) this.onSpeakEnd();
-                    resolve();
-                };
-
-                this.utterance.onpause = () => {
-                    console.log('TTS 일시정지');
-                    if (this.onSpeakPause) this.onSpeakPause();
-                };
-
-                this.utterance.onresume = () => {
-                    console.log('TTS 재개');
-                    if (this.onSpeakResume) this.onSpeakResume();
-                };
-
-                this.utterance.onerror = (event) => {
-                    this.isSpeaking = false;
-                    console.error('TTS 오류:', event.error);
-                    if (this.onSpeakError) this.onSpeakError(event.error);
-                    reject(new Error(`TTS 오류: ${event.error}`));
-                };
-
-                // 음성 재생 시작
+                // 이벤트 리스너
+                this.utterance.onstart = () => { console.log('[TTS] onstart'); this.isSpeaking = true; if (this.onSpeakStart) this.onSpeakStart(text); };
+                this.utterance.onend = () => { console.log('[TTS] onend'); this.isSpeaking = false; if (this.onSpeakEnd) this.onSpeakEnd(); resolve(); };
+                this.utterance.onerror = (e) => { console.error('[TTS] onerror', e); this.isSpeaking = false; if (this.onSpeakError) this.onSpeakError(e.error); reject(new Error(`TTS 오류: ${e.error}`)); };
+                console.log('[TTS] speak 호출 직전', this.utterance);
                 this.synthesis.speak(this.utterance);
-
+                console.log('[TTS] speak 호출 완료');
             } catch (error) {
-                console.error('TTS 초기화 오류:', error);
+                console.error('[TTS] 예외 발생', error);
                 reject(error);
             }
         });
     }
-
     // 음성 중지
     stop() {
         if (this.isSupported && this.synthesis) {
@@ -492,7 +472,7 @@ class TTSService {
 
     // TTS 지원 여부 확인
     isSupported() {
-        return this.isSupported;
+        return typeof window !== 'undefined' && !!window.speechSynthesis;
     }
 
     // 전역 이벤트 리스너 설정

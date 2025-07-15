@@ -1084,6 +1084,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
   // 2. speakAIMessage에서 TTS 재생 직후 립싱크 강제 시작
   const speakAIMessage = async (message) => {
+    console.log('[TTS] speakAIMessage 진입', message);
     try {
       ttsService.stop(); // 항상 먼저 중단
       if (!isTTSEnabled || !message) return;
@@ -1101,9 +1102,11 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       console.log('TTS 원본 텍스트:', message);
       console.log('TTS 정리된 텍스트:', cleanedMessage);
       setTtsSpeaking(true); // 립싱크 강제 시작
-      await ttsService.speak(message, { // 원본 메시지 전달 (서비스에서 정리됨)
-        voice: ttsVoice
-      });
+      console.log('[TTS] speak 조건', isTTSEnabled, ttsVoice, message);
+      if (isTTSEnabled && ttsVoice && message) {
+        console.log('[TTS] speak 실행!');
+        await ttsService.speak(message, { voice: ttsVoice, rate: ttsRate, pitch: ttsPitch });
+      }
     } catch (error) {
       console.error('TTS 재생 실패:', error);
     }
@@ -2416,6 +2419,16 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     // ... 필요시 추가 ...
   }, [userSettings]);
 
+  // useEffect로 AI 메시지 수신 시 TTS 실행
+  useEffect(() => {
+    console.log('[TTS] useEffect 진입', messages);
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg && lastMsg.type === 'ai') {
+      console.log('[TTS] AI 메시지 수신', lastMsg);
+      speakAIMessage(lastMsg.text);
+    }
+  }, [messages]); 
+
   return (
     <>
       {/* 이미지 뷰어 모달 */}
@@ -3025,3 +3038,4 @@ function getCameraStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn) {
   // 카메라만: 전체
   return { flex: 1, width: '100%', height: '100%', transition: 'all 0.3s' };
 }
+
