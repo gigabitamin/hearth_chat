@@ -58,17 +58,20 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
     const scrollPositions = useRef({});
     const prevSelectedRoomId = useRef(null);
 
+    // useEffect에서 fetchRooms, fetchPublicRooms, connectWebSocket 중복 호출 최소화
     useEffect(() => {
+        console.log('fetchRooms called1', fetchRooms)
         fetchRooms();
         fetchPublicRooms();
         connectWebSocket();
-
+        // 중복 호출 방지: 의존성 배열을 []로 유지
         return () => {
             if (wsRef.current) {
                 wsRef.current.close();
             }
         };
     }, []);
+
 
     const openSocialLoginPopup = (url) => {
         const popup = window.open(url, 'social_login', 'width=500,height=600');
@@ -103,10 +106,13 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                 console.log('WebSocket 메시지 수신:', data);
 
                 // 대화방 목록 업데이트 메시지 처리
+                console.log('fetchRooms called9', fetchRooms)
                 if (data.type === 'room_list_update') {
+                    console.log('fetchRooms called10', fetchRooms)
                     fetchRooms();
-                }
-            };
+                    console.log('fetchRooms called11', fetchRooms)
+                } console.log('fetchRooms called12', fetchRooms)
+            }; console.log('fetchRooms called13', fetchRooms)
 
             ws.onclose = () => {
                 console.log('WebSocket 연결 끊어짐');
@@ -129,36 +135,48 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
     };
 
     const fetchRooms = async () => {
+        console.log('fetchRooms called14', fetchRooms)
         try {
+            console.log('fetchRooms called15', fetchRooms)
             setLoading(true);
-            // 환경에 따라 API URL 설정
+            console.log('fetchRooms called16', fetchRooms)
+            // 환경에 따라 API URL 설정            
             const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            console.log('fetchRooms called17', fetchRooms)
             const apiUrl = isLocalhost ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
-
+            console.log('fetchRooms called18', fetchRooms)
             const response = await fetch(`${API_BASE}/api/chat/rooms/`, {
                 credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-            });
+            }); console.log('fetchRooms called19', fetchRooms)
             if (!response.ok) {
                 throw new Error('Failed to fetch rooms');
-            }
+            } console.log('fetchRooms called20', fetchRooms)
             const data = await response.json();
+            console.log('fetchRooms called21', fetchRooms)
             setRooms(data.results || data);
+            console.log('fetchRooms called22', fetchRooms)
         } catch (err) {
             setError(err.message);
+            console.log('fetchRooms called23', fetchRooms)
             console.error('Error fetching rooms:', err);
         } finally {
             setLoading(false);
-        }
+            console.log('fetchRooms called24', fetchRooms)
+        } console.log('fetchRooms called25', fetchRooms)
     };
 
     const fetchPublicRooms = async () => {
+        console.log('fetchRooms called26', fetchRooms)
         try {
+            console.log('fetchRooms called27', fetchRooms)
             // 환경에 따라 API URL 설정
             const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            console.log('fetchRooms called28', fetchRooms)
             const apiUrl = isLocalhost ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
+            console.log('fetchRooms called29', fetchRooms)
 
             const response = await fetch(`${API_BASE}/api/chat/rooms/public/`, {
                 credentials: 'include',
@@ -166,6 +184,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                     'Content-Type': 'application/json',
                 },
             });
+            console.log('fetchRooms called30', fetchRooms)
             if (!response.ok) {
                 throw new Error('Failed to fetch public rooms');
             }
@@ -173,24 +192,33 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             setPublicRooms(data.results || data);
         } catch (err) {
             console.error('Error fetching public rooms:', err);
+            console.log('fetchRooms called31', fetchRooms)
         }
     };
 
     // 방 클릭 시 스크롤 위치 저장 (미리보기/입장 모두)
     const handleRoomClick = (room) => {
+        console.log('handleRoomClick1', room)
+        console.log('ChatRoomList mounted1', overlayKey)
         if (listRef.current) {
             scrollPositions.current[overlayKey || 'default'] = listRef.current.scrollTop;
-        }
+            console.log('handleRoomClick2', room)
+        } console.log('ChatRoomList mounted2', overlayKey)
         onRoomSelect(room);
-        prevSelectedRoomId.current = room.id;
+        console.log('handleRoomClick3', room)
+        prevSelectedRoomId.current = room.id; console.log('ChatRoomList mounted3', overlayKey)
+        console.log('ChatRoomList mounted4', overlayKey)
+        console.log('handleRoomClick4', room)
     };
 
     // selectedRoomId가 바뀌면 스크롤 위치 복원 (미리보기/입장 모두)
     useEffect(() => {
+        console.log('ChatRoomList mounted5', overlayKey)
         if (listRef.current && prevSelectedRoomId.current === selectedRoomId) {
+            console.log('ChatRoomList mounted6', overlayKey)
             const pos = scrollPositions.current[overlayKey || 'default'] || 0;
             listRef.current.scrollTop = pos;
-        }
+        } console.log('ChatRoomList mounted7', overlayKey)
     }, [selectedRoomId, overlayKey]);
 
     const handleCreateRoom = async (e) => {
@@ -228,8 +256,11 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             setCreateType('ai');
             setCreateAI('GEMINI');
             setCreateIsPublic(false);
+            console.log('fetchRooms called32', fetchRooms)
             await fetchRooms();
+            console.log('fetchRooms called33', fetchRooms)
             await fetchPublicRooms();
+            console.log('fetchRooms called34', fetchRooms)
             if (onCreateRoomSuccess) {
                 onCreateRoomSuccess(newRoom);
             } else {
@@ -239,7 +270,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             setCreateError(err.message);
         } finally {
             setCreating(false);
-        }
+        } console.log('fetchRooms called35', fetchRooms)
     };
 
     const handleDeleteRoom = async (roomId) => {
@@ -267,8 +298,10 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             }
 
             await fetchRooms();
+            console.log('fetchRooms called36', fetchRooms)
             alert('대화방이 삭제되었습니다.');
         } catch (err) {
+            console.log('fetchRooms called37', fetchRooms)
             alert(`대화방 삭제 실패: ${err.message}`);
         }
     };
@@ -294,9 +327,12 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             }
 
             await fetchRooms();
+            console.log('fetchRooms called38', fetchRooms)
             await fetchPublicRooms();
+            console.log('fetchRooms called39', fetchRooms)
             alert('방에 입장했습니다!');
         } catch (err) {
+            console.log('fetchRooms called40', fetchRooms)
             alert(`방 입장 실패: ${err.message}`);
         }
     };
@@ -413,7 +449,12 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                 <button
                                     onClick={e => {
                                         e.stopPropagation();
-                                        navigate(`/room/${room.id}`);
+                                        console.log('입장하기 버튼 클릭', room);
+                                        if (onClose) {
+                                            onClose();
+                                            console.log('오버레이 닫힘');
+                                        }
+                                        setTimeout(() => navigate(`/room/${room.id}`), 0);
                                     }}
                                     className="enter-room-btn"
                                     title="이 방으로 바로 입장"
