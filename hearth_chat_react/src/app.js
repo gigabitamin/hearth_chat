@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate, useParams } from 'react-router-dom';
+import { Routes, Route, useNavigate, useParams, useLocation } from 'react-router-dom';
 import ChatBox from './components/chat_box';
 import ChatRoomList from './components/ChatRoomList';
 import UserMenuModal from './components/UserMenuModal';
+import HeaderBar from './components/HeaderBar';
+import NotifyModal from './components/NotifyModal';
+import SearchModal from './components/SearchModal';
 import './App.css';
 
 // 환경에 따라 API_BASE 자동 설정 함수 추가
@@ -104,6 +107,13 @@ function App() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [selectedRoomMessages, setSelectedRoomMessages] = useState([]);
+  // 추가: 상단 탭/모달 상태
+  const [activeTab, setActiveTab] = useState('personal'); // 'personal' | 'open'
+  const [isNotifyModalOpen, setIsNotifyModalOpen] = useState(false);
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false); // 새 채팅방 모달 상태
+  const [showRoomListOverlay, setShowRoomListOverlay] = useState(false); // 채팅방 내 오버레이 상태
 
   // 앱 시작 시 CSRF 토큰 및 로그인 상태/설정값 가져오기
   useEffect(() => {
@@ -150,68 +160,151 @@ function App() {
     }
   };
 
-  return (
-    <Router>
-      {/* UserMenuModal을 항상 렌더링 */}
-      <UserMenuModal
-        isOpen={isUserMenuOpen}
-        onClose={() => setIsUserMenuOpen(false)}
-        loginUser={loginUser}
-        checkLoginStatus={checkLoginStatus}
-      />
-      <Routes>
-        <Route path="/" element={
-          <div className="app-container">
-            <div className="room-list-container">
+  // 오버레이에서 방 선택 시: 방 이동 + 오버레이 닫기
+  const handleOverlayRoomSelect = (room) => {
+    setShowRoomListOverlay(false);
+    // 기존 handleRoomSelect와 동일하게 동작
+    setSelectedRoom(room);
+    // 메시지 불러오기 (예시: 최신 10개)
+    fetch(`${getApiBase()}/api/chat/messages/messages/?room=${room.id}&limit=10&offset=0`, { credentials: 'include' })
+      .then(res => res.ok ? res.json() : { results: [] })
+      .then(data => setSelectedRoomMessages(data.results || []))
+      .catch(() => setSelectedRoomMessages([]));
+    // URL 이동
+    window.history.pushState({}, '', `/room/${room.id}`);
+  };
+
+  // 오버레이 닫기 핸들러 (ESC, 바깥 클릭)
+  React.useEffect(() => {
+    if (!showRoomListOverlay) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setShowRoomListOverlay(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showRoomListOverlay]);
+
+  // 더미 알림 데이터
+  const notifications = [];
+
+  // useLocation은 Router 내부에서만 사용 가능하므로, App.js는 Router로 감싸지지 않으므로, 아래처럼 별도 컴포넌트에서 사용
+  function AppContent() {
+    const location = useLocation();
+    // 헤더 타이틀: 대기방/채팅방 구분
+    let headerTitle = 'Hearth 🔥 Chat';
+    if (location.pathname.startsWith('/room/')) {
+      headerTitle = selectedRoom?.name || '';
+    }
+    // 채팅방 내에서만 오버레이 탭 동작
+    const isInRoom = location.pathname.startsWith('/room/');
+
+    // 탭 클릭 핸들러: 채팅방 내에서는 오버레이, 그 외에는 기존대로 탭 변경
+    const handleTabChange = (tab) => {
+      if (isInRoom) {
+        setActiveTab(tab);
+        setShowRoomListOverlay(true);
+      } else {
+        setActiveTab(tab);
+      }
+    };
+
+    return (
+      <>
+        <UserMenuModal
+          isOpen={isUserMenuOpen}
+          onClose={() => setIsUserMenuOpen(false)}
+          loginUser={loginUser}
+          checkLoginStatus={checkLoginStatus}
+        />
+        {/* 상단바 공통 렌더링 */}
+        <HeaderBar
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          onSearchClick={() => setIsSearchModalOpen(true)}
+          onNotifyClick={() => setIsNotifyModalOpen(true)}
+          onSettingsClick={() => setIsSettingsModalOpen(true)}
+          onCreateRoomClick={() => setShowCreateModal(true)}
+          title={headerTitle}
+        />
+        {/* 알림/검색 모달 */}
+        <NotifyModal open={isNotifyModalOpen} onClose={() => setIsNotifyModalOpen(false)} notifications={notifications} />
+        <SearchModal open={isSearchModalOpen} onClose={() => setIsSearchModalOpen(false)} />
+        {/* 채팅방 내 오버레이: showRoomListOverlay가 true일 때만 표시 */}
+        {showRoomListOverlay && (
+          <div className="room-list-overlay" onClick={() => setShowRoomListOverlay(false)}>
+            <div className="room-list-overlay-panel" onClick={e => e.stopPropagation()}>
               <ChatRoomList
-                onRoomSelect={handleRoomSelect}
+                onRoomSelect={handleOverlayRoomSelect}
                 loginUser={loginUser}
                 loginLoading={loginLoading}
                 checkLoginStatus={checkLoginStatus}
                 onUserMenuOpen={() => setIsUserMenuOpen(true)}
+                activeTab={activeTab}
+                showCreateModal={showCreateModal}
+                setShowCreateModal={setShowCreateModal}
               />
             </div>
-            <div className="welcome-container">
-              {selectedRoom ? (
-                <div className="selected-room-info">
-                  <h2>{selectedRoom.name}</h2>
-                  {/* 방장이 설정한 프로필 이미지 등 추가 가능 */}
-                  {/* 최신 메시지 목록 */}
-                  <div style={{ maxHeight: 300, overflowY: 'auto', background: 'rgba(0,0,0,0.1)', borderRadius: 8, padding: 12, marginTop: 16 }}>
-                    <h4>최근 메시지</h4>
-                    {selectedRoomMessages.length === 0 ? (
-                      <div style={{ color: '#888' }}>아직 메시지가 없습니다.</div>
-                    ) : (
-                      selectedRoomMessages.map(msg => (
-                        <div key={msg.id} style={{ marginBottom: 8, color: msg.type === 'send' ? '#2196f3' : '#fff' }}>
-                          <b>{msg.sender}:</b> {msg.text}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="welcome-content">
-                  <h1>Hearth 🔥 Chat</h1>
-                  <p>대화방을 선택하여 채팅을 시작하세요!</p>
-                </div>
-              )}
-            </div>
           </div>
-        } />
-        <Route path="/room/:roomId" element={
-          <ChatRoomPage
-            loginUser={loginUser}
-            loginLoading={loginLoading}
-            checkLoginStatus={checkLoginStatus}
-            userSettings={userSettings}
-            setUserSettings={setUserSettings}
-            onUserMenuOpen={() => setIsUserMenuOpen(true)}
-          />
-        } />
-      </Routes>
-    </Router>
-  );
+        )}
+        <Routes>
+          <Route path="/" element={
+            <div className="app-container">
+              <div className="room-list-container">
+                <ChatRoomList
+                  onRoomSelect={handleRoomSelect}
+                  loginUser={loginUser}
+                  loginLoading={loginLoading}
+                  checkLoginStatus={checkLoginStatus}
+                  onUserMenuOpen={() => setIsUserMenuOpen(true)}
+                  activeTab={activeTab}
+                  showCreateModal={showCreateModal}
+                  setShowCreateModal={setShowCreateModal}
+                />
+              </div>
+              <div className="welcome-container">
+                {selectedRoom ? (
+                  <div className="selected-room-info">
+                    <h2>{selectedRoom.name}</h2>
+                    {/* 방장이 설정한 프로필 이미지 등 추가 가능 */}
+                    {/* 최신 메시지 목록 */}
+                    <div style={{ maxHeight: 300, overflowY: 'auto', background: 'rgba(0,0,0,0.1)', borderRadius: 8, padding: 12, marginTop: 16 }}>
+                      <h4>최근 메시지</h4>
+                      {selectedRoomMessages.length === 0 ? (
+                        <div style={{ color: '#888' }}>아직 메시지가 없습니다.</div>
+                      ) : (
+                        selectedRoomMessages.map(msg => (
+                          <div key={msg.id} style={{ marginBottom: 8, color: msg.type === 'send' ? '#2196f3' : '#fff' }}>
+                            <b>{msg.sender}:</b> {msg.text}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="welcome-content">
+                    <h1>Hearth 🔥 Chat</h1>
+                    <p>대화방을 선택하여 채팅을 시작하세요!</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          } />
+          <Route path="/room/:roomId" element={
+            <ChatRoomPage
+              loginUser={loginUser}
+              loginLoading={loginLoading}
+              checkLoginStatus={checkLoginStatus}
+              userSettings={userSettings}
+              setUserSettings={setUserSettings}
+              onUserMenuOpen={() => setIsUserMenuOpen(true)}
+            />
+          } />
+        </Routes>
+      </>
+    );
+  }
+
+  return <AppContent />;
 }
 
 export default App;

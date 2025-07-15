@@ -402,3 +402,38 @@
 .submit-btn:hover:not(:disabled) {
     background: #1769aa;
 }
+
+.home-fab-btn {
+    position: fixed;
+    right: 32px;
+    bottom: 32px;
+    z-index: 100;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #fff;
+    color: #007bff;
+    border: none;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    font-size: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: box-shadow 0.2s, background 0.2s;
+}
+
+.home-fab-btn:hover {
+    background: #e3f2fd;
+    box-shadow: 0 6px 24px rgba(0, 123, 255, 0.18);
+}
+
+@media (max-width: 600px) {
+    .home-fab-btn {
+        right: 16px;
+        bottom: 16px;
+        width: 48px;
+        height: 48px;
+        font-size: 1.5rem;
+    }
+}

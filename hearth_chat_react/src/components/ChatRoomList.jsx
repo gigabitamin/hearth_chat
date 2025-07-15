@@ -37,13 +37,12 @@ const API_BASE = isProd
             ? 'http://192.168.44.9:8000'
             : `http://${hostname}:8000`;
 
-const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, checkLoginStatus, onUserMenuOpen }) => {
+const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, checkLoginStatus, onUserMenuOpen, activeTab, showCreateModal, setShowCreateModal }) => {
     const navigate = useNavigate();
     const [rooms, setRooms] = useState([]);
     const [publicRooms, setPublicRooms] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [showCreateModal, setShowCreateModal] = useState(false);
     const [createType, setCreateType] = useState('ai');
     const [createName, setCreateName] = useState('');
     const [createAI, setCreateAI] = useState('GEMINI');
@@ -53,7 +52,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
     const [wsConnected, setWsConnected] = useState(false);
     const wsRef = useRef(null);
-    const [activeTab, setActiveTab] = useState('private'); // 'private' 또는 'public'
+    // 기존 activeTab 상태 제거, props로 받음
 
     useEffect(() => {
         fetchRooms();
@@ -327,65 +326,24 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
 
     return (
         <div className="chat-room-list">
-            <div className="room-list-header">
-                <h3>대화방 목록</h3>
-                <div>
-                    {loginLoading ? null : loginUser ? (
-                        <button
-                            onClick={() => { onUserMenuOpen(); }}
-                            className="login-btn"
-                            style={buttonStyle}
-                            title="내 계정"
-                        >
-                            <span role="img" aria-label="user" style={{ marginRight: 6 }}>👤</span>
-                            {loginUser.username || '내 계정'}
-                        </button>
-                    ) : (
-                        <button
-                            onClick={handleEmailLogin}
-                            className="login-btn"
-                            style={buttonStyle}
-                            title="로그인"
-                        >
-                            <span role="img" aria-label="login" style={{ marginRight: 6 }}>🔑</span>
-                        </button>
-                    )}
-                    <button onClick={activeTab === 'private' ? fetchRooms : fetchPublicRooms} className="refresh-btn" title="새로고침">🔄</button>
-                    <button onClick={() => setShowCreateModal(true)} className="create-btn">＋ 새 대화방</button>
-                    <div className="ws-status" title={wsConnected ? '실시간 연결됨' : '실시간 연결 끊어짐'}>
-                        {wsConnected ? '🟢' : '🔴'}
-                    </div>
-                </div>
-            </div>
-
-            {/* 탭 네비게이션 */}
-            <div className="room-tabs">
-                <button
-                    className={`tab-btn ${activeTab === 'private' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('private')}
-                >
-                    💬 개인 채팅방
-                </button>
-                <button
-                    className={`tab-btn ${activeTab === 'public' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('public')}
-                >
-                    🌐 공개 오픈 채팅방
-                </button>
-            </div>
+            {/* 상단 타이틀/탭/버튼/상태표시 모두 HeaderBar로 이동, 여기선 제거 */}
 
             {loading ? (
                 <div className="loading">대화방 목록을 불러오는 중...</div>
             ) : error ? (
                 <div className="error">오류: {error}</div>
-            ) : (activeTab === 'private' ? rooms.length === 0 : publicRooms.length === 0) ? (
+            ) : (!loginUser ? (
                 <div className="no-rooms">
-                    <p>{activeTab === 'private' ? '참여 중인 대화방이 없습니다.' : '공개 오픈 채팅방이 없습니다.'}</p>
+                    <button className="login-btn" onClick={() => setIsLoginModalOpen(true)} style={{ fontSize: 18, padding: '12px 32px', borderRadius: 8, background: '#2196f3', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer' }}>로그인</button>
+                </div>
+            ) : (activeTab === 'personal' ? rooms.length === 0 : publicRooms.length === 0) ? (
+                <div className="no-rooms">
+                    <p>{activeTab === 'personal' ? '참여 중인 대화방이 없습니다.' : '공개 오픈 채팅방이 없습니다.'}</p>
                     <p>새로운 대화를 시작해보세요!</p>
                 </div>
             ) : (
                 <div className="room-items">
-                    {(activeTab === 'private' ? rooms : publicRooms).map((room) => (
+                    {(activeTab === 'personal' ? rooms : publicRooms).map((room) => (
                         <div
                             key={room.id}
                             className={`room-item ${selectedRoomId === room.id ? 'selected' : ''}`}
@@ -407,7 +365,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                             </div>
                             <div className="room-status">
                                 {room.is_voice_call && '📞'}
-                                {activeTab === 'private' && (
+                                {activeTab === 'personal' && (
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
@@ -419,7 +377,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                         🗑️
                                     </button>
                                 )}
-                                {activeTab === 'public' && !rooms.find(r => r.id === room.id) && (
+                                {activeTab === 'open' && !rooms.find(r => r.id === room.id) && (
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
@@ -431,7 +389,6 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                         ➕
                                     </button>
                                 )}
-                                {/* 입장하기 버튼 추가 (모든 방에 표시) */}
                                 <button
                                     onClick={e => {
                                         e.stopPropagation();
@@ -447,7 +404,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                         </div>
                     ))}
                 </div>
-            )}
+            ))}
 
             {showCreateModal && (
                 <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
@@ -523,6 +480,16 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                 onClose={() => setIsLoginModalOpen(false)}
                 onSocialLogin={openSocialLoginPopup}
             />
+            {/* HOME 버튼: 로그인 상태에서만 표시 */}
+            {loginUser && (
+                <button
+                    className="home-fab-btn"
+                    onClick={() => navigate('/')}
+                    title="홈으로"
+                >
+                    🏠
+                </button>
+            )}
         </div>
     );
 };

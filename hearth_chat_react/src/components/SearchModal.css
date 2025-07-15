@@ -1,0 +1,131 @@
+.search-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.search-modal {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    min-width: 320px;
+    max-width: 90vw;
+    min-height: 120px;
+    max-height: 80vh;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    animation: modalFadeIn 0.2s;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.search-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 10px 20px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    border-bottom: 1px solid #eee;
+}
+
+.search-modal-close {
+    background: none;
+    border: none;
+    font-size: 1.3rem;
+    color: #888;
+    cursor: pointer;
+    padding: 2px 8px;
+    border-radius: 4px;
+    transition: background 0.18s;
+}
+
+.search-modal-close:hover {
+    background: #f0f0f0;
+}
+
+.search-modal-content {
+    padding: 18px 20px 20px 20px;
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.search-input {
+    width: 100%;
+    font-size: 1.08rem;
+    padding: 10px 14px;
+    border: 1.5px solid #ddd;
+    border-radius: 8px;
+    margin-bottom: 18px;
+    outline: none;
+    transition: border 0.18s;
+}
+
+.search-input:focus {
+    border: 1.5px solid #2196f3;
+}
+
+.search-result-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.search-result-item {
+    padding: 12px 0;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 1rem;
+    color: #333;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.search-result-item:hover {
+    background: #f7f7fa;
+}
+
+.search-result-empty {
+    color: #888;
+    text-align: center;
+    font-size: 1.05rem;
+    margin: 20px 0;
+}
+
+@media (max-width: 600px) {
+    .search-modal {
+        min-width: 90vw;
+        max-width: 98vw;
+        padding: 0;
+    }
+
+    .search-modal-header,
+    .search-modal-content {
+        padding-left: 6vw;
+        padding-right: 6vw;
+    }
+
+    .search-input {
+        font-size: 1rem;
+        padding: 8px 8px;
+    }
+}

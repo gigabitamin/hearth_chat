@@ -1,0 +1,167 @@
+.header-bar {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #fff;
+    border-bottom: 1.5px solid #e0e0e0;
+    padding: 0 12px;
+    height: 54px;
+    min-height: 48px;
+    box-sizing: border-box;
+    z-index: 100;
+    position: relative;
+}
+
+.header-left-group {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex: 0 0 auto;
+}
+
+.header-tabs {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: 2px;
+}
+
+.header-center {
+    flex: 1 1 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    pointer-events: none;
+    /* 중앙 텍스트가 없으면 공간만 차지 */
+}
+
+.header-title-text {
+    font-size: 1.18rem;
+    font-weight: 700;
+    color: #222;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: auto;
+}
+
+.header-tab-btn {
+    background: none;
+    border: none;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #888;
+    padding: 7px 18px 7px 18px;
+    border-radius: 18px 18px 0 0;
+    margin: 0 2px;
+    cursor: pointer;
+    transition: background 0.18s, color 0.18s;
+    outline: none;
+}
+
+.header-tab-btn.active {
+    background: #f7f7fa;
+    color: #007bff;
+    border-bottom: 2.5px solid #007bff;
+    font-weight: 700;
+    z-index: 2;
+}
+
+.header-tab-btn:hover:not(.active) {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex: 0 0 auto;
+}
+
+.header-action-btn {
+    background: none;
+    border: none;
+    padding: 6px 8px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background 0.18s;
+    margin-left: 2px;
+    font-size: 1.1rem;
+    color: #444;
+    outline: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.header-action-btn:hover {
+    background: #f0f0f0;
+}
+
+.header-create-room-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    margin-right: 10px;
+    cursor: pointer;
+    outline: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+}
+
+.header-create-room-btn:hover span,
+.header-create-room-btn:focus span {
+    transform: scale(1.18) rotate(-8deg);
+    filter: drop-shadow(0 2px 6px #ff9800cc);
+}
+
+.header-create-room-btn:active span {
+    transform: scale(0.95) rotate(0deg);
+}
+
+@media (max-width: 600px) {
+    .header-bar {
+        height: 44px;
+        min-height: 40px;
+        padding: 0 4px;
+    }
+
+    .header-tabs {
+        gap: 0;
+        margin-left: 0;
+    }
+
+    .header-tab-btn {
+        font-size: 0.98rem;
+        padding: 5px 10px;
+        border-radius: 12px 12px 0 0;
+    }
+
+    .header-action-btn {
+        padding: 4px 5px;
+        font-size: 1rem;
+    }
+
+    .header-left span {
+        font-size: 22px !important;
+        margin-right: 4px !important;
+    }
+
+    .header-create-room-btn {
+        margin-right: 4px;
+    }
+
+    .header-create-room-btn span {
+        font-size: 22px !important;
+    }
+
+    .header-title-text {
+        font-size: 1rem;
+    }
+}
