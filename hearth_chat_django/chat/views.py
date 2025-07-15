@@ -451,20 +451,36 @@ class UserSettingsView(APIView):
             serializer = UserSettingsSerializer(settings, data=request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()
+                print("post 저장 후 settings:", serializer.data)
                 return Response(serializer.data)
             return Response(serializer.errors, status=400)
         except Exception as e:
             print(f"UserSettings POST 오류: {e}")
             return Response({'error': '설정을 저장할 수 없습니다.'}, status=500)
 
+    # def patch(self, request):
+    #     try:
+    #         settings, _ = UserSettings.objects.get_or_create(user=request.user)
+    #         serializer = UserSettingsSerializer(settings, data=request.data, partial=True)
+    #         if serializer.is_valid():
+    #             serializer.save()
+    #             return Response(serializer.data)
+    #         return Response(serializer.errors, status=400)
+    #     except Exception as e:
+    #         print(f"UserSettings PATCH 오류: {e}")
+    #         return Response({'error': '설정을 업데이트할 수 없습니다.'}, status=500)
+    
     def patch(self, request):
         try:
+            print("PATCH 요청 데이터:", request.data)
             settings, _ = UserSettings.objects.get_or_create(user=request.user)
             serializer = UserSettingsSerializer(settings, data=request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()
+                print("PATCH 저장 후 settings:", serializer.data)
                 return Response(serializer.data)
+            print("PATCH 유효성 오류:", serializer.errors)
             return Response(serializer.errors, status=400)
         except Exception as e:
             print(f"UserSettings PATCH 오류: {e}")
-            return Response({'error': '설정을 업데이트할 수 없습니다.'}, status=500)
+            return Response({'error': '설정을 업데이트할 수 없습니다.'}, status=500)    

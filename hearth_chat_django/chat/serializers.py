@@ -26,10 +26,17 @@ class ChatSerializer(serializers.ModelSerializer):
         fields = ['id', 'room', 'sender', 'message_type', 'content', 'timestamp', 'emotion', 'attach_image', 'created_at', 'updated_at']
 
 class UserSettingsSerializer(serializers.ModelSerializer):
+    tts_enabled = serializers.BooleanField(required=False)
+    voice_recognition_enabled = serializers.BooleanField(required=False)
+    camera_enabled = serializers.BooleanField(required=False)
+    ai_avatar_enabled = serializers.BooleanField(required=False)
+    user_avatar_enabled = serializers.BooleanField(required=False)
+    auto_send_enabled = serializers.BooleanField(required=False)
+    ai_response_enabled = serializers.BooleanField(required=False)    
+
     class Meta:
         model = UserSettings
         exclude = ['id', 'created_at', 'updated_at']
-    ai_response_enabled = serializers.BooleanField(required=False)
 
 class VoiceCallSerializer(serializers.ModelSerializer):
     caller = UserSerializer(read_only=True)

@@ -1087,17 +1087,19 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     try {
       ttsService.stop(); // 항상 먼저 중단
       if (!isTTSEnabled || !message) return;
-
+      // 음성 목록이 준비되지 않았으면 대기
+      if (!voiceList || voiceList.length === 0) {
+        console.warn('TTS 음성 목록이 준비되지 않았습니다.');
+        return;
+      }
       // TTS용 텍스트 정리 (이모티콘, 특수문자 제거)
       const cleanedMessage = ttsService.cleanTextForTTS(message);
       if (!cleanedMessage) {
         console.log('TTS로 읽을 수 있는 텍스트가 없습니다:', message);
         return;
       }
-
       console.log('TTS 원본 텍스트:', message);
       console.log('TTS 정리된 텍스트:', cleanedMessage);
-
       setTtsSpeaking(true); // 립싱크 강제 시작
       await ttsService.speak(message, { // 원본 메시지 전달 (서비스에서 정리됨)
         voice: ttsVoice
@@ -2402,12 +2404,15 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   // userSettings가 바뀔 때마다 각 상태에 자동 반영
   useEffect(() => {
     if (!userSettings) return;
-    if (userSettings.ttsEnabled !== undefined) setIsTTSEnabled(userSettings.ttsEnabled);
-    if (userSettings.ttsRate !== undefined) setTtsRate(userSettings.ttsRate);
-    if (userSettings.ttsPitch !== undefined) setTtsPitch(userSettings.ttsPitch);
-    if (userSettings.voiceRecognitionEnabled !== undefined) setIsVoiceRecognitionEnabled(userSettings.voiceRecognitionEnabled);
-    if (userSettings.cameraActive !== undefined) setIsCameraActive(userSettings.cameraActive);
-    if (userSettings.avatarOn !== undefined) setIsUserAvatarOn(userSettings.avatarOn);
+    if (userSettings.tts_enabled !== undefined) setIsTTSEnabled(userSettings.tts_enabled);
+    if (userSettings.tts_voice !== undefined) setTtsVoice(userSettings.tts_voice);
+    if (userSettings.tts_speed !== undefined) setTtsRate(userSettings.tts_speed);
+    if (userSettings.tts_pitch !== undefined) setTtsPitch(userSettings.tts_pitch);
+    if (userSettings.voice_recognition_enabled !== undefined) setIsVoiceRecognitionEnabled(userSettings.voice_recognition_enabled);
+    if (userSettings.auto_send_enabled !== undefined) setAutoSend(userSettings.auto_send_enabled);
+    if (userSettings.camera_enabled !== undefined) setIsCameraActive(userSettings.camera_enabled);
+    if (userSettings.user_avatar_enabled !== undefined) setIsUserAvatarOn(userSettings.user_avatar_enabled);
+    if (userSettings.ai_avatar_enabled !== undefined) setIsAiAvatarOn(userSettings.ai_avatar_enabled);
     // ... 필요시 추가 ...
   }, [userSettings]);
 
@@ -2549,12 +2554,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
               {wsConnectionStatus === 'connected' ? '🟢' :
                 wsConnectionStatus === 'connecting' ? '🟡' : '🔴'}
             </div>
-            <button
-              onClick={() => setIsVoiceMenuOpen(true)}
-              className={`voice-menu-btn-header${isVoiceMenuOpen ? ' active' : ''}`}
-            >
-              🎤
-            </button>
+            {/* 마이크 버튼 및 음성 메뉴 모달 완전 삭제 */}
             {/* AI 아바타 토글 */}
             <button className="icon-btn" onClick={() => setIsAiAvatarOn(v => !v)} title="AI 아바타 토글">
               <span role="img" aria-label="ai-avatar" style={{ opacity: isAiAvatarOn ? 1 : 0.3 }}>🤖</span>
@@ -2945,135 +2945,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
             </div>
           </div>
         </div>
-        {/* 음성 메뉴 모달 */}
-        <Modal open={isVoiceMenuOpen} onClose={() => setIsVoiceMenuOpen(false)}>
-          {/* TTS 관련 기능 박스 */}
-          <div className="voice-modal-tts-box">
-            <div className="voice-modal-section">
-              <button
-                onClick={() => setIsTTSEnabled(!isTTSEnabled)}
-                className={`tts-toggle ${isTTSEnabled ? 'active' : ''}`}
-                title={isTTSEnabled ? 'TTS 끄기' : 'TTS 켜기'}
-              >
-                {isTTSEnabled ? '🔊 TTS 켜짐' : '🔇 TTS 꺼짐'}
-              </button>
-            </div>
-            <div className="voice-modal-section">
-              <div style={{ marginBottom: '10px', fontSize: '12px' }}>
-                <div style={{ marginBottom: '5px' }}>
-                  속도: {ttsRate}x | 음조: {ttsPitch}
-                </div>
-                {/* TTS 속도 드롭다운 */}
-                <label htmlFor="tts-rate-select" style={{ marginRight: '8px' }}>속도:</label>
-                <select
-                  id="tts-rate-select"
-                  value={ttsRate}
-                  onChange={e => {
-                    const val = Number(e.target.value);
-                    setTtsRate(val);
-                    ttsService.setRate(val);
-                  }}
-                  style={{ marginRight: '16px', fontSize: '12px' }}
-                >
-                  {Array.from({ length: 21 }, (_, i) => (1.0 + i * 0.05).toFixed(2)).map(val => (
-                    <option key={val} value={Number(val)}>{val}</option>
-                  ))}
-                </select>
-                {/* TTS 음조 드롭다운 */}
-                <label htmlFor="tts-pitch-select" style={{ marginRight: '8px' }}>음조:</label>
-                <select
-                  id="tts-pitch-select"
-                  value={ttsPitch}
-                  onChange={e => {
-                    const val = Number(e.target.value);
-                    setTtsPitch(val);
-                    ttsService.setPitch(val);
-                  }}
-                  style={{ fontSize: '12px' }}
-                >
-                  {Array.from({ length: 21 }, (_, i) => (1.0 + i * 0.05).toFixed(2)).map(val => (
-                    <option key={val} value={Number(val)}>{val}</option>
-                  ))}
-                </select>
-              </div>
-              <div style={{ marginBottom: '10px' }}>
-                <label htmlFor="voice-select-modal" style={{
-                  display: 'block',
-                  marginBottom: '5px',
-                  fontSize: '12px',
-                  fontWeight: 'bold'
-                }}>
-                  음성 선택:
-                </label>
-                <select
-                  id="voice-select-modal"
-                  value={ttsVoice ? ttsVoice.name : ''}
-                  onChange={e => {
-                    const selected = voiceList.find(v => v.name === e.target.value);
-                    setTtsVoice(selected);
-                    console.log('선택된 음성:', selected?.name, '(', selected?.lang, ')');
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '5px',
-                    borderRadius: '3px',
-                    border: '1px solid #ccc',
-                    fontSize: '12px'
-                  }}
-                >
-                  {voiceList.length === 0 ? (
-                    <option value="">음성 목록 로딩 중...</option>
-                  ) : (
-                    voiceList.map((voice, idx) => (
-                      <option key={voice.name + idx} value={voice.name}>
-                        {voice.name} ({voice.lang})
-                      </option>
-                    ))
-                  )}
-                </select>
-              </div>
-            </div>
-          </div>
-          {/* 음성인식/자동전송/마이크 권한 토글 버튼 한 줄 배치 */}
-          <div className="voice-modal-section" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            {/* 음성인식 on/off 토글 */}
-            <button
-              onClick={handleVoiceRecognitionToggle}
-              className={`mic-toggle ${isVoiceRecognitionEnabled ? 'active' : ''}`}
-              title={isVoiceRecognitionEnabled ? '음성인식 끄기' : '음성인식 켜기'}
-            >
-              {isVoiceRecognitionEnabled ? '🎤 음성인식 켜짐' : '🔇 음성인식 꺼짐'}
-            </button>
-            {/* 자동전송 토글 */}
-            <button
-              onClick={() => setAutoSend(!autoSend)}
-              className={`auto-send-toggle ${autoSend ? 'active' : ''}`}
-              title={autoSend ? '자동전송 끄기' : '자동전송 켜기'}
-            >
-              {autoSend ? '🚀 자동전송 켜짐' : '✏️ 자동전송 꺼짐'}
-            </button>
-          </div>
-          {/* VoiceRecognition 전체 UI 복구 */}
-          <div className="voice-modal-section">
-            <VoiceRecognition
-              ref={voiceRecognitionRef}
-              enabled={isVoiceRecognitionEnabled}
-              continuous={isContinuousRecognition}
-              onResult={handleVoiceResult}
-              onInterimResult={handleVoiceInterimResult}
-              onStart={() => setIsContinuousRecognition(true)}
-              onStop={() => setIsContinuousRecognition(false)}
-              onAutoSend={(finalText) => {
-                console.log('onAutoSend (chat_box.jsx) 호출, finalText:', finalText);
-                if (autoSend && finalText && finalText.trim()) {
-                  // setInput(finalText); // input창에만 반영, 실제 전송에는 불필요하므로 주석처리
-                  sendMessage(finalText);
-                  setAccumulatedVoiceText('');
-                }
-              }}
-            />
-          </div>
-        </Modal>
+        {/* 음성 메뉴 모달 완전 삭제 */}
         {/* 로그인 모달 */}
         <LoginModal
           isOpen={isLoginModalOpen}
@@ -3092,6 +2964,25 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           setTab={setSettingsTab}
           userSettings={userSettings}
           setUserSettings={setUserSettings}
+          voiceList={voiceList}
+          ttsVoice={ttsVoice}
+          setTtsVoice={setTtsVoice}
+          ttsRate={ttsRate}
+          setTtsRate={setTtsRate}
+          ttsPitch={ttsPitch}
+          setTtsPitch={setTtsPitch}
+          isTTSEnabled={isTTSEnabled}
+          setIsTTSEnabled={setIsTTSEnabled}
+          isVoiceRecognitionEnabled={isVoiceRecognitionEnabled}
+          setIsVoiceRecognitionEnabled={setIsVoiceRecognitionEnabled}
+          autoSend={autoSend}
+          setAutoSend={setAutoSend}
+          isContinuousRecognition={isContinuousRecognition}
+          setIsContinuousRecognition={setIsContinuousRecognition}
+          voiceRecognitionRef={voiceRecognitionRef}
+          handleVoiceRecognitionToggle={handleVoiceRecognitionToggle}
+          permissionStatus={permissionStatus}
+          requestMicrophonePermission={requestMicrophonePermission}
         />
       </div>
     </>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './SettingsModal.css';
+import VoiceRecognition from './VoiceRecognition';
 
 const tabList = [
   { key: 'tts', label: 'TTS' },
@@ -14,7 +15,18 @@ const tabList = [
   { key: 'etc', label: '기타' },
 ];
 
-const SettingsModal = ({ isOpen, onClose, tab, setTab, userSettings, setUserSettings }) => {
+const SettingsModal = ({
+  isOpen, onClose, tab, setTab, userSettings, setUserSettings,
+  voiceList, ttsVoice, setTtsVoice, ttsRate, setTtsRate, ttsPitch, setTtsPitch,
+  isTTSEnabled, setIsTTSEnabled,
+  isVoiceRecognitionEnabled, setIsVoiceRecognitionEnabled,
+  autoSend, setAutoSend,
+  isContinuousRecognition, setIsContinuousRecognition,
+  voiceRecognitionRef,
+  handleVoiceRecognitionToggle,
+  permissionStatus,
+  requestMicrophonePermission
+}) => {
   const [saving, setSaving] = useState(false);
   if (!isOpen) return null;
 
@@ -22,6 +34,28 @@ const SettingsModal = ({ isOpen, onClose, tab, setTab, userSettings, setUserSett
   const saveSetting = async (patchObj) => {
     setSaving(true);
     try {
+      // 프론트 상태명 → 서버 필드명 매핑
+      const keyMap = {
+        ttsEnabled: 'tts_enabled',
+        ttsVoice: 'tts_voice',
+        ttsRate: 'tts_speed',
+        ttsPitch: 'tts_pitch',
+        voiceRecognitionEnabled: 'voice_recognition_enabled',
+        autoSend: 'auto_send_enabled',
+        cameraActive: 'camera_enabled',
+        avatarOn: 'user_avatar_enabled',
+        aiAvatarOn: 'ai_avatar_enabled',
+        ai_avatar_enabled: 'ai_avatar_enabled',
+        userAvatarEnabled: 'user_avatar_enabled',
+        user_avatar_enabled: 'user_avatar_enabled',
+        ai_response_enabled: 'ai_response_enabled',
+      };
+      // 매핑 적용
+      const serverPatch = {};
+      Object.entries(patchObj).forEach(([k, v]) => {
+        const mappedKey = keyMap[k] || k;
+        serverPatch[mappedKey] = v;
+      });
       // 환경에 따라 API_BASE 자동 설정
       const hostname = window.location.hostname;
       const isProd = process.env.NODE_ENV === 'production';
@@ -43,11 +77,11 @@ const SettingsModal = ({ isOpen, onClose, tab, setTab, userSettings, setUserSett
           'Content-Type': 'application/json',
           'X-CSRFToken': csrftoken,
         },
-        body: JSON.stringify(patchObj),
+        body: JSON.stringify(serverPatch),
       });
       if (res.ok) {
         const data = await res.json();
-        setUserSettings(data.settings || { ...userSettings, ...patchObj });
+        setUserSettings(data.settings || { ...userSettings, ...serverPatch });
       }
     } finally {
       setSaving(false);
@@ -75,54 +109,100 @@ const SettingsModal = ({ isOpen, onClose, tab, setTab, userSettings, setUserSett
         <div className="settings-modal-content">
           {tab === 'tts' && (
             <div>
-              <label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <input
                   type="checkbox"
-                  checked={!!userSettings?.ttsEnabled}
-                  onChange={e => saveSetting({ ttsEnabled: e.target.checked })}
+                  checked={!!userSettings?.tts_enabled}
+                  onChange={e => { setIsTTSEnabled(e.target.checked); saveSetting({ tts_enabled: e.target.checked }); }}
                   disabled={saving}
                 />
                 TTS 사용
               </label>
-              <div style={{ marginTop: 12 }}>
-                <label>속도: </label>
-                <input
-                  type="number"
-                  min={0.5}
-                  max={3}
-                  step={0.05}
-                  value={userSettings?.ttsRate ?? 1.5}
-                  onChange={e => saveSetting({ ttsRate: parseFloat(e.target.value) })}
+              <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 16 }}>
+                <label htmlFor="tts-rate-select-modal">속도: </label>
+                <select
+                  id="tts-rate-select-modal"
+                  value={userSettings?.tts_speed || 1.5}
+                  onChange={e => { setTtsRate(parseFloat(e.target.value)); saveSetting({ tts_speed: parseFloat(e.target.value) }); }}
                   disabled={saving}
-                  style={{ width: 60 }}
-                />
-              </div>
-              <div style={{ marginTop: 12 }}>
-                <label>음조: </label>
-                <input
-                  type="number"
-                  min={0.5}
-                  max={3}
-                  step={0.05}
-                  value={userSettings?.ttsPitch ?? 1.5}
-                  onChange={e => saveSetting({ ttsPitch: parseFloat(e.target.value) })}
+                  style={{ width: 80 }}
+                >
+                  {[1.0, 1.2, 1.5, 1.7, 2.0].map(rate => (
+                    <option key={rate} value={rate}>{rate}</option>
+                  ))}
+                </select>
+                <label htmlFor="tts-pitch-select-modal">음조: </label>
+                <select
+                  id="tts-pitch-select-modal"
+                  value={userSettings?.tts_pitch || 1.0}
+                  onChange={e => { setTtsPitch(parseFloat(e.target.value)); saveSetting({ tts_pitch: parseFloat(e.target.value) }); }}
                   disabled={saving}
-                  style={{ width: 60 }}
-                />
+                  style={{ width: 80 }}
+                >
+                  {[0.7, 1.0, 1.2, 1.5, 1.7, 2.0].map(pitch => (
+                    <option key={pitch} value={pitch}>{pitch}</option>
+                  ))}
+                </select>
+                <label htmlFor="tts-voice-select-modal">음성 선택: </label>
+                <select
+                  id="tts-voice-select-modal"
+                  value={ttsVoice ? ttsVoice.name : ''}
+                  onChange={e => {
+                    const selected = voiceList.find(v => v.name === e.target.value);
+                    setTtsVoice(selected);
+                    saveSetting({ ttsVoice: selected?.name });
+                  }}
+                  disabled={saving}
+                  style={{ width: 180 }}
+                >
+                  {voiceList.length === 0 ? (
+                    <option value="">음성 목록 로딩 중...</option>
+                  ) : (
+                    voiceList.map((voice, idx) => (
+                      <option key={voice.name + idx} value={voice.name}>
+                        {voice.name} ({voice.lang})
+                      </option>
+                    ))
+                  )}
+                </select>
               </div>
             </div>
           )}
           {tab === 'voice' && (
             <div>
-              <label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <input
                   type="checkbox"
-                  checked={!!userSettings?.voiceRecognitionEnabled}
-                  onChange={e => saveSetting({ voiceRecognitionEnabled: e.target.checked })}
+                  checked={!!userSettings?.voice_recognition_enabled}
+                  onChange={e => { setIsVoiceRecognitionEnabled(e.target.checked); saveSetting({ voice_recognition_enabled: e.target.checked }); }}
                   disabled={saving}
                 />
                 음성인식 사용
               </label>
+              <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 16 }}>
+                <label htmlFor="auto-send-toggle-modal">자동전송: </label>
+                <input
+                  id="auto-send-toggle-modal"
+                  type="checkbox"
+                  checked={!!userSettings?.auto_send_enabled}
+                  onChange={e => { setAutoSend(e.target.checked); saveSetting({ auto_send_enabled: e.target.checked }); }}
+                  disabled={saving}
+                />
+                <button onClick={requestMicrophonePermission} disabled={saving} style={{ marginLeft: 12 }}>
+                  마이크 권한 요청
+                </button>
+                <span style={{ marginLeft: 8, fontSize: 13, color: permissionStatus === 'granted' ? 'limegreen' : permissionStatus === 'denied' ? 'red' : '#aaa' }}>
+                  권한: {permissionStatus}
+                </span>
+              </div>
+              <div style={{ marginTop: 16 }}>
+                <VoiceRecognition
+                  ref={voiceRecognitionRef}
+                  enabled={!!userSettings?.voice_recognition_enabled}
+                  continuous={isContinuousRecognition}
+                // onResult, onInterimResult 등은 상위에서 props로 넘겨야 함
+                />
+              </div>
             </div>
           )}
           {tab === 'camera' && (
@@ -130,8 +210,8 @@ const SettingsModal = ({ isOpen, onClose, tab, setTab, userSettings, setUserSett
               <label>
                 <input
                   type="checkbox"
-                  checked={!!userSettings?.cameraActive}
-                  onChange={e => saveSetting({ cameraActive: e.target.checked })}
+                  checked={!!userSettings?.camera_enabled}
+                  onChange={e => { saveSetting({ camera_enabled: e.target.checked }); }}
                   disabled={saving}
                 />
                 카메라 사용
@@ -139,15 +219,24 @@ const SettingsModal = ({ isOpen, onClose, tab, setTab, userSettings, setUserSett
             </div>
           )}
           {tab === 'avatar' && (
-            <div>
-              <label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <input
                   type="checkbox"
-                  checked={!!userSettings?.avatarOn}
-                  onChange={e => saveSetting({ avatarOn: e.target.checked })}
+                  checked={!!userSettings?.ai_avatar_enabled}
+                  onChange={e => { saveSetting({ ai_avatar_enabled: e.target.checked }); }}
                   disabled={saving}
                 />
-                아바타 사용
+                AI 아바타 사용
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={!!userSettings?.user_avatar_enabled}
+                  onChange={e => { saveSetting({ user_avatar_enabled: e.target.checked }); }}
+                  disabled={saving}
+                />
+                사용자 아바타 사용
               </label>
             </div>
           )}
@@ -157,7 +246,7 @@ const SettingsModal = ({ isOpen, onClose, tab, setTab, userSettings, setUserSett
                 <input
                   type="checkbox"
                   checked={!!userSettings?.ai_response_enabled}
-                  onChange={e => saveSetting({ ai_response_enabled: e.target.checked })}
+                  onChange={e => { saveSetting({ ai_response_enabled: e.target.checked }); }}
                   disabled={saving}
                 />
                 AI 응답 사용
