@@ -6,6 +6,7 @@ import UserMenuModal from './components/UserMenuModal';
 import HeaderBar from './components/HeaderBar';
 import NotifyModal from './components/NotifyModal';
 import SearchModal from './components/SearchModal';
+import CreateRoomModal from './components/CreateRoomModal'; // (가정: 모달 컴포넌트 분리)
 import './App.css';
 
 // 환경에 따라 API_BASE 자동 설정 함수 추가
@@ -118,7 +119,7 @@ function App() {
   // App 컴포넌트에서 showCreateModal, setShowCreateModal, handleCreateRoomSuccess 전역 관리
   const handleCreateRoomSuccess = (newRoom) => {
     setShowCreateModal(false);
-    // 방 생성 후 자동 입장
+    setShowRoomListOverlay(false); // 방 생성 후 오버레이도 닫기
     window.location.href = `/room/${newRoom.id}`;
   };
 
@@ -256,6 +257,14 @@ function App() {
         {/* 알림/검색 모달 */}
         <NotifyModal open={isNotifyModalOpen} onClose={() => setIsNotifyModalOpen(false)} notifications={notifications} />
         <SearchModal open={isSearchModalOpen} onClose={() => setIsSearchModalOpen(false)} />
+        {/* 새 방 만들기 모달을 AppContent에서 항상 렌더링 */}
+        {showCreateModal && (
+          <CreateRoomModal
+            open={showCreateModal}
+            onClose={() => setShowCreateModal(false)}
+            onSuccess={handleCreateRoomSuccess}
+          />
+        )}
         {/* 채팅방 내 오버레이: showRoomListOverlay가 true일 때만 표시 */}
         {showRoomListOverlay && (
           <div className="room-list-overlay" onClick={() => setShowRoomListOverlay(false)}>
@@ -271,9 +280,9 @@ function App() {
                     activeTab={activeTab}
                     showCreateModal={showCreateModal}
                     setShowCreateModal={setShowCreateModal}
-                    onCreateRoomSuccess={handleCreateRoomSuccess}
                     selectedRoomId={selectedRoom?.id}
                     onClose={() => setShowRoomListOverlay(false)}
+                    overlayKey="overlay"
                   />
                 </div>
                 <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', borderTop: '1px solid #eee', background: '#fafbfc', padding: 12 }}>
@@ -297,8 +306,8 @@ function App() {
                     activeTab={activeTab}
                     showCreateModal={showCreateModal}
                     setShowCreateModal={setShowCreateModal}
-                    onCreateRoomSuccess={handleCreateRoomSuccess}
                     selectedRoomId={selectedRoom?.id}
+                    overlayKey="lobby"
                   />
                 </div>
                 <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', borderTop: '1px solid #eee', background: '#fafbfc', padding: 12 }}>

@@ -38,7 +38,7 @@ const API_BASE = isProd
             : `http://${hostname}:8000`;
 
 // ChatRoomList 컴포넌트에 onClose prop 추가
-const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, checkLoginStatus, onUserMenuOpen, activeTab, showCreateModal, setShowCreateModal, onClose, onCreateRoomSuccess }) => {
+const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, checkLoginStatus, onUserMenuOpen, activeTab, showCreateModal, setShowCreateModal, onClose, onCreateRoomSuccess, overlayKey }) => {
     const navigate = useNavigate();
     const [rooms, setRooms] = useState([]);
     const [publicRooms, setPublicRooms] = useState([]);
@@ -54,8 +54,9 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
     const [wsConnected, setWsConnected] = useState(false);
     const wsRef = useRef(null);
     const listRef = useRef(null); // 스크롤 위치 보존용 ref
+    // context별(오버레이/대기방)로 스크롤 위치를 분리 저장
+    const scrollPositions = useRef({});
     const prevSelectedRoomId = useRef(null);
-    const prevScrollTop = useRef(0);
 
     useEffect(() => {
         fetchRooms();
@@ -178,7 +179,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
     // 방 클릭 시 스크롤 위치 저장 (미리보기/입장 모두)
     const handleRoomClick = (room) => {
         if (listRef.current) {
-            prevScrollTop.current = listRef.current.scrollTop;
+            scrollPositions.current[overlayKey || 'default'] = listRef.current.scrollTop;
         }
         onRoomSelect(room);
         prevSelectedRoomId.current = room.id;
@@ -187,9 +188,10 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
     // selectedRoomId가 바뀌면 스크롤 위치 복원 (미리보기/입장 모두)
     useEffect(() => {
         if (listRef.current && prevSelectedRoomId.current === selectedRoomId) {
-            listRef.current.scrollTop = prevScrollTop.current;
+            const pos = scrollPositions.current[overlayKey || 'default'] || 0;
+            listRef.current.scrollTop = pos;
         }
-    }, [selectedRoomId]);
+    }, [selectedRoomId, overlayKey]);
 
     const handleCreateRoom = async (e) => {
         e.preventDefault();
@@ -425,74 +427,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                 </div>
             ))}
 
-            {showCreateModal && (
-                <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
-                    <div className="modal" onClick={e => e.stopPropagation()}>
-                        <h4>새 대화방 만들기</h4>
-                        <form onSubmit={handleCreateRoom}>
-                            <div className="form-group">
-                                <label>대화방 타입</label>
-                                <select value={createType} onChange={e => setCreateType(e.target.value)}>
-                                    <option value="ai">AI 채팅</option>
-                                    <option value="user">1:1 채팅</option>
-                                    <option value="group">그룹 채팅</option>
-                                </select>
-                            </div>
-                            {createType === 'ai' && (
-                                <div className="form-group">
-                                    <label>AI 종류</label>
-                                    <select value={createAI} onChange={e => setCreateAI(e.target.value)}>
-                                        {AI_PROVIDERS.map(ai => (
-                                            <option key={ai.value} value={ai.value}>{ai.label}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
-                            <div className="form-group">
-                                <label>대화방 이름</label>
-                                <input
-                                    type="text"
-                                    value={createName}
-                                    onChange={e => setCreateName(e.target.value)}
-                                    placeholder={createType === 'ai' ? `${createAI}와의 대화` : '대화방 이름'}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>공개 설정</label>
-                                <div className="radio-group">
-                                    <label>
-                                        <input
-                                            type="radio"
-                                            name="isPublic"
-                                            value="false"
-                                            checked={!createIsPublic}
-                                            onChange={() => setCreateIsPublic(false)}
-                                        />
-                                        🔒 비공개 (개인 채팅방)
-                                    </label>
-                                    <label>
-                                        <input
-                                            type="radio"
-                                            name="isPublic"
-                                            value="true"
-                                            checked={createIsPublic}
-                                            onChange={() => setCreateIsPublic(true)}
-                                        />
-                                        🌐 공개 (오픈 채팅방)
-                                    </label>
-                                </div>
-                            </div>
-                            {createError && <div className="error">{createError}</div>}
-                            <div className="modal-actions">
-                                <button type="button" onClick={() => setShowCreateModal(false)} className="cancel-btn">취소</button>
-                                <button type="submit" className="submit-btn" disabled={creating}>
-                                    {creating ? '생성 중...' : '생성'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+            {/* 새 방 만들기 모달 제거 (App에서 렌더링) */}
             {/* 로그인 모달 */}
             <LoginModal
                 isOpen={isLoginModalOpen}
