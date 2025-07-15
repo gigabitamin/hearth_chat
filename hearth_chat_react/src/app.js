@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Routes, Route, useNavigate, useParams, useLocation } from 'react-router-dom';
 import ChatBox from './components/chat_box';
 import ChatRoomList from './components/ChatRoomList';
@@ -101,6 +101,205 @@ function ChatRoomPage({ loginUser, loginLoading, checkLoginStatus, userSettings,
   );
 }
 
+// AppContent를 App 함수 바깥으로 이동
+function AppContent(props) {
+  const {
+    loginUser,
+    loginLoading,
+    userSettings,
+    setUserSettings,
+    isUserMenuOpen,
+    setIsUserMenuOpen,
+    selectedRoom,
+    setSelectedRoom,
+    selectedRoomMessages,
+    setSelectedRoomMessages,
+    activeTab,
+    setActiveTab,
+    isNotifyModalOpen,
+    setIsNotifyModalOpen,
+    isSearchModalOpen,
+    setIsSearchModalOpen,
+    isSettingsModalOpen,
+    setIsSettingsModalOpen,
+    showCreateModal,
+    setShowCreateModal,
+    showRoomListOverlay,
+    setShowRoomListOverlay,
+    handleCreateRoomSuccess,
+    checkLoginStatus
+  } = props;
+
+  const location = useLocation();
+  // 헤더 타이틀: 대기방/채팅방 구분
+  let headerTitle = 'Hearth 🔥 Chat';
+  if (location.pathname.startsWith('/room/')) {
+    headerTitle = selectedRoom?.name || '';
+  }
+  // 채팅방 내에서만 오버레이 탭 동작
+  const isInRoom = location.pathname.startsWith('/room/');
+
+  // 탭 클릭 핸들러: 채팅방 내에서는 오버레이, 그 외에는 기존대로 탭 변경
+  const handleTabChange = (tab) => {
+    if (isInRoom) {
+      setActiveTab(tab);
+      setShowRoomListOverlay(true);
+    } else {
+      setActiveTab(tab);
+    }
+  };
+
+  // 하단 정보창 렌더 함수 (공통)
+  const renderRoomInfoPanel = (onClose) => (
+    selectedRoom ? (
+      <div className="selected-room-info">
+        <h2>{selectedRoom.name}</h2>
+        {/* 방장이 설정한 프로필 이미지 등 추가 가능 */}
+        <div style={{ maxHeight: 300, overflowY: 'auto', background: 'rgba(0,0,0,0.1)', borderRadius: 8, padding: 12, marginTop: 16 }}>
+          <h4>최근 메시지</h4>
+          {selectedRoomMessages.length === 0 ? (
+            <div style={{ color: '#888' }}>아직 메시지가 없습니다.</div>
+          ) : (
+            selectedRoomMessages.map(msg => (
+              <div key={msg.id} style={{ marginBottom: 8, color: msg.type === 'send' ? '#2196f3' : '#fff' }}>
+                <b>{msg.sender}:</b> {msg.text}
+              </div>
+            ))
+          )}
+        </div>
+        <button className="enter-room-btn" style={{ marginTop: 16 }} onClick={() => { if (onClose) onClose(); window.location.href = `/room/${selectedRoom.id}`; }}>입장하기</button>
+      </div>
+    ) : (
+      <div className="welcome-content">
+        <h1>Hearth 🔥 Chat</h1>
+        <p>대화방을 선택하여 채팅을 시작하세요!</p>
+      </div>
+    )
+  );
+
+  return (
+    <>
+      <UserMenuModal
+        isOpen={isUserMenuOpen}
+        onClose={() => setIsUserMenuOpen(false)}
+        loginUser={loginUser}
+        checkLoginStatus={checkLoginStatus}
+      />
+      {/* 상단바 공통 렌더링 */}
+      <HeaderBar
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
+        onSearchClick={() => setIsSearchModalOpen(true)}
+        onNotifyClick={() => setIsNotifyModalOpen(true)}
+        onSettingsClick={() => setIsSettingsModalOpen(true)}
+        onCreateRoomClick={() => setShowCreateModal(true)}
+        title={headerTitle}
+      />
+      {/* 알림/검색 모달 */}
+      <NotifyModal open={isNotifyModalOpen} onClose={() => setIsNotifyModalOpen(false)} notifications={[]} />
+      <SearchModal open={isSearchModalOpen} onClose={() => setIsSearchModalOpen(false)} />
+      {/* 새 방 만들기 모달을 AppContent에서 항상 렌더링 */}
+      {showCreateModal && (
+        <CreateRoomModal
+          open={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={handleCreateRoomSuccess}
+        />
+      )}
+      {/* 채팅방 내 오버레이: showRoomListOverlay가 true일 때만 표시 */}
+      {showRoomListOverlay && (
+        <div className="room-list-overlay" onClick={() => setShowRoomListOverlay(false)}>
+          <div className="room-list-overlay-panel" onClick={e => e.stopPropagation()}>
+            <div className="room-list-overlay-main" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <div style={{ flex: 3, overflowY: 'auto' }}>
+                <ChatRoomList
+                  onRoomSelect={async (room) => {
+                    setSelectedRoom(room);
+                    // 메시지 불러오기 (예시: 최신 10개)
+                    try {
+                      const res = await fetch(`${getApiBase()}/api/chat/messages/messages/?room=${room.id}&limit=10&offset=0`, { credentials: 'include' });
+                      if (res.ok) {
+                        const data = await res.json();
+                        setSelectedRoomMessages(data.results || []);
+                      } else {
+                        setSelectedRoomMessages([]);
+                      }
+                    } catch {
+                      setSelectedRoomMessages([]);
+                    }
+                  }}
+                  loginUser={loginUser}
+                  loginLoading={loginLoading}
+                  checkLoginStatus={checkLoginStatus}
+                  onUserMenuOpen={() => setIsUserMenuOpen(true)}
+                  activeTab={activeTab}
+                  showCreateModal={showCreateModal}
+                  setShowCreateModal={setShowCreateModal}
+                  selectedRoomId={selectedRoom?.id}
+                  onClose={() => setShowRoomListOverlay(false)}
+                  overlayKey="overlay"
+                />
+              </div>
+              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', borderTop: '1px solid #eee', background: '#fafbfc', padding: 12 }}>
+                {renderRoomInfoPanel(() => setShowRoomListOverlay(false))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      <Routes>
+        <Route path="/" element={
+          <div className="app-container">
+            <div className="room-list-container" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <div style={{ flex: 3, overflowY: 'auto' }}>
+                <ChatRoomList
+                  onRoomSelect={async (room) => {
+                    setSelectedRoom(room);
+                    // 메시지 불러오기 (예시: 최신 10개)
+                    try {
+                      const res = await fetch(`${getApiBase()}/api/chat/messages/messages/?room=${room.id}&limit=10&offset=0`, { credentials: 'include' });
+                      if (res.ok) {
+                        const data = await res.json();
+                        setSelectedRoomMessages(data.results || []);
+                      } else {
+                        setSelectedRoomMessages([]);
+                      }
+                    } catch {
+                      setSelectedRoomMessages([]);
+                    }
+                  }}
+                  loginUser={loginUser}
+                  loginLoading={loginLoading}
+                  checkLoginStatus={checkLoginStatus}
+                  onUserMenuOpen={() => setIsUserMenuOpen(true)}
+                  activeTab={activeTab}
+                  showCreateModal={showCreateModal}
+                  setShowCreateModal={setShowCreateModal}
+                  selectedRoomId={selectedRoom?.id}
+                  overlayKey="lobby"
+                />
+              </div>
+              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', borderTop: '1px solid #eee', background: '#fafbfc', padding: 12 }}>
+                {renderRoomInfoPanel()}
+              </div>
+            </div>
+          </div>
+        } />
+        <Route path="/room/:roomId" element={
+          <ChatRoomPage
+            loginUser={loginUser}
+            loginLoading={loginLoading}
+            checkLoginStatus={checkLoginStatus}
+            userSettings={userSettings}
+            setUserSettings={setUserSettings}
+            onUserMenuOpen={() => setIsUserMenuOpen(true)}
+          />
+        } />
+      </Routes>
+    </>
+  );
+}
+
 function App() {
   const [loginUser, setLoginUser] = useState(null);
   const [loginLoading, setLoginLoading] = useState(true);
@@ -115,14 +314,6 @@ function App() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false); // 새 채팅방 모달 상태
   const [showRoomListOverlay, setShowRoomListOverlay] = useState(false); // 채팅방 내 오버레이 상태
-
-  // 스크롤 위치를 overlayKey별로 관리
-  const scrollPositions = useRef({});
-
-  // 스크롤 위치 저장 함수
-  const setScrollPosition = (key, pos) => {
-    scrollPositions.current[key] = pos;
-  };
 
   // App 컴포넌트에서 showCreateModal, setShowCreateModal, handleCreateRoomSuccess 전역 관리
   const handleCreateRoomSuccess = (newRoom) => {
@@ -159,195 +350,32 @@ function App() {
     }
   };
 
-  // 채팅방 목록에서 방 클릭 시: 미리보기만 갱신 + 스크롤 위치 저장
-  const handleRoomPreview = async (room, overlayKey = 'lobby') => {
-    // 현재 스크롤 위치 저장 (ChatRoomList에서 호출)
-    // setScrollPosition은 ChatRoomList에서 직접 호출하도록 위임
-    setSelectedRoom(room);
-    // 메시지 불러오기 (예시: 최신 10개)
-    try {
-      const res = await fetch(`${getApiBase()}/api/chat/messages/messages/?room=${room.id}&limit=10&offset=0`, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setSelectedRoomMessages(data.results || []);
-      } else {
-        setSelectedRoomMessages([]);
-      }
-    } catch {
-      setSelectedRoomMessages([]);
-    }
-  };
-
-  // 실제 입장하기 버튼 클릭 시: 방 이동
-  const handleEnterRoom = (room) => {
-    setShowRoomListOverlay(false); // 오버레이 닫기(오버레이에서만)
-    window.location.href = `/room/${room.id}`;
-  };
-
-  // 오버레이 닫기 핸들러 (ESC, 바깥 클릭)
-  React.useEffect(() => {
-    if (!showRoomListOverlay) return;
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') setShowRoomListOverlay(false);
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showRoomListOverlay]);
-
-  // 더미 알림 데이터
-  const notifications = [];
-
-  // useLocation은 Router 내부에서만 사용 가능하므로, App.js는 Router로 감싸지지 않으므로, 아래처럼 별도 컴포넌트에서 사용
-  function AppContent() {
-    const location = useLocation();
-    // 헤더 타이틀: 대기방/채팅방 구분
-    let headerTitle = 'Hearth 🔥 Chat';
-    if (location.pathname.startsWith('/room/')) {
-      headerTitle = selectedRoom?.name || '';
-    }
-    // 채팅방 내에서만 오버레이 탭 동작
-    const isInRoom = location.pathname.startsWith('/room/');
-
-    // 탭 클릭 핸들러: 채팅방 내에서는 오버레이, 그 외에는 기존대로 탭 변경
-    const handleTabChange = (tab) => {
-      if (isInRoom) {
-        setActiveTab(tab);
-        setShowRoomListOverlay(true);
-      } else {
-        setActiveTab(tab);
-      }
-    };
-
-    // 하단 정보창 렌더 함수 (공통)
-    const renderRoomInfoPanel = (onClose) => (
-      selectedRoom ? (
-        <div className="selected-room-info">
-          <h2>{selectedRoom.name}</h2>
-          {/* 방장이 설정한 프로필 이미지 등 추가 가능 */}
-          <div style={{ maxHeight: 300, overflowY: 'auto', background: 'rgba(0,0,0,0.1)', borderRadius: 8, padding: 12, marginTop: 16 }}>
-            <h4>최근 메시지</h4>
-            {selectedRoomMessages.length === 0 ? (
-              <div style={{ color: '#888' }}>아직 메시지가 없습니다.</div>
-            ) : (
-              selectedRoomMessages.map(msg => (
-                <div key={msg.id} style={{ marginBottom: 8, color: msg.type === 'send' ? '#2196f3' : '#fff' }}>
-                  <b>{msg.sender}:</b> {msg.text}
-                </div>
-              ))
-            )}
-          </div>
-          <button className="enter-room-btn" style={{ marginTop: 16 }} onClick={() => { if (onClose) onClose(); handleEnterRoom(selectedRoom); }}>입장하기</button>
-        </div>
-      ) : (
-        <div className="welcome-content">
-          <h1>Hearth 🔥 Chat</h1>
-          <p>대화방을 선택하여 채팅을 시작하세요!</p>
-        </div>
-      )
-    );
-
-    return (
-      <>
-        <UserMenuModal
-          isOpen={isUserMenuOpen}
-          onClose={() => setIsUserMenuOpen(false)}
-          loginUser={loginUser}
-          checkLoginStatus={checkLoginStatus}
-        />
-        {/* 상단바 공통 렌더링 */}
-        <HeaderBar
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
-          onSearchClick={() => setIsSearchModalOpen(true)}
-          onNotifyClick={() => setIsNotifyModalOpen(true)}
-          onSettingsClick={() => setIsSettingsModalOpen(true)}
-          onCreateRoomClick={() => setShowCreateModal(true)}
-          title={headerTitle}
-        />
-        {/* 알림/검색 모달 */}
-        <NotifyModal open={isNotifyModalOpen} onClose={() => setIsNotifyModalOpen(false)} notifications={notifications} />
-        <SearchModal open={isSearchModalOpen} onClose={() => setIsSearchModalOpen(false)} />
-        {/* 새 방 만들기 모달을 AppContent에서 항상 렌더링 */}
-        {showCreateModal && (
-          <CreateRoomModal
-            open={showCreateModal}
-            onClose={() => setShowCreateModal(false)}
-            onSuccess={handleCreateRoomSuccess}
-          />
-        )}
-        {/* 채팅방 내 오버레이: showRoomListOverlay가 true일 때만 표시 */}
-        {showRoomListOverlay && (
-          <div className="room-list-overlay" onClick={() => setShowRoomListOverlay(false)}>
-            <div className="room-list-overlay-panel" onClick={e => e.stopPropagation()}>
-              <div className="room-list-overlay-main" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                <div style={{ flex: 3, overflowY: 'auto' }}>
-                  <ChatRoomList
-                    onRoomSelect={room => handleRoomPreview(room, 'overlay')}
-                    loginUser={loginUser}
-                    loginLoading={loginLoading}
-                    checkLoginStatus={checkLoginStatus}
-                    onUserMenuOpen={() => setIsUserMenuOpen(true)}
-                    activeTab={activeTab}
-                    showCreateModal={showCreateModal}
-                    setShowCreateModal={setShowCreateModal}
-                    selectedRoomId={selectedRoom?.id}
-                    onClose={() => setShowRoomListOverlay(false)}
-                    overlayKey="overlay"
-                    scrollPositions={scrollPositions.current}
-                    setScrollPosition={setScrollPosition}
-                    currentScrollPosition={scrollPositions.current['overlay'] || 0}
-                  />
-                </div>
-                <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', borderTop: '1px solid #eee', background: '#fafbfc', padding: 12 }}>
-                  {renderRoomInfoPanel(() => setShowRoomListOverlay(false))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-        <Routes>
-          <Route path="/" element={
-            <div className="app-container">
-              <div className="room-list-container" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                <div style={{ flex: 3, overflowY: 'auto' }}>
-                  <ChatRoomList
-                    onRoomSelect={room => handleRoomPreview(room, 'lobby')}
-                    loginUser={loginUser}
-                    loginLoading={loginLoading}
-                    checkLoginStatus={checkLoginStatus}
-                    onUserMenuOpen={() => setIsUserMenuOpen(true)}
-                    activeTab={activeTab}
-                    showCreateModal={showCreateModal}
-                    setShowCreateModal={setShowCreateModal}
-                    selectedRoomId={selectedRoom?.id}
-                    overlayKey="lobby"
-                    scrollPositions={scrollPositions.current}
-                    setScrollPosition={setScrollPosition}
-                    currentScrollPosition={scrollPositions.current['lobby'] || 0}
-                  />
-                </div>
-                <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', borderTop: '1px solid #eee', background: '#fafbfc', padding: 12 }}>
-                  {renderRoomInfoPanel()}
-                </div>
-              </div>
-            </div>
-          } />
-          <Route path="/room/:roomId" element={
-            <ChatRoomPage
-              loginUser={loginUser}
-              loginLoading={loginLoading}
-              checkLoginStatus={checkLoginStatus}
-              userSettings={userSettings}
-              setUserSettings={setUserSettings}
-              onUserMenuOpen={() => setIsUserMenuOpen(true)}
-            />
-          } />
-        </Routes>
-      </>
-    );
-  }
-
-  return <AppContent />;
+  return <AppContent
+    loginUser={loginUser}
+    loginLoading={loginLoading}
+    userSettings={userSettings}
+    setUserSettings={setUserSettings}
+    isUserMenuOpen={isUserMenuOpen}
+    setIsUserMenuOpen={setIsUserMenuOpen}
+    selectedRoom={selectedRoom}
+    setSelectedRoom={setSelectedRoom}
+    selectedRoomMessages={selectedRoomMessages}
+    setSelectedRoomMessages={setSelectedRoomMessages}
+    activeTab={activeTab}
+    setActiveTab={setActiveTab}
+    isNotifyModalOpen={isNotifyModalOpen}
+    setIsNotifyModalOpen={setIsNotifyModalOpen}
+    isSearchModalOpen={isSearchModalOpen}
+    setIsSearchModalOpen={setIsSearchModalOpen}
+    isSettingsModalOpen={isSettingsModalOpen}
+    setIsSettingsModalOpen={setIsSettingsModalOpen}
+    showCreateModal={showCreateModal}
+    setShowCreateModal={setShowCreateModal}
+    showRoomListOverlay={showRoomListOverlay}
+    setShowRoomListOverlay={setShowRoomListOverlay}
+    handleCreateRoomSuccess={handleCreateRoomSuccess}
+    checkLoginStatus={checkLoginStatus}
+  />;
 }
 
 export default App;
