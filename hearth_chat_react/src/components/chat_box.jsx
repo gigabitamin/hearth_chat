@@ -1411,15 +1411,15 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
     // AI 메시지 내용도 고려하여 감정 조정 (안전하게 처리)
     if (aiMessage && typeof aiMessage === 'string') {
-      const messageEmotion = analyzeEmotion(aiMessage);
-      if (messageEmotion !== 'neutral') {
-        // 메시지 감정과 사용자 감정을 조합
-        if (userEmotion === 'sad' && messageEmotion === 'happy') {
-          response.primary = 'caring'; // 위로하는 기쁨
-          response.intensity = 0.7;
-        } else if (userEmotion === 'angry' && messageEmotion === 'happy') {
-          response.primary = 'calm'; // 차분한 이해
-          response.intensity = 0.6;
+    const messageEmotion = analyzeEmotion(aiMessage);
+    if (messageEmotion !== 'neutral') {
+      // 메시지 감정과 사용자 감정을 조합
+      if (userEmotion === 'sad' && messageEmotion === 'happy') {
+        response.primary = 'caring'; // 위로하는 기쁨
+        response.intensity = 0.7;
+      } else if (userEmotion === 'angry' && messageEmotion === 'happy') {
+        response.primary = 'calm'; // 차분한 이해
+        response.intensity = 0.6;
         }
       }
     }
@@ -1821,15 +1821,15 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
         // 메시지 목록에 추가
         setMessages((prev) => [...prev, {
-          type: 'send',
+        type: 'send',
           text: input || '이미지 첨부',
           imageUrl: res.data.file_url,
           date: new Date().toISOString()
         }]);
 
-        setInput('');
-        setAttachedImage(null);
-        setAttachedImagePreview(null);
+    setInput('');
+    setAttachedImage(null);
+    setAttachedImagePreview(null);
 
         setTimeout(() => {
           if (chatScrollRef.current) {
@@ -2570,16 +2570,16 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
               })}
             </div>
           )}
-          {/* 타이틀+음성/카메라/트래킹 버튼 헤더 */}
-          <div className="chat-header">
-            <div className="chat-title">
+        {/* 타이틀+음성/카메라/트래킹 버튼 헤더 */}
+        <div className="chat-header">
+          <div className="chat-title">
               <button onClick={() => navigate('/')} className="back-btn">
                 ← 대화방 목록
               </button>
               <span style={{ marginLeft: 8, fontWeight: 700 }}>{selectedRoom?.name}</span>
-            </div>
-            {/* 버튼 렌더링 부분(마이크, 카메라, 트래킹, 아바타 토글) */}
-            <div className="header-btn-group">
+          </div>
+          {/* 버튼 렌더링 부분(마이크, 카메라, 트래킹, 아바타 토글) */}
+          <div className="header-btn-group">
               {/* WebSocket 연결 상태 표시 */}
               <div
                 className="ws-status-indicator"
@@ -2605,58 +2605,58 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                   wsConnectionStatus === 'connecting' ? '🟡' : '🔴'}
               </div>
               {/* 마이크 버튼 및 음성 메뉴 모달 완전 삭제 */}
-              {/* AI 아바타 토글 */}
-              <button className="icon-btn" onClick={() => setIsAiAvatarOn(v => !v)} title="AI 아바타 토글">
-                <span role="img" aria-label="ai-avatar" style={{ opacity: isAiAvatarOn ? 1 : 0.3 }}>🤖</span>
-              </button>
-              {/* 사용자 아바타 토글 + 트래킹 통합 */}
-              <button className="icon-btn" onClick={async () => {
-                setIsUserAvatarOn(v => {
-                  const next = !v;
-                  setIsTrackingEnabled(next);
-                  if (next) {
-                    // 트래킹 서비스 시작
-                    faceTrackingService.startCamera();
-                  } else {
-                    // 트래킹 서비스 중지
-                    faceTrackingService.stopCamera();
-                  }
-                  return next;
-                });
-              }} title="사용자 아바타/트래킹 토글">
-                <span role="img" aria-label="user-avatar" style={{ opacity: isUserAvatarOn ? 1 : 0.3 }}>👤</span>
-              </button>
-              {/* 카메라 버튼 */}
+            {/* AI 아바타 토글 */}
+            <button className="icon-btn" onClick={() => setIsAiAvatarOn(v => !v)} title="AI 아바타 토글">
+              <span role="img" aria-label="ai-avatar" style={{ opacity: isAiAvatarOn ? 1 : 0.3 }}>🤖</span>
+            </button>
+            {/* 사용자 아바타 토글 + 트래킹 통합 */}
+            <button className="icon-btn" onClick={async () => {
+              setIsUserAvatarOn(v => {
+                const next = !v;
+                setIsTrackingEnabled(next);
+                if (next) {
+                  // 트래킹 서비스 시작
+                  faceTrackingService.startCamera();
+                } else {
+                  // 트래킹 서비스 중지
+                  faceTrackingService.stopCamera();
+                }
+                return next;
+              });
+            }} title="사용자 아바타/트래킹 토글">
+              <span role="img" aria-label="user-avatar" style={{ opacity: isUserAvatarOn ? 1 : 0.3 }}>👤</span>
+            </button>
+            {/* 카메라 버튼 */}
+            <button
+              onClick={toggleCamera}
+              className={`camera-btn-header${isCameraActive ? ' active' : ''}`}
+            >
+              📷
+            </button>
+            {/* 로그인/내 계정 버튼 - 오른쪽 끝 */}
+            {loginLoading ? null : loginUser ? (
               <button
-                onClick={toggleCamera}
-                className={`camera-btn-header${isCameraActive ? ' active' : ''}`}
-              >
-                📷
-              </button>
-              {/* 로그인/내 계정 버튼 - 오른쪽 끝 */}
-              {loginLoading ? null : loginUser ? (
-                <button
                   onClick={() => {
                     console.log('내 계정 버튼 클릭!');
                     onUserMenuOpen();
                   }}
                   className="login-btn-header"
                   style={buttonStyle}
-                  title="내 계정"
-                >
-                  <span role="img" aria-label="user" style={{ marginRight: 6 }}>👤</span>
-                  {loginUser.username || '내 계정'}
-                </button>
-              ) : (
-                <button
-                  onClick={() => setIsLoginModalOpen(true)}
-                  className="login-btn-header"
+                title="내 계정"
+              >
+                <span role="img" aria-label="user" style={{ marginRight: 6 }}>👤</span>
+                {loginUser.username || '내 계정'}
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsLoginModalOpen(true)}
+                className="login-btn-header"
                   style={buttonStyle}
-                  title="로그인"
-                >
-                  <span role="img" aria-label="login" style={{ marginRight: 6 }}>🔑</span>
-                </button>
-              )}
+                title="로그인"
+              >
+                <span role="img" aria-label="login" style={{ marginRight: 6 }}>🔑</span>
+              </button>
+            )}
               {/* 설정(톱니바퀴) 버튼 */}
               <button
                 onClick={() => setIsSettingsModalOpen(true)}
@@ -2666,90 +2666,90 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
               >
                 <span role="img" aria-label="settings">⚙️</span>
               </button>
-            </div>
           </div>
-          {/* 차트 렌더링 */}
-          {/* <MyChart /> */}
-          {/* 아바타/카메라를 항상 렌더링하고, style로만 분할/숨김/오버레이 처리 */}
-          <div
-            className="avatar-container"
-            style={{
-              display: (!isCameraActive && !isAiAvatarOn && !isUserAvatarOn) ? 'none' : 'flex',
-              flexDirection: 'row',
-              width: '100%',
-              height: (!isCameraActive && !isAiAvatarOn && !isUserAvatarOn) ? 0 : '50%',
-              margin: 0,
-              padding: 0,
-              position: 'relative',
-              minHeight: 0,
-              minWidth: 0,
-            }}
-          >
-            {/* AI 아바타 */}
-            <div style={getAiAvatarStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn)}>
-              <RealisticAvatar3D
-                avatarUrl={aiAvatar}
-                isTalking={isAiTalking}
-                emotion={aiEmotion}
-                mouthTrigger={mouthTrigger}
-                position="left"
-                size="100%"
-                showEmotionIndicator={true}
-                emotionCaptureStatus={emotionCaptureStatus.ai}
-              />
-            </div>
-            {/* 사용자 아바타 */}
-            <div style={getUserAvatarStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn)}>
-              <RealisticAvatar3D
-                avatarUrl={userAvatar}
-                isTalking={isUserTalking}
-                emotion={userEmotion}
-                position="right"
-                size="100%"
-                showEmotionIndicator={true}
-                emotionCaptureStatus={emotionCaptureStatus.user}
-                enableTracking={isTrackingEnabled}
-              />
-            </div>
-            {/* 카메라 */}
-            <div style={getCameraStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn)}>
-              <EmotionCamera
-                isActive={isCameraActive}
-                userAvatar={userAvatar}
-                userEmotion={userEmotion}
-                isUserTalking={isUserTalking}
-                mouthTrigger={mouthTrigger}
-                emotionCaptureStatus={emotionCaptureStatus.user}
-                enableTracking={isUserAvatarOn}
-                showAvatarOverlay={isCameraActive && isUserAvatarOn}
-              />
-            </div>
+        </div>
+        {/* 차트 렌더링 */}
+        {/* <MyChart /> */}
+        {/* 아바타/카메라를 항상 렌더링하고, style로만 분할/숨김/오버레이 처리 */}
+        <div
+          className="avatar-container"
+          style={{
+            display: (!isCameraActive && !isAiAvatarOn && !isUserAvatarOn) ? 'none' : 'flex',
+            flexDirection: 'row',
+            width: '100%',
+            height: (!isCameraActive && !isAiAvatarOn && !isUserAvatarOn) ? 0 : '50%',
+            margin: 0,
+            padding: 0,
+            position: 'relative',
+            minHeight: 0,
+            minWidth: 0,
+          }}
+        >
+          {/* AI 아바타 */}
+          <div style={getAiAvatarStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn)}>
+            <RealisticAvatar3D
+              avatarUrl={aiAvatar}
+              isTalking={isAiTalking}
+              emotion={aiEmotion}
+              mouthTrigger={mouthTrigger}
+              position="left"
+              size="100%"
+              showEmotionIndicator={true}
+              emotionCaptureStatus={emotionCaptureStatus.ai}
+            />
           </div>
-          {/* 채팅창 (아래쪽), avatar-container가 없으면 전체를 차지 */}
-          <div
-            className="chat-section"
-            style={{
+          {/* 사용자 아바타 */}
+          <div style={getUserAvatarStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn)}>
+            <RealisticAvatar3D
+              avatarUrl={userAvatar}
+              isTalking={isUserTalking}
+              emotion={userEmotion}
+              position="right"
+              size="100%"
+              showEmotionIndicator={true}
+              emotionCaptureStatus={emotionCaptureStatus.user}
+              enableTracking={isTrackingEnabled}
+            />
+          </div>
+          {/* 카메라 */}
+          <div style={getCameraStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn)}>
+            <EmotionCamera
+              isActive={isCameraActive}
+              userAvatar={userAvatar}
+              userEmotion={userEmotion}
+              isUserTalking={isUserTalking}
+              mouthTrigger={mouthTrigger}
+              emotionCaptureStatus={emotionCaptureStatus.user}
+              enableTracking={isUserAvatarOn}
+              showAvatarOverlay={isCameraActive && isUserAvatarOn}
+            />
+          </div>
+        </div>
+        {/* 채팅창 (아래쪽), avatar-container가 없으면 전체를 차지 */}
+        <div
+          className="chat-section"
+          style={{
               height: '100%',
-              margin: 0,
-              padding: 0,
-              width: '100%'
-            }}
-          >
-            <div className="chat-container">
-              <div className="chat-log" ref={chatScrollRef}>
-                {messages.map((msg, idx) => {
+            margin: 0,
+            padding: 0,
+            width: '100%'
+          }}
+        >
+          <div className="chat-container">
+            <div className="chat-log" ref={chatScrollRef}>
+              {messages.map((msg, idx) => {
                   console.log(`메시지 ${idx} 렌더링:`, msg);
                   console.log(`메시지 ${idx} 텍스트 내용:`, msg.text);
                   console.log(`메시지 ${idx} 타입:`, msg.type);
                   console.log(`메시지 ${idx} 발신자:`, msg.sender);
 
-                  // 날짜/시간 포맷 함수
-                  const dateObj = msg.date ? new Date(msg.date) : new Date();
-                  const yyyy = dateObj.getFullYear();
-                  const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
-                  const dd = String(dateObj.getDate()).padStart(2, '0');
-                  const hh = String(dateObj.getHours()).padStart(2, '0');
-                  const min = String(dateObj.getMinutes()).padStart(2, '0');
+                // 날짜/시간 포맷 함수
+                const dateObj = msg.date ? new Date(msg.date) : new Date();
+                const yyyy = dateObj.getFullYear();
+                const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const dd = String(dateObj.getDate()).padStart(2, '0');
+                const hh = String(dateObj.getHours()).padStart(2, '0');
+                const min = String(dateObj.getMinutes()).padStart(2, '0');
 
                   // 발신자 라벨 결정
                   let senderLabel = '';
@@ -2767,41 +2767,41 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                     senderLabel = 'AI';
                   }
 
-                  const dateTimeBox = (
-                    <div className="chat-date-time-box">
+                const dateTimeBox = (
+                  <div className="chat-date-time-box">
                       <div className="chat-date-time-sender">{senderLabel}</div>
-                      <div className="chat-date-time-year">{yyyy}-</div>
-                      <div className="chat-date-time-md">{mm}-{dd}</div>
-                      <div className="chat-date-time-hm">{hh}:{min}</div>
-                    </div>
-                  );
-                  return (
+                    <div className="chat-date-time-year">{yyyy}-</div>
+                    <div className="chat-date-time-md">{mm}-{dd}</div>
+                    <div className="chat-date-time-hm">{hh}:{min}</div>
+                  </div>
+                );
+                return (
+                  <div
+                    key={idx}
+                    style={{
+                      display: 'flex',
+                      flexDirection: msg.type === 'send' ? 'row-reverse' : 'row',
+                      alignItems: 'flex-end',
+                      width: '100%',
+                      justifyContent: msg.type === 'send' ? 'flex-end' : 'flex-start',
+                    }}
+                  >
+                    {/* 사용자/AI 메시지 버블+날짜 영역 */}
                     <div
-                      key={idx}
                       style={{
                         display: 'flex',
-                        flexDirection: msg.type === 'send' ? 'row-reverse' : 'row',
-                        alignItems: 'flex-end',
-                        width: '100%',
-                        justifyContent: msg.type === 'send' ? 'flex-end' : 'flex-start',
+                        flexDirection: 'column',
+                        alignItems: msg.type === 'send' ? 'flex-end' : 'flex-start',
+                        height: '100%',
+                        maxWidth: '80vw',
+                        minWidth: 0,
+                        width: '80%',
+                        marginLeft: msg.type === 'send' ? 'auto' : 0,
+                        marginRight: msg.type === 'send' ? 0 : 'auto',
                       }}
                     >
-                      {/* 사용자/AI 메시지 버블+날짜 영역 */}
                       <div
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: msg.type === 'send' ? 'flex-end' : 'flex-start',
-                          height: '100%',
-                          maxWidth: '80vw',
-                          minWidth: 0,
-                          width: '80%',
-                          marginLeft: msg.type === 'send' ? 'auto' : 0,
-                          marginRight: msg.type === 'send' ? 0 : 'auto',
-                        }}
-                      >
-                        <div
-                          className={`chat-bubble ${msg.type === 'send' ? 'sent' : 'received'}`}
+                        className={`chat-bubble ${msg.type === 'send' ? 'sent' : 'received'}`}
                           style={{
                             marginRight: msg.type === 'send' ? 8 : 0,
                             marginLeft: msg.type === 'send' ? 0 : 8,
@@ -2816,76 +2816,76 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                               {msg.questioner_username}
                             </div>
                           )}
-                          {/* 이미지+텍스트 조합 출력 */}
-                          {msg.imageUrl && (
-                            <img
-                              src={msg.imageUrl}
-                              alt="첨부 이미지"
-                              className="attached-image-thumb"
-                              style={{ cursor: 'pointer' }}
-                              onClick={() => setViewerImage(msg.imageUrl)}
-                            />
-                          )}
+                        {/* 이미지+텍스트 조합 출력 */}
+                        {msg.imageUrl && (
+                          <img
+                            src={msg.imageUrl}
+                            alt="첨부 이미지"
+                            className="attached-image-thumb"
+                            style={{ cursor: 'pointer' }}
+                            onClick={() => setViewerImage(msg.imageUrl)}
+                          />
+                        )}
                           {msg.text && (() => {
                             const textToParse = msg.type === 'recv' && idx === messages.length - 1 && isAiTalking
-                              ? ensureDoubleNewlineAfterCodeBlocks(extractLatexBlocks(displayedAiText))
+                            ? ensureDoubleNewlineAfterCodeBlocks(extractLatexBlocks(displayedAiText))
                               : ensureDoubleNewlineAfterCodeBlocks(extractLatexBlocks(msg.text));
                             const blocks = parseMessageBlocks(textToParse);
                             console.log(`메시지 ${idx} 파싱 결과:`, { text: msg.text, blocks });
                             return blocks.map((block, i) => {
-                              if (!block || !block.type) return null;
-                              const chartKey = `${idx}_${i}`;
-                              if (block.type === 'math') {
-                                return (
-                                  <span key={i} dangerouslySetInnerHTML={{ __html: katex.renderToString(block.value || '', { throwOnError: false }) }} />
-                                );
-                              } else if (block.type === 'chart') {
-                                return (
-                                  <CodeJsonChartCard
-                                    key={i}
-                                    code={block.value || ''}
-                                    language="json"
-                                    isChartCandidate={true}
-                                    isChartView={!!chartViewMap[chartKey]}
-                                    onToggleChartView={() => setChartViewMap(prev => ({ ...prev, [chartKey]: !prev[chartKey] }))}
-                                  />
-                                );
-                              } else if (block.type === 'code') {
-                                return (
-                                  <CodeJsonChartCard
-                                    key={i}
-                                    code={block.value || ''}
-                                    language={block.language}
-                                    isChartCandidate={block.language === 'json'}
-                                    isChartView={!!chartViewMap[chartKey]}
-                                    onToggleChartView={() => setChartViewMap(prev => ({ ...prev, [chartKey]: !prev[chartKey] }))}
-                                  />
-                                );
-                              } else if (block.type === 'markdown') {
-                                return (
-                                  <ReactMarkdown
-                                    key={i}
-                                    children={block.value || ''}
-                                    remarkPlugins={[remarkMath, remarkGfm]}
-                                    rehypePlugins={[rehypeKatex]}
-                                    components={{
-                                      code({ node, inline, className, children, ...props }) {
-                                        return (
-                                          <code className={className} {...props} style={{ background: '#222', color: '#fff', borderRadius: 4, padding: '2px 6px' }}>
-                                            {children}
-                                          </code>
-                                        );
-                                      },
-                                      table({ node, ...props }) {
-                                        return (
-                                          <div className="markdown-table-wrapper">
-                                            <table {...props} />
-                                          </div>
-                                        );
-                                      },
-                                    }}
-                                  />
-                                );
+                          if (!block || !block.type) return null;
+                          const chartKey = `${idx}_${i}`;
+                          if (block.type === 'math') {
+                            return (
+                              <span key={i} dangerouslySetInnerHTML={{ __html: katex.renderToString(block.value || '', { throwOnError: false }) }} />
+                            );
+                          } else if (block.type === 'chart') {
+                            return (
+                              <CodeJsonChartCard
+                                key={i}
+                                code={block.value || ''}
+                                language="json"
+                                isChartCandidate={true}
+                                isChartView={!!chartViewMap[chartKey]}
+                                onToggleChartView={() => setChartViewMap(prev => ({ ...prev, [chartKey]: !prev[chartKey] }))}
+                              />
+                            );
+                          } else if (block.type === 'code') {
+                            return (
+                              <CodeJsonChartCard
+                                key={i}
+                                code={block.value || ''}
+                                language={block.language}
+                                isChartCandidate={block.language === 'json'}
+                                isChartView={!!chartViewMap[chartKey]}
+                                onToggleChartView={() => setChartViewMap(prev => ({ ...prev, [chartKey]: !prev[chartKey] }))}
+                              />
+                            );
+                          } else if (block.type === 'markdown') {
+                            return (
+                              <ReactMarkdown
+                                key={i}
+                                children={block.value || ''}
+                                remarkPlugins={[remarkMath, remarkGfm]}
+                                rehypePlugins={[rehypeKatex]}
+                                components={{
+                                  code({ node, inline, className, children, ...props }) {
+                                    return (
+                                      <code className={className} {...props} style={{ background: '#222', color: '#fff', borderRadius: 4, padding: '2px 6px' }}>
+                                        {children}
+                                      </code>
+                                    );
+                                  },
+                                  table({ node, ...props }) {
+                                    return (
+                                      <div className="markdown-table-wrapper">
+                                        <table {...props} />
+                                      </div>
+                                    );
+                                  },
+                                }}
+                              />
+                            );
                               } else if (block.type === 'text') {
                                 // 일반 텍스트 블록 처리 추가
                                 return (
@@ -2917,85 +2917,85 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                                     }}
                                   />
                                 );
-                              }
-                              return null;
+                          }
+                          return null;
                             });
                           })()}
                           {/* 메시지가 비어있거나 파싱에 실패한 경우 기본 텍스트 표시 */}
                           {(!msg.text || msg.text.trim() === '') && (
                             <span style={{ color: '#999', fontStyle: 'italic' }}>메시지 내용을 불러올 수 없습니다.</span>
                           )}
-                        </div>
-                        {/* 날짜 박스는 버블 하단, 같은 라인 오른쪽/왼쪽에 위치 */}
-                        <div style={{ display: 'flex', flexDirection: 'row', justifyContent: msg.type === 'send' ? 'flex-end' : 'flex-start', width: '100%' }}>
-                          {msg.type === 'send' ? (
-                            <div style={{ marginLeft: 'auto' }}>{dateTimeBox}</div>
-                          ) : (
+                      </div>
+                      {/* 날짜 박스는 버블 하단, 같은 라인 오른쪽/왼쪽에 위치 */}
+                      <div style={{ display: 'flex', flexDirection: 'row', justifyContent: msg.type === 'send' ? 'flex-end' : 'flex-start', width: '100%' }}>
+                        {msg.type === 'send' ? (
+                          <div style={{ marginLeft: 'auto' }}>{dateTimeBox}</div>
+                        ) : (
                             <div style={{ marginRight: 'auto' }}>
                               {/* AI 메시지일 때는 ai_name, 그 외에는 sender */}
                               {msg.type === 'ai' ? msg.ai_name : msg.sender}
                               {dateTimeBox}
                             </div>
-                          )}
-                        </div>
+                        )}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-              <div className="chat-input-area" style={{ position: 'relative', zIndex: 2, background: '#18191c', borderTop: '1px solid #222', flexShrink: 0 }}>
-                {/* 첨부 이미지 썸네일+X 버튼을 textarea 바로 위에 위치 */}
-                {attachedImagePreview && (
-                  <div className="attached-image-preview-box">
-                    <img src={attachedImagePreview} alt="첨부 이미지 미리보기" className="attached-image-thumb" />
-                    <button onClick={handleRemoveAttachedImage} className="attached-image-remove-btn">✖</button>
-                    {/* <span className="attached-image-label">이미지 첨부됨</span> */}
                   </div>
-                )}
-                <div className="input-controls">
-                  <div className="chat-input-box">
-                    {/* 이미지 첨부 버튼 (왼쪽) */}
-                    <label htmlFor="chat-image-upload" className="image-upload-btn-side">
-                      <input
-                        id="chat-image-upload"
-                        type="file"
-                        accept="image/*"
-                        style={{ display: 'none' }}
-                        onChange={handleImageUpload}
-                      />
-                      <span className="image-upload-btn-icon">📤</span>
-                    </label>
-                    <textarea
-                      ref={inputRef}
-                      placeholder="메시지를 입력하세요"
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          sendMessage();
-                        }
-                      }}
-                      onInput={e => {
-                        e.target.style.height = 'auto';
-                        e.target.style.height = e.target.scrollHeight + 'px';
-                      }}
-                      onPaste={handlePaste}
-                      className="input-flex chat-textarea"
-                      rows={1}
+                );
+              })}
+            </div>
+              <div className="chat-input-area" style={{ position: 'relative', zIndex: 2, background: '#18191c', borderTop: '1px solid #222', flexShrink: 0 }}>
+              {/* 첨부 이미지 썸네일+X 버튼을 textarea 바로 위에 위치 */}
+              {attachedImagePreview && (
+                <div className="attached-image-preview-box">
+                  <img src={attachedImagePreview} alt="첨부 이미지 미리보기" className="attached-image-thumb" />
+                  <button onClick={handleRemoveAttachedImage} className="attached-image-remove-btn">✖</button>
+                  {/* <span className="attached-image-label">이미지 첨부됨</span> */}
+                </div>
+              )}
+              <div className="input-controls">
+                <div className="chat-input-box">
+                  {/* 이미지 첨부 버튼 (왼쪽) */}
+                  <label htmlFor="chat-image-upload" className="image-upload-btn-side">
+                    <input
+                      id="chat-image-upload"
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={handleImageUpload}
                     />
-                    <button
+                    <span className="image-upload-btn-icon">📤</span>
+                  </label>
+                  <textarea
+                    ref={inputRef}
+                    placeholder="메시지를 입력하세요"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        sendMessage();
+                      }
+                    }}
+                    onInput={e => {
+                      e.target.style.height = 'auto';
+                      e.target.style.height = e.target.scrollHeight + 'px';
+                    }}
+                    onPaste={handlePaste}
+                    className="input-flex chat-textarea"
+                    rows={1}
+                  />
+              <button
                       onClick={() => attachedImage ? handleImageUploadAndSend() : sendMessage()}
                       className="unified-btn"
-                    >
+              >
                       {attachedImage ? '📤' : '🔥'}
-                    </button>
-                  </div>
+              </button>
+            </div>
                 </div>
+              </div>
               </div>
             </div>
           </div>
-        </div>
         {/* 음성 메뉴 모달 완전 삭제 */}
         {/* 로그인 모달 */}
         <LoginModal
