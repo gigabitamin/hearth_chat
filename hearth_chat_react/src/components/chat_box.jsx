@@ -2465,13 +2465,13 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
             {isMenuOpen && (
               <div style={{ position: 'absolute', top: 44, right: 0, background: '#222', borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.18)', padding: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <button style={{ color: '#fff', background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', padding: 8, textAlign: 'left' }} onClick={() => { setIsAiAvatarOn(v => !v); setIsMenuOpen(false); }}>
-                  🤖 AI 아바타 {isAiAvatarOn ? '끄기' : '켜기'}
+                  🤖 {isAiAvatarOn ? 'off' : 'on'}
                 </button>
                 <button style={{ color: '#fff', background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', padding: 8, textAlign: 'left' }} onClick={() => { setIsUserAvatarOn(v => !v); setIsMenuOpen(false); }}>
-                  👤 사용자 아바타 {isUserAvatarOn ? '끄기' : '켜기'}
+                  👤 {isUserAvatarOn ? 'off' : 'on'}
                 </button>
                 <button style={{ color: '#fff', background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', padding: 8, textAlign: 'left' }} onClick={() => { setIsCameraActive(v => !v); setIsMenuOpen(false); }}>
-                  📷 카메라 {isCameraActive ? '끄기' : '켜기'}
+                  📷 {isCameraActive ? 'off' : 'on'}
                 </button>
               </div>
             )}

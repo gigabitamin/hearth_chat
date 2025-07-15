@@ -3,6 +3,8 @@ import './SettingsModal.css';
 import VoiceRecognition from './VoiceRecognition';
 
 const tabList = [
+  { key: 'user', label: '유저' },
+  { key: 'network', label: '네트워크' },
   { key: 'tts', label: 'TTS' },
   { key: 'voice', label: '음성인식' },
   { key: 'camera', label: '카메라' },
@@ -25,9 +27,13 @@ const SettingsModal = ({
   voiceRecognitionRef,
   handleVoiceRecognitionToggle,
   permissionStatus,
-  requestMicrophonePermission
+  requestMicrophonePermission,
+  userInfo, // 추가: 유저 정보(이메일, 닉네임 등)
+  onDeleteAccount, // 추가: 회원탈퇴 API 호출 함수
+  wsConnected, // 추가: WebSocket 연결 상태
 }) => {
   const [saving, setSaving] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false); // 회원탈퇴 확인 모달
   if (!isOpen) return null;
 
   // 서버에 설정 저장
@@ -107,6 +113,49 @@ const SettingsModal = ({
           ))}
         </div>
         <div className="settings-modal-content">
+          {tab === 'user' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div><b>이메일:</b> {userInfo?.email || '로그인 필요'}</div>
+              <div><b>닉네임:</b> {userInfo?.username || '-'}</div>
+              {/* 기타 유저 정보 표시 가능 */}
+              <button
+                style={{ marginTop: 24, background: '#f44336', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 16px', fontWeight: 600, cursor: 'pointer' }}
+                onClick={() => setShowDeleteModal(true)}
+                disabled={!onDeleteAccount}
+              >
+                회원탈퇴
+              </button>
+              {showDeleteModal && (
+                <div className="settings-modal-overlay" style={{ zIndex: 1001 }}>
+                  <div className="settings-modal" style={{ maxWidth: 340, textAlign: 'center' }}>
+                    <h3>정말로 탈퇴하시겠습니까?</h3>
+                    <p style={{ color: '#888', margin: '16px 0' }}>탈퇴 시 모든 데이터가 삭제됩니다.</p>
+                    <button
+                      style={{ background: '#f44336', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 16px', fontWeight: 600, marginRight: 8, cursor: 'pointer' }}
+                      onClick={() => { setShowDeleteModal(false); onDeleteAccount && onDeleteAccount(); }}
+                      disabled={!onDeleteAccount}
+                    >
+                      네, 탈퇴할래요
+                    </button>
+                    <button
+                      style={{ background: '#eee', color: '#333', border: 'none', borderRadius: 4, padding: '8px 16px', fontWeight: 600, cursor: 'pointer' }}
+                      onClick={() => setShowDeleteModal(false)}
+                    >
+                      취소
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          {tab === 'network' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 18 }}>
+              <span>실시간 연결 상태:</span>
+              <span style={{ width: 16, height: 16, borderRadius: '50%', background: wsConnected ? 'limegreen' : 'red', display: 'inline-block', marginRight: 8, border: '1.5px solid #888' }} />
+              <span style={{ color: wsConnected ? 'limegreen' : 'red', fontWeight: 600 }}>{wsConnected ? '연결됨' : '끊김'}</span>
+              {!wsConnected && <span style={{ color: '#888', marginLeft: 8, fontSize: 14 }}>(서버 또는 네트워크 문제)</span>}
+            </div>
+          )}
           {tab === 'tts' && (
             <div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

@@ -38,7 +38,7 @@ const API_BASE = isProd
             : `http://${hostname}:8000`;
 
 // ChatRoomList 컴포넌트에 onClose prop 추가
-const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, checkLoginStatus, onUserMenuOpen, activeTab, showCreateModal, setShowCreateModal, onClose, onCreateRoomSuccess, overlayKey }) => {
+const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, checkLoginStatus, onUserMenuOpen, activeTab, showCreateModal, setShowCreateModal, onClose, onCreateRoomSuccess, overlayKey, wsConnected, setWsConnected }) => {
     const navigate = useNavigate();
     const [rooms, setRooms] = useState([]);
     const [publicRooms, setPublicRooms] = useState([]);
@@ -51,7 +51,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
     const [creating, setCreating] = useState(false);
     const [createError, setCreateError] = useState(null);
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-    const [wsConnected, setWsConnected] = useState(false);
+    // const [wsConnected, setWsConnected] = useState(false); // 제거: App에서 관리
     const wsRef = useRef(null);
     const listRef = useRef(null); // 스크롤 위치 보존용 ref
     // context별(오버레이/대기방)로 스크롤 위치를 분리 저장
@@ -100,7 +100,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
 
             ws.onopen = () => {
                 console.log('WebSocket 연결됨');
-                setWsConnected(true);
+                setWsConnected && setWsConnected(true);
             };
 
             ws.onmessage = (event) => {
@@ -118,7 +118,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
 
             ws.onclose = () => {
                 console.log('WebSocket 연결 끊어짐');
-                setWsConnected(false);
+                setWsConnected && setWsConnected(false);
                 // 재연결 시도
                 setTimeout(() => {
                     if (wsRef.current === ws) {
@@ -129,7 +129,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
 
             ws.onerror = (error) => {
                 console.error('WebSocket 오류:', error);
-                setWsConnected(false);
+                setWsConnected && setWsConnected(false);
             };
         } catch (error) {
             console.error('WebSocket 연결 실패:', error);
@@ -402,23 +402,42 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                             key={room.id}
                             className={`room-item ${selectedRoomId === room.id ? 'selected' : ''}`}
                             onClick={() => handleRoomClick(room)}
+                            style={{ display: 'flex', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #eee', cursor: 'pointer' }}
                         >
-                            <div className="room-icon">
-                                {getRoomIcon(room.room_type, room.ai_provider)}
-                            </div>
-                            <div className="room-info">
-                                <div className="room-name">{room.name}</div>
-                                <div className="room-type">
-                                    {room.room_type === 'ai' ? `${room.ai_provider} AI` :
-                                        room.room_type === 'user' ? '1:1 채팅' :
-                                            room.room_type === 'group' ? '그룹 채팅' :
-                                                room.room_type === 'public' ? '공개 오픈 채팅' :
-                                                    room.room_type === 'voice' ? '음성 통화' : '채팅'}
-                                    {room.is_public && ' 🌐'}
+                            {/* 왼쪽: 프로필/종류 */}
+                            <div className="room-item-left" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 48, minWidth: 48, marginRight: 8 }}>
+                                <div className="room-icon" style={{ fontSize: 24 }}>
+                                    {getRoomIcon(room.room_type, room.ai_provider)}
+                                </div>
+                                <div className="room-type" style={{ fontSize: 11, color: '#888', marginTop: 2, textAlign: 'center', lineHeight: 1.1 }}>
+                                    {room.room_type === 'ai' ? `${room.ai_provider}` :
+                                        room.room_type === 'user' ? '1:1' :
+                                            room.room_type === 'group' ? '그룹' :
+                                                room.room_type === 'public' ? '오픈' :
+                                                    room.room_type === 'voice' ? '음성' : '채팅'}
                                 </div>
                             </div>
-                            <div className="room-status">
-                                {room.is_voice_call && '📞'}
+                            {/* 중앙: 제목/최신 메시지 */}
+                            <div className="room-item-center" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                                <div className="room-name" style={{ fontSize: 14, fontWeight: 600, color: '#222', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', borderBottom: '1px solid #f0f0f0', paddingBottom: 2 }}>
+                                    {room.name}
+                                </div>
+                                <div className="room-latest-message" style={{ fontSize: 12, color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 2 }}>
+                                    {/* 최신 메시지(임시: room.latest_message) */}
+                                    {room.latest_message ? room.latest_message : <span style={{ color: '#bbb' }}>메시지 없음</span>}
+                                </div>
+                            </div>
+                            {/* 오른쪽: 즐겨찾기, 삭제, 입장 버튼 */}
+                            <div className="room-item-actions" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, marginLeft: 8 }}>
+                                {/* 즐겨찾기(★) 버튼 - 기능은 이후 단계에서 연결 */}
+                                <button
+                                    className="favorite-btn"
+                                    style={{ background: 'none', border: 'none', fontSize: 18, color: '#FFD600', cursor: 'pointer', marginBottom: 2 }}
+                                    title="즐겨찾기"
+                                    onClick={e => { e.stopPropagation(); /* 즐겨찾기 토글 기능은 이후 연결 */ }}
+                                >
+                                    ☆
+                                </button>
                                 {activeTab === 'personal' && (
                                     <button
                                         onClick={(e) => {
@@ -427,6 +446,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                         }}
                                         className="delete-room-btn"
                                         title="대화방 삭제"
+                                        style={{ fontSize: 14, color: '#f44336', background: 'none', border: 'none', cursor: 'pointer' }}
                                     >
                                         🗑️
                                     </button>
@@ -439,6 +459,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                         }}
                                         className="join-room-btn"
                                         title="방 입장"
+                                        style={{ fontSize: 14, color: '#2196f3', background: 'none', border: 'none', cursor: 'pointer' }}
                                     >
                                         ➕
                                     </button>
@@ -455,9 +476,9 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                     }}
                                     className="enter-room-btn"
                                     title="이 방으로 바로 입장"
-                                    style={{ marginLeft: 8 }}
+                                    style={{ fontSize: 14, color: '#333', background: 'none', border: '1px solid #ddd', borderRadius: 4, padding: '2px 8px', marginTop: 2, cursor: 'pointer' }}
                                 >
-                                    입장하기
+                                    입장
                                 </button>
                             </div>
                         </div>

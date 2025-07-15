@@ -20,6 +20,8 @@ export default function HeaderBar({
     onNotifyClick,
     onSettingsClick,
     onCreateRoomClick,
+    onLoginClick, // 추가: 로그인 버튼 클릭 핸들러
+    isLoggedIn,   // 추가: 로그인 상태
     title // 중앙에 표시할 텍스트(채팅방 이름/앱명)
 }) {
     return (
@@ -39,12 +41,27 @@ export default function HeaderBar({
                     >
                         오픈
                     </button>
+                    <button
+                        className={`header-tab-btn${activeTab === 'favorite' ? ' active' : ''}`}
+                        onClick={() => onTabChange('favorite')}
+                        title="즐겨찾기"
+                    >
+                        ★
+                    </button>
                 </nav>
             </div>
             <div className="header-center">
                 {title && <span className="header-title-text">{title}</span>}
             </div>
             <div className="header-actions">
+                {/* 로그인 버튼: 검색 버튼 왼쪽에 위치 */}
+                <button
+                    className="header-action-btn header-login-btn"
+                    onClick={onLoginClick}
+                    style={{ marginRight: 8 }}
+                >
+                    {isLoggedIn ? '로그아웃' : '로그인'}
+                </button>
                 <button className="header-action-btn" onClick={onSearchClick} title="검색">
                     <span role="img" aria-label="search" style={{ fontSize: 22 }}>🔍</span>
                 </button>

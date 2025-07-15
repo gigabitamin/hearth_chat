@@ -127,7 +127,11 @@ function AppContent(props) {
     showRoomListOverlay,
     setShowRoomListOverlay,
     handleCreateRoomSuccess,
-    checkLoginStatus
+    checkLoginStatus,
+    wsConnected,
+    setWsConnected,
+    userInfo,
+    onDeleteAccount
   } = props;
 
   const location = useLocation();
@@ -314,6 +318,28 @@ function App() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false); // 새 채팅방 모달 상태
   const [showRoomListOverlay, setShowRoomListOverlay] = useState(false); // 채팅방 내 오버레이 상태
+  const [wsConnected, setWsConnected] = useState(false); // WebSocket 연결 상태 전역 관리
+
+  // 회원탈퇴 API 연동 함수
+  const onDeleteAccount = async () => {
+    try {
+      const res = await fetch(`${getApiBase()}/api/chat/user/delete/`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (res.ok) {
+        alert('회원탈퇴가 완료되었습니다.');
+        setLoginUser(null);
+        setUserSettings(null);
+        window.location.href = '/';
+      } else {
+        alert('회원탈퇴에 실패했습니다.');
+      }
+    } catch {
+      alert('회원탈퇴 중 오류가 발생했습니다.');
+    }
+  };
 
   // App 컴포넌트에서 showCreateModal, setShowCreateModal, handleCreateRoomSuccess 전역 관리
   const handleCreateRoomSuccess = (newRoom) => {
@@ -375,6 +401,10 @@ function App() {
     setShowRoomListOverlay={setShowRoomListOverlay}
     handleCreateRoomSuccess={handleCreateRoomSuccess}
     checkLoginStatus={checkLoginStatus}
+    wsConnected={wsConnected}
+    setWsConnected={setWsConnected}
+    userInfo={loginUser}
+    onDeleteAccount={onDeleteAccount}
   />;
 }
 

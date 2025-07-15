@@ -29,6 +29,9 @@ class ChatRoom(models.Model):
     is_active = models.BooleanField(default=True, verbose_name='활성 상태')
     is_voice_call = models.BooleanField(default=False, verbose_name='음성 통화 여부')
     
+    # 즐겨찾기 사용자
+    favorite_users = models.ManyToManyField(User, related_name='favorite_rooms', blank=True)
+    
     # 메타 정보
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='생성 시간')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='수정 시간')
