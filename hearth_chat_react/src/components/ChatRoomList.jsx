@@ -37,7 +37,8 @@ const API_BASE = isProd
             ? 'http://192.168.44.9:8000'
             : `http://${hostname}:8000`;
 
-const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, checkLoginStatus, onUserMenuOpen, activeTab, showCreateModal, setShowCreateModal }) => {
+// ChatRoomList 컴포넌트에 onClose prop 추가
+const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, checkLoginStatus, onUserMenuOpen, activeTab, showCreateModal, setShowCreateModal, onClose, onCreateRoomSuccess }) => {
     const navigate = useNavigate();
     const [rooms, setRooms] = useState([]);
     const [publicRooms, setPublicRooms] = useState([]);
@@ -52,7 +53,9 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
     const [wsConnected, setWsConnected] = useState(false);
     const wsRef = useRef(null);
-    // 기존 activeTab 상태 제거, props로 받음
+    const listRef = useRef(null); // 스크롤 위치 보존용 ref
+    const prevSelectedRoomId = useRef(null);
+    const prevScrollTop = useRef(0);
 
     useEffect(() => {
         fetchRooms();
@@ -172,9 +175,21 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
         }
     };
 
+    // 방 클릭 시 스크롤 위치 저장 (미리보기/입장 모두)
     const handleRoomClick = (room) => {
+        if (listRef.current) {
+            prevScrollTop.current = listRef.current.scrollTop;
+        }
         onRoomSelect(room);
+        prevSelectedRoomId.current = room.id;
     };
+
+    // selectedRoomId가 바뀌면 스크롤 위치 복원 (미리보기/입장 모두)
+    useEffect(() => {
+        if (listRef.current && prevSelectedRoomId.current === selectedRoomId) {
+            listRef.current.scrollTop = prevScrollTop.current;
+        }
+    }, [selectedRoomId]);
 
     const handleCreateRoom = async (e) => {
         e.preventDefault();
@@ -213,7 +228,11 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             setCreateIsPublic(false);
             await fetchRooms();
             await fetchPublicRooms();
-            onRoomSelect(newRoom); // 생성된 방으로 입장
+            if (onCreateRoomSuccess) {
+                onCreateRoomSuccess(newRoom);
+            } else {
+                onRoomSelect(newRoom); // fallback
+            }
         } catch (err) {
             setCreateError(err.message);
         } finally {
@@ -342,7 +361,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                     <p>새로운 대화를 시작해보세요!</p>
                 </div>
             ) : (
-                <div className="room-items">
+                <div className="room-items" ref={listRef}>
                     {(activeTab === 'personal' ? rooms : publicRooms).map((room) => (
                         <div
                             key={room.id}
@@ -484,7 +503,10 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             {loginUser && (
                 <button
                     className="home-fab-btn"
-                    onClick={() => navigate('/')}
+                    onClick={() => {
+                        if (onClose) onClose();
+                        navigate('/');
+                    }}
                     title="홈으로"
                 >
                     🏠

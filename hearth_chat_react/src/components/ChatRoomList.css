@@ -427,13 +427,3 @@
     background: #e3f2fd;
     box-shadow: 0 6px 24px rgba(0, 123, 255, 0.18);
 }
-
-@media (max-width: 600px) {
-    .home-fab-btn {
-        right: 16px;
-        bottom: 16px;
-        width: 48px;
-        height: 48px;
-        font-size: 1.5rem;
-    }
-}

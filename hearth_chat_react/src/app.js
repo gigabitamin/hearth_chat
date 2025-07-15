@@ -105,8 +105,8 @@ function App() {
   const [loginLoading, setLoginLoading] = useState(true);
   const [userSettings, setUserSettings] = useState(null);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [selectedRoom, setSelectedRoom] = useState(null);
-  const [selectedRoomMessages, setSelectedRoomMessages] = useState([]);
+  const [selectedRoom, setSelectedRoom] = useState(null); // 미리보기용 선택 방
+  const [selectedRoomMessages, setSelectedRoomMessages] = useState([]); // 미리보기용 메시지
   // 추가: 상단 탭/모달 상태
   const [activeTab, setActiveTab] = useState('personal'); // 'personal' | 'open'
   const [isNotifyModalOpen, setIsNotifyModalOpen] = useState(false);
@@ -114,6 +114,13 @@ function App() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false); // 새 채팅방 모달 상태
   const [showRoomListOverlay, setShowRoomListOverlay] = useState(false); // 채팅방 내 오버레이 상태
+
+  // App 컴포넌트에서 showCreateModal, setShowCreateModal, handleCreateRoomSuccess 전역 관리
+  const handleCreateRoomSuccess = (newRoom) => {
+    setShowCreateModal(false);
+    // 방 생성 후 자동 입장
+    window.location.href = `/room/${newRoom.id}`;
+  };
 
   // 앱 시작 시 CSRF 토큰 및 로그인 상태/설정값 가져오기
   useEffect(() => {
@@ -143,8 +150,8 @@ function App() {
     }
   };
 
-  // 채팅방 목록에서 방 클릭 시 호출
-  const handleRoomSelect = async (room) => {
+  // 채팅방 목록에서 방 클릭 시: 미리보기만 갱신
+  const handleRoomPreview = async (room) => {
     setSelectedRoom(room);
     // 메시지 불러오기 (예시: 최신 10개)
     try {
@@ -160,18 +167,10 @@ function App() {
     }
   };
 
-  // 오버레이에서 방 선택 시: 방 이동 + 오버레이 닫기
-  const handleOverlayRoomSelect = (room) => {
-    setShowRoomListOverlay(false);
-    // 기존 handleRoomSelect와 동일하게 동작
-    setSelectedRoom(room);
-    // 메시지 불러오기 (예시: 최신 10개)
-    fetch(`${getApiBase()}/api/chat/messages/messages/?room=${room.id}&limit=10&offset=0`, { credentials: 'include' })
-      .then(res => res.ok ? res.json() : { results: [] })
-      .then(data => setSelectedRoomMessages(data.results || []))
-      .catch(() => setSelectedRoomMessages([]));
-    // URL 이동
-    window.history.pushState({}, '', `/room/${room.id}`);
+  // 실제 입장하기 버튼 클릭 시: 방 이동
+  const handleEnterRoom = (room) => {
+    setShowRoomListOverlay(false); // 오버레이 닫기(오버레이에서만)
+    window.location.href = `/room/${room.id}`;
   };
 
   // 오버레이 닫기 핸들러 (ESC, 바깥 클릭)
@@ -208,6 +207,34 @@ function App() {
       }
     };
 
+    // 하단 정보창 렌더 함수 (공통)
+    const renderRoomInfoPanel = (onClose) => (
+      selectedRoom ? (
+        <div className="selected-room-info">
+          <h2>{selectedRoom.name}</h2>
+          {/* 방장이 설정한 프로필 이미지 등 추가 가능 */}
+          <div style={{ maxHeight: 300, overflowY: 'auto', background: 'rgba(0,0,0,0.1)', borderRadius: 8, padding: 12, marginTop: 16 }}>
+            <h4>최근 메시지</h4>
+            {selectedRoomMessages.length === 0 ? (
+              <div style={{ color: '#888' }}>아직 메시지가 없습니다.</div>
+            ) : (
+              selectedRoomMessages.map(msg => (
+                <div key={msg.id} style={{ marginBottom: 8, color: msg.type === 'send' ? '#2196f3' : '#fff' }}>
+                  <b>{msg.sender}:</b> {msg.text}
+                </div>
+              ))
+            )}
+          </div>
+          <button className="enter-room-btn" style={{ marginTop: 16 }} onClick={() => { if (onClose) onClose(); handleEnterRoom(selectedRoom); }}>입장하기</button>
+        </div>
+      ) : (
+        <div className="welcome-content">
+          <h1>Hearth 🔥 Chat</h1>
+          <p>대화방을 선택하여 채팅을 시작하세요!</p>
+        </div>
+      )
+    );
+
     return (
       <>
         <UserMenuModal
@@ -233,59 +260,50 @@ function App() {
         {showRoomListOverlay && (
           <div className="room-list-overlay" onClick={() => setShowRoomListOverlay(false)}>
             <div className="room-list-overlay-panel" onClick={e => e.stopPropagation()}>
-              <ChatRoomList
-                onRoomSelect={handleOverlayRoomSelect}
-                loginUser={loginUser}
-                loginLoading={loginLoading}
-                checkLoginStatus={checkLoginStatus}
-                onUserMenuOpen={() => setIsUserMenuOpen(true)}
-                activeTab={activeTab}
-                showCreateModal={showCreateModal}
-                setShowCreateModal={setShowCreateModal}
-              />
+              <div className="room-list-overlay-main" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <div style={{ flex: 3, overflowY: 'auto' }}>
+                  <ChatRoomList
+                    onRoomSelect={handleRoomPreview}
+                    loginUser={loginUser}
+                    loginLoading={loginLoading}
+                    checkLoginStatus={checkLoginStatus}
+                    onUserMenuOpen={() => setIsUserMenuOpen(true)}
+                    activeTab={activeTab}
+                    showCreateModal={showCreateModal}
+                    setShowCreateModal={setShowCreateModal}
+                    onCreateRoomSuccess={handleCreateRoomSuccess}
+                    selectedRoomId={selectedRoom?.id}
+                    onClose={() => setShowRoomListOverlay(false)}
+                  />
+                </div>
+                <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', borderTop: '1px solid #eee', background: '#fafbfc', padding: 12 }}>
+                  {renderRoomInfoPanel(() => setShowRoomListOverlay(false))}
+                </div>
+              </div>
             </div>
           </div>
         )}
         <Routes>
           <Route path="/" element={
             <div className="app-container">
-              <div className="room-list-container">
-                <ChatRoomList
-                  onRoomSelect={handleRoomSelect}
-                  loginUser={loginUser}
-                  loginLoading={loginLoading}
-                  checkLoginStatus={checkLoginStatus}
-                  onUserMenuOpen={() => setIsUserMenuOpen(true)}
-                  activeTab={activeTab}
-                  showCreateModal={showCreateModal}
-                  setShowCreateModal={setShowCreateModal}
-                />
-              </div>
-              <div className="welcome-container">
-                {selectedRoom ? (
-                  <div className="selected-room-info">
-                    <h2>{selectedRoom.name}</h2>
-                    {/* 방장이 설정한 프로필 이미지 등 추가 가능 */}
-                    {/* 최신 메시지 목록 */}
-                    <div style={{ maxHeight: 300, overflowY: 'auto', background: 'rgba(0,0,0,0.1)', borderRadius: 8, padding: 12, marginTop: 16 }}>
-                      <h4>최근 메시지</h4>
-                      {selectedRoomMessages.length === 0 ? (
-                        <div style={{ color: '#888' }}>아직 메시지가 없습니다.</div>
-                      ) : (
-                        selectedRoomMessages.map(msg => (
-                          <div key={msg.id} style={{ marginBottom: 8, color: msg.type === 'send' ? '#2196f3' : '#fff' }}>
-                            <b>{msg.sender}:</b> {msg.text}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="welcome-content">
-                    <h1>Hearth 🔥 Chat</h1>
-                    <p>대화방을 선택하여 채팅을 시작하세요!</p>
-                  </div>
-                )}
+              <div className="room-list-container" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <div style={{ flex: 3, overflowY: 'auto' }}>
+                  <ChatRoomList
+                    onRoomSelect={handleRoomPreview}
+                    loginUser={loginUser}
+                    loginLoading={loginLoading}
+                    checkLoginStatus={checkLoginStatus}
+                    onUserMenuOpen={() => setIsUserMenuOpen(true)}
+                    activeTab={activeTab}
+                    showCreateModal={showCreateModal}
+                    setShowCreateModal={setShowCreateModal}
+                    onCreateRoomSuccess={handleCreateRoomSuccess}
+                    selectedRoomId={selectedRoom?.id}
+                  />
+                </div>
+                <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', borderTop: '1px solid #eee', background: '#fafbfc', padding: 12 }}>
+                  {renderRoomInfoPanel()}
+                </div>
               </div>
             </div>
           } />
