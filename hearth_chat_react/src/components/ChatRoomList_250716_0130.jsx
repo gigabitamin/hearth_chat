@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import LoginModal from './LoginModal';
 import './ChatRoomList.css';
 import { useNavigate } from 'react-router-dom';
@@ -53,16 +53,14 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
     const [wsConnected, setWsConnected] = useState(false);
     const wsRef = useRef(null);
     const listRef = useRef(null);
+    // const scrollPositions = useRef({}); // 제거
+    // const prevSelectedRoomId = useRef(null); // 제거
 
-    // [A] 컴포넌트 마운트/언마운트 시점 확인
     useEffect(() => {
-        console.log(`%c[LIFECYCLE] ChatRoomList MOUNTED - Key: ${overlayKey}`, 'color: green; font-weight: bold;');
-
         fetchRooms();
         fetchPublicRooms();
         connectWebSocket();
         return () => {
-            console.log(`%c[LIFECYCLE] ChatRoomList UNMOUNTING - Key: ${overlayKey}`, 'color: red; font-weight: bold;');
             if (wsRef.current) {
                 wsRef.current.close();
             }
@@ -158,24 +156,21 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
         }
     };
 
-    // [C] handleRoomClick 진입 시점 확인
+    // 방 클릭 시 스크롤 위치 저장 (미리보기/입장 모두)
     const handleRoomClick = (room) => {
-        console.log(`%c[EVENT] handleRoomClick triggered - Room: ${room.name}, Key: ${overlayKey}`, 'color: blue; font-weight: bold;');
         if (listRef.current && setScrollPosition) {
-            const currentPosition = listRef.current.scrollTop;
-            console.log(`[EVENT] Saving scroll position: ${currentPosition}`);
-            setScrollPosition(overlayKey || 'default', currentPosition);
+            setScrollPosition(overlayKey || 'default', listRef.current.scrollTop);
         }
         onRoomSelect(room);
+        // prevSelectedRoomId.current = room.id; // 제거
     };
 
-    // [B] 스크롤 복원 useEffect 진입 및 [D] listRef.current 상태 확인
-    useLayoutEffect(() => {
+    // selectedRoomId, overlayKey, currentScrollPosition이 바뀌면 스크롤 위치 복원
+    useEffect(() => {
         if (listRef.current) {
             listRef.current.scrollTop = currentScrollPosition || 0;
         }
     }, [selectedRoomId, overlayKey, currentScrollPosition]);
-
 
     const handleCreateRoom = async (e) => {
         e.preventDefault();

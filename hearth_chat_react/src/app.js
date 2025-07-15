@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Routes, Route, useNavigate, useParams, useLocation } from 'react-router-dom';
 import ChatBox from './components/chat_box';
 import ChatRoomList from './components/ChatRoomList';
@@ -116,6 +116,14 @@ function App() {
   const [showCreateModal, setShowCreateModal] = useState(false); // 새 채팅방 모달 상태
   const [showRoomListOverlay, setShowRoomListOverlay] = useState(false); // 채팅방 내 오버레이 상태
 
+  // 스크롤 위치를 overlayKey별로 관리
+  const scrollPositions = useRef({});
+
+  // 스크롤 위치 저장 함수
+  const setScrollPosition = (key, pos) => {
+    scrollPositions.current[key] = pos;
+  };
+
   // App 컴포넌트에서 showCreateModal, setShowCreateModal, handleCreateRoomSuccess 전역 관리
   const handleCreateRoomSuccess = (newRoom) => {
     setShowCreateModal(false);
@@ -151,8 +159,10 @@ function App() {
     }
   };
 
-  // 채팅방 목록에서 방 클릭 시: 미리보기만 갱신
-  const handleRoomPreview = async (room) => {
+  // 채팅방 목록에서 방 클릭 시: 미리보기만 갱신 + 스크롤 위치 저장
+  const handleRoomPreview = async (room, overlayKey = 'lobby') => {
+    // 현재 스크롤 위치 저장 (ChatRoomList에서 호출)
+    // setScrollPosition은 ChatRoomList에서 직접 호출하도록 위임
     setSelectedRoom(room);
     // 메시지 불러오기 (예시: 최신 10개)
     try {
@@ -272,7 +282,7 @@ function App() {
               <div className="room-list-overlay-main" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                 <div style={{ flex: 3, overflowY: 'auto' }}>
                   <ChatRoomList
-                    onRoomSelect={handleRoomPreview}
+                    onRoomSelect={room => handleRoomPreview(room, 'overlay')}
                     loginUser={loginUser}
                     loginLoading={loginLoading}
                     checkLoginStatus={checkLoginStatus}
@@ -283,6 +293,9 @@ function App() {
                     selectedRoomId={selectedRoom?.id}
                     onClose={() => setShowRoomListOverlay(false)}
                     overlayKey="overlay"
+                    scrollPositions={scrollPositions.current}
+                    setScrollPosition={setScrollPosition}
+                    currentScrollPosition={scrollPositions.current['overlay'] || 0}
                   />
                 </div>
                 <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', borderTop: '1px solid #eee', background: '#fafbfc', padding: 12 }}>
@@ -298,7 +311,7 @@ function App() {
               <div className="room-list-container" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                 <div style={{ flex: 3, overflowY: 'auto' }}>
                   <ChatRoomList
-                    onRoomSelect={handleRoomPreview}
+                    onRoomSelect={room => handleRoomPreview(room, 'lobby')}
                     loginUser={loginUser}
                     loginLoading={loginLoading}
                     checkLoginStatus={checkLoginStatus}
@@ -308,6 +321,9 @@ function App() {
                     setShowCreateModal={setShowCreateModal}
                     selectedRoomId={selectedRoom?.id}
                     overlayKey="lobby"
+                    scrollPositions={scrollPositions.current}
+                    setScrollPosition={setScrollPosition}
+                    currentScrollPosition={scrollPositions.current['lobby'] || 0}
                   />
                 </div>
                 <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', borderTop: '1px solid #eee', background: '#fafbfc', padding: 12 }}>

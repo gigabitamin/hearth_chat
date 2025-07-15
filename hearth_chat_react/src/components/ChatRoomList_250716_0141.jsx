@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import LoginModal from './LoginModal';
 import './ChatRoomList.css';
 import { useNavigate } from 'react-router-dom';
@@ -170,9 +170,15 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
     };
 
     // [B] 스크롤 복원 useEffect 진입 및 [D] listRef.current 상태 확인
-    useLayoutEffect(() => {
+    useEffect(() => {
+        console.log(`%c[EFFECT] Scroll restore EFFECT triggered - Key: ${overlayKey}, Pos: ${currentScrollPosition}`, 'color: orange; font-weight: bold;');
+        console.log('[EFFECT] Checking listRef.current:', listRef.current);
+
         if (listRef.current) {
             listRef.current.scrollTop = currentScrollPosition || 0;
+            console.log(`[EFFECT] Scroll position restored to: ${listRef.current.scrollTop}`);
+        } else {
+            console.log('[EFFECT] listRef.current is null, cannot restore scroll.');
         }
     }, [selectedRoomId, overlayKey, currentScrollPosition]);
 

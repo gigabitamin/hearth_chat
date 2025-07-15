@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import LoginModal from './LoginModal';
 import './ChatRoomList.css';
 import { useNavigate } from 'react-router-dom';
@@ -37,7 +37,7 @@ const API_BASE = isProd
             ? 'http://192.168.44.9:8000'
             : `http://${hostname}:8000`;
 
-const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, checkLoginStatus, onUserMenuOpen, activeTab, showCreateModal, setShowCreateModal, onClose, onCreateRoomSuccess, overlayKey, scrollPositions, setScrollPosition, currentScrollPosition }) => {
+const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, checkLoginStatus, onUserMenuOpen, activeTab, showCreateModal, setShowCreateModal, onClose, onCreateRoomSuccess, overlayKey }) => {
     const navigate = useNavigate();
     const [rooms, setRooms] = useState([]);
     const [publicRooms, setPublicRooms] = useState([]);
@@ -53,16 +53,14 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
     const [wsConnected, setWsConnected] = useState(false);
     const wsRef = useRef(null);
     const listRef = useRef(null);
+    const scrollPositions = useRef({});
+    const prevSelectedRoomId = useRef(null);
 
-    // [A] 컴포넌트 마운트/언마운트 시점 확인
     useEffect(() => {
-        console.log(`%c[LIFECYCLE] ChatRoomList MOUNTED - Key: ${overlayKey}`, 'color: green; font-weight: bold;');
-
         fetchRooms();
         fetchPublicRooms();
         connectWebSocket();
         return () => {
-            console.log(`%c[LIFECYCLE] ChatRoomList UNMOUNTING - Key: ${overlayKey}`, 'color: red; font-weight: bold;');
             if (wsRef.current) {
                 wsRef.current.close();
             }
@@ -158,24 +156,28 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
         }
     };
 
-    // [C] handleRoomClick 진입 시점 확인
+    // 방 클릭 시 스크롤 위치 저장 (미리보기/입장 모두)
     const handleRoomClick = (room) => {
-        console.log(`%c[EVENT] handleRoomClick triggered - Room: ${room.name}, Key: ${overlayKey}`, 'color: blue; font-weight: bold;');
-        if (listRef.current && setScrollPosition) {
-            const currentPosition = listRef.current.scrollTop;
-            console.log(`[EVENT] Saving scroll position: ${currentPosition}`);
-            setScrollPosition(overlayKey || 'default', currentPosition);
+        if (listRef.current) {
+            scrollPositions.current[overlayKey || 'default'] = listRef.current.scrollTop;
+            // 📌 1. 스크롤 위치 저장 시점 로그
+            console.log('스크롤 위치 저장', `Key: ${overlayKey}`, `Pos: ${listRef.current.scrollTop}`);
         }
         onRoomSelect(room);
+        prevSelectedRoomId.current = room.id;
     };
 
-    // [B] 스크롤 복원 useEffect 진입 및 [D] listRef.current 상태 확인
-    useLayoutEffect(() => {
-        if (listRef.current) {
-            listRef.current.scrollTop = currentScrollPosition || 0;
+    // selectedRoomId가 바뀌면 스크롤 위치 복원 (미리보기/입장 모두)
+    useEffect(() => {
+        if (listRef.current && prevSelectedRoomId.current === selectedRoomId) {
+            const pos = scrollPositions.current[overlayKey || 'default'] || 0;
+            // 📌 2. 스크롤 위치 복원 시도 시점 로그
+            console.log('스크롤 위치 복원 시도', `Key: ${overlayKey}`, `Saved Pos: ${pos}`);
+            listRef.current.scrollTop = pos;
+            // 📌 3. 스크롤 위치 복원 완료 시점 로그
+            console.log('스크롤 위치 복원 완료', `Current Pos: ${listRef.current.scrollTop}`);
         }
-    }, [selectedRoomId, overlayKey, currentScrollPosition]);
-
+    }, [selectedRoomId, overlayKey]);
 
     const handleCreateRoom = async (e) => {
         e.preventDefault();
