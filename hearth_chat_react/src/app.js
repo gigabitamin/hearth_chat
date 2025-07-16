@@ -22,6 +22,32 @@ const getApiBase = () => {
   return `http://${hostname}:8000`;
 };
 
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+}
+
+const csrfFetch = async (url, options = {}) => {
+  const csrftoken = getCookie('csrftoken');
+  const defaultHeaders = {
+    'X-CSRFToken': csrftoken,
+    'Content-Type': 'application/json',
+  };
+
+  const mergedOptions = {
+    credentials: 'include',
+    ...options,
+    headers: {
+      ...defaultHeaders,
+      ...(options.headers || {}),
+    },
+  };
+
+  return fetch(url, mergedOptions); // ✅ fetch로 수정
+};
+
+
 function LobbyPage({ loginUser, loginLoading, checkLoginStatus, userSettings, setUserSettings, onUserMenuOpen }) {
   const navigate = useNavigate();
 
@@ -67,7 +93,7 @@ function ChatRoomPage({ loginUser, loginLoading, checkLoginStatus, userSettings,
     const fetchRoom = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`${getApiBase()}/api/chat/rooms/${roomId}/`, { credentials: 'include' });
+        const res = await csrfFetch(`${getApiBase()}/api/chat/rooms/${roomId}/`, { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
           setRoom(data);
@@ -305,7 +331,7 @@ function AppContent(props) {
                     setSelectedRoom(room);
                     // 메시지 불러오기 (예시: 최신 10개)
                     try {
-                      const res = await fetch(`${getApiBase()}/api/chat/messages/messages/?room=${room.id}&limit=10&offset=0`, { credentials: 'include' });
+                      const res = await csrfFetch(`${getApiBase()}/api/chat/messages/messages/?room=${room.id}&limit=10&offset=0`, { credentials: 'include' });
                       if (res.ok) {
                         const data = await res.json();
                         setSelectedRoomMessages(data.results || []);
@@ -345,7 +371,7 @@ function AppContent(props) {
                     setSelectedRoom(room);
                     // 메시지 불러오기 (예시: 최신 10개)
                     try {
-                      const res = await fetch(`${getApiBase()}/api/chat/messages/messages/?room=${room.id}&limit=10&offset=0`, { credentials: 'include' });
+                      const res = await csrfFetch(`${getApiBase()}/api/chat/messages/messages/?room=${room.id}&limit=10&offset=0`, { credentials: 'include' });
                       if (res.ok) {
                         const data = await res.json();
                         setSelectedRoomMessages(data.results || []);
@@ -420,7 +446,7 @@ function App() {
   // rooms/messages/users 데이터 fetch (rooms+users+messages)
   const fetchAllRooms = async () => {
     try {
-      const res = await fetch(`${getApiBase()}/api/chat/rooms/`, { credentials: 'include' });
+      const res = await csrfFetch(`${getApiBase()}/api/chat/rooms/`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setAllRooms(data.results || data);
@@ -429,7 +455,7 @@ function App() {
   };
   const fetchAllUsers = async () => {
     try {
-      const res = await fetch(`${getApiBase()}/api/chat/users/`, { credentials: 'include' });
+      const res = await csrfFetch(`${getApiBase()}/api/chat/users/`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setAllUsers(data.results || data);
@@ -438,7 +464,7 @@ function App() {
   };
   const fetchAllMessages = async () => {
     try {
-      const res = await fetch(`${getApiBase()}/api/chat/messages/all/`, { credentials: 'include' });
+      const res = await csrfFetch(`${getApiBase()}/api/chat/messages/all/`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setAllMessages(data.results || data);
@@ -458,19 +484,13 @@ function App() {
 
   // 앱 시작 시 CSRF 토큰 및 로그인 상태/설정값 가져오기
   useEffect(() => {
-    fetch(`${getApiBase()}/api/csrf/`, { credentials: 'include' });
+    csrfFetch(`${getApiBase()}/api/csrf/`, { credentials: 'include' });
     checkLoginStatus();
   }, []);
-
-  function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop().split(';').shift();
-  }
   
   const checkLoginStatus = async () => {
     try {
-      const response = await fetch(`${getApiBase()}/api/chat/user/settings/`, {
+      const response = await csrfFetch(`${getApiBase()}/api/chat/user/settings/`, {
         credentials: 'include',
         headers: {
           'X-CSRFToken': getCookie('csrftoken'),
@@ -496,7 +516,7 @@ function App() {
   // 알림 목록 fetch (즐겨찾기 방 최신 메시지)
   const fetchNotifications = async () => {
     try {
-      const response = await fetch(`${getApiBase()}/api/chat/rooms/my_favorites/`, {
+      const response = await csrfFetch(`${getApiBase()}/api/chat/rooms/my_favorites/`, {
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
       });
