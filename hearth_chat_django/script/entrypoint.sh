@@ -25,6 +25,7 @@ echo "Starting Django application..."
 # EOF
 
 # psql "$DATABASE_URL" -c "DELETE FROM django_migrations WHERE app = 'chat';"
+# python manage.py migrate --fake chat zero
 
 # DB 마이그레이션 (실패 로그 저장 및 출력)
 echo "Running database migrations..."
