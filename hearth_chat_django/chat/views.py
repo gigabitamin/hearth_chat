@@ -607,6 +607,7 @@ class ChatViewSet(viewsets.ModelViewSet):
             message_list.append(message_data)
         return Response({'results': message_list})
 
+@method_decorator(csrf_exempt, name='dispatch')
 class UserSettingsView(APIView):
     # authentication_classes = [CsrfExemptSessionAuthentication]    
     permission_classes = [IsAuthenticated]
