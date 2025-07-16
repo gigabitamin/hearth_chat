@@ -825,6 +825,8 @@ class PinnedMessageViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
     
 # 새로운 user view 등록 기존 ViewSet 구조는 그대로 둠
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 @method_decorator(csrf_exempt, name='dispatch')  # ✅ CSRF 무시
 class UserChatCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
