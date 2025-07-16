@@ -131,7 +131,8 @@ class Chat(models.Model):
     ai_type = models.CharField(max_length=50, null=True, blank=True, verbose_name='AI 타입')  # ai일 때만 (openai, google 등)
     # 메시지 정보
     message_type = models.CharField(max_length=10, choices=MESSAGE_TYPE_CHOICES, verbose_name='메시지 타입')  # text, image, system 등
-    content = models.TextField(verbose_name='메시지 내용')
+    # content = models.TextField(verbose_name='메시지 내용')
+    content = models.TextField()
     timestamp = models.DateTimeField(default=timezone.now, verbose_name='전송 시간')
     # 세션 관리 (나중에 사용자별 구분을 위해)
     session_id = models.CharField(max_length=100, blank=True, null=True, verbose_name='세션 ID')
@@ -154,7 +155,7 @@ class Chat(models.Model):
             models.Index(fields=['room', 'timestamp']),
             models.Index(fields=['sender_type', 'timestamp']),
             models.Index(fields=['username']),
-            models.Index(fields=['content']),
+            # models.Index(fields=['content']),
             models.Index(fields=['created_at']),
         ]
     def __str__(self):
