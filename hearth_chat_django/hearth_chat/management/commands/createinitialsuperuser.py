@@ -12,7 +12,7 @@ class Command(BaseCommand):
         User = get_user_model()
         username = 'gigabitamin'
         email = 'gigabitamin@gmail.com'
-        password = os.getenv('DJANGO_SUPERUSER_PASSWORD')
+        password = 'windmill4u@'
         user, created = User.objects.get_or_create(username=username, defaults={'email': email})
         user.email = email
         user.is_superuser = True
