@@ -478,12 +478,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                 </div>
                                 <div className="room-latest-message" style={{ fontSize: 12, color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 2 }}>
                                     {/* 최신 메시지(임시: room.latest_message) */}
-                                    {room.latest_message?.content ? (
-                                        <span>{room.latest_message.content}</span>
-                                    ) : (
-                                        <span style={{ color: '#bbb' }}>메시지 없음</span>
-                                    )}
-
+                                    {room.latest_message ? room.latest_message : <span style={{ color: '#bbb' }}>메시지 없음</span>}
                                 </div>
                             </div>
                             {/* 오른쪽: 즐겨찾기, 삭제, 입장 버튼 */}

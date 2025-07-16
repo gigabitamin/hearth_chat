@@ -15,9 +15,30 @@ class ChatRoomParticipantSerializer(serializers.ModelSerializer):
 
 class ChatRoomSerializer(serializers.ModelSerializer):
     participants = ChatRoomParticipantSerializer(many=True, source='chatroomparticipant_set', read_only=True)
+    favorite_users = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
+    is_favorite = serializers.SerializerMethodField()
+    latest_message = serializers.SerializerMethodField()
+
     class Meta:
         model = ChatRoom
-        fields = ['id', 'name', 'room_type', 'ai_provider', 'is_public', 'is_active', 'is_voice_call', 'participants', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'room_type', 'ai_provider', 'is_public', 'is_active', 'is_voice_call', 'participants', 'favorite_users', 'is_favorite', 'latest_message', 'created_at', 'updated_at']
+
+    def get_is_favorite(self, obj):
+        user = self.context.get('request').user
+        if user.is_authenticated:
+            return obj.favorite_users.filter(id=user.id).exists()
+        return False
+
+    def get_latest_message(self, obj):
+        last_msg = obj.chat_set.order_by('-timestamp').first()
+        if last_msg:
+            return {
+                'content': last_msg.content,
+                'timestamp': last_msg.timestamp,
+                'sender': last_msg.username or last_msg.ai_name or '시스템',
+                'message_type': last_msg.message_type,
+            }
+        return None
 
 class ChatSerializer(serializers.ModelSerializer):
     sender = UserSerializer(read_only=True)

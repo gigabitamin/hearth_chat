@@ -2,11 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { Routes, Route, useNavigate, useParams, useLocation } from 'react-router-dom';
 import ChatBox from './components/chat_box';
 import ChatRoomList from './components/ChatRoomList';
-import UserMenuModal from './components/UserMenuModal';
 import HeaderBar from './components/HeaderBar';
 import NotifyModal from './components/NotifyModal';
 import SearchModal from './components/SearchModal';
 import CreateRoomModal from './components/CreateRoomModal'; // (가정: 모달 컴포넌트 분리)
+import LoginModal from './components/LoginModal';
+import SettingsModal from './components/SettingsModal';
 import './App.css';
 
 // 환경에 따라 API_BASE 자동 설정 함수 추가
@@ -48,7 +49,7 @@ function LobbyPage({ loginUser, loginLoading, checkLoginStatus, userSettings, se
   );
 }
 
-function ChatRoomPage({ loginUser, loginLoading, checkLoginStatus, userSettings, setUserSettings, onUserMenuOpen }) {
+function ChatRoomPage({ loginUser, loginLoading, checkLoginStatus, userSettings, setUserSettings, onUserMenuOpen, isSettingsModalOpen, setIsSettingsModalOpen, isLoginModalOpen, setIsLoginModalOpen, settingsTab, setSettingsTab }) {
   const { roomId } = useParams();
   const navigate = useNavigate();
   const [room, setRoom] = useState(null);
@@ -96,6 +97,12 @@ function ChatRoomPage({ loginUser, loginLoading, checkLoginStatus, userSettings,
         userSettings={userSettings}
         setUserSettings={setUserSettings}
         onUserMenuOpen={onUserMenuOpen}
+        isSettingsModalOpen={isSettingsModalOpen}
+        setIsSettingsModalOpen={setIsSettingsModalOpen}
+        isLoginModalOpen={isLoginModalOpen}
+        setIsLoginModalOpen={setIsLoginModalOpen}
+        settingsTab={settingsTab}
+        setSettingsTab={setSettingsTab}
       />
     </div>
   );
@@ -108,8 +115,6 @@ function AppContent(props) {
     loginLoading,
     userSettings,
     setUserSettings,
-    isUserMenuOpen,
-    setIsUserMenuOpen,
     selectedRoom,
     setSelectedRoom,
     selectedRoomMessages,
@@ -122,6 +127,8 @@ function AppContent(props) {
     setIsSearchModalOpen,
     isSettingsModalOpen,
     setIsSettingsModalOpen,
+    isLoginModalOpen,
+    setIsLoginModalOpen,
     showCreateModal,
     setShowCreateModal,
     showRoomListOverlay,
@@ -131,7 +138,14 @@ function AppContent(props) {
     wsConnected,
     setWsConnected,
     userInfo,
-    onDeleteAccount
+    onDeleteAccount,
+    notifications,
+    setNotifications,
+    allRooms,
+    allMessages,
+    allUsers,
+    settingsTab,
+    setSettingsTab,
   } = props;
 
   const location = useLocation();
@@ -183,25 +197,49 @@ function AppContent(props) {
 
   return (
     <>
-      <UserMenuModal
-        isOpen={isUserMenuOpen}
-        onClose={() => setIsUserMenuOpen(false)}
-        loginUser={loginUser}
-        checkLoginStatus={checkLoginStatus}
-      />
       {/* 상단바 공통 렌더링 */}
       <HeaderBar
         activeTab={activeTab}
         onTabChange={handleTabChange}
         onSearchClick={() => setIsSearchModalOpen(true)}
         onNotifyClick={() => setIsNotifyModalOpen(true)}
-        onSettingsClick={() => setIsSettingsModalOpen(true)}
+        onSettingsClick={() => {
+          console.log('설정 버튼 클릭됨!');
+          setIsSettingsModalOpen(true);
+        }}
+        onLoginClick={() => {
+          console.log('로그인 버튼 클릭됨!');
+          setIsLoginModalOpen(true);
+        }}
         onCreateRoomClick={() => setShowCreateModal(true)}
+        loginUser={loginUser}
         title={headerTitle}
       />
       {/* 알림/검색 모달 */}
-      <NotifyModal open={isNotifyModalOpen} onClose={() => setIsNotifyModalOpen(false)} notifications={[]} />
-      <SearchModal open={isSearchModalOpen} onClose={() => setIsSearchModalOpen(false)} />
+      <NotifyModal open={isNotifyModalOpen} onClose={() => setIsNotifyModalOpen(false)} notifications={notifications} />
+      <SearchModal open={isSearchModalOpen} onClose={() => setIsSearchModalOpen(false)} rooms={allRooms} messages={allMessages} users={allUsers} />
+      {/* 로그인 모달 */}
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        onSocialLogin={(url) => {
+          const popupWidth = 480;
+          const popupHeight = 600;
+          const left = window.screenX + (window.outerWidth - popupWidth) / 2;
+          const top = window.screenY + (window.outerHeight - popupHeight) / 2;
+          window.open(url, 'social_login', `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes`);
+        }}
+      />
+      {/* 설정 모달 */}
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        tab={settingsTab}
+        setTab={setSettingsTab}
+        userSettings={userSettings}
+        setUserSettings={setUserSettings}
+        loginUser={loginUser}
+      />
       {/* 새 방 만들기 모달을 AppContent에서 항상 렌더링 */}
       {showCreateModal && (
         <CreateRoomModal
@@ -235,7 +273,7 @@ function AppContent(props) {
                   loginUser={loginUser}
                   loginLoading={loginLoading}
                   checkLoginStatus={checkLoginStatus}
-                  onUserMenuOpen={() => setIsUserMenuOpen(true)}
+                  onUserMenuOpen={() => setIsSettingsModalOpen(true)}
                   activeTab={activeTab}
                   showCreateModal={showCreateModal}
                   setShowCreateModal={setShowCreateModal}
@@ -275,7 +313,7 @@ function AppContent(props) {
                   loginUser={loginUser}
                   loginLoading={loginLoading}
                   checkLoginStatus={checkLoginStatus}
-                  onUserMenuOpen={() => setIsUserMenuOpen(true)}
+                  onUserMenuOpen={() => setIsSettingsModalOpen(true)}
                   activeTab={activeTab}
                   showCreateModal={showCreateModal}
                   setShowCreateModal={setShowCreateModal}
@@ -296,7 +334,13 @@ function AppContent(props) {
             checkLoginStatus={checkLoginStatus}
             userSettings={userSettings}
             setUserSettings={setUserSettings}
-            onUserMenuOpen={() => setIsUserMenuOpen(true)}
+            onUserMenuOpen={() => setIsSettingsModalOpen(true)}
+            isSettingsModalOpen={isSettingsModalOpen}
+            setIsSettingsModalOpen={setIsSettingsModalOpen}
+            isLoginModalOpen={isLoginModalOpen}
+            setIsLoginModalOpen={setIsLoginModalOpen}
+            settingsTab={settingsTab}
+            setSettingsTab={setSettingsTab}
           />
         } />
       </Routes>
@@ -308,7 +352,6 @@ function App() {
   const [loginUser, setLoginUser] = useState(null);
   const [loginLoading, setLoginLoading] = useState(true);
   const [userSettings, setUserSettings] = useState(null);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null); // 미리보기용 선택 방
   const [selectedRoomMessages, setSelectedRoomMessages] = useState([]); // 미리보기용 메시지
   // 추가: 상단 탭/모달 상태
@@ -316,30 +359,49 @@ function App() {
   const [isNotifyModalOpen, setIsNotifyModalOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false); // 새 채팅방 모달 상태
   const [showRoomListOverlay, setShowRoomListOverlay] = useState(false); // 채팅방 내 오버레이 상태
   const [wsConnected, setWsConnected] = useState(false); // WebSocket 연결 상태 전역 관리
+  const [notifications, setNotifications] = useState([]);
+  const [settingsTab, setSettingsTab] = useState('user');
 
-  // 회원탈퇴 API 연동 함수
-  const onDeleteAccount = async () => {
+  // 검색 데이터 준비
+  const [allRooms, setAllRooms] = useState([]);
+  const [allMessages, setAllMessages] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
+
+  // rooms/messages/users 데이터 fetch (rooms+users+messages)
+  const fetchAllRooms = async () => {
     try {
-      const res = await fetch(`${getApiBase()}/api/chat/user/delete/`, {
-        method: 'DELETE',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const res = await fetch(`${getApiBase()}/api/chat/rooms/`, { credentials: 'include' });
       if (res.ok) {
-        alert('회원탈퇴가 완료되었습니다.');
-        setLoginUser(null);
-        setUserSettings(null);
-        window.location.href = '/';
-      } else {
-        alert('회원탈퇴에 실패했습니다.');
+        const data = await res.json();
+        setAllRooms(data.results || data);
       }
-    } catch {
-      alert('회원탈퇴 중 오류가 발생했습니다.');
-    }
+    } catch { }
   };
+  const fetchAllUsers = async () => {
+    try {
+      const res = await fetch(`${getApiBase()}/api/chat/users/`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setAllUsers(data.results || data);
+      }
+    } catch { }
+  };
+  const fetchAllMessages = async () => {
+    try {
+      const res = await fetch(`${getApiBase()}/api/chat/messages/all/`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setAllMessages(data.results || data);
+      }
+    } catch { }
+  };
+  useEffect(() => { if (isSearchModalOpen) { fetchAllRooms(); fetchAllUsers(); fetchAllMessages(); } }, [isSearchModalOpen]);
+
+
 
   // App 컴포넌트에서 showCreateModal, setShowCreateModal, handleCreateRoomSuccess 전역 관리
   const handleCreateRoomSuccess = (newRoom) => {
@@ -376,13 +438,65 @@ function App() {
     }
   };
 
+  // 알림 목록 fetch (즐겨찾기 방 최신 메시지)
+  const fetchNotifications = async () => {
+    try {
+      const response = await fetch(`${getApiBase()}/api/chat/rooms/my_favorites/`, {
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!response.ok) throw new Error('Failed to fetch favorite rooms');
+      const data = await response.json();
+      const notis = (data.results || data).map(room => ({
+        roomId: room.id,
+        roomName: room.name,
+        latestMessage: room.latest_message ? room.latest_message.content : '(메시지 없음)',
+        timestamp: room.latest_message ? room.latest_message.timestamp : null,
+        sender: room.latest_message ? room.latest_message.sender : '',
+      }));
+      setNotifications(notis);
+    } catch (err) {
+      setNotifications([]);
+    }
+  };
+  // 알림 모달 열릴 때마다 fetch
+  useEffect(() => {
+    if (isNotifyModalOpen) {
+      fetchNotifications();
+    }
+  }, [isNotifyModalOpen]);
+
+  // WebSocket 실시간 알림 push 연동
+  React.useEffect(() => {
+    let ws;
+    const connect = () => {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.hostname;
+      const wsUrl = (host === 'localhost' || host === '127.0.0.1')
+        ? `${protocol}//${host}:8000/ws/chat/`
+        : `${protocol}//${host}/ws/chat/`;
+      ws = new window.WebSocket(wsUrl);
+      ws.onopen = () => { console.log('[App] WebSocket 연결됨'); };
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'room_list_update') {
+            fetchNotifications(); // 실시간 알림 갱신
+          }
+        } catch (e) { console.error('[App] WebSocket onmessage 파싱 오류', e); }
+      };
+      ws.onclose = () => { setTimeout(connect, 3000); };
+      ws.onerror = () => { ws.close(); };
+    };
+    connect();
+    return () => { if (ws) ws.close(); };
+  }, []);
+
   return <AppContent
     loginUser={loginUser}
     loginLoading={loginLoading}
     userSettings={userSettings}
     setUserSettings={setUserSettings}
-    isUserMenuOpen={isUserMenuOpen}
-    setIsUserMenuOpen={setIsUserMenuOpen}
     selectedRoom={selectedRoom}
     setSelectedRoom={setSelectedRoom}
     selectedRoomMessages={selectedRoomMessages}
@@ -395,6 +509,8 @@ function App() {
     setIsSearchModalOpen={setIsSearchModalOpen}
     isSettingsModalOpen={isSettingsModalOpen}
     setIsSettingsModalOpen={setIsSettingsModalOpen}
+    isLoginModalOpen={isLoginModalOpen}
+    setIsLoginModalOpen={setIsLoginModalOpen}
     showCreateModal={showCreateModal}
     setShowCreateModal={setShowCreateModal}
     showRoomListOverlay={showRoomListOverlay}
@@ -404,7 +520,13 @@ function App() {
     wsConnected={wsConnected}
     setWsConnected={setWsConnected}
     userInfo={loginUser}
-    onDeleteAccount={onDeleteAccount}
+    notifications={notifications}
+    setNotifications={setNotifications}
+    allRooms={allRooms}
+    allMessages={allMessages}
+    allUsers={allUsers}
+    settingsTab={settingsTab}
+    setSettingsTab={setSettingsTab}
   />;
 }
 

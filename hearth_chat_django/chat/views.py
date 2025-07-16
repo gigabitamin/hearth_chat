@@ -343,6 +343,49 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         room.delete()
         return Response({'deleted': True, 'room_id': room.id})
 
+    @action(detail=True, methods=['post'])
+    def favorite(self, request, pk=None):
+        room = self.get_object()
+        user = request.user
+        room.favorite_users.add(user)
+        return Response({'favorited': True, 'room_id': room.id})
+
+    @action(detail=True, methods=['delete'])
+    def unfavorite(self, request, pk=None):
+        room = self.get_object()
+        user = request.user
+        room.favorite_users.remove(user)
+        return Response({'favorited': False, 'room_id': room.id})
+
+    @action(detail=False, methods=['get'])
+    def my_favorites(self, request):
+        user = request.user
+        rooms = ChatRoom.objects.filter(favorite_users=user)
+        page = self.paginate_queryset(rooms)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True, context={'request': request})
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(rooms, many=True, context={'request': request})
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['post'])
+    def user_chat(self, request):
+        """1:1 채팅방 생성/조회 API (상대 user_id)"""
+        user1 = request.user
+        user2_id = request.data.get('user_id')
+        if not user2_id:
+            return Response({'error': 'user_id is required'}, status=400)
+        try:
+            user2 = User.objects.get(id=user2_id)
+        except User.DoesNotExist:
+            return Response({'error': '상대 유저가 존재하지 않습니다.'}, status=404)
+        # 기존 1:1 방이 있으면 반환
+        room = ChatRoom.objects.filter(room_type='user', participants=user1).filter(participants=user2).first()
+        if not room:
+            room = ChatRoom.create_user_chat_room(user1, user2)
+        serializer = self.get_serializer(room, context={'request': request})
+        return Response(serializer.data)
+
 class ChatViewSet(viewsets.ModelViewSet):
     queryset = Chat.objects.all()
     serializer_class = ChatSerializer
@@ -413,74 +456,159 @@ class ChatViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({'error': str(e)}, status=500)
 
+    @action(detail=False, methods=['get'])
+    def all(self, request):
+        """전체 메시지 목록 반환 (최근순 100개)"""
+        messages = Chat.objects.all().order_by('-timestamp')[:100]
+        message_list = []
+        for msg in messages:
+            if msg.sender_type == 'user':
+                sender_label = msg.username or f"User({msg.user_id})"
+            elif msg.sender_type == 'ai':
+                sender_label = msg.ai_name or msg.ai_type or 'AI'
+            elif msg.sender_type == 'system':
+                sender_label = 'System'
+            else:
+                sender_label = msg.username or msg.ai_name or 'Unknown'
+            message_data = {
+                'id': msg.id,
+                'content': msg.content,
+                'timestamp': msg.timestamp,
+                'sender': sender_label,
+                'room_id': msg.room_id,
+                'room_name': msg.room.name if msg.room else '',
+            }
+            message_list.append(message_data)
+        return Response({'results': message_list})
+
 class UserSettingsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        """사용자 설정 조회"""
         try:
-            settings, _ = UserSettings.objects.get_or_create(user=request.user)
+            settings, created = UserSettings.objects.get_or_create(user=request.user)
             serializer = UserSettingsSerializer(settings)
-            settings_data = serializer.data
+            
+            # 사용자 정보도 함께 반환
+            from allauth.socialaccount.models import SocialAccount
+            social_accounts = list(SocialAccount.objects.filter(user=request.user).values_list('provider', flat=True))
+            has_password = request.user.has_usable_password()
+            is_social_only = bool(social_accounts) and not has_password
+            
+            return Response({
+                'settings': serializer.data,
+                'user': {
+                    'id': request.user.id,
+                    'username': request.user.username,
+                    'email': request.user.email,
+                    'email_verified': request.user.emailaddress_set.filter(verified=True).exists(),
+                    'is_superuser': request.user.is_superuser,
+                    'is_staff': request.user.is_staff,
+                    'social_accounts': social_accounts,
+                    'has_password': has_password,
+                    'is_social_only': is_social_only,
+                }
+            })
         except Exception as e:
-            print(f"UserSettings 오류 (기본값 사용): {e}")
-            # UserSettings 테이블이 없거나 오류 발생 시 기본값 사용
-            settings_data = {
-                "ai_response_enabled": True,
-                "ai_model": "gemini",
-                "ai_temperature": 0.7,
-                "ai_max_tokens": 1000,
-                "ai_system_prompt": "당신은 친근하고 도움이 되는 AI 어시스턴트입니다."
-            }
-        
-        user_data = {
-            "id": request.user.id, # id 필드 추가
-            "username": request.user.username,
-            "email": request.user.email,
-            "email_verified": request.user.emailaddress_set.filter(verified=True).exists() if hasattr(request.user, 'emailaddress_set') else False,
-            "is_superuser": request.user.is_superuser,
-            "is_staff": request.user.is_staff,
-        }
-        return Response({
-            "user": user_data,
-            "settings": settings_data
-        })
+            return Response({'error': str(e)}, status=500)
 
     def post(self, request):
+        """사용자 설정 생성"""
         try:
-            settings, _ = UserSettings.objects.get_or_create(user=request.user)
+            settings, created = UserSettings.objects.get_or_create(user=request.user)
             serializer = UserSettingsSerializer(settings, data=request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()
-                print("post 저장 후 settings:", serializer.data)
-                return Response(serializer.data)
+                return Response({'settings': serializer.data})
             return Response(serializer.errors, status=400)
         except Exception as e:
-            print(f"UserSettings POST 오류: {e}")
-            return Response({'error': '설정을 저장할 수 없습니다.'}, status=500)
+            return Response({'error': str(e)}, status=500)
 
-    # def patch(self, request):
-    #     try:
-    #         settings, _ = UserSettings.objects.get_or_create(user=request.user)
-    #         serializer = UserSettingsSerializer(settings, data=request.data, partial=True)
-    #         if serializer.is_valid():
-    #             serializer.save()
-    #             return Response(serializer.data)
-    #         return Response(serializer.errors, status=400)
-    #     except Exception as e:
-    #         print(f"UserSettings PATCH 오류: {e}")
-    #         return Response({'error': '설정을 업데이트할 수 없습니다.'}, status=500)
-    
     def patch(self, request):
+        """사용자 설정 부분 업데이트"""
         try:
-            print("PATCH 요청 데이터:", request.data)
-            settings, _ = UserSettings.objects.get_or_create(user=request.user)
+            settings, created = UserSettings.objects.get_or_create(user=request.user)
             serializer = UserSettingsSerializer(settings, data=request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()
-                print("PATCH 저장 후 settings:", serializer.data)
-                return Response(serializer.data)
-            print("PATCH 유효성 오류:", serializer.errors)
+                return Response({'settings': serializer.data})
             return Response(serializer.errors, status=400)
         except Exception as e:
-            print(f"UserSettings PATCH 오류: {e}")
-            return Response({'error': '설정을 업데이트할 수 없습니다.'}, status=500)    
+            return Response({'error': str(e)}, status=500)
+
+class UserDeleteView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def delete(self, request):
+        """회원탈퇴 API"""
+        try:
+            user = request.user
+            
+            # 사용자 확인을 위한 추가 검증
+            confirmation = request.data.get('confirmation')
+            if not confirmation or confirmation != 'DELETE_ACCOUNT':
+                return Response({
+                    'error': '회원탈퇴 확인이 필요합니다. confirmation 필드에 "DELETE_ACCOUNT"를 입력해주세요.'
+                }, status=400)
+            
+            # 사용자 관련 데이터 삭제
+            # 1. 사용자 설정 삭제
+            UserSettings.objects.filter(user=user).delete()
+            
+            # 2. 채팅방 참여자 정보 삭제
+            ChatRoomParticipant.objects.filter(user=user).delete()
+            
+            # 3. 사용자가 작성한 채팅 메시지 삭제
+            Chat.objects.filter(sender=user.username).delete()
+            
+            # 4. 사용자가 생성한 채팅방 삭제 (방장인 경우)
+            ChatRoom.objects.filter(creator=user).delete()
+            
+            # 5. 소셜 계정 연결 삭제
+            from allauth.socialaccount.models import SocialAccount
+            SocialAccount.objects.filter(user=user).delete()
+            
+            # 6. 이메일 주소 삭제
+            from allauth.account.models import EmailAddress
+            EmailAddress.objects.filter(user=user).delete()
+            
+            # 7. 사용자 계정 삭제
+            username = user.username  # 삭제 전에 username 저장
+            user.delete()
+            
+            # 8. 로그아웃 처리
+            django_logout(request)
+            
+            # 9. 세션 완전 삭제
+            if hasattr(request, 'session'):
+                request.session.flush()
+                request.session.delete()
+            
+            # 10. 응답에서 세션 쿠키 삭제
+            response = Response({
+                'status': 'success',
+                'message': f'사용자 {username}의 계정이 성공적으로 삭제되었습니다.'
+            })
+            response.delete_cookie('sessionid')
+            response.delete_cookie('csrftoken')
+            
+            return response
+            
+        except Exception as e:
+            return Response({
+                'error': f'회원탈퇴 중 오류가 발생했습니다: {str(e)}'
+            }, status=500)
+
+class UserListView(APIView):
+    def get(self, request):
+        users = User.objects.all()
+        data = [
+            {
+                'id': u.id,
+                'username': u.username,
+                'email': u.email,
+            } for u in users
+        ]
+        return Response({'results': data})
+    

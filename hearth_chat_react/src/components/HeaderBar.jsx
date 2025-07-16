@@ -20,8 +20,8 @@ export default function HeaderBar({
     onNotifyClick,
     onSettingsClick,
     onCreateRoomClick,
-    onLoginClick, // 추가: 로그인 버튼 클릭 핸들러
-    isLoggedIn,   // 추가: 로그인 상태
+    onLoginClick,
+    loginUser,
     title // 중앙에 표시할 텍스트(채팅방 이름/앱명)
 }) {
     return (
@@ -41,34 +41,52 @@ export default function HeaderBar({
                     >
                         오픈
                     </button>
-                    <button
-                        className={`header-tab-btn${activeTab === 'favorite' ? ' active' : ''}`}
-                        onClick={() => onTabChange('favorite')}
-                        title="즐겨찾기"
-                    >
-                        ★
-                    </button>
                 </nav>
             </div>
             <div className="header-center">
                 {title && <span className="header-title-text">{title}</span>}
             </div>
             <div className="header-actions">
-                {/* 로그인 버튼: 검색 버튼 왼쪽에 위치 */}
-                <button
-                    className="header-action-btn header-login-btn"
-                    onClick={onLoginClick}
-                    style={{ marginRight: 8 }}
-                >
-                    {isLoggedIn ? '로그아웃' : '로그인'}
-                </button>
+                {/* 로그인/유저 버튼 */}
+                {loginUser ? (
+                    <button
+                        className="header-action-btn"
+                        onClick={onSettingsClick}
+                        title="내 계정"
+                        style={{ marginRight: 8 }}
+                    >
+                        <span role="img" aria-label="user" style={{ fontSize: 20 }}>👤</span>
+                    </button>
+                ) : (
+                    <button
+                        className="header-action-btn"
+                        onClick={() => {
+                            console.log('HeaderBar 로그인 버튼 클릭됨!');
+                            onLoginClick();
+                        }}
+                        title="로그인"
+                        style={{
+                            marginRight: 8,
+                            background: '#f0f0f0',
+                            border: '1px solid #ddd',
+                            borderRadius: '4px',
+                            padding: '8px 12px',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        <span role="img" aria-label="login" style={{ fontSize: 20 }}>🔑</span>
+                    </button>
+                )}
                 <button className="header-action-btn" onClick={onSearchClick} title="검색">
                     <span role="img" aria-label="search" style={{ fontSize: 22 }}>🔍</span>
                 </button>
                 <button className="header-action-btn" onClick={onNotifyClick} title="알림">
                     <span role="img" aria-label="notify" style={{ fontSize: 22 }}>🔔</span>
                 </button>
-                <button className="header-action-btn" onClick={onSettingsClick} title="설정">
+                <button className="header-action-btn" onClick={() => {
+                    console.log('HeaderBar 설정 버튼 클릭됨!');
+                    onSettingsClick();
+                }} title="설정">
                     <span role="img" aria-label="settings" style={{ fontSize: 22 }}>⚙️</span>
                 </button>
             </div>

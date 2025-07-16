@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import RealisticAvatar3D from './RealisticAvatar3D';
 import EmotionCamera from './EmotionCamera';
 import VoiceRecognition from './VoiceRecognition';
+import LoginModal from './LoginModal';
+import UserMenuModal from './UserMenuModal';
 import ttsService from '../services/ttsService';
 import readyPlayerMeService from '../services/readyPlayerMe';
 import faceTrackingService from '../services/faceTrackingService';
@@ -19,7 +21,7 @@ import 'prismjs/themes/prism-tomorrow.css';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import InsertChartIcon from '@mui/icons-material/InsertChart';
 import CodeIcon from '@mui/icons-material/Code';
-
+import SettingsModal from './SettingsModal';
 import { useNavigate } from 'react-router-dom';
 
 // Chart.js core 등록 필수!
@@ -120,7 +122,7 @@ function MyChart() {
   );
 }
 
-const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, userSettings, setUserSettings, onUserMenuOpen, isSettingsModalOpen, setIsSettingsModalOpen, isLoginModalOpen, setIsLoginModalOpen, settingsTab, setSettingsTab }) => {
+const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, userSettings, setUserSettings, onUserMenuOpen, isSettingsModalOpen, setIsSettingsModalOpen, settingsTab, setSettingsTab }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [userAvatar, setUserAvatar] = useState(null);
@@ -164,7 +166,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   };
 
   // 로그인 모달 상태
-
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   // 사용자 메뉴 모달 상태
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
@@ -291,10 +293,13 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}/ws/chat/`;
 
     console.log('[WebSocket] 연결 시도:', wsUrl);
+    setWsConnectionStatus('connecting');
+
     try {
       ws.current = new window.WebSocket(wsUrl);
     } catch (error) {
       console.error('[WebSocket] 연결 생성 실패:', error);
+      setWsConnectionStatus('error');
       return;
     }
 
@@ -313,6 +318,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
     ws.current.onopen = () => {
       console.log('[WebSocket] 연결 성공');
+      setWsConnectionStatus('connected');
 
       // 연결 후 약간의 지연을 두고 join_room 메시지 전송
       setTimeout(() => {
@@ -419,16 +425,19 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     };
     ws.current.onclose = () => {
       console.log('[WebSocket] 연결 종료');
+      setWsConnectionStatus('disconnected');
 
       // 연결이 끊어지면 3초 후 재연결 시도 (단, 컴포넌트가 마운트된 상태일 때만)
       setTimeout(() => {
         if (selectedRoomRef.current?.id && ws.current) {
           console.log('[WebSocket] 재연결 시도...');
+          setWsConnectionStatus('connecting');
         }
       }, 3000);
     };
     ws.current.onerror = (error) => {
       console.error('[WebSocket] 연결 오류:', error);
+      setWsConnectionStatus('error');
     };
     // 방 나갈 때 leave_room 및 연결 해제
     return () => {
@@ -2556,7 +2565,103 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
             </div>
           )}
           {/* 타이틀+음성/카메라/트래킹 버튼 헤더 */}
-
+          <div className="chat-header">
+            <div className="chat-title">
+              <button onClick={() => navigate('/')} className="back-btn">
+                ← 대화방 목록
+              </button>
+              <span style={{ marginLeft: 8, fontWeight: 700 }}>{selectedRoom?.name}</span>
+            </div>
+            {/* 버튼 렌더링 부분(마이크, 카메라, 트래킹, 아바타 토글) */}
+            <div className="header-btn-group">
+              {/* WebSocket 연결 상태 표시 */}
+              <div
+                className="ws-status-indicator"
+                title={`WebSocket: ${wsConnectionStatus}`}
+                style={{
+                  marginRight: 8,
+                  fontSize: 12,
+                  padding: '2px 6px',
+                  borderRadius: 4,
+                  background: wsConnectionStatus === 'connected' ? 'rgba(76, 175, 80, 0.2)' :
+                    wsConnectionStatus === 'connecting' ? 'rgba(255, 152, 0, 0.2)' :
+                      'rgba(244, 67, 54, 0.2)',
+                  color: wsConnectionStatus === 'connected' ? '#4caf50' :
+                    wsConnectionStatus === 'connecting' ? '#ff9800' : '#f44336',
+                  cursor: 'pointer'
+                }}
+                onClick={() => {
+                  console.log('[WebSocket] 현재 상태:', wsConnectionStatus);
+                  console.log('[WebSocket] readyState:', ws.current?.readyState);
+                }}
+              >
+                {wsConnectionStatus === 'connected' ? '🟢' :
+                  wsConnectionStatus === 'connecting' ? '🟡' : '🔴'}
+              </div>
+              {/* 마이크 버튼 및 음성 메뉴 모달 완전 삭제 */}
+              {/* AI 아바타 토글 */}
+              <button className="icon-btn" onClick={() => setIsAiAvatarOn(v => !v)} title="AI 아바타 토글">
+                <span role="img" aria-label="ai-avatar" style={{ opacity: isAiAvatarOn ? 1 : 0.3 }}>🤖</span>
+              </button>
+              {/* 사용자 아바타 토글 + 트래킹 통합 */}
+              <button className="icon-btn" onClick={async () => {
+                setIsUserAvatarOn(v => {
+                  const next = !v;
+                  setIsTrackingEnabled(next);
+                  if (next) {
+                    // 트래킹 서비스 시작
+                    faceTrackingService.startCamera();
+                  } else {
+                    // 트래킹 서비스 중지
+                    faceTrackingService.stopCamera();
+                  }
+                  return next;
+                });
+              }} title="사용자 아바타/트래킹 토글">
+                <span role="img" aria-label="user-avatar" style={{ opacity: isUserAvatarOn ? 1 : 0.3 }}>👤</span>
+              </button>
+              {/* 카메라 버튼 */}
+              <button
+                onClick={toggleCamera}
+                className={`camera-btn-header${isCameraActive ? ' active' : ''}`}
+              >
+                📷
+              </button>
+              {/* 로그인/내 계정 버튼 - 오른쪽 끝 */}
+              {loginLoading ? null : loginUser ? (
+                <button
+                  onClick={() => {
+                    console.log('내 계정 버튼 클릭!');
+                    onUserMenuOpen();
+                  }}
+                  className="login-btn-header"
+                  style={buttonStyle}
+                  title="내 계정"
+                >
+                  <span role="img" aria-label="user" style={{ marginRight: 6 }}>👤</span>
+                  {loginUser.username || '내 계정'}
+                </button>
+              ) : (
+                <button
+                  onClick={() => setIsLoginModalOpen(true)}
+                  className="login-btn-header"
+                  style={buttonStyle}
+                  title="로그인"
+                >
+                  <span role="img" aria-label="login" style={{ marginRight: 6 }}>🔑</span>
+                </button>
+              )}
+              {/* 설정(톱니바퀴) 버튼 */}
+              <button
+                onClick={() => setIsSettingsModalOpen(true)}
+                className="settings-btn-header"
+                style={{ marginLeft: 12, background: 'rgba(255,255,255,0.12)', border: 'none', borderRadius: 4, padding: '6px 12px', color: '#fff', fontSize: 18, cursor: 'pointer' }}
+                title="설정"
+              >
+                <span role="img" aria-label="settings">⚙️</span>
+              </button>
+            </div>
+          </div>
           {/* 차트 렌더링 */}
           {/* <MyChart /> */}
           {/* 아바타/카메라를 항상 렌더링하고, style로만 분할/숨김/오버레이 처리 */}
@@ -2886,7 +2991,44 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           </div>
         </div>
         {/* 음성 메뉴 모달 완전 삭제 */}
-
+        {/* 로그인 모달 */}
+        <LoginModal
+          isOpen={isLoginModalOpen}
+          onClose={() => setIsLoginModalOpen(false)}
+          onSocialLogin={openSocialLoginPopup}
+        />
+        {/* 사용자 메뉴 모달 */}
+        <UserMenuModal
+          isOpen={isUserMenuOpen}
+          onClose={() => setIsUserMenuOpen(false)}
+        />
+        <SettingsModal
+          isOpen={isSettingsModalOpen}
+          onClose={() => setIsSettingsModalOpen(false)}
+          tab={settingsTab}
+          setTab={setSettingsTab}
+          userSettings={userSettings}
+          setUserSettings={setUserSettings}
+          voiceList={voiceList}
+          ttsVoice={ttsVoice}
+          setTtsVoice={setTtsVoice}
+          ttsRate={ttsRate}
+          setTtsRate={setTtsRate}
+          ttsPitch={ttsPitch}
+          setTtsPitch={setTtsPitch}
+          isTTSEnabled={isTTSEnabled}
+          setIsTTSEnabled={setIsTTSEnabled}
+          isVoiceRecognitionEnabled={isVoiceRecognitionEnabled}
+          setIsVoiceRecognitionEnabled={setIsVoiceRecognitionEnabled}
+          autoSend={autoSend}
+          setAutoSend={setAutoSend}
+          isContinuousRecognition={isContinuousRecognition}
+          setIsContinuousRecognition={setIsContinuousRecognition}
+          voiceRecognitionRef={voiceRecognitionRef}
+          handleVoiceRecognitionToggle={handleVoiceRecognitionToggle}
+          permissionStatus={permissionStatus}
+          requestMicrophonePermission={requestMicrophonePermission}
+        />
       </div>
     </>
   );
