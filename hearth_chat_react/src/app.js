@@ -462,14 +462,22 @@ function App() {
     checkLoginStatus();
   }, []);
 
+  function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+  }
+  
   const checkLoginStatus = async () => {
     try {
       const response = await fetch(`${getApiBase()}/api/chat/user/settings/`, {
         credentials: 'include',
+        headers: {
+          'X-CSRFToken': getCookie('csrftoken'),
+        },
       });
       if (response.ok) {
         const data = await response.json();
-        console.log('checkLoginStatus 응답:', data);
         setLoginUser(data.user);
         setUserSettings(data.settings || null);
       } else {
@@ -483,6 +491,7 @@ function App() {
       setLoginLoading(false);
     }
   };
+  
 
   // 알림 목록 fetch (즐겨찾기 방 최신 메시지)
   const fetchNotifications = async () => {
