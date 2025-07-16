@@ -1,5 +1,5 @@
 from rest_framework.routers import DefaultRouter
-from .views import ChatRoomViewSet, ChatViewSet, UserSettingsView, UserDeleteView, user_info, chat_home, get_chat_history, get_all_sessions, upload_chat_image, logout_api, UserListView, MessageReactionViewSet, MessageReplyViewSet, PinnedMessageViewSet, UserChatCreateAPIView
+from .views import ChatRoomViewSet, ChatViewSet, UserSettingsView, UserDeleteView, user_info, chat_home, get_chat_history, get_all_sessions, upload_chat_image, logout_api, UserListView, MessageReactionViewSet, MessageReplyViewSet, PinnedMessageViewSet, UserChatCreateAPIView, NotificationReadViewSet
 from django.urls import path, include
 
 # from hearth_chat_package.hearth_chat_django.chat import views  # 삭제
@@ -11,6 +11,7 @@ router.register(r'messages', ChatViewSet, basename='message')
 router.register(r'reactions', MessageReactionViewSet, basename='reaction')
 router.register(r'replies', MessageReplyViewSet, basename='reply')
 router.register(r'pins', PinnedMessageViewSet, basename='pin')
+router.register(r'notifications', NotificationReadViewSet, basename='notificationread')
 
 urlpatterns = [
     path('user/settings/', UserSettingsView.as_view(), name='user-settings'),

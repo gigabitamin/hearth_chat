@@ -359,3 +359,18 @@ class PinnedMessage(models.Model):
     
     def __str__(self):
         return f"Pinned message {self.message.id} in {self.room.name}"
+
+class NotificationRead(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    room = models.ForeignKey(ChatRoom, on_delete=models.CASCADE)
+    message = models.ForeignKey(Chat, on_delete=models.CASCADE, null=True, blank=True)
+    read_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'room', 'message')
+        verbose_name = '알림 읽음 상태'
+        verbose_name_plural = '알림 읽음 상태들'
+        db_table = 'chat_notificationread'
+
+    def __str__(self):
+        return f"{self.user.username} - {self.room.name} - {self.message_id or 'room'}"

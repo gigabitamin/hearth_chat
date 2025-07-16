@@ -20,8 +20,8 @@ from allauth.socialaccount.models import SocialAccount
 from rest_framework import viewsets, generics, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from .models import ChatRoom, Chat, ChatRoomParticipant, UserSettings, MessageReaction, MessageReply, PinnedMessage
-from .serializers import ChatRoomSerializer, ChatSerializer, ChatRoomParticipantSerializer, UserSettingsSerializer, MessageReactionSerializer, MessageReplySerializer, PinnedMessageSerializer
+from .models import ChatRoom, Chat, ChatRoomParticipant, UserSettings, MessageReaction, MessageReply, PinnedMessage, NotificationRead
+from .serializers import ChatRoomSerializer, ChatSerializer, ChatRoomParticipantSerializer, UserSettingsSerializer, MessageReactionSerializer, MessageReplySerializer, PinnedMessageSerializer, NotificationReadSerializer
 from django.contrib.auth.models import User
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -858,3 +858,37 @@ class UserChatCreateAPIView(APIView):
 
         serializer = ChatRoomSerializer(room, context={'request': request})
         return Response(serializer.data)
+
+class NotificationReadViewSet(viewsets.ModelViewSet):
+    queryset = NotificationRead.objects.all()
+    serializer_class = NotificationReadSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        # 본인만 조회
+        return NotificationRead.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    @action(detail=False, methods=['get'])
+    def unread(self, request):
+        # 예시: 읽지 않은 알림(방/메시지) 목록 반환
+        # 실제 구현은 프론트 요구에 맞게 조정 필요
+        read_qs = NotificationRead.objects.filter(user=request.user)
+        read_message_ids = read_qs.values_list('message_id', flat=True)
+        # 예시: 즐겨찾기 방의 최신 메시지 중 읽지 않은 것만 반환
+        from .models import ChatRoom, Chat
+        favorite_rooms = ChatRoom.objects.filter(favorite_users=request.user)
+        unread = []
+        for room in favorite_rooms:
+            latest = Chat.objects.filter(room=room).order_by('-timestamp').first()
+            if latest and latest.id not in read_message_ids:
+                unread.append({
+                    'room_id': room.id,
+                    'room_name': room.name,
+                    'message_id': latest.id,
+                    'message': latest.content,
+                    'timestamp': latest.timestamp,
+                })
+        return Response(unread)

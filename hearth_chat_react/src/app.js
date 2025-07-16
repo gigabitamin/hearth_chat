@@ -267,14 +267,53 @@ function AppContent(props) {
   );
 
   // 알림 읽음 상태 관리
-  const [readNotificationIds, setReadNotificationIds] = useState([]);
+  const [readNotificationIds, setReadNotificationIds] = useState(() => {
+    // 앱 시작 시 localStorage에서 읽어옴
+    try {
+      const saved = localStorage.getItem('readNotificationIds');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   // 읽지 않은 알림 개수 계산
   const unreadNotifications = notifications.filter(n => !readNotificationIds.includes(n.id)).length;
 
   // 알림 읽음 처리 핸들러
-  const handleNotificationRead = (id) => {
-    setReadNotificationIds(prev => prev.includes(id) ? prev : [...prev, id]);
+  const handleNotificationRead = (id, roomId, messageId) => {
+    setReadNotificationIds(prev => {
+      if (prev.includes(id)) return prev;
+      const updated = [...prev, id];
+      try {
+        localStorage.setItem('readNotificationIds', JSON.stringify(updated));
+      } catch { }
+      return updated;
+    });
+    // 백엔드에 읽음 처리 요청
+    if (roomId && messageId) {
+      fetch('/api/notifications/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ room: roomId, message: messageId })
+      });
+    }
   };
+
+  // 알림 목록이 바뀌면(새 알림 도착 등) localStorage와 동기화(삭제된 알림 정리)
+  useEffect(() => {
+    setReadNotificationIds(prev => {
+      const validIds = notifications.map(n => n.id);
+      const filtered = prev.filter(id => validIds.includes(id));
+      if (filtered.length !== prev.length) {
+        try {
+          localStorage.setItem('readNotificationIds', JSON.stringify(filtered));
+        } catch { }
+      }
+      return filtered;
+    });
+    // eslint-disable-next-line
+  }, [notifications]);
 
   // 새 알림 도착 시 소리 재생 (알림 개수 변화 감지)
   useEffect(() => {
@@ -317,7 +356,7 @@ function AppContent(props) {
         open={isNotifyModalOpen}
         onClose={() => setIsNotifyModalOpen(false)}
         notifications={notifications.map(n => ({ ...n, read: readNotificationIds.includes(n.id) }))}
-        onNotificationRead={handleNotificationRead}
+        onNotificationRead={(id, roomId, messageId) => handleNotificationRead(id, roomId, messageId)}
       />
       <SearchModal open={isSearchModalOpen} onClose={() => setIsSearchModalOpen(false)} rooms={allRooms} messages={allMessages} users={allUsers} />
       {/* 로그인 모달 */}

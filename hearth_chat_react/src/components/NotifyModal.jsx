@@ -25,7 +25,7 @@ export default function NotifyModal({ open, onClose, notifications = [], onNotif
                                     <button
                                         className={`notify-enter-btn ${n.read ? 'read' : 'unread'}`}
                                         onClick={() => {
-                                            if (onNotificationRead) onNotificationRead(n.id);
+                                            if (onNotificationRead) onNotificationRead(n.id, n.roomId, n.messageId);
                                             const url = n.messageId
                                                 ? `/room/${n.roomId}?messageId=${n.messageId}`
                                                 : `/room/${n.roomId}`;
