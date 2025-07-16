@@ -25,6 +25,7 @@ from .serializers import ChatRoomSerializer, ChatSerializer, ChatRoomParticipant
 from django.contrib.auth.models import User
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.authentication import SessionAuthentication
 from django.shortcuts import get_object_or_404
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
@@ -32,6 +33,7 @@ import json
 from django.db import models
 from django.core.cache import cache
 from django.conf import settings
+
 
 # Create your views here.
 
@@ -606,6 +608,7 @@ class ChatViewSet(viewsets.ModelViewSet):
         return Response({'results': message_list})
 
 class UserSettingsView(APIView):
+    # authentication_classes = [CsrfExemptSessionAuthentication]    
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
