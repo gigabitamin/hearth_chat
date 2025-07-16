@@ -22,7 +22,8 @@ export default function HeaderBar({
     onCreateRoomClick,
     onLoginClick,
     loginUser,
-    title // 중앙에 표시할 텍스트(채팅방 이름/앱명)
+    title, // 중앙에 표시할 텍스트(채팅방 이름/앱명)
+    unreadNotifications = 0 // 읽지 않은 알림 개수
 }) {
     return (
         <header className="header-bar">
@@ -80,8 +81,11 @@ export default function HeaderBar({
                 <button className="header-action-btn" onClick={onSearchClick} title="검색">
                     <span role="img" aria-label="search" style={{ fontSize: 22 }}>🔍</span>
                 </button>
-                <button className="header-action-btn" onClick={onNotifyClick} title="알림">
+                <button className="header-action-btn notify-btn" onClick={onNotifyClick} title="알림">
                     <span role="img" aria-label="notify" style={{ fontSize: 22 }}>🔔</span>
+                    {unreadNotifications > 0 && (
+                        <span className="notification-badge">{unreadNotifications > 99 ? '99+' : unreadNotifications}</span>
+                    )}
                 </button>
                 <button className="header-action-btn" onClick={() => {
                     console.log('HeaderBar 설정 버튼 클릭됨!');

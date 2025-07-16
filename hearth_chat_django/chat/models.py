@@ -41,6 +41,12 @@ class ChatRoom(models.Model):
         verbose_name = '대화방'
         verbose_name_plural = '대화방들'
         db_table = 'chat_chatroom'
+        indexes = [
+            models.Index(fields=['room_type', 'is_public']),
+            models.Index(fields=['is_active', 'updated_at']),
+            models.Index(fields=['name']),
+            models.Index(fields=['created_at']),
+        ]
     
     def __str__(self):
         return f"{self.name} ({self.get_room_type_display()})"
@@ -144,6 +150,13 @@ class Chat(models.Model):
         verbose_name = '채팅 메시지'
         verbose_name_plural = '채팅 메시지들'
         db_table = 'chat_chat'
+        indexes = [
+            models.Index(fields=['room', 'timestamp']),
+            models.Index(fields=['sender_type', 'timestamp']),
+            models.Index(fields=['username']),
+            models.Index(fields=['content']),
+            models.Index(fields=['created_at']),
+        ]
     def __str__(self):
         if self.sender_type == 'user':
             sender = self.username or f"User({self.user_id})"
@@ -299,3 +312,49 @@ class VoiceCall(models.Model):
         self.duration = int((self.end_time - self.start_time).total_seconds())
         self.status = 'ended'
         self.save()
+
+class MessageReaction(models.Model):
+    """메시지 반응 모델"""
+    message = models.ForeignKey(Chat, on_delete=models.CASCADE, related_name='reactions', verbose_name='메시지')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='사용자')
+    emoji = models.CharField(max_length=10, verbose_name='이모지')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='반응 시간')
+    
+    class Meta:
+        unique_together = ['message', 'user', 'emoji']
+        verbose_name = '메시지 반응'
+        verbose_name_plural = '메시지 반응들'
+        db_table = 'chat_messagereaction'
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.emoji} on message {self.message.id}"
+
+class MessageReply(models.Model):
+    """메시지 답장 모델"""
+    original_message = models.ForeignKey(Chat, on_delete=models.CASCADE, related_name='replies', verbose_name='원본 메시지')
+    reply_message = models.ForeignKey(Chat, on_delete=models.CASCADE, related_name='reply_to', verbose_name='답장 메시지')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='답장 시간')
+    
+    class Meta:
+        verbose_name = '메시지 답장'
+        verbose_name_plural = '메시지 답장들'
+        db_table = 'chat_messagereply'
+    
+    def __str__(self):
+        return f"Reply to message {self.original_message.id}"
+
+class PinnedMessage(models.Model):
+    """고정된 메시지 모델"""
+    room = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name='pinned_messages', verbose_name='대화방')
+    message = models.ForeignKey(Chat, on_delete=models.CASCADE, verbose_name='고정된 메시지')
+    pinned_by = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='고정한 사용자')
+    pinned_at = models.DateTimeField(auto_now_add=True, verbose_name='고정 시간')
+    
+    class Meta:
+        unique_together = ['room', 'message']
+        verbose_name = '고정된 메시지'
+        verbose_name_plural = '고정된 메시지들'
+        db_table = 'chat_pinnedmessage'
+    
+    def __str__(self):
+        return f"Pinned message {self.message.id} in {self.room.name}"

@@ -1,5 +1,5 @@
 from rest_framework.routers import DefaultRouter
-from .views import ChatRoomViewSet, ChatViewSet, UserSettingsView, UserDeleteView, user_info, chat_home, get_chat_history, get_all_sessions, upload_chat_image, logout_api, UserListView
+from .views import ChatRoomViewSet, ChatViewSet, UserSettingsView, UserDeleteView, user_info, chat_home, get_chat_history, get_all_sessions, upload_chat_image, logout_api, UserListView, MessageReactionViewSet, MessageReplyViewSet, PinnedMessageViewSet
 from django.urls import path
 
 # from hearth_chat_package.hearth_chat_django.chat import views  # 삭제
@@ -8,6 +8,9 @@ from . import views  # 상대경로로 변경
 router = DefaultRouter()
 router.register(r'rooms', ChatRoomViewSet, basename='room')
 router.register(r'messages', ChatViewSet, basename='message')
+router.register(r'reactions', MessageReactionViewSet, basename='reaction')
+router.register(r'replies', MessageReplyViewSet, basename='reply')
+router.register(r'pins', PinnedMessageViewSet, basename='pin')
 
 urlpatterns = [
     path('user/settings/', UserSettingsView.as_view(), name='user-settings'),

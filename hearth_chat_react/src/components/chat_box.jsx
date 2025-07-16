@@ -120,7 +120,7 @@ function MyChart() {
   );
 }
 
-const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, userSettings, setUserSettings, onUserMenuOpen, isSettingsModalOpen, setIsSettingsModalOpen, isLoginModalOpen, setIsLoginModalOpen, settingsTab, setSettingsTab }) => {
+const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, userSettings, setUserSettings, onUserMenuOpen, isSettingsModalOpen, setIsSettingsModalOpen, isLoginModalOpen, setIsLoginModalOpen, settingsTab, setSettingsTab, highlightMessageId }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [userAvatar, setUserAvatar] = useState(null);
@@ -198,6 +198,10 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   const [isTrackingEnabled, setIsTrackingEnabled] = useState(false);
   const [trackingStatus, setTrackingStatus] = useState('stopped'); // 'stopped', 'starting', 'running', 'error'
   const [faceDetected, setFaceDetected] = useState(false);
+
+  // 메시지 강조 관련 상태
+  const [highlightedMessageId, setHighlightedMessageId] = useState(null);
+  const [hasScrolledToMessage, setHasScrolledToMessage] = useState(false);
 
   // MediaPipe 준비 상태
   const [isTrackingReady, setIsTrackingReady] = useState(false);
@@ -2364,6 +2368,8 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       setMessages([]);
       setMessageOffset(0);
       setHasMore(true);
+      setHighlightedMessageId(null);
+      setHasScrolledToMessage(false);
       fetchMessages(selectedRoom.id, 0, 20, false);
       // 방에 입장 메시지 전송 (WebSocket 연결이 이미 되어 있으면 바로 전송)
       if (ws.current && ws.current.readyState === 1) {
@@ -2374,6 +2380,30 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       }
     }
   }, [selectedRoom]);
+
+  // 메시지 강조 처리
+  useEffect(() => {
+    if (highlightMessageId && messages.length > 0 && !hasScrolledToMessage) {
+      setHighlightedMessageId(highlightMessageId);
+      setHasScrolledToMessage(true);
+
+      // 메시지를 찾아서 스크롤
+      setTimeout(() => {
+        const messageElement = document.getElementById(`message-${highlightMessageId}`);
+        if (messageElement) {
+          messageElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+          });
+
+          // 3초 후 강조 제거
+          setTimeout(() => {
+            setHighlightedMessageId(null);
+          }, 3000);
+        }
+      }, 500);
+    }
+  }, [highlightMessageId, messages, hasScrolledToMessage]);
 
   // 스크롤 상단 도달 시 이전 메시지 추가 로드
   useEffect(() => {
@@ -2664,15 +2694,23 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                       <div className="chat-date-time-hm">{hh}:{min}</div>
                     </div>
                   );
+                  const isHighlighted = highlightedMessageId === msg.id;
                   return (
                     <div
                       key={idx}
+                      id={`message-${msg.id}`}
                       style={{
                         display: 'flex',
                         flexDirection: msg.type === 'send' ? 'row-reverse' : 'row',
                         alignItems: 'flex-end',
                         width: '100%',
                         justifyContent: msg.type === 'send' ? 'flex-end' : 'flex-start',
+                        backgroundColor: isHighlighted ? 'rgba(255, 255, 0, 0.2)' : 'transparent',
+                        borderRadius: isHighlighted ? '8px' : '0',
+                        padding: isHighlighted ? '8px' : '0',
+                        margin: isHighlighted ? '4px 0' : '0',
+                        transition: 'all 0.3s ease',
+                        animation: isHighlighted ? 'pulse 2s infinite' : 'none',
                       }}
                     >
                       {/* 사용자/AI 메시지 버블+날짜 영역 */}

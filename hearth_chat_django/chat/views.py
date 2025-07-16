@@ -19,8 +19,8 @@ from allauth.socialaccount.models import SocialAccount
 from rest_framework import viewsets, generics, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from .models import ChatRoom, Chat, ChatRoomParticipant, UserSettings
-from .serializers import ChatRoomSerializer, ChatSerializer, ChatRoomParticipantSerializer, UserSettingsSerializer
+from .models import ChatRoom, Chat, ChatRoomParticipant, UserSettings, MessageReaction, MessageReply, PinnedMessage
+from .serializers import ChatRoomSerializer, ChatSerializer, ChatRoomParticipantSerializer, UserSettingsSerializer, MessageReactionSerializer, MessageReplySerializer, PinnedMessageSerializer
 from django.contrib.auth.models import User
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -29,6 +29,8 @@ from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 import json
 from django.db import models
+from django.core.cache import cache
+from django.conf import settings
 
 # Create your views here.
 
@@ -404,6 +406,28 @@ class ChatViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'])
     def messages(self, request):
+        """특정 방의 메시지 목록 반환 (페이지네이션 + 캐싱)"""
+        room_id = request.query_params.get('room')
+        offset = int(request.query_params.get('offset', 0))
+        limit = int(request.query_params.get('limit', 20))
+        
+        if not room_id:
+            return Response({'error': 'room parameter is required'}, status=400)
+        
+        # 캐시 키 생성
+        cache_key = f"room_messages_{room_id}_{offset}_{limit}"
+        
+        # 캐시에서 데이터 확인
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return Response(cached_data)
+        
+        try:
+            # 최적화된 쿼리: select_related와 prefetch_related 사용
+            messages = Chat.objects.filter(room_id=room_id)\
+                .select_related('room')\
+                .prefetch_related('reactions', 'reactions__user')\
+                .order_by('-timestamp')[offset:offset+limit]
         """방별 메시지 조회 API"""
         room_id = request.query_params.get('room')
         offset = int(request.query_params.get('offset', 0))
@@ -413,8 +437,11 @@ class ChatViewSet(viewsets.ModelViewSet):
             return Response({'error': 'room parameter is required'}, status=400)
         
         try:
-            # 해당 방의 메시지 조회
-            messages = Chat.objects.filter(room_id=room_id).order_by('-timestamp')[offset:offset+limit]
+            # 최적화된 쿼리: select_related와 prefetch_related 사용
+            messages = Chat.objects.filter(room_id=room_id)\
+                .select_related('room')\
+                .prefetch_related('reactions', 'reactions__user')\
+                .order_by('-timestamp')[offset:offset+limit]
             
             # 프론트엔드에서 기대하는 형태로 변환
             message_list = []
@@ -432,6 +459,20 @@ class ChatViewSet(viewsets.ModelViewSet):
                 else:
                     sender_label = msg.username or msg.ai_name or 'Unknown'
                     is_mine = False
+                # 반응 정보 수집
+                reactions_data = {}
+                for reaction in msg.reactions.all():
+                    emoji = reaction.emoji
+                    if emoji not in reactions_data:
+                        reactions_data[emoji] = {'count': 0, 'users': []}
+                    reactions_data[emoji]['count'] += 1
+                    reactions_data[emoji]['users'].append(reaction.user.username)
+                
+                reactions_list = [
+                    {'emoji': emoji, 'count': data['count'], 'users': data['users']}
+                    for emoji, data in reactions_data.items()
+                ]
+                
                 message_data = {
                     'id': msg.id,
                     'type': 'send' if is_mine else 'recv',
@@ -443,15 +484,21 @@ class ChatViewSet(viewsets.ModelViewSet):
                     'user_id': msg.user_id,  # user_id 필드 추가
                     'ai_name': msg.ai_name,
                     'emotion': getattr(msg, 'emotion', None),
-                    'imageUrl': msg.attach_image.url if msg.attach_image else None
+                    'imageUrl': msg.attach_image.url if msg.attach_image else None,
+                    'reactions': reactions_list
                 }
                 message_list.append(message_data)
             
-            return Response({
+            response_data = {
                 'results': message_list,
                 'count': len(message_list),
                 'has_more': len(message_list) == limit
-            })
+            }
+            
+            # 캐시에 저장 (5분간 유효)
+            cache.set(cache_key, response_data, 300)
+            
+            return Response(response_data)
             
         except Exception as e:
             return Response({'error': str(e)}, status=500)
@@ -459,7 +506,85 @@ class ChatViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def all(self, request):
         """전체 메시지 목록 반환 (최근순 100개)"""
-        messages = Chat.objects.all().order_by('-timestamp')[:100]
+        messages = Chat.objects.select_related('room').order_by('-timestamp')[:100]
+
+    @action(detail=False, methods=['get'])
+    def search(self, request):
+        """메시지 검색 API"""
+        query = request.query_params.get('q', '')
+        scope = request.query_params.get('scope', 'all')  # all, room, message, user
+        sort_by = request.query_params.get('sort', 'relevance')  # relevance, date
+        limit = int(request.query_params.get('limit', 50))
+        
+        if not query:
+            return Response({'error': '검색어가 필요합니다.'}, status=400)
+        
+        try:
+            from django.db.models import Q
+            
+            # 검색 조건 구성
+            search_conditions = Q()
+            
+            if scope in ['all', 'message']:
+                search_conditions |= Q(content__icontains=query)
+            
+            if scope in ['all', 'room']:
+                search_conditions |= Q(room__name__icontains=query)
+            
+            if scope in ['all', 'user']:
+                search_conditions |= Q(username__icontains=query)
+            
+            # 쿼리 실행
+            messages = Chat.objects.filter(search_conditions)\
+                .select_related('room')\
+                .prefetch_related('reactions', 'reactions__user')
+            
+            # 정렬
+            if sort_by == 'date':
+                messages = messages.order_by('-timestamp')
+            else:
+                # 정확도순 정렬 (간단한 구현)
+                messages = messages.order_by('-timestamp')
+            
+            # 결과 제한
+            messages = messages[:limit]
+            
+            # 결과 변환
+            results = []
+            for msg in messages:
+                if msg.sender_type == 'user':
+                    sender_label = msg.username or f"User({msg.user_id})"
+                elif msg.sender_type == 'ai':
+                    sender_label = msg.ai_name or msg.ai_type or 'AI'
+                elif msg.sender_type == 'system':
+                    sender_label = 'System'
+                else:
+                    sender_label = msg.username or msg.ai_name or 'Unknown'
+                
+                result_data = {
+                    'id': msg.id,
+                    'type': 'message',
+                    'content': msg.content,
+                    'timestamp': msg.timestamp,
+                    'sender': sender_label,
+                    'room_id': msg.room_id,
+                    'room_name': msg.room.name if msg.room else '',
+                    'sender_type': msg.sender_type,
+                    'username': msg.username,
+                    'ai_name': msg.ai_name,
+                }
+                results.append(result_data)
+            
+            return Response({
+                'results': results,
+                'count': len(results),
+                'query': query,
+                'scope': scope,
+                'sort_by': sort_by
+            })
+            
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
         message_list = []
         for msg in messages:
             if msg.sender_type == 'user':
@@ -611,4 +736,88 @@ class UserListView(APIView):
             } for u in users
         ]
         return Response({'results': data})
+
+class MessageReactionViewSet(viewsets.ModelViewSet):
+    queryset = MessageReaction.objects.all()
+    serializer_class = MessageReactionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def toggle(self, request, pk=None):
+        """메시지 반응 토글 (추가/제거)"""
+        message = get_object_or_404(Chat, pk=pk)
+        emoji = request.data.get('emoji')
+        user = request.user
+        
+        if not emoji:
+            return Response({'error': '이모지가 필요합니다.'}, status=400)
+        
+        # 기존 반응 확인
+        existing_reaction = MessageReaction.objects.filter(
+            message=message, user=user, emoji=emoji
+        ).first()
+        
+        if existing_reaction:
+            # 기존 반응 제거
+            existing_reaction.delete()
+            return Response({'status': 'removed'})
+        else:
+            # 새 반응 추가
+            MessageReaction.objects.create(
+                message=message, user=user, emoji=emoji
+            )
+            return Response({'status': 'added'})
+
+class MessageReplyViewSet(viewsets.ModelViewSet):
+    queryset = MessageReply.objects.all()
+    serializer_class = MessageReplySerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save()
+
+class PinnedMessageViewSet(viewsets.ModelViewSet):
+    queryset = PinnedMessage.objects.all()
+    serializer_class = PinnedMessageSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(pinned_by=self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def toggle(self, request, pk=None):
+        """메시지 고정 토글"""
+        message = get_object_or_404(Chat, pk=pk)
+        room = message.room
+        user = request.user
+        
+        # 기존 고정 확인
+        existing_pin = PinnedMessage.objects.filter(
+            room=room, message=message
+        ).first()
+        
+        if existing_pin:
+            # 고정 해제
+            existing_pin.delete()
+            return Response({'status': 'unpinned'})
+        else:
+            # 고정
+            PinnedMessage.objects.create(
+                room=room, message=message, pinned_by=user
+            )
+            return Response({'status': 'pinned'})
+
+    @action(detail=False, methods=['get'])
+    def room_pins(self, request):
+        """방의 고정된 메시지 목록"""
+        room_id = request.query_params.get('room_id')
+        if not room_id:
+            return Response({'error': 'room_id가 필요합니다.'}, status=400)
+        
+        pins = PinnedMessage.objects.filter(room_id=room_id).order_by('-pinned_at')
+        serializer = self.get_serializer(pins, many=True)
+        return Response(serializer.data)
     

@@ -7,6 +7,7 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
     const [scope, setScope] = useState('all'); // all, room, message, user
     const [useAnd, setUseAnd] = useState(false);
     const [useRegex, setUseRegex] = useState(false);
+    const [sortBy, setSortBy] = useState('relevance'); // relevance, date
     const navigate = useNavigate();
 
     // 프론트 필터링 함수
@@ -33,6 +34,35 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
         if (scope === 'all' || scope === 'user') {
             results = results.concat((users || []).filter(u => match(u.username)).map(u => ({ type: 'user', ...u })));
         }
+
+        // 정렬 로직
+        if (sortBy === 'date') {
+            results.sort((a, b) => {
+                const dateA = a.date || a.created_at || new Date(0);
+                const dateB = b.date || b.created_at || new Date(0);
+                return new Date(dateB) - new Date(dateA);
+            });
+        } else {
+            // 정확도순 정렬 (키워드 매칭 개수 기준)
+            results.sort((a, b) => {
+                const getScore = (item) => {
+                    let score = 0;
+                    const text = (item.name || item.content || item.username || '').toLowerCase();
+                    const queryLower = query.toLowerCase();
+
+                    if (useAnd) {
+                        const keywords = query.split(/\s+/).filter(Boolean);
+                        score = keywords.filter(k => text.includes(k)).length;
+                    } else {
+                        if (text.includes(queryLower)) score += 2;
+                        if (text.startsWith(queryLower)) score += 1;
+                    }
+                    return score;
+                };
+                return getScore(b) - getScore(a);
+            });
+        }
+
         return results;
     };
     const results = filterItems();
@@ -56,15 +86,42 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
         }
     };
 
+    // 날짜 포맷 함수
+    const formatDate = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        const now = new Date();
+        const diff = now - date;
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+        if (days === 0) {
+            return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+        } else if (days === 1) {
+            return '어제';
+        } else if (days < 7) {
+            return `${days}일 전`;
+        } else {
+            return date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+        }
+    };
+
+    // 메시지 미리보기 생성 함수
+    const getMessagePreview = (content, maxLength = 100) => {
+        if (!content) return '';
+        const cleanContent = content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ');
+        return cleanContent.length > maxLength
+            ? cleanContent.substring(0, maxLength) + '...'
+            : cleanContent;
+    };
+
     // 검색 결과 클릭 핸들러
     const onResultClick = async (r) => {
         if (r.type === 'room') {
             navigate(`/room/${r.id}`);
             if (onClose) onClose();
         } else if (r.type === 'message') {
-            navigate(`/room/${r.room_id}`);
+            navigate(`/room/${r.room_id}?messageId=${r.id}`);
             if (onClose) onClose();
-            // 메시지 강조(추후 구현 가능)
         } else if (r.type === 'user') {
             // 1:1 채팅방 생성/이동
             try {
@@ -96,12 +153,16 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
                     <button className="search-modal-close" onClick={onClose} aria-label="닫기">✕</button>
                 </div>
                 <div className="search-modal-content">
-                    <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
                         <select value={scope} onChange={e => setScope(e.target.value)} style={{ fontSize: 14 }}>
                             <option value="all">전체</option>
                             <option value="room">방</option>
                             <option value="message">메시지</option>
                             <option value="user">유저</option>
+                        </select>
+                        <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ fontSize: 14 }}>
+                            <option value="relevance">정확도순</option>
+                            <option value="date">최신순</option>
                         </select>
                         <label style={{ fontSize: 13 }}><input type="checkbox" checked={useAnd} onChange={e => setUseAnd(e.target.checked)} /> AND</label>
                         <label style={{ fontSize: 13 }}><input type="checkbox" checked={useRegex} onChange={e => setUseRegex(e.target.checked)} /> 정규식</label>
@@ -121,13 +182,26 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
                             ) : (
                                 results.map((r, i) => (
                                     <li key={i} className="search-result-item" style={{ cursor: 'pointer' }} onClick={() => onResultClick(r)}>
-                                        {r.type === 'room' && <span style={{ color: '#2196f3', fontWeight: 600 }}>[방]</span>}
-                                        {r.type === 'message' && <span style={{ color: '#4caf50', fontWeight: 600 }}>[메시지]</span>}
-                                        {r.type === 'user' && <span style={{ color: '#ff9800', fontWeight: 600 }}>[유저]</span>}
-                                        {' '}
-                                        {r.type === 'room' && highlight(r.name)}
-                                        {r.type === 'message' && <>{highlight(r.content)} <span style={{ color: '#888', fontSize: 12 }}>({r.room_name})</span></>}
-                                        {r.type === 'user' && highlight(r.username)}
+                                        <div className="search-result-header">
+                                            {r.type === 'room' && <span style={{ color: '#2196f3', fontWeight: 600 }}>[방]</span>}
+                                            {r.type === 'message' && <span style={{ color: '#4caf50', fontWeight: 600 }}>[메시지]</span>}
+                                            {r.type === 'user' && <span style={{ color: '#ff9800', fontWeight: 600 }}>[유저]</span>}
+                                            {' '}
+                                            {r.type === 'room' && highlight(r.name)}
+                                            {r.type === 'message' && <span style={{ color: '#888', fontSize: 12 }}>({r.room_name})</span>}
+                                            {r.type === 'user' && highlight(r.username)}
+                                            <span className="search-result-date">{formatDate(r.date || r.created_at)}</span>
+                                        </div>
+                                        {r.type === 'message' && (
+                                            <div className="search-result-preview">
+                                                {highlight(getMessagePreview(r.content))}
+                                            </div>
+                                        )}
+                                        {r.type === 'room' && r.description && (
+                                            <div className="search-result-preview">
+                                                {highlight(r.description)}
+                                            </div>
+                                        )}
                                     </li>
                                 ))
                             )}

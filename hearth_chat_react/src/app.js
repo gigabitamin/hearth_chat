@@ -51,9 +51,14 @@ function LobbyPage({ loginUser, loginLoading, checkLoginStatus, userSettings, se
 
 function ChatRoomPage({ loginUser, loginLoading, checkLoginStatus, userSettings, setUserSettings, onUserMenuOpen, isSettingsModalOpen, setIsSettingsModalOpen, isLoginModalOpen, setIsLoginModalOpen, settingsTab, setSettingsTab }) {
   const { roomId } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const [room, setRoom] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // URL 파라미터에서 메시지 ID 추출
+  const searchParams = new URLSearchParams(location.search);
+  const highlightMessageId = searchParams.get('messageId');
 
   useEffect(() => {
     // 방 정보 fetch
@@ -103,6 +108,7 @@ function ChatRoomPage({ loginUser, loginLoading, checkLoginStatus, userSettings,
         setIsLoginModalOpen={setIsLoginModalOpen}
         settingsTab={settingsTab}
         setSettingsTab={setSettingsTab}
+        highlightMessageId={highlightMessageId}
       />
     </div>
   );

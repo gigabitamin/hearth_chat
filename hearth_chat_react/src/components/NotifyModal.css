@@ -92,6 +92,53 @@
     border-bottom: none;
 }
 
+.notify-item.unread {
+    background: rgba(33, 150, 243, 0.05);
+    border-left: 3px solid #2196f3;
+    padding-left: 12px;
+    margin-left: -12px;
+}
+
+.notify-item.read {
+    opacity: 0.7;
+}
+
+.notify-enter-btn {
+    font-size: 13px;
+    color: #2196f3;
+    background: none;
+    border: 1px solid #2196f3;
+    border-radius: 4px;
+    padding: 4px 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.notify-enter-btn:hover {
+    background: #2196f3;
+    color: white;
+}
+
+.notify-enter-btn.unread {
+    background: #2196f3;
+    color: white;
+    font-weight: 500;
+}
+
+.notify-enter-btn.unread:hover {
+    background: #1976d2;
+}
+
+.notify-enter-btn.read {
+    color: #888;
+    border-color: #ccc;
+}
+
+.notify-enter-btn.read:hover {
+    background: #f5f5f5;
+    color: #666;
+}
+
 @media (max-width: 600px) {
     .notify-modal {
         min-width: 90vw;

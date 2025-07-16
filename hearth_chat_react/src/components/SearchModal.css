@@ -111,6 +111,36 @@
     margin: 20px 0;
 }
 
+.search-result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+
+.search-result-date {
+    color: #888;
+    font-size: 0.85rem;
+    font-weight: normal;
+    margin-left: auto;
+}
+
+.search-result-preview {
+    color: #666;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    margin-top: 4px;
+    word-break: break-word;
+}
+
+.search-result-preview mark {
+    background-color: #fff3cd;
+    color: #856404;
+    padding: 1px 2px;
+    border-radius: 2px;
+}
+
 @media (max-width: 600px) {
     .search-modal {
         min-width: 90vw;

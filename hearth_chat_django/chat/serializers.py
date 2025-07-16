@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import ChatRoom, Chat, ChatRoomParticipant, UserSettings, VoiceCall
+from .models import ChatRoom, Chat, ChatRoomParticipant, UserSettings, VoiceCall, MessageReaction, MessageReply, PinnedMessage
 from django.contrib.auth.models import User
 
 class UserSerializer(serializers.ModelSerializer):
@@ -64,4 +64,24 @@ class VoiceCallSerializer(serializers.ModelSerializer):
     receiver = UserSerializer(read_only=True)
     class Meta:
         model = VoiceCall
-        fields = ['id', 'room', 'caller', 'receiver', 'status', 'start_time', 'end_time', 'duration'] 
+        fields = ['id', 'room', 'caller', 'receiver', 'status', 'start_time', 'end_time', 'duration']
+
+class MessageReactionSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    class Meta:
+        model = MessageReaction
+        fields = ['id', 'message', 'user', 'emoji', 'created_at']
+
+class MessageReplySerializer(serializers.ModelSerializer):
+    original_message = serializers.PrimaryKeyRelatedField(queryset=Chat.objects.all())
+    reply_message = serializers.PrimaryKeyRelatedField(queryset=Chat.objects.all())
+    class Meta:
+        model = MessageReply
+        fields = ['id', 'original_message', 'reply_message', 'created_at']
+
+class PinnedMessageSerializer(serializers.ModelSerializer):
+    message = serializers.PrimaryKeyRelatedField(queryset=Chat.objects.all())
+    pinned_by = UserSerializer(read_only=True)
+    class Meta:
+        model = PinnedMessage
+        fields = ['id', 'room', 'message', 'pinned_by', 'pinned_at'] 
