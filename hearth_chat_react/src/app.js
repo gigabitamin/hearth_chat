@@ -276,10 +276,23 @@ function AppContent(props) {
       return [];
     }
   });
-  // 읽지 않은 알림 개수 계산
-  const unreadNotifications = notifications.filter(n => !readNotificationIds.includes(n.id)).length;
+  // 읽지 않은 알림 개수 및 목록을 백엔드에서 받아옴
+  const [unreadNotificationList, setUnreadNotificationList] = useState([]);
+  const unreadNotifications = unreadNotificationList.length;
 
-  // 알림 읽음 처리 핸들러
+  // 알림 모달 열릴 때마다 unread API 호출
+  useEffect(() => {
+    if (isNotifyModalOpen) {
+      fetch('/api/notifications/unread/', { credentials: 'include' })
+        .then(res => res.json())
+        .then(data => {
+          setUnreadNotificationList(data);
+        })
+        .catch(() => setUnreadNotificationList([]));
+    }
+  }, [isNotifyModalOpen]);
+
+  // 알림 클릭 시 읽음 처리 후 unread 목록 갱신
   const handleNotificationRead = (id, roomId, messageId) => {
     setReadNotificationIds(prev => {
       if (prev.includes(id)) return prev;
@@ -296,6 +309,12 @@ function AppContent(props) {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ room: roomId, message: messageId })
+      }).then(() => {
+        // 읽음 처리 후 unread 목록 갱신
+        fetch('/api/notifications/unread/', { credentials: 'include' })
+          .then(res => res.json())
+          .then(data => setUnreadNotificationList(data))
+          .catch(() => setUnreadNotificationList([]));
       });
     }
   };
@@ -323,11 +342,25 @@ function AppContent(props) {
     // eslint-disable-next-line
   }, [notifications.length]);
 
-  // 알림 모달 열릴 때마다 읽음 상태 동기화(새로고침 시에도 유지하려면 localStorage 등 활용 가능)
+  // 알림 모달 내에서만 강조: unreadNotificationList를 NotifyModal에 전달
+  // 전체 읽음 처리 핸들러
+  const handleMarkAllAsRead = () => {
+    // 모든 unread 알림에 대해 읽음 처리
+    unreadNotificationList.forEach(n => {
+      handleNotificationRead(n.message_id, n.room_id, n.message_id);
+    });
+  };
+
+  // 알림 모달이 열려 있을 때 알림 목록 자동 새로고침(5초 간격)
   useEffect(() => {
     if (!isNotifyModalOpen) return;
-    // 새로고침 시에도 유지하려면 localStorage 등 활용 가능
-    // setReadNotificationIds([]); // (옵션) 모달 열 때마다 모두 읽음 처리하려면 사용
+    const interval = setInterval(() => {
+      fetch('/api/notifications/unread/', { credentials: 'include' })
+        .then(res => res.json())
+        .then(data => setUnreadNotificationList(data))
+        .catch(() => setUnreadNotificationList([]));
+    }, 5000);
+    return () => clearInterval(interval);
   }, [isNotifyModalOpen]);
 
   return (
@@ -355,8 +388,13 @@ function AppContent(props) {
       <NotifyModal
         open={isNotifyModalOpen}
         onClose={() => setIsNotifyModalOpen(false)}
-        notifications={notifications.map(n => ({ ...n, read: readNotificationIds.includes(n.id) }))}
+        notifications={notifications.map(n => ({
+          ...n,
+          read: !unreadNotificationList.some(u => u.message_id === n.messageId)
+        }))}
         onNotificationRead={(id, roomId, messageId) => handleNotificationRead(id, roomId, messageId)}
+        unreadList={unreadNotificationList}
+        onMarkAllAsRead={handleMarkAllAsRead}
       />
       <SearchModal open={isSearchModalOpen} onClose={() => setIsSearchModalOpen(false)} rooms={allRooms} messages={allMessages} users={allUsers} />
       {/* 로그인 모달 */}

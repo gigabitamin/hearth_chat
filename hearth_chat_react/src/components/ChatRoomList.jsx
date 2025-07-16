@@ -40,6 +40,8 @@ const API_BASE = isProd
 // ChatRoomList 컴포넌트에 onClose prop 추가
 const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, checkLoginStatus, onUserMenuOpen, activeTab, setActiveTab, showCreateModal, setShowCreateModal, onClose, onCreateRoomSuccess, overlayKey, wsConnected, setWsConnected }) => {
     const navigate = useNavigate();
+    // 사이드바 전용 탭 상태 분리
+    const [sidebarTab, setSidebarTab] = useState('personal');
     const [rooms, setRooms] = useState([]);
     const [publicRooms, setPublicRooms] = useState([]);
     const [favoriteRooms, setFavoriteRooms] = useState([]);
@@ -199,16 +201,16 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
         }
     };
 
-    // 탭 변경 시 목록 fetch
+    // 탭 변경 시 목록 fetch (sidebarTab 기준으로 변경)
     useEffect(() => {
-        if (activeTab === 'favorite') {
+        if (sidebarTab === 'favorite') {
             fetchMyFavorites();
-        } else if (activeTab === 'personal') {
+        } else if (sidebarTab === 'personal') {
             fetchRooms();
-        } else if (activeTab === 'open') {
+        } else if (sidebarTab === 'open') {
             fetchPublicRooms();
         }
-    }, [activeTab]);
+    }, [sidebarTab]);
 
     // 즐겨찾기 토글
     const handleFavoriteToggle = async (room, e) => {
@@ -224,7 +226,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                 credentials: 'include',
                 headers: { 'X-CSRFToken': csrftoken },
             });
-            if (activeTab === 'favorite') {
+            if (sidebarTab === 'favorite') {
                 fetchMyFavorites();
             } else {
                 fetchRooms();
@@ -408,23 +410,25 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
 
     return (
         <div className="chat-room-list">
-            {/* 사이드바/오버레이 상단에 탭 UI 추가 */}
-            <div className="chat-roomlist-tabs" style={{ display: 'flex', gap: 4, marginBottom: 10, marginTop: 2, justifyContent: 'center' }}>
-                <button
-                    className={`header-tab-btn${activeTab === 'personal' ? ' active' : ''}`}
-                    onClick={() => typeof setActiveTab === 'function' ? setActiveTab('personal') : (window.setActiveTab && window.setActiveTab('personal'))}
-                >개인</button>
-                <button
-                    className={`header-tab-btn${activeTab === 'open' ? ' active' : ''}`}
-                    onClick={() => typeof setActiveTab === 'function' ? setActiveTab('open') : (window.setActiveTab && window.setActiveTab('open'))}
-                >오픈</button>
-                <button
-                    className={`header-tab-btn${activeTab === 'favorite' ? ' active' : ''}`}
-                    onClick={() => typeof setActiveTab === 'function' ? setActiveTab('favorite') : (window.setActiveTab && window.setActiveTab('favorite'))}
-                    title="즐겨찾기"
-                    style={{ color: '#FFD600', fontSize: 20, padding: '0 12px' }}
-                >★</button>
-            </div>
+            {/* 사이드바/오버레이 상단에 탭 UI: overlayKey가 'overlay'일 때만 표시 */}
+            {overlayKey === 'overlay' && (
+                <div className="chat-roomlist-tabs" style={{ display: 'flex', gap: 4, marginBottom: 10, marginTop: 2, justifyContent: 'center' }}>
+                    <button
+                        className={`header-tab-btn${sidebarTab === 'personal' ? ' active' : ''}`}
+                        onClick={() => setSidebarTab('personal')}
+                    >개인</button>
+                    <button
+                        className={`header-tab-btn${sidebarTab === 'open' ? ' active' : ''}`}
+                        onClick={() => setSidebarTab('open')}
+                    >오픈</button>
+                    <button
+                        className={`header-tab-btn${sidebarTab === 'favorite' ? ' active' : ''}`}
+                        onClick={() => setSidebarTab('favorite')}
+                        title="즐겨찾기"
+                        style={{ color: '#FFD600', fontSize: 20, padding: '0 12px' }}
+                    >★</button>
+                </div>
+            )}
 
             {loading ? (
                 <div className="loading">대화방 목록을 불러오는 중...</div>
@@ -434,14 +438,14 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                 <div className="no-rooms">
                     <button className="login-btn" onClick={() => setIsLoginModalOpen(true)} style={{ fontSize: 18, padding: '12px 32px', borderRadius: 8, background: '#2196f3', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer' }}>로그인</button>
                 </div>
-            ) : (activeTab === 'personal' ? rooms.length === 0 : publicRooms.length === 0) ? (
+            ) : (sidebarTab === 'personal' ? rooms.length === 0 : publicRooms.length === 0) ? (
                 <div className="no-rooms">
-                    <p>{activeTab === 'personal' ? '참여 중인 대화방이 없습니다.' : '공개 오픈 채팅방이 없습니다.'}</p>
+                    <p>{sidebarTab === 'personal' ? '참여 중인 대화방이 없습니다.' : '공개 오픈 채팅방이 없습니다.'}</p>
                     <p>새로운 대화를 시작해보세요!</p>
                 </div>
             ) : (
                 <div className="room-items" ref={listRef}>
-                    {(activeTab === 'favorite' ? favoriteRooms : activeTab === 'personal' ? rooms : publicRooms).map((room) => (
+                    {(sidebarTab === 'favorite' ? favoriteRooms : sidebarTab === 'personal' ? rooms : publicRooms).map((room) => (
                         <div
                             key={room.id}
                             className={`room-item ${selectedRoomId === room.id ? 'selected' : ''}`}
@@ -487,7 +491,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                 >
                                     {room.is_favorite ? '★' : '☆'}
                                 </button>
-                                {activeTab === 'personal' && (
+                                {sidebarTab === 'personal' && (
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
@@ -500,7 +504,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                         🗑️
                                     </button>
                                 )}
-                                {activeTab === 'open' && !rooms.find(r => r.id === room.id) && (
+                                {sidebarTab === 'open' && !rooms.find(r => r.id === room.id) && (
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
