@@ -1,5 +1,8 @@
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class Command(BaseCommand):
     help = 'Create or update initial superuser for Railway deploy'
@@ -8,7 +11,7 @@ class Command(BaseCommand):
         User = get_user_model()
         username = 'gigabitamin'
         email = 'gigabitamin@gmail.com'
-        password = 'windmill4u@'
+        password = os.getenv('DJANGO_SUPERUSER_PASSWORD')
         user, created = User.objects.get_or_create(username=username, defaults={'email': email})
         user.email = email
         user.is_superuser = True

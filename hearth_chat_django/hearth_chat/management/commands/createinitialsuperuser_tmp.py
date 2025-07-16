@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-
 class Command(BaseCommand):
     help = 'Create or update initial superuser for Railway deploy'
 
