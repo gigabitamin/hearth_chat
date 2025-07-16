@@ -37,11 +37,11 @@ python manage.py createsiteobject 2>&1 | tee /tmp/createsiteobject.log || {
     cat /tmp/createsiteobject.log
 }
 
-echo "Ensuring superuser exists..."
-python manage.py createinitialsuperuser 2>&1 | tee /tmp/createinitialsuperuser.log || {
-    echo "[ERROR] Superuser creation failed. See /tmp/createinitialsuperuser.log below:"
-    cat /tmp/createinitialsuperuser.log
-}
+# echo "Ensuring superuser exists..."
+# python manage.py createinitialsuperuser 2>&1 | tee /tmp/createinitialsuperuser.log || {
+#     echo "[ERROR] Superuser creation failed. See /tmp/createinitialsuperuser.log below:"
+#     cat /tmp/createinitialsuperuser.log
+# }
 
 # 정적 파일 수집 (실패해도 계속 진행)
 echo "Collecting static files..."
