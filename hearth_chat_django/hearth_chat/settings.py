@@ -165,10 +165,10 @@ if (
 ):
     try:
         DATABASES["default"]["OPTIONS"] = {
-            "charset": os.environ.get("LOCAL_MYSQL_CHARSET", "utf8mb4"),
+            # "charset": os.environ.get("LOCAL_MYSQL_CHARSET", "utf8mb4"),
             "init_command": os.environ.get(
                 "LOCAL_MYSQL_INIT_COMMAND",
-                "SET character_set_connection=utf8mb4; SET collation_connection=utf8mb4_unicode_ci;"
+                # "SET character_set_connection=utf8mb4; SET collation_connection=utf8mb4_unicode_ci;"
             ),
         }
         print("로컬 MySQL utf8mb4 옵션 적용 완료!")
