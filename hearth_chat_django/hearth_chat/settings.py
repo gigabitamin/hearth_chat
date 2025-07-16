@@ -85,19 +85,18 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
     CSRF_COOKIE_SECURE = True
     CSRF_TRUSTED_ORIGINS = [
         "https://hearthchat-production.up.railway.app",
-        "https://*.hearthchat-production.up.railway.app",  # 서브도메인 대응
+        "https://*.hearthchat-production.up.railway.app",
     ]
-    
-    # CORS 완전 허용 (개발 중일 경우에만)
-    # CORS_ALLOW_ALL_ORIGINS = True
-
-    # 기타 보안 설정 완화 (임시)
+    CORS_ALLOWED_ORIGINS = [
+        "https://hearthchat-production.up.railway.app",
+    ]
+    CORS_ALLOW_CREDENTIALS = True
+    # 기타 보안 설정
     SECURE_SSL_REDIRECT = False
     SECURE_PROXY_SSL_HEADER = None
     SECURE_CONTENT_TYPE_NOSNIFF = False
     SECURE_BROWSER_XSS_FILTER = False
     X_FRAME_OPTIONS = 'ALLOWALL'
-
     print("Railway 배포 환경 설정 완료")
 else:
     # 로컬 개발 환경 (http)
