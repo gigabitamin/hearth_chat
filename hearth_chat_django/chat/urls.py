@@ -23,7 +23,7 @@ urlpatterns = [
     path('upload_image/', views.upload_chat_image, name='upload_chat_image'),
     path('user/', views.user_info, name='user_info'),
     path('logout/', views.logout_api, name='logout_api'),
-    path('rooms/user_chat_alt/', UserChatCreateAPIView.as_view(), name='user_chat_api'),  # ✅ 추가된 APIView
+    path('rooms/user_chat_alt/', UserChatCreateAPIView.as_view(), name='user_chat_api'),  # APIView 추가
 ]
 
 urlpatterns += router.urls

@@ -38,7 +38,7 @@ const API_BASE = isProd
             : `http://${hostname}:8000`;
 
 // ChatRoomList 컴포넌트에 onClose prop 추가
-const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, checkLoginStatus, onUserMenuOpen, activeTab, showCreateModal, setShowCreateModal, onClose, onCreateRoomSuccess, overlayKey, wsConnected, setWsConnected }) => {
+const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, checkLoginStatus, onUserMenuOpen, activeTab, setActiveTab, showCreateModal, setShowCreateModal, onClose, onCreateRoomSuccess, overlayKey, wsConnected, setWsConnected }) => {
     const navigate = useNavigate();
     const [rooms, setRooms] = useState([]);
     const [publicRooms, setPublicRooms] = useState([]);
@@ -111,8 +111,8 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                 // 대화방 목록 업데이트 메시지 처리
                 if (data.type === 'room_list_update') {
                     fetchRooms();
-                } 
-            }; 
+                }
+            };
 
             ws.onclose = () => {
                 console.log('WebSocket 연결 끊어짐');
@@ -136,7 +136,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
 
     const fetchRooms = async () => {
         try {
-            setLoading(true);            
+            setLoading(true);
             // 환경에 따라 API URL 설정            
             const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
             const apiUrl = isLocalhost ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
@@ -145,21 +145,21 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                 headers: {
                     'Content-Type': 'application/json',
                 },
-            }); 
+            });
             if (!response.ok) {
                 throw new Error('Failed to fetch rooms');
-            } 
-            const data = await response.json();            
-            setRooms(data.results || data);            
+            }
+            const data = await response.json();
+            setRooms(data.results || data);
         } catch (err) {
             setError(err.message);
             console.error('Error fetching rooms:', err);
         } finally {
             setLoading(false);
-        } 
+        }
     };
 
-    const fetchPublicRooms = async () => {        
+    const fetchPublicRooms = async () => {
         try {
             // 환경에 따라 API URL 설정
             const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -177,7 +177,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             const data = await response.json();
             setPublicRooms(data.results || data);
         } catch (err) {
-            console.error('Error fetching public rooms:', err);            
+            console.error('Error fetching public rooms:', err);
         }
     };
 
@@ -300,7 +300,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             setCreateError(err.message);
         } finally {
             setCreating(false);
-        } 
+        }
     };
 
     const handleDeleteRoom = async (roomId) => {
@@ -408,7 +408,23 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
 
     return (
         <div className="chat-room-list">
-            {/* 상단 타이틀/탭/버튼/상태표시 모두 HeaderBar로 이동, 여기선 제거 */}
+            {/* 사이드바/오버레이 상단에 탭 UI 추가 */}
+            <div className="chat-roomlist-tabs" style={{ display: 'flex', gap: 4, marginBottom: 10, marginTop: 2, justifyContent: 'center' }}>
+                <button
+                    className={`header-tab-btn${activeTab === 'personal' ? ' active' : ''}`}
+                    onClick={() => typeof setActiveTab === 'function' ? setActiveTab('personal') : (window.setActiveTab && window.setActiveTab('personal'))}
+                >개인</button>
+                <button
+                    className={`header-tab-btn${activeTab === 'open' ? ' active' : ''}`}
+                    onClick={() => typeof setActiveTab === 'function' ? setActiveTab('open') : (window.setActiveTab && window.setActiveTab('open'))}
+                >오픈</button>
+                <button
+                    className={`header-tab-btn${activeTab === 'favorite' ? ' active' : ''}`}
+                    onClick={() => typeof setActiveTab === 'function' ? setActiveTab('favorite') : (window.setActiveTab && window.setActiveTab('favorite'))}
+                    title="즐겨찾기"
+                    style={{ color: '#FFD600', fontSize: 20, padding: '0 12px' }}
+                >★</button>
+            </div>
 
             {loading ? (
                 <div className="loading">대화방 목록을 불러오는 중...</div>

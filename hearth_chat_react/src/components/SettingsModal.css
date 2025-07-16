@@ -18,8 +18,8 @@
     min-width: 0;
     width: 96vw;
     max-width: 480px;
-    min-height: 0;
-    height: auto;
+    min-height: 420px;
+    height: 520px;
     max-height: 90vh;
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
     position: relative;
@@ -28,6 +28,7 @@
     flex-direction: column;
     align-items: stretch;
     justify-content: flex-start;
+    top: 0;
 }
 
 .settings-modal-header {
@@ -46,34 +47,67 @@
 }
 
 .settings-modal-tabs {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: repeat(2, 1fr);
     gap: 8px;
     margin-bottom: 20px;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    height: 80px;
+    box-sizing: border-box;
 }
 
-.settings-modal-tab {
-    background: #2c313a;
-    color: #bbb;
-    border: none;
-    border-radius: 6px 6px 0 0;
-    padding: 8px 18px;
-    font-size: 15px;
-    cursor: pointer;
-    transition: background 0.2s, color 0.2s;
-}
-
+.settings-modal-tab,
 .settings-modal-tab-active {
-    background: #fff;
-    color: #23272f;
-    font-weight: bold;
-    border-bottom: 2px solid #ff9800;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    text-align: center;
+    margin-bottom: 0;
+    height: 36px;
+    font-size: 15px;
+    border-radius: 6px 6px 0 0;
+    box-sizing: border-box;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@media (max-width: 480px) {
+    .settings-modal {
+        max-width: 100vw;
+        min-width: 0;
+        width: 100vw;
+        height: 90vh;
+        min-height: 320px;
+    }
+
+    .settings-modal-tabs {
+        height: 80px;
+        font-size: 14px;
+        grid-template-columns: repeat(5, 1fr);
+        grid-template-rows: repeat(2, 1fr);
+    }
+
+    .settings-modal-tab,
+    .settings-modal-tab-active {
+        font-size: 13px;
+        height: 32px;
+    }
 }
 
 .settings-modal-content {
     min-height: 80px;
-    padding: 0.8rem 0 0 0;
+    flex: 1 1 0;
+    overflow-y: auto;
     width: 100%;
     box-sizing: border-box;
+    padding: 0.8rem 0 0 0;
 }
 
 /* 유저 관련 스타일들 */

@@ -509,13 +509,20 @@ class ChatViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({'error': str(e)}, status=500)
 
-    @action(detail=False, methods=['get'])
+    # @action(detail=False, methods=['get', 'post'])
+    @action(detail=False, methods=['get', 'post'])
     def search(self, request):
-        """메시지 검색 API"""
-        query = request.query_params.get('q', '')
-        scope = request.query_params.get('scope', 'all')  # all, room, message, user
-        sort_by = request.query_params.get('sort', 'relevance')  # relevance, date
-        limit = int(request.query_params.get('limit', 50))
+        """메시지 검색 API (GET/POST 모두 지원)"""
+        if request.method == 'POST':
+            query = request.data.get('q') or ''
+            scope = request.data.get('scope') or 'all'
+            sort_by = request.data.get('sort') or 'relevance'
+            limit = int(request.data.get('limit') or 50)
+        else:
+            query = request.query_params.get('q', '')
+            scope = request.query_params.get('scope', 'all')
+            sort_by = request.query_params.get('sort', 'relevance')
+            limit = int(request.query_params.get('limit', 50))
         
         if not query:
             return Response({'error': '검색어가 필요합니다.'}, status=400)
@@ -562,6 +569,29 @@ class ChatViewSet(viewsets.ModelViewSet):
                 else:
                     sender_label = msg.username or msg.ai_name or 'Unknown'
                 
+                # 문맥 메시지(이전/다음 1개씩)
+                context_prev = Chat.objects.filter(room_id=msg.room_id, timestamp__lt=msg.timestamp).order_by('-timestamp').first()
+                context_next = Chat.objects.filter(room_id=msg.room_id, timestamp__gt=msg.timestamp).order_by('timestamp').first()
+                context = []
+                if context_prev:
+                    context.append({
+                        'id': context_prev.id,
+                        'content': context_prev.content,
+                        'timestamp': context_prev.timestamp,
+                        'sender': context_prev.username,
+                        'room_id': context_prev.room_id,
+                        'room_name': context_prev.room.name if context_prev.room else '',
+                    })
+                if context_next:
+                    context.append({
+                        'id': context_next.id,
+                        'content': context_next.content,
+                        'timestamp': context_next.timestamp,
+                        'sender': context_next.username,
+                        'room_id': context_next.room_id,
+                        'room_name': context_next.room.name if context_next.room else '',
+                    })
+                
                 result_data = {
                     'id': msg.id,
                     'type': 'message',
@@ -573,6 +603,7 @@ class ChatViewSet(viewsets.ModelViewSet):
                     'sender_type': msg.sender_type,
                     'username': msg.username,
                     'ai_name': msg.ai_name,
+                    'context': context,  # 추가: 앞뒤 문맥 메시지
                 }
                 results.append(result_data)
             
@@ -583,29 +614,8 @@ class ChatViewSet(viewsets.ModelViewSet):
                 'scope': scope,
                 'sort_by': sort_by
             })
-            
         except Exception as e:
             return Response({'error': str(e)}, status=500)
-        message_list = []
-        for msg in messages:
-            if msg.sender_type == 'user':
-                sender_label = msg.username or f"User({msg.user_id})"
-            elif msg.sender_type == 'ai':
-                sender_label = msg.ai_name or msg.ai_type or 'AI'
-            elif msg.sender_type == 'system':
-                sender_label = 'System'
-            else:
-                sender_label = msg.username or msg.ai_name or 'Unknown'
-            message_data = {
-                'id': msg.id,
-                'content': msg.content,
-                'timestamp': msg.timestamp,
-                'sender': sender_label,
-                'room_id': msg.room_id,
-                'room_name': msg.room.name if msg.room else '',
-            }
-            message_list.append(message_data)
-        return Response({'results': message_list})
 
 # @method_decorator(csrf_exempt, name='dispatch')
 class UserSettingsView(APIView):
@@ -829,7 +839,7 @@ class UserChatCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        print("✅ user_chat view 진입")
+        print("user_chat view 진입")
         user1 = request.user
         user2_id = request.data.get('user_id')
 

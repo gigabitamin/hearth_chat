@@ -130,20 +130,20 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
                     const parts = value.split(`; ${name}=`);
                     if (parts.length === 2) return parts.pop().split(';').shift();
                 };
-                
+
                 const csrfToken = getCookie('csrftoken');
-                
+
                 const res = await fetch('http://localhost:8000/api/chat/rooms/user_chat_alt/', {
                     method: 'POST',
-                    credentials: 'include', // ✅ 세션 쿠키 전송
+                    credentials: 'include', // 세션 쿠키 전송
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRFToken': csrfToken,
                     },
                     body: JSON.stringify({ user_id: r.id }),
-                });                
-                
-                
+                });
+
+
                 if (res.ok) {
                     const data = await res.json();
                     navigate(`/room/${data.id}`);
@@ -205,6 +205,16 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
                                         {r.type === 'message' && (
                                             <div className="search-result-preview">
                                                 {highlight(getMessagePreview(r.content))}
+                                                {Array.isArray(r.context) && r.context.length > 0 && (
+                                                    <div className="search-result-context">
+                                                        <div className="context-label">문맥</div>
+                                                        {r.context.map((ctx, idx) => (
+                                                            <div key={ctx.id || idx} className="context-message">
+                                                                <span className="context-sender">{ctx.sender}:</span> {getMessagePreview(ctx.content, 60)}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                         {r.type === 'room' && r.description && (

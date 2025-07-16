@@ -56,7 +56,6 @@ const tabList = [
   { key: 'notify', label: '알림' },
   { key: 'chat', label: '채팅' },
   { key: 'display', label: '화면' },
-  { key: 'sound', label: '소리' },
   { key: 'etc', label: '기타' },
 ];
 
@@ -381,7 +380,7 @@ const SettingsModal = ({
     <div className="settings-modal-overlay" onClick={onClose}>
       <div className="settings-modal" onClick={e => e.stopPropagation()}>
         <div className="settings-modal-header">
-          <h2>설정</h2>
+          {/* <h2>설정</h2> */}
           <button className="settings-modal-close" onClick={onClose}>✕</button>
         </div>
         <div className="settings-modal-tabs">

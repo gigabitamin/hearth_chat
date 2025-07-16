@@ -143,6 +143,23 @@ function ChatRoomPage({ loginUser, loginLoading, checkLoginStatus, userSettings,
   );
 }
 
+// 알림 도착 시 소리 재생 함수 추가
+function playNotificationSound() {
+  if (window.AudioContext || window.webkitAudioContext) {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.value = 880;
+    o.connect(g);
+    g.connect(ctx.destination);
+    g.gain.value = 0.1;
+    o.start();
+    o.stop(ctx.currentTime + 0.15);
+    setTimeout(() => ctx.close(), 300);
+  }
+}
+
 // AppContent를 App 함수 바깥으로 이동
 function AppContent(props) {
   const {
@@ -194,7 +211,7 @@ function AppContent(props) {
   const [isContinuousRecognition, setIsContinuousRecognition] = useState(false);
   const voiceRecognitionRef = React.useRef(null);
   const [permissionStatus, setPermissionStatus] = useState('prompt');
-  
+
   const handleVoiceRecognitionToggle = () => {
     setIsVoiceRecognitionEnabled(v => !v);
   };
@@ -249,6 +266,31 @@ function AppContent(props) {
     )
   );
 
+  // 알림 읽음 상태 관리
+  const [readNotificationIds, setReadNotificationIds] = useState([]);
+  // 읽지 않은 알림 개수 계산
+  const unreadNotifications = notifications.filter(n => !readNotificationIds.includes(n.id)).length;
+
+  // 알림 읽음 처리 핸들러
+  const handleNotificationRead = (id) => {
+    setReadNotificationIds(prev => prev.includes(id) ? prev : [...prev, id]);
+  };
+
+  // 새 알림 도착 시 소리 재생 (알림 개수 변화 감지)
+  useEffect(() => {
+    if (notifications.length > 0 && unreadNotifications > 0) {
+      playNotificationSound();
+    }
+    // eslint-disable-next-line
+  }, [notifications.length]);
+
+  // 알림 모달 열릴 때마다 읽음 상태 동기화(새로고침 시에도 유지하려면 localStorage 등 활용 가능)
+  useEffect(() => {
+    if (!isNotifyModalOpen) return;
+    // 새로고침 시에도 유지하려면 localStorage 등 활용 가능
+    // setReadNotificationIds([]); // (옵션) 모달 열 때마다 모두 읽음 처리하려면 사용
+  }, [isNotifyModalOpen]);
+
   return (
     <>
       {/* 상단바 공통 렌더링 */}
@@ -268,9 +310,15 @@ function AppContent(props) {
         onCreateRoomClick={() => setShowCreateModal(true)}
         loginUser={loginUser}
         title={headerTitle}
+        unreadNotifications={unreadNotifications}
       />
       {/* 알림/검색 모달 */}
-      <NotifyModal open={isNotifyModalOpen} onClose={() => setIsNotifyModalOpen(false)} notifications={notifications} />
+      <NotifyModal
+        open={isNotifyModalOpen}
+        onClose={() => setIsNotifyModalOpen(false)}
+        notifications={notifications.map(n => ({ ...n, read: readNotificationIds.includes(n.id) }))}
+        onNotificationRead={handleNotificationRead}
+      />
       <SearchModal open={isSearchModalOpen} onClose={() => setIsSearchModalOpen(false)} rooms={allRooms} messages={allMessages} users={allUsers} />
       {/* 로그인 모달 */}
       <LoginModal
@@ -292,16 +340,16 @@ function AppContent(props) {
         setTab={setSettingsTab}
         userSettings={userSettings}
         setUserSettings={setUserSettings}
-        loginUser={loginUser}        
+        loginUser={loginUser}
         ttsRate={ttsRate}
-        setTtsRate={setTtsRate} 
+        setTtsRate={setTtsRate}
         ttsPitch={ttsPitch}
         setTtsPitch={setTtsPitch}
         ttsVoice={ttsVoice}
         setTtsVoice={setTtsVoice}
         voiceList={voiceList}
         isTTSEnabled={isTTSEnabled}
-        setIsTTSEnabled={setIsTTSEnabled}      
+        setIsTTSEnabled={setIsTTSEnabled}
         isVoiceRecognitionEnabled={isVoiceRecognitionEnabled}
         setIsVoiceRecognitionEnabled={setIsVoiceRecognitionEnabled}
         autoSend={autoSend}
@@ -454,6 +502,7 @@ function App() {
       }
     } catch { }
   };
+
   const fetchAllUsers = async () => {
     try {
       const res = await csrfFetch(`${getApiBase()}/api/chat/users/`, { credentials: 'include' });
@@ -463,18 +512,49 @@ function App() {
       }
     } catch { }
   };
-  const fetchAllMessages = async () => {
+
+  const fetchAllMessages = async (query = '') => {
     try {
-      const res = await csrfFetch(`${getApiBase()}/api/chat/messages/all/`, { credentials: 'include' });
+      let res;
+
+      if (query.trim().length > 0) {
+        // 검색어가 있을 때 → search API (GET 방식)
+        const encodedQuery = encodeURIComponent(query);
+        const searchUrl = `${getApiBase()}/api/chat/messages/search/?q=${encodedQuery}&scope=message&sort=date&limit=100`;
+
+        res = await csrfFetch(searchUrl, {
+          method: 'GET',
+          credentials: 'include',
+        });
+      } else {
+        // 검색어 없을 때 → all API 호출
+        const allUrl = `${getApiBase()}/api/chat/messages/all/`;
+
+        res = await csrfFetch(allUrl, {
+          method: 'GET',
+          credentials: 'include',
+        });
+      }
+
       if (res.ok) {
         const data = await res.json();
         setAllMessages(data.results || data);
+      } else {
+        console.error('메시지 fetch 실패:', res.status);
       }
-    } catch { }
+    } catch (error) {
+      console.error('메시지 fetch 중 오류 발생:', error);
+    }
   };
-  useEffect(() => { if (isSearchModalOpen) { fetchAllRooms(); fetchAllUsers(); fetchAllMessages(); } }, [isSearchModalOpen]);
 
-
+  // 검색 모달 열릴 때 메시지 등 초기화
+  useEffect(() => {
+    if (isSearchModalOpen) {
+      fetchAllRooms();
+      fetchAllUsers();
+      fetchAllMessages();
+    }
+  }, [isSearchModalOpen]);
 
   // App 컴포넌트에서 showCreateModal, setShowCreateModal, handleCreateRoomSuccess 전역 관리
   const handleCreateRoomSuccess = (newRoom) => {
@@ -488,7 +568,7 @@ function App() {
     csrfFetch(`${getApiBase()}/api/csrf/`, { credentials: 'include' });
     checkLoginStatus();
   }, []);
-  
+
   const checkLoginStatus = async () => {
     try {
       const response = await csrfFetch(`${getApiBase()}/api/chat/user/settings/`, {
@@ -512,7 +592,7 @@ function App() {
       setLoginLoading(false);
     }
   };
-  
+
 
   // 알림 목록 fetch (즐겨찾기 방 최신 메시지)
   const fetchNotifications = async () => {
@@ -524,6 +604,7 @@ function App() {
       if (!response.ok) throw new Error('Failed to fetch favorite rooms');
       const data = await response.json();
       const notis = (data.results || data).map(room => ({
+        id: room.id, // 알림 ID 추가
         roomId: room.id,
         roomName: room.name,
         latestMessage: room.latest_message ? room.latest_message.content : '(메시지 없음)',

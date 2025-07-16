@@ -42,6 +42,14 @@ export default function HeaderBar({
                     >
                         오픈
                     </button>
+                    <button
+                        className={`header-tab-btn${activeTab === 'favorite' ? ' active' : ''}`}
+                        onClick={() => onTabChange('favorite')}
+                        title="즐겨찾기"
+                        style={{ color: '#FFD600', fontSize: 20, padding: '0 12px' }}
+                    >
+                        ★
+                    </button>
                 </nav>
             </div>
             <div className="header-center">

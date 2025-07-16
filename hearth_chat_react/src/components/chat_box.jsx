@@ -133,7 +133,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [isRealTimeMode, setIsRealTimeMode] = useState(false);
 
-  
+
   // 상대방 메시지 랜덤 색상 관리
   const [senderColors, setSenderColors] = useState({});
 
@@ -172,7 +172,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   // TTS 관련 상태
   const [isTTSEnabled, setIsTTSEnabled] = useState(false);
   const [ttsVoice, setTtsVoice] = useState(null);
-  const [ttsRate, setTtsRate] = useState(1.5);  
+  const [ttsRate, setTtsRate] = useState(1.5);
   const [ttsPitch, setTtsPitch] = useState(1.5);
   const [voiceList, setVoiceList] = useState([]);
 
@@ -2469,8 +2469,8 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       )}
       <div className="chat-box-root" style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
         <div className="chat-log" style={{ position: 'relative', flex: 1, minHeight: 0, overflowY: 'auto' }}>
-          {/* 플로팅 메뉴 버튼 (오른쪽 상단) */}
-          <div className="chat-floating-menu" style={{ position: 'absolute', top: 12, right: 12, zIndex: 10 }}>
+          {/* 플로팅 메뉴 버튼 (왼쪽 상단, 아래로 펼침) */}
+          <div className="chat-floating-menu" style={{ position: 'absolute', top: 12, left: 12, zIndex: 10 }}>
             <button
               onClick={() => setIsMenuOpen(v => !v)}
               style={{ background: '#222', color: '#fff', border: 'none', borderRadius: 8, width: 40, height: 40, fontSize: 22, cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}
@@ -2479,7 +2479,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
               ☰
             </button>
             {isMenuOpen && (
-              <div style={{ position: 'absolute', top: 44, right: 0, background: '#222', borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.18)', padding: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ position: 'absolute', top: 44, left: 0, background: '#222', borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.18)', padding: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <button style={{ color: '#fff', background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', padding: 8, textAlign: 'left' }} onClick={() => { setIsAiAvatarOn(v => !v); setIsMenuOpen(false); }}>
                   🤖 {isAiAvatarOn ? 'off' : 'on'}
                 </button>

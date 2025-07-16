@@ -237,7 +237,41 @@ body,
   position: relative;
 }
 
-/* === .chat-log 스크롤바 스타일 일원화 (상단 채팅방 목록과 동일) === */
+/* 입력창이 헤더에 가려지지 않도록 하단 여백 조정 */
+:root {
+  --header-height: 56px;
+}
+
+.chat-input-area {
+  position: sticky;
+  bottom: var(--header-height);
+  left: 0;
+  width: 100%;
+  z-index: 10;
+  background: #18191c;
+  border-top: 1px solid #222;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .chat-input-area {
+    position: fixed;
+    left: 0;
+    bottom: var(--header-height);
+    width: 100vw;
+    max-width: 100vw;
+    z-index: 100;
+    border-radius: 0;
+  }
+
+  .chat-container {
+    max-width: 100vw;
+    min-width: 0;
+    padding-bottom: calc(60px + var(--header-height));
+  }
+}
+
 .chat-log {
   flex: 1 1 0;
   min-height: 0;
@@ -247,6 +281,7 @@ body,
   scrollbar-width: thin;
   scrollbar-color: rgba(120, 120, 120, 0.25) transparent;
   padding-bottom: 80px;
+  box-sizing: border-box;
 }
 
 .chat-log::-webkit-scrollbar {
@@ -309,17 +344,6 @@ body,
   border-bottom-left-radius: 5px;
 }
 
-.chat-input-area {
-  width: 100%;
-  padding: 16px 0;
-  flex: none;
-  background: #181c2b;
-  position: sticky;
-  bottom: 0;
-  z-index: 10;
-}
-
-/* 입력창 전체 감싸는 박스 */
 .chat-input-box {
   display: flex;
   align-items: center;
