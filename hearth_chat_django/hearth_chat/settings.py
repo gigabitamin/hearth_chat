@@ -50,7 +50,7 @@ ALLOWED_HOSTS = [
     'hearthchat-production.up.railway.app',
     "localhost",
     "127.0.0.1",
-    "[::1]",
+    # "[::1]",
     "192.168.44.9",
     # "192.168.0.0/16",  # 192.168.*.* 전체 허용
 ]
