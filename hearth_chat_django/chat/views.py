@@ -484,7 +484,7 @@ class ChatViewSet(viewsets.ModelViewSet):
                 'has_more': len(message_list) == limit
             }
 
-            cache.set(cache_key, response_data, 300)
+            cache.set(cache_key, response_data, 0) # 즉시 캐시 삭제
             return Response(response_data)
 
         except Exception as e:
