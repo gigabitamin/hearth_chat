@@ -109,13 +109,10 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                 console.log('WebSocket 메시지 수신:', data);
 
                 // 대화방 목록 업데이트 메시지 처리
-                console.log('fetchRooms called9', fetchRooms)
                 if (data.type === 'room_list_update') {
-                    console.log('fetchRooms called10', fetchRooms)
                     fetchRooms();
-                    console.log('fetchRooms called11', fetchRooms)
-                } console.log('fetchRooms called12', fetchRooms)
-            }; console.log('fetchRooms called13', fetchRooms)
+                } 
+            }; 
 
             ws.onclose = () => {
                 console.log('WebSocket 연결 끊어짐');
@@ -138,48 +135,35 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
     };
 
     const fetchRooms = async () => {
-        console.log('fetchRooms called14', fetchRooms)
         try {
-            console.log('fetchRooms called15', fetchRooms)
-            setLoading(true);
-            console.log('fetchRooms called16', fetchRooms)
+            setLoading(true);            
             // 환경에 따라 API URL 설정            
             const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            console.log('fetchRooms called17', fetchRooms)
             const apiUrl = isLocalhost ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
-            console.log('fetchRooms called18', fetchRooms)
             const response = await fetch(`${API_BASE}/api/chat/rooms/`, {
                 credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-            }); console.log('fetchRooms called19', fetchRooms)
+            }); 
             if (!response.ok) {
                 throw new Error('Failed to fetch rooms');
-            } console.log('fetchRooms called20', fetchRooms)
-            const data = await response.json();
-            console.log('fetchRooms called21', fetchRooms)
-            setRooms(data.results || data);
-            console.log('fetchRooms called22', fetchRooms)
+            } 
+            const data = await response.json();            
+            setRooms(data.results || data);            
         } catch (err) {
             setError(err.message);
-            console.log('fetchRooms called23', fetchRooms)
             console.error('Error fetching rooms:', err);
         } finally {
             setLoading(false);
-            console.log('fetchRooms called24', fetchRooms)
-        } console.log('fetchRooms called25', fetchRooms)
+        } 
     };
 
-    const fetchPublicRooms = async () => {
-        console.log('fetchRooms called26', fetchRooms)
+    const fetchPublicRooms = async () => {        
         try {
-            console.log('fetchRooms called27', fetchRooms)
             // 환경에 따라 API URL 설정
             const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            console.log('fetchRooms called28', fetchRooms)
             const apiUrl = isLocalhost ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
-            console.log('fetchRooms called29', fetchRooms)
 
             const response = await fetch(`${API_BASE}/api/chat/rooms/public/`, {
                 credentials: 'include',
@@ -187,15 +171,13 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                     'Content-Type': 'application/json',
                 },
             });
-            console.log('fetchRooms called30', fetchRooms)
             if (!response.ok) {
                 throw new Error('Failed to fetch public rooms');
             }
             const data = await response.json();
             setPublicRooms(data.results || data);
         } catch (err) {
-            console.error('Error fetching public rooms:', err);
-            console.log('fetchRooms called31', fetchRooms)
+            console.error('Error fetching public rooms:', err);            
         }
     };
 
@@ -307,11 +289,8 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             setCreateType('ai');
             setCreateAI('GEMINI');
             setCreateIsPublic(false);
-            console.log('fetchRooms called32', fetchRooms)
             await fetchRooms();
-            console.log('fetchRooms called33', fetchRooms)
             await fetchPublicRooms();
-            console.log('fetchRooms called34', fetchRooms)
             if (onCreateRoomSuccess) {
                 onCreateRoomSuccess(newRoom);
             } else {
@@ -321,7 +300,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             setCreateError(err.message);
         } finally {
             setCreating(false);
-        } console.log('fetchRooms called35', fetchRooms)
+        } 
     };
 
     const handleDeleteRoom = async (roomId) => {
@@ -349,10 +328,8 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             }
 
             await fetchRooms();
-            console.log('fetchRooms called36', fetchRooms)
             alert('대화방이 삭제되었습니다.');
         } catch (err) {
-            console.log('fetchRooms called37', fetchRooms)
             alert(`대화방 삭제 실패: ${err.message}`);
         }
     };
@@ -378,12 +355,9 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             }
 
             await fetchRooms();
-            console.log('fetchRooms called38', fetchRooms)
             await fetchPublicRooms();
-            console.log('fetchRooms called39', fetchRooms)
             alert('방에 입장했습니다!');
         } catch (err) {
-            console.log('fetchRooms called40', fetchRooms)
             alert(`방 입장 실패: ${err.message}`);
         }
     };

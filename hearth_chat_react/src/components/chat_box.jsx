@@ -44,33 +44,6 @@ ChartJS.register(
   Legend
 );
 
-// CSRF
-function getCookie(name) {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(';').shift();
-}
-
-const csrfFetch = async (url, options = {}) => {
-  const csrftoken = getCookie('csrftoken');
-  const defaultHeaders = {
-    'X-CSRFToken': csrftoken,
-    'Content-Type': 'application/json',
-  };
-
-  const mergedOptions = {
-    credentials: 'include',
-    ...options,
-    headers: {
-      ...defaultHeaders,
-      ...(options.headers || {}),
-    },
-  };
-
-  return fetch(url, mergedOptions);
-};
-
-
 // 모달 컴포넌트 추가
 const Modal = ({ open, onClose, children }) => {
   if (!open) return null;
@@ -2330,7 +2303,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
       console.log('메시지 조회 API 호출:', `${apiUrl}/api/chat/messages/messages/?room=${roomId}&limit=${limit}&offset=${offset}`);
 
-      const res = await csrfFetch(`${apiUrl}/api/chat/messages/messages/?room=${roomId}&limit=${limit}&offset=${offset}`, {
+      const res = await fetch(`${apiUrl}/api/chat/messages/messages/?room=${roomId}&limit=${limit}&offset=${offset}`, {
         credentials: 'include',
       });
 
