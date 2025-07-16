@@ -111,6 +111,24 @@
     z-index: 1;
 }
 
+.search-result-item.active {
+    background: #e3f2fd !important;
+    border-left: 4px solid #1976d2;
+    color: #1976d2;
+    font-weight: 600;
+    outline: none;
+    box-shadow: 0 2px 8px #90caf9;
+}
+
+.search-result-item.selected {
+    background: #fffde7 !important;
+    border-left: 4px solid #ffd600;
+    color: #b28704;
+    font-weight: 600;
+    outline: none;
+    box-shadow: 0 2px 8px #ffe082;
+}
+
 .search-result-empty {
     color: #888;
     text-align: center;

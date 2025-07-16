@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './SearchModal.css';
 import { useNavigate } from 'react-router-dom';
+import { FixedSizeList as List } from 'react-window';
 
 export default function SearchModal({ open, onClose, rooms = [], messages = [], users = [] }) {
     const [query, setQuery] = useState('');
@@ -8,50 +9,72 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
     const [useAnd, setUseAnd] = useState(false);
     const [useRegex, setUseRegex] = useState(false);
     const [sortBy, setSortBy] = useState('relevance'); // relevance, date
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
     const navigate = useNavigate();
+    const [debouncedQuery, setDebouncedQuery] = useState(query);
+    const [useApiSearch, setUseApiSearch] = useState(false); // API 기반 검색 토글
+    const [apiResults, setApiResults] = useState([]);
+    const [apiTotal, setApiTotal] = useState(0);
+    const [apiPage, setApiPage] = useState(1);
+    const [apiPageSize, setApiPageSize] = useState(100);
+    const [activeIndex, setActiveIndex] = useState(-1);
+    const resultListRef = React.useRef();
+    const [resultTypeFilter, setResultTypeFilter] = useState('all'); // all, message, room, user
+    const [selectedIndexes, setSelectedIndexes] = useState([]);
 
-    // 프론트 필터링 함수
-    const filterItems = () => {
-        if (!query) return [];
-        let keywords = useAnd ? query.split(/\s+/).filter(Boolean) : [query];
-        let regex = null;
-        if (useRegex) {
-            try { regex = new RegExp(query, 'i'); } catch { regex = null; }
-        }
-        const match = (text) => {
-            if (!text) return false;
-            if (regex) return regex.test(text);
-            if (useAnd) return keywords.every(k => text.toLowerCase().includes(k.toLowerCase()));
-            return text.toLowerCase().includes(query.toLowerCase());
-        };
-        let results = [];
-        if (scope === 'all' || scope === 'room') {
-            results = results.concat((rooms || []).filter(r => match(r.name)).map(r => ({ type: 'room', ...r })));
-        }
-        if (scope === 'all' || scope === 'message') {
-            results = results.concat((messages || []).filter(m => match(m.content)).map(m => ({ type: 'message', ...m })));
-        }
-        if (scope === 'all' || scope === 'user') {
-            results = results.concat((users || []).filter(u => match(u.username)).map(u => ({ type: 'user', ...u })));
-        }
+    // 입력 debounce 처리
+    useEffect(() => {
+        const handler = setTimeout(() => setDebouncedQuery(query), 250);
+        return () => clearTimeout(handler);
+    }, [query]);
 
-        // 정렬 로직
-        if (sortBy === 'date') {
-            results.sort((a, b) => {
-                const dateA = a.date || a.created_at || new Date(0);
-                const dateB = b.date || b.created_at || new Date(0);
-                return new Date(dateB) - new Date(dateA);
-            });
-        } else {
-            // 정확도순 정렬 (키워드 매칭 개수 기준)
-            results.sort((a, b) => {
+    // 검색 결과 상태 관리
+    const [results, setResults] = useState([]);
+    useEffect(() => {
+        setError(null);
+        setLoading(true);
+        try {
+            if (!debouncedQuery) {
+                setResults([]);
+                setLoading(false);
+                return;
+            }
+            let keywords = useAnd ? debouncedQuery.split(/\s+/).filter(Boolean) : [debouncedQuery];
+            let regex = null;
+            if (useRegex) {
+                try { regex = new RegExp(debouncedQuery, 'i'); } catch { regex = null; }
+            }
+            const match = (text) => {
+                if (!text) return false;
+                if (regex) return regex.test(text);
+                if (useAnd) return keywords.every(k => text.toLowerCase().includes(k.toLowerCase()));
+                return text.toLowerCase().includes(debouncedQuery.toLowerCase());
+            };
+            let filtered = [];
+            if (scope === 'all' || scope === 'room') {
+                filtered = filtered.concat((rooms || []).filter(r => match(r.name)).map(r => ({ type: 'room', ...r })));
+            }
+            if (scope === 'all' || scope === 'message') {
+                filtered = filtered.concat((messages || []).filter(m => match(m.content)).map(m => ({ type: 'message', ...m })));
+            }
+            if (scope === 'all' || scope === 'user') {
+                filtered = filtered.concat((users || []).filter(u => match(u.username)).map(u => ({ type: 'user', ...u })));
+            }
+            // 정렬
+            if (sortBy === 'date') {
+                filtered.sort((a, b) => {
+                    const dateA = a.date || a.created_at || new Date(0);
+                    const dateB = b.date || b.created_at || new Date(0);
+                    return new Date(dateB) - new Date(dateA);
+                });
+            } else {
                 const getScore = (item) => {
                     let score = 0;
                     const text = (item.name || item.content || item.username || '').toLowerCase();
-                    const queryLower = query.toLowerCase();
-
+                    const queryLower = debouncedQuery.toLowerCase();
                     if (useAnd) {
-                        const keywords = query.split(/\s+/).filter(Boolean);
+                        const keywords = debouncedQuery.split(/\s+/).filter(Boolean);
                         score = keywords.filter(k => text.includes(k)).length;
                     } else {
                         if (text.includes(queryLower)) score += 2;
@@ -59,13 +82,54 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
                     }
                     return score;
                 };
-                return getScore(b) - getScore(a);
-            });
+                filtered.sort((a, b) => getScore(b) - getScore(a));
+            }
+            setResults(filtered);
+            setLoading(false);
+        } catch (e) {
+            setError('검색 중 오류가 발생했습니다.');
+            setResults([]);
+            setLoading(false);
         }
+    }, [debouncedQuery, scope, useAnd, useRegex, sortBy, rooms, messages, users]);
 
-        return results;
-    };
-    const results = filterItems();
+    // API 기반 검색 useEffect
+    useEffect(() => {
+        if (!useApiSearch) return;
+        if (!debouncedQuery) {
+            setApiResults([]); setApiTotal(0); setLoading(false); return;
+        }
+        setLoading(true);
+        setError(null);
+        const params = new URLSearchParams({
+            query: debouncedQuery,
+            scope,
+            sort: sortBy,
+            and: useAnd ? '1' : '0',
+            regex: useRegex ? '1' : '0',
+            page: apiPage,
+            page_size: apiPageSize
+        });
+        fetch(`/api/search?${params.toString()}`, { credentials: 'include' })
+            .then(res => res.json())
+            .then(data => {
+                setApiResults(data.results || []);
+                setApiTotal(data.total || 0);
+                setLoading(false);
+            })
+            .catch(() => {
+                setError('검색 서버 오류');
+                setApiResults([]);
+                setApiTotal(0);
+                setLoading(false);
+            });
+    }, [useApiSearch, debouncedQuery, scope, sortBy, useAnd, useRegex, apiPage, apiPageSize]);
+
+    // 검색 결과 소스 결정
+    const displayResults = useApiSearch ? apiResults : results;
+
+    // displayResults를 타입별로 추가 필터링
+    const filteredDisplayResults = resultTypeFilter === 'all' ? displayResults : displayResults.filter(r => r.type === resultTypeFilter);
 
     // 하이라이트 함수
     const highlight = (text) => {
@@ -157,6 +221,108 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
         }
     };
 
+    // 키보드 네비게이션 핸들러
+    useEffect(() => {
+        if (!open) return;
+        const handleKeyDown = (e) => {
+            if (e.key === 'ArrowDown') {
+                setActiveIndex(prev => Math.min(filteredDisplayResults.length - 1, prev + 1));
+                e.preventDefault();
+            } else if (e.key === 'ArrowUp') {
+                setActiveIndex(prev => Math.max(0, prev - 1));
+                e.preventDefault();
+            } else if (e.key === 'Enter') {
+                if (activeIndex >= 0 && activeIndex < filteredDisplayResults.length) {
+                    onResultClick(filteredDisplayResults[activeIndex]);
+                }
+            } else if (e.key === 'Escape') {
+                if (onClose) onClose();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [open, filteredDisplayResults, activeIndex]);
+    // 결과가 바뀌면 activeIndex 초기화
+    useEffect(() => { setActiveIndex(-1); }, [filteredDisplayResults]);
+
+    // 멀티셀렉트 핸들러
+    const handleResultClick = (index, e) => {
+        if (e.ctrlKey || e.metaKey) {
+            setSelectedIndexes(prev => prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]);
+        } else if (e.shiftKey && selectedIndexes.length > 0) {
+            const last = selectedIndexes[selectedIndexes.length - 1];
+            const [start, end] = [Math.min(last, index), Math.max(last, index)];
+            const range = Array.from({ length: end - start + 1 }, (_, i) => start + i);
+            setSelectedIndexes(prev => Array.from(new Set([...prev, ...range])));
+        } else {
+            setSelectedIndexes([index]);
+        }
+        setActiveIndex(index);
+    };
+    // 복사 버튼 핸들러
+    const handleCopySelected = () => {
+        const items = selectedIndexes.map(i => filteredDisplayResults[i]);
+        const text = items.map(r => {
+            if (r.type === 'message') return `[${rooms.find(room => room.id === r.room_id)?.name || ''}] ${r.sender || r.username || ''}: ${r.content}`;
+            if (r.type === 'room') return `[방] ${r.name}`;
+            if (r.type === 'user') return `[유저] ${r.username}`;
+            return '';
+        }).join('\n');
+        navigator.clipboard.writeText(text);
+    };
+
+    const renderResultItem = ({ index, style }) => {
+        const r = filteredDisplayResults[index];
+        const isSelected = selectedIndexes.includes(index);
+        return (
+            <li
+                key={index}
+                className={`search-result-item${index === activeIndex ? ' active' : ''}${isSelected ? ' selected' : ''}`}
+                style={style}
+                onClick={e => handleResultClick(index, e)}
+                ref={index === activeIndex ? resultListRef : undefined}
+            >
+                <div className="search-result-header">
+                    <span className={`search-result-type${r.type === 'message' ? ' message' : r.type === 'user' ? ' user' : ''}`}>[{r.type === 'room' ? '방' : r.type === 'message' ? '메시지' : '유저'}]</span>
+                    {r.type === 'room' && <span className="search-result-room">{highlight(r.name)}</span>}
+                    {r.type === 'user' && <span className="search-result-user">{highlight(r.username)}</span>}
+                    {r.type === 'message' && (
+                        <>
+                            <span className="search-result-room" style={{ color: '#1976d2', fontWeight: 600, marginLeft: 6 }}>{rooms.find(room => room.id === r.room_id)?.name || '알 수 없음'}</span>
+                            <span className="search-result-sender" style={{ color: '#555', marginLeft: 8 }}>{r.sender || r.username || '익명'}</span>
+                            <span className="search-result-date" style={{ color: '#aaa', marginLeft: 8, fontSize: 12 }}>{formatDate(r.date || r.created_at)}</span>
+                        </>
+                    )}
+                </div>
+                {r.type === 'message' && (
+                    <div className="search-result-preview" style={{ fontSize: 14, color: '#333', marginTop: 2 }}>
+                        {(() => {
+                            const content = r.content || '';
+                            const idx = content.toLowerCase().indexOf(debouncedQuery.toLowerCase());
+                            let preview = content;
+                            if (idx !== -1) {
+                                const start = Math.max(0, idx - 20);
+                                const end = Math.min(content.length, idx + debouncedQuery.length + 20);
+                                preview = (start > 0 ? '...' : '') + content.slice(start, end) + (end < content.length ? '...' : '');
+                            }
+                            return highlight(preview);
+                        })()}
+                    </div>
+                )}
+                {r.type === 'room' && <div className="search-result-preview" style={{ fontSize: 14, color: '#333', marginTop: 2 }}>{highlight(r.name)}</div>}
+                {r.type === 'user' && <div className="search-result-preview" style={{ fontSize: 14, color: '#333', marginTop: 2 }}>{highlight(r.username)}</div>}
+            </li>
+        );
+    };
+
+    // 가상화/일반 리스트 모두에서 activeIndex에 따라 스크롤 보정
+    useEffect(() => {
+        if (activeIndex < 0) return;
+        if (resultListRef.current) {
+            resultListRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+    }, [activeIndex]);
+
     if (!open) return null;
     return (
         <div className="search-modal-overlay" onClick={onClose}>
@@ -179,6 +345,13 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
                         </select>
                         <label style={{ fontSize: 13 }}><input type="checkbox" checked={useAnd} onChange={e => setUseAnd(e.target.checked)} /> AND</label>
                         <label style={{ fontSize: 13 }}><input type="checkbox" checked={useRegex} onChange={e => setUseRegex(e.target.checked)} /> 정규식</label>
+                        <label style={{ fontSize: 13 }}><input type="checkbox" checked={useApiSearch} onChange={e => setUseApiSearch(e.target.checked)} /> API 검색</label>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                            <button onClick={() => setResultTypeFilter('all')} style={{ fontWeight: resultTypeFilter === 'all' ? 700 : 400 }}>전체</button>
+                            <button onClick={() => setResultTypeFilter('message')} style={{ fontWeight: resultTypeFilter === 'message' ? 700 : 400 }}>메시지</button>
+                            <button onClick={() => setResultTypeFilter('room')} style={{ fontWeight: resultTypeFilter === 'room' ? 700 : 400 }}>방</button>
+                            <button onClick={() => setResultTypeFilter('user')} style={{ fontWeight: resultTypeFilter === 'user' ? 700 : 400 }}>유저</button>
+                        </div>
                     </div>
                     <input
                         className="search-input"
@@ -190,40 +363,38 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
                     />
                     {query && (
                         <ul className="search-result-list">
-                            {results.length === 0 ? (
+                            {loading ? (
+                                <li className="search-result-loading">검색 중...</li>
+                            ) : error ? (
+                                <li className="search-result-error">{error}</li>
+                            ) : filteredDisplayResults.length === 0 ? (
                                 <li className="search-result-empty">검색 결과가 없습니다.</li>
+                            ) : filteredDisplayResults.length >= 100 ? (
+                                <List
+                                    height={Math.min(480, filteredDisplayResults.length * 64)}
+                                    itemCount={filteredDisplayResults.length}
+                                    itemSize={64}
+                                    width={"100%"}
+                                    style={{ background: 'none' }}
+                                >
+                                    {({ index, style }) => renderResultItem({ index, style, results: filteredDisplayResults })}
+                                </List>
                             ) : (
-                                results.map((r, i) => (
-                                    <li key={i} className="search-result-item" onClick={() => onResultClick(r)}>
-                                        <div className="search-result-header">
-                                            <span className={`search-result-type${r.type === 'message' ? ' message' : r.type === 'user' ? ' user' : ''}`}>[{r.type === 'room' ? '방' : r.type === 'message' ? '메시지' : '유저'}]</span>
-                                            {r.type === 'room' && <span className="search-result-room">{highlight(r.name)}</span>}
-                                            {r.type === 'message' && <span className="search-result-room">{r.room_name}</span>}
-                                            {r.type === 'user' && <span className="search-result-username">{highlight(r.username)}</span>}
-                                            <span className="search-result-date">{formatDate(r.date || r.created_at || r.timestamp)}</span>
-                                        </div>
-                                        {r.type === 'message' && (
-                                            <div className="search-result-preview">
-                                                {highlight(getMessagePreview(r.content))}
-                                                {Array.isArray(r.context) && r.context.length > 0 && (
-                                                    <div className="search-result-context">
-                                                        <div className="context-label">문맥</div>
-                                                        {r.context.map((ctx, idx) => (
-                                                            <div key={ctx.id || idx} className="context-message">
-                                                                <span className="context-sender">{ctx.sender}:</span> {getMessagePreview(ctx.content, 60)}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                        {r.type === 'room' && r.description && (
-                                            <div className="search-result-preview">{highlight(getMessagePreview(r.description, 80))}</div>
-                                        )}
-                                    </li>
-                                ))
+                                filteredDisplayResults.map((r, i) => renderResultItem({ index: i, style: {}, results: filteredDisplayResults }))
                             )}
                         </ul>
+                    )}
+                    {useApiSearch && apiTotal > apiPageSize && (
+                        <div style={{ textAlign: 'center', margin: '8px 0' }}>
+                            <button disabled={apiPage === 1} onClick={() => setApiPage(apiPage - 1)}>이전</button>
+                            <span style={{ margin: '0 12px' }}>{apiPage} / {Math.ceil(apiTotal / apiPageSize)}</span>
+                            <button disabled={apiPage * apiPageSize >= apiTotal} onClick={() => setApiPage(apiPage + 1)}>다음</button>
+                        </div>
+                    )}
+                    {selectedIndexes.length > 0 && (
+                        <button style={{ margin: '8px 0', fontWeight: 600, background: '#1976d2', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 16px', cursor: 'pointer' }} onClick={handleCopySelected}>
+                            선택 항목 복사 ({selectedIndexes.length})
+                        </button>
                     )}
                 </div>
             </div>

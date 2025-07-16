@@ -31,6 +31,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path('accounts/', include('allauth.urls')),
     path('api/chat/', include('chat.urls')),
+    path('api/admin/', include('chat.admin_urls')),  # 관리자 API 추가
     path('health/', lambda r: HttpResponse(b"OK", content_type="text/plain"), name="health_check"),
     path("manifest.json", lambda r: static_serve(r, 'manifest.json', os.path.dirname(os.path.join(settings.BASE_DIR, '..', 'hearth_chat_react', 'build', 'manifest.json')))),
     path("logo192.png", lambda r: static_serve(r, 'logo192.png', os.path.dirname(os.path.join(settings.BASE_DIR, '..', 'hearth_chat_react', 'build', 'logo192.png')))),

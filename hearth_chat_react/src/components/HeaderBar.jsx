@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import './HeaderBar.css';
 
 const CreateRoomButton = ({ onClick }) => (
@@ -25,6 +26,8 @@ export default function HeaderBar({
     title, // 중앙에 표시할 텍스트(채팅방 이름/앱명)
     unreadNotifications = 0 // 읽지 않은 알림 개수
 }) {
+    const navigate = useNavigate();
+
     return (
         <header className="header-bar">
             <div className="header-left-group">
@@ -56,6 +59,25 @@ export default function HeaderBar({
                 {title && <span className="header-title-text">{title}</span>}
             </div>
             <div className="header-actions">
+                {/* 관리자 링크 (관리자만 표시) */}
+                {loginUser && loginUser.is_staff && (
+                    <button
+                        className="header-action-btn"
+                        onClick={() => navigate('/admin')}
+                        title="관리자 대시보드"
+                        style={{
+                            marginRight: 8,
+                            background: '#ff6b6b',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '8px 12px',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        <span role="img" aria-label="admin" style={{ fontSize: 18 }}>👑</span>
+                    </button>
+                )}
                 {/* 로그인/유저 버튼 */}
                 {loginUser ? (
                     <button

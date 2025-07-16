@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email']
+        fields = ['id', 'username', 'email', 'is_active', 'is_staff', 'is_superuser', 'date_joined', 'last_login']
 
 class ChatRoomParticipantSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
@@ -18,10 +18,12 @@ class ChatRoomSerializer(serializers.ModelSerializer):
     favorite_users = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
     is_favorite = serializers.SerializerMethodField()
     latest_message = serializers.SerializerMethodField()
+    participant_count = serializers.SerializerMethodField()
+    message_count = serializers.SerializerMethodField()
 
     class Meta:
         model = ChatRoom
-        fields = ['id', 'name', 'room_type', 'ai_provider', 'is_public', 'is_active', 'is_voice_call', 'participants', 'favorite_users', 'is_favorite', 'latest_message', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'room_type', 'ai_provider', 'is_public', 'is_active', 'is_voice_call', 'participants', 'favorite_users', 'is_favorite', 'latest_message', 'participant_count', 'message_count', 'created_at', 'updated_at']
 
     def get_is_favorite(self, obj):
         user = self.context.get('request').user
@@ -40,11 +42,37 @@ class ChatRoomSerializer(serializers.ModelSerializer):
             }
         return None
 
+    def get_participant_count(self, obj):
+        return obj.participants.count()
+
+    def get_message_count(self, obj):
+        return obj.chat_set.count()
+
 class ChatSerializer(serializers.ModelSerializer):
     sender = UserSerializer(read_only=True)
+    room_name = serializers.SerializerMethodField()
+    sender_name = serializers.SerializerMethodField()
+    reaction_count = serializers.SerializerMethodField()
+    
     class Meta:
         model = Chat
-        fields = ['id', 'room', 'sender', 'message_type', 'content', 'timestamp', 'emotion', 'attach_image', 'created_at', 'updated_at']
+        fields = ['id', 'room', 'room_name', 'sender', 'sender_name', 'sender_type', 'username', 'user_id', 'ai_name', 'ai_type', 'message_type', 'content', 'timestamp', 'emotion', 'attach_image', 'reaction_count', 'created_at', 'updated_at']
+    
+    def get_room_name(self, obj):
+        return obj.room.name if obj.room else 'No Room'
+    
+    def get_sender_name(self, obj):
+        if obj.sender_type == 'user':
+            return obj.username or f"User({obj.user_id})"
+        elif obj.sender_type == 'ai':
+            return obj.ai_name or obj.ai_type or 'AI'
+        elif obj.sender_type == 'system':
+            return 'System'
+        else:
+            return obj.username or obj.ai_name or 'Unknown'
+    
+    def get_reaction_count(self, obj):
+        return obj.reactions.count()
 
 class UserSettingsSerializer(serializers.ModelSerializer):
     tts_enabled = serializers.BooleanField(required=False)

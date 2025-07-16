@@ -22,6 +22,8 @@ import CodeIcon from '@mui/icons-material/Code';
 
 import { useNavigate } from 'react-router-dom';
 
+import VirtualizedMessageList from './VirtualizedMessageList';
+
 // Chart.js core 등록 필수!
 import {
   Chart as ChartJS,
@@ -1834,7 +1836,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   };
 
   // 메시지 전송 함수
-  const sendMessage = (messageText = null) => {
+  const sendMessage = async (messageText = null) => {
     const textToSend = messageText || input;
     if (!textToSend.trim()) return;
 
@@ -1873,6 +1875,42 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       return arr;
     });
     setInput('');
+    let newMessageId = null;
+    try {
+      // 1. 메시지(Chat) 전송
+      const res = await fetch('/api/messages/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          // ... 기존 필드 ...
+          content: textToSend,
+          // ... 기타 필드 ...
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '메시지 전송 실패');
+      newMessageId = data.id;
+      // 2. replyTo가 있으면 MessageReply 생성
+      if (replyTo && newMessageId) {
+        const replyRes = await fetch('/api/replies/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            original_message: replyTo.id,
+            reply_message: newMessageId
+          })
+        });
+        if (!replyRes.ok) {
+          alert('답장 정보 저장에 실패했습니다.');
+        }
+      }
+      setReplyTo(null); // 전송 후 답장 상태 초기화
+      setInput('');
+    } catch (e) {
+      alert('메시지 전송 중 오류: ' + e.message);
+    }
   };
 
 
@@ -2458,6 +2496,9 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     return () => window.removeEventListener('mousedown', handleClick);
   }, [isMenuOpen]);
 
+  // 1. 상태 추가
+  const [replyTo, setReplyTo] = useState(null);
+
   return (
     <>
       {/* 이미지 뷰어 모달 */}
@@ -2657,215 +2698,16 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           >
             <div className="chat-container">
               <div className="chat-log" ref={chatScrollRef}>
-                {messages.map((msg, idx) => {
-                  console.log(`메시지 ${idx} 렌더링:`, msg);
-                  console.log(`메시지 ${idx} 텍스트 내용:`, msg.text);
-                  console.log(`메시지 ${idx} 타입:`, msg.type);
-                  console.log(`메시지 ${idx} 발신자:`, msg.sender);
-
-                  // 날짜/시간 포맷 함수
-                  const dateObj = msg.date ? new Date(msg.date) : new Date();
-                  const yyyy = dateObj.getFullYear();
-                  const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
-                  const dd = String(dateObj.getDate()).padStart(2, '0');
-                  const hh = String(dateObj.getHours()).padStart(2, '0');
-                  const min = String(dateObj.getMinutes()).padStart(2, '0');
-
-                  // 발신자 라벨 결정
-                  let senderLabel = '';
-                  if (msg.sender_type === 'user' && msg.username) {
-                    senderLabel = msg.username;
-                  } else if (msg.sender_type === 'ai' && msg.ai_name) {
-                    senderLabel = msg.ai_name;
-                  } else if (msg.sender_type === 'system') {
-                    senderLabel = 'System';
-                  } else if (msg.sender) {
-                    senderLabel = msg.sender;
-                  } else if (msg.type === 'send') {
-                    senderLabel = loginUserRef.current?.username || '나';
-                  } else {
-                    senderLabel = 'AI';
-                  }
-
-                  const dateTimeBox = (
-                    <div className="chat-date-time-box">
-                      <div className="chat-date-time-sender">{senderLabel}</div>
-                      <div className="chat-date-time-year">{yyyy}-</div>
-                      <div className="chat-date-time-md">{mm}-{dd}</div>
-                      <div className="chat-date-time-hm">{hh}:{min}</div>
-                    </div>
-                  );
-                  const isHighlighted = highlightedMessageId === msg.id;
-                  return (
-                    <div
-                      key={idx}
-                      id={`message-${msg.id}`}
-                      className={`chat-message-row${isHighlighted ? ' highlighted' : ''}`}
-                      style={{
-                        display: 'flex',
-                        flexDirection: msg.type === 'send' ? 'row-reverse' : 'row',
-                        alignItems: 'flex-end',
-                        width: '100%',
-                        justifyContent: msg.type === 'send' ? 'flex-end' : 'flex-start',
-                        transition: 'all 0.3s ease',
-                      }}
-                    >
-                      {/* 사용자/AI 메시지 버블+날짜 영역 */}
-                      <div
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: msg.type === 'send' ? 'flex-end' : 'flex-start',
-                          height: '100%',
-                          maxWidth: '80vw',
-                          minWidth: 0,
-                          width: '80%',
-                          marginLeft: msg.type === 'send' ? 'auto' : 0,
-                          marginRight: msg.type === 'send' ? 0 : 'auto',
-                        }}
-                      >
-                        <div
-                          className={`chat-bubble ${msg.type === 'send' ? 'sent' : 'received'}`}
-                          style={{
-                            marginRight: msg.type === 'send' ? 8 : 0,
-                            marginLeft: msg.type === 'send' ? 0 : 8,
-                            backgroundColor: msg.type === 'send' ? undefined : getSenderColor(msg.sender),
-                            color: msg.type === 'send' ? undefined : (getSenderColor(msg.sender) ? '#fff' : undefined),
-                            position: 'relative',
-                          }}
-                        >
-                          {/* AI 응답일 때 질문자 username 표시 - 상단 */}
-                          {msg.type === 'ai' && msg.questioner_username && (
-                            <div className="ai-questioner-username">
-                              {msg.questioner_username}
-                            </div>
-                          )}
-                          {/* 이미지+텍스트 조합 출력 */}
-                          {msg.imageUrl && (
-                            <img
-                              src={msg.imageUrl}
-                              alt="첨부 이미지"
-                              className="attached-image-thumb"
-                              style={{ cursor: 'pointer' }}
-                              onClick={() => setViewerImage(msg.imageUrl)}
-                            />
-                          )}
-                          {msg.text && (() => {
-                            const textToParse = msg.type === 'recv' && idx === messages.length - 1 && isAiTalking
-                              ? ensureDoubleNewlineAfterCodeBlocks(extractLatexBlocks(displayedAiText))
-                              : ensureDoubleNewlineAfterCodeBlocks(extractLatexBlocks(msg.text));
-                            const blocks = parseMessageBlocks(textToParse);
-                            console.log(`메시지 ${idx} 파싱 결과:`, { text: msg.text, blocks });
-                            return blocks.map((block, i) => {
-                              if (!block || !block.type) return null;
-                              const chartKey = `${idx}_${i}`;
-                              if (block.type === 'math') {
-                                return (
-                                  <span key={i} dangerouslySetInnerHTML={{ __html: katex.renderToString(block.value || '', { throwOnError: false }) }} />
-                                );
-                              } else if (block.type === 'chart') {
-                                return (
-                                  <CodeJsonChartCard
-                                    key={i}
-                                    code={block.value || ''}
-                                    language="json"
-                                    isChartCandidate={true}
-                                    isChartView={!!chartViewMap[chartKey]}
-                                    onToggleChartView={() => setChartViewMap(prev => ({ ...prev, [chartKey]: !prev[chartKey] }))}
-                                  />
-                                );
-                              } else if (block.type === 'code') {
-                                return (
-                                  <CodeJsonChartCard
-                                    key={i}
-                                    code={block.value || ''}
-                                    language={block.language}
-                                    isChartCandidate={block.language === 'json'}
-                                    isChartView={!!chartViewMap[chartKey]}
-                                    onToggleChartView={() => setChartViewMap(prev => ({ ...prev, [chartKey]: !prev[chartKey] }))}
-                                  />
-                                );
-                              } else if (block.type === 'markdown') {
-                                return (
-                                  <ReactMarkdown
-                                    key={i}
-                                    children={block.value || ''}
-                                    remarkPlugins={[remarkMath, remarkGfm]}
-                                    rehypePlugins={[rehypeKatex]}
-                                    components={{
-                                      code({ node, inline, className, children, ...props }) {
-                                        return (
-                                          <code className={className} {...props} style={{ background: '#222', color: '#fff', borderRadius: 4, padding: '2px 6px' }}>
-                                            {children}
-                                          </code>
-                                        );
-                                      },
-                                      table({ node, ...props }) {
-                                        return (
-                                          <div className="markdown-table-wrapper">
-                                            <table {...props} />
-                                          </div>
-                                        );
-                                      },
-                                    }}
-                                  />
-                                );
-                              } else if (block.type === 'text') {
-                                // 일반 텍스트 블록 처리 추가
-                                return (
-                                  <span key={i}>{block.value || ''}</span>
-                                );
-                              } else if (block.type === 'markdown') {
-                                // 마크다운 블록 처리 (하위 호환성)
-                                return (
-                                  <ReactMarkdown
-                                    key={i}
-                                    children={block.value || ''}
-                                    remarkPlugins={[remarkMath, remarkGfm]}
-                                    rehypePlugins={[rehypeKatex]}
-                                    components={{
-                                      code({ node, inline, className, children, ...props }) {
-                                        return (
-                                          <code className={className} {...props} style={{ background: '#222', color: '#fff', borderRadius: 4, padding: '2px 6px' }}>
-                                            {children}
-                                          </code>
-                                        );
-                                      },
-                                      table({ node, ...props }) {
-                                        return (
-                                          <div className="markdown-table-wrapper">
-                                            <table {...props} />
-                                          </div>
-                                        );
-                                      },
-                                    }}
-                                  />
-                                );
-                              }
-                              return null;
-                            });
-                          })()}
-                          {/* 메시지가 비어있거나 파싱에 실패한 경우 기본 텍스트 표시 */}
-                          {(!msg.text || msg.text.trim() === '') && (
-                            <span style={{ color: '#999', fontStyle: 'italic' }}>메시지 내용을 불러올 수 없습니다.</span>
-                          )}
-                        </div>
-                        {/* 날짜 박스는 버블 하단, 같은 라인 오른쪽/왼쪽에 위치 */}
-                        <div style={{ display: 'flex', flexDirection: 'row', justifyContent: msg.type === 'send' ? 'flex-end' : 'flex-start', width: '100%' }}>
-                          {msg.type === 'send' ? (
-                            <div style={{ marginLeft: 'auto' }}>{dateTimeBox}</div>
-                          ) : (
-                            <div style={{ marginRight: 'auto' }}>
-                              {/* AI 메시지일 때는 ai_name, 그 외에는 sender */}
-                              {msg.type === 'ai' ? msg.ai_name : msg.sender}
-                              {dateTimeBox}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                <VirtualizedMessageList
+                  messages={messages}
+                  loginUser={loginUser}
+                  highlightMessageId={highlightedMessageId}
+                  getSenderColor={getSenderColor}
+                  onReply={msg => setReplyTo(msg)}
+                  onMessageClick={msg => setHighlightedMessageId(msg.id)}
+                  onReplyQuoteClick={id => setHighlightedMessageId(id)}
+                  itemHeight={80}
+                />
               </div>
               <div className="chat-input-area" style={{ position: 'relative', zIndex: 2, background: '#18191c', borderTop: '1px solid #222', flexShrink: 0 }}>
                 {/* 첨부 이미지 썸네일+X 버튼을 textarea 바로 위에 위치 */}
@@ -2923,6 +2765,28 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         {/* 음성 메뉴 모달 완전 삭제 */}
 
       </div>
+      {/* 입력창 위에 답장 인용 미리보기 UI */}
+      {replyTo && (
+        <div className="reply-preview-bar" style={{
+          background: 'rgba(33,150,243,0.08)',
+          borderLeft: '3px solid #2196f3',
+          padding: '6px 12px',
+          margin: '4px 0',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          borderRadius: 4,
+          fontSize: 14,
+          color: '#2196f3',
+          maxWidth: '95%',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }} onClick={() => setHighlightedMessageId(replyTo.id)}>
+          <b>{replyTo.sender || replyTo.username || '익명'}</b>: {replyTo.text ? replyTo.text.slice(0, 60) : '[첨부/삭제됨]'}
+          <button style={{ marginLeft: 8, color: '#2196f3', background: 'none', border: 'none', cursor: 'pointer', fontSize: 15 }} onClick={() => setReplyTo(null)}>취소</button>
+        </div>
+      )}
     </>
   );
 };

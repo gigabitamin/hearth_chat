@@ -8,6 +8,7 @@ import SearchModal from './components/SearchModal';
 import CreateRoomModal from './components/CreateRoomModal'; // (가정: 모달 컴포넌트 분리)
 import LoginModal from './components/LoginModal';
 import SettingsModal from './components/SettingsModal';
+import AdminDashboard from './components/AdminDashboard';
 import './App.css';
 
 
@@ -141,6 +142,34 @@ function ChatRoomPage({ loginUser, loginLoading, checkLoginStatus, userSettings,
       />
     </div>
   );
+}
+
+function AdminPage({ loginUser, loginLoading, checkLoginStatus }) {
+  const navigate = useNavigate();
+
+  // 관리자 권한 확인
+  if (loginLoading) {
+    return <div>로딩 중...</div>;
+  }
+
+  if (!loginUser || !loginUser.is_staff) {
+    return (
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        textAlign: 'center'
+      }}>
+        <h2>접근 권한이 없습니다</h2>
+        <p>관리자 권한이 필요합니다.</p>
+        <button onClick={() => navigate('/')}>홈으로 돌아가기</button>
+      </div>
+    );
+  }
+
+  return <AdminDashboard />;
 }
 
 // 알림 도착 시 소리 재생 함수 추가
@@ -363,6 +392,38 @@ function AppContent(props) {
     return () => clearInterval(interval);
   }, [isNotifyModalOpen]);
 
+  // 1. 브라우저 푸시 권한 요청 (최초 1회)
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  // 2. 새 알림 도착 시 푸시 알림 전송 (포커스 외 탭에서만)
+  useEffect(() => {
+    if (!('Notification' in window)) return;
+    if (document.visibilityState === 'visible') return; // 이미 포커스된 탭이면 푸시X
+    if (Notification.permission !== 'granted') return;
+    if (notifications.length === 0 || unreadNotifications === 0) return;
+    // 가장 최근 미확인 알림만 푸시
+    const latestUnread = notifications.find(n => unreadNotificationList.some(u => u.message_id === n.messageId));
+    if (!latestUnread) return;
+    const title = `[${latestUnread.roomName}] ${latestUnread.sender}`;
+    const body = latestUnread.latestMessage || '새 메시지';
+    const url = latestUnread.messageId ? `/room/${latestUnread.roomId}?messageId=${latestUnread.messageId}` : `/room/${latestUnread.roomId}`;
+    const notification = new Notification(title, {
+      body,
+      icon: '/favicon.ico',
+      tag: `notify-${latestUnread.id}`
+    });
+    notification.onclick = (e) => {
+      e.preventDefault();
+      window.focus();
+      window.location.href = url;
+      notification.close();
+    };
+  }, [notifications, unreadNotifications, unreadNotificationList]);
+
   return (
     <>
       {/* 상단바 공통 렌더링 */}
@@ -541,6 +602,7 @@ function AppContent(props) {
             setSettingsTab={setSettingsTab}
           />
         } />
+        <Route path="/admin" element={<AdminPage loginUser={loginUser} loginLoading={loginLoading} checkLoginStatus={checkLoginStatus} />} />
       </Routes>
     </>
   );
