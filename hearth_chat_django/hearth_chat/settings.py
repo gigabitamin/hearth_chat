@@ -46,7 +46,7 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
 
 # ALLOWED_HOSTS 설정 개선
 ALLOWED_HOSTS = [
-    "*",  # 개발/테스트용 전체 허용
+    # "*",  # 개발/테스트용 전체 허용
     "localhost",
     "127.0.0.1",
     "[::1]",
