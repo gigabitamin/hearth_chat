@@ -10,6 +10,8 @@ import LoginModal from './components/LoginModal';
 import SettingsModal from './components/SettingsModal';
 import './App.css';
 
+
+
 // 환경에 따라 API_BASE 자동 설정 함수 추가
 const getApiBase = () => {
   const hostname = window.location.hostname;
@@ -154,6 +156,25 @@ function AppContent(props) {
     setSettingsTab,
   } = props;
 
+
+  const [ttsRate, setTtsRate] = useState(1.5);
+  const [ttsPitch, setTtsPitch] = useState(1.5);
+  const [ttsVoice, setTtsVoice] = useState(null);
+  const [voiceList, setVoiceList] = useState([]); // 음성 목록이 필요 없다면 빈 배열로
+  const [isTTSEnabled, setIsTTSEnabled] = useState(false);
+  const [isVoiceRecognitionEnabled, setIsVoiceRecognitionEnabled] = useState(false);
+  const [autoSend, setAutoSend] = useState(false);
+  const [isContinuousRecognition, setIsContinuousRecognition] = useState(false);
+  const voiceRecognitionRef = React.useRef(null);
+  const [permissionStatus, setPermissionStatus] = useState('prompt');
+  
+  const handleVoiceRecognitionToggle = () => {
+    setIsVoiceRecognitionEnabled(v => !v);
+  };
+  const requestMicrophonePermission = () => {
+    // 마이크 권한 요청 로직
+  };
+
   const location = useLocation();
   // 헤더 타이틀: 대기방/채팅방 구분
   let headerTitle = 'Hearth 🔥 Chat';
@@ -244,7 +265,26 @@ function AppContent(props) {
         setTab={setSettingsTab}
         userSettings={userSettings}
         setUserSettings={setUserSettings}
-        loginUser={loginUser}
+        loginUser={loginUser}        
+        ttsRate={ttsRate}
+        setTtsRate={setTtsRate} 
+        ttsPitch={ttsPitch}
+        setTtsPitch={setTtsPitch}
+        ttsVoice={ttsVoice}
+        setTtsVoice={setTtsVoice}
+        voiceList={voiceList}
+        isTTSEnabled={isTTSEnabled}
+        setIsTTSEnabled={setIsTTSEnabled}      
+        isVoiceRecognitionEnabled={isVoiceRecognitionEnabled}
+        setIsVoiceRecognitionEnabled={setIsVoiceRecognitionEnabled}
+        autoSend={autoSend}
+        setAutoSend={setAutoSend}
+        isContinuousRecognition={isContinuousRecognition}
+        setIsContinuousRecognition={setIsContinuousRecognition}
+        voiceRecognitionRef={voiceRecognitionRef}
+        handleVoiceRecognitionToggle={handleVoiceRecognitionToggle}
+        permissionStatus={permissionStatus}
+        requestMicrophonePermission={requestMicrophonePermission}
       />
       {/* 새 방 만들기 모달을 AppContent에서 항상 렌더링 */}
       {showCreateModal && (

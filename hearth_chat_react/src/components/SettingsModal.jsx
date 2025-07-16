@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './SettingsModal.css';
 import VoiceRecognition from './VoiceRecognition';
 
+
 // 환경에 따라 API_BASE 자동 설정
 const hostname = window.location.hostname;
 const isProd = process.env.NODE_ENV === 'production';
@@ -74,6 +75,9 @@ const SettingsModal = ({
 }) => {
   console.log('SettingsModal 렌더링:', { isOpen, tab, loginUser });
   const [saving, setSaving] = useState(false);
+
+  // voiceList가 undefined일 경우 빈 배열로 초기화
+  const safeVoiceList = voiceList || [];
 
   // 유저 관련 상태들
   const [user, setUser] = useState(null);
@@ -638,7 +642,7 @@ const SettingsModal = ({
                 <label htmlFor="tts-pitch-select-modal">음조: </label>
                 <select
                   id="tts-pitch-select-modal"
-                  value={userSettings?.tts_pitch || 1.0}
+                  value={userSettings?.tts_pitch || 1.5}
                   onChange={e => { setTtsPitch(parseFloat(e.target.value)); saveSetting({ tts_pitch: parseFloat(e.target.value) }); }}
                   disabled={saving}
                   style={{ width: 80 }}
@@ -659,15 +663,16 @@ const SettingsModal = ({
                   disabled={saving}
                   style={{ width: 180 }}
                 >
-                  {voiceList.length === 0 ? (
+                  {safeVoiceList.length === 0 ? (
                     <option value="">음성 목록 로딩 중...</option>
                   ) : (
-                    voiceList.map((voice, idx) => (
+                    safeVoiceList.map((voice, idx) => (
                       <option key={voice.name + idx} value={voice.name}>
                         {voice.name} ({voice.lang})
                       </option>
                     ))
                   )}
+
                 </select>
               </div>
             </div>

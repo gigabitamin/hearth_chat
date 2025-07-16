@@ -181,16 +181,13 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
                                 <li className="search-result-empty">검색 결과가 없습니다.</li>
                             ) : (
                                 results.map((r, i) => (
-                                    <li key={i} className="search-result-item" style={{ cursor: 'pointer' }} onClick={() => onResultClick(r)}>
+                                    <li key={i} className="search-result-item" onClick={() => onResultClick(r)}>
                                         <div className="search-result-header">
-                                            {r.type === 'room' && <span style={{ color: '#2196f3', fontWeight: 600 }}>[방]</span>}
-                                            {r.type === 'message' && <span style={{ color: '#4caf50', fontWeight: 600 }}>[메시지]</span>}
-                                            {r.type === 'user' && <span style={{ color: '#ff9800', fontWeight: 600 }}>[유저]</span>}
-                                            {' '}
-                                            {r.type === 'room' && highlight(r.name)}
-                                            {r.type === 'message' && <span style={{ color: '#888', fontSize: 12 }}>({r.room_name})</span>}
-                                            {r.type === 'user' && highlight(r.username)}
-                                            <span className="search-result-date">{formatDate(r.date || r.created_at)}</span>
+                                            <span className={`search-result-type${r.type === 'message' ? ' message' : r.type === 'user' ? ' user' : ''}`}>[{r.type === 'room' ? '방' : r.type === 'message' ? '메시지' : '유저'}]</span>
+                                            {r.type === 'room' && <span className="search-result-room">{highlight(r.name)}</span>}
+                                            {r.type === 'message' && <span className="search-result-room">{r.room_name}</span>}
+                                            {r.type === 'user' && <span className="search-result-username">{highlight(r.username)}</span>}
+                                            <span className="search-result-date">{formatDate(r.date || r.created_at || r.timestamp)}</span>
                                         </div>
                                         {r.type === 'message' && (
                                             <div className="search-result-preview">
@@ -198,9 +195,7 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
                                             </div>
                                         )}
                                         {r.type === 'room' && r.description && (
-                                            <div className="search-result-preview">
-                                                {highlight(r.description)}
-                                            </div>
+                                            <div className="search-result-preview">{highlight(getMessagePreview(r.description, 80))}</div>
                                         )}
                                     </li>
                                 ))

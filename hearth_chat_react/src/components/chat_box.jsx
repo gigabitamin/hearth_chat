@@ -133,6 +133,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [isRealTimeMode, setIsRealTimeMode] = useState(false);
 
+  
   // 상대방 메시지 랜덤 색상 관리
   const [senderColors, setSenderColors] = useState({});
 
@@ -171,7 +172,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   // TTS 관련 상태
   const [isTTSEnabled, setIsTTSEnabled] = useState(false);
   const [ttsVoice, setTtsVoice] = useState(null);
-  const [ttsRate, setTtsRate] = useState(1.5);
+  const [ttsRate, setTtsRate] = useState(1.5);  
   const [ttsPitch, setTtsPitch] = useState(1.5);
   const [voiceList, setVoiceList] = useState([]);
 
@@ -2699,18 +2700,14 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                     <div
                       key={idx}
                       id={`message-${msg.id}`}
+                      className={`chat-message-row${isHighlighted ? ' highlighted' : ''}`}
                       style={{
                         display: 'flex',
                         flexDirection: msg.type === 'send' ? 'row-reverse' : 'row',
                         alignItems: 'flex-end',
                         width: '100%',
                         justifyContent: msg.type === 'send' ? 'flex-end' : 'flex-start',
-                        backgroundColor: isHighlighted ? 'rgba(255, 255, 0, 0.2)' : 'transparent',
-                        borderRadius: isHighlighted ? '8px' : '0',
-                        padding: isHighlighted ? '8px' : '0',
-                        margin: isHighlighted ? '4px 0' : '0',
                         transition: 'all 0.3s ease',
-                        animation: isHighlighted ? 'pulse 2s infinite' : 'none',
                       }}
                     >
                       {/* 사용자/AI 메시지 버블+날짜 영역 */}

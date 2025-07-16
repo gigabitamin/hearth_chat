@@ -403,50 +403,30 @@ class ChatViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(sender=self.request.user)
-    
+        
     @action(detail=False, methods=['get'])
     def messages(self, request):
         """특정 방의 메시지 목록 반환 (페이지네이션 + 캐싱)"""
         room_id = request.query_params.get('room')
         offset = int(request.query_params.get('offset', 0))
         limit = int(request.query_params.get('limit', 20))
-        
+
         if not room_id:
             return Response({'error': 'room parameter is required'}, status=400)
-        
-        # 캐시 키 생성
+
         cache_key = f"room_messages_{room_id}_{offset}_{limit}"
-        
-        # 캐시에서 데이터 확인
         cached_data = cache.get(cache_key)
         if cached_data:
             return Response(cached_data)
-        
+
         try:
-            # 최적화된 쿼리: select_related와 prefetch_related 사용
             messages = Chat.objects.filter(room_id=room_id)\
                 .select_related('room')\
                 .prefetch_related('reactions', 'reactions__user')\
-                .order_by('-timestamp')[offset:offset+limit]
-        """방별 메시지 조회 API"""
-        room_id = request.query_params.get('room')
-        offset = int(request.query_params.get('offset', 0))
-        limit = int(request.query_params.get('limit', 20))
-        
-        if not room_id:
-            return Response({'error': 'room parameter is required'}, status=400)
-        
-        try:
-            # 최적화된 쿼리: select_related와 prefetch_related 사용
-            messages = Chat.objects.filter(room_id=room_id)\
-                .select_related('room')\
-                .prefetch_related('reactions', 'reactions__user')\
-                .order_by('-timestamp')[offset:offset+limit]
-            
-            # 프론트엔드에서 기대하는 형태로 변환
+                .order_by('-timestamp')[offset:offset + limit]
+
             message_list = []
             for msg in messages:
-                # 새 모델 구조에 맞게 sender, type 등 판별
                 if msg.sender_type == 'user':
                     sender_label = msg.username or f"User({msg.user_id})"
                     is_mine = (request.user.username == msg.username) or (request.user.id == msg.user_id)
@@ -459,7 +439,7 @@ class ChatViewSet(viewsets.ModelViewSet):
                 else:
                     sender_label = msg.username or msg.ai_name or 'Unknown'
                     is_mine = False
-                # 반응 정보 수집
+
                 reactions_data = {}
                 for reaction in msg.reactions.all():
                     emoji = reaction.emoji
@@ -467,12 +447,12 @@ class ChatViewSet(viewsets.ModelViewSet):
                         reactions_data[emoji] = {'count': 0, 'users': []}
                     reactions_data[emoji]['count'] += 1
                     reactions_data[emoji]['users'].append(reaction.user.username)
-                
+
                 reactions_list = [
                     {'emoji': emoji, 'count': data['count'], 'users': data['users']}
                     for emoji, data in reactions_data.items()
                 ]
-                
+
                 message_data = {
                     'id': msg.id,
                     'type': 'send' if is_mine else 'recv',
@@ -481,25 +461,23 @@ class ChatViewSet(viewsets.ModelViewSet):
                     'sender': sender_label,
                     'sender_type': msg.sender_type,
                     'username': msg.username,
-                    'user_id': msg.user_id,  # user_id 필드 추가
+                    'user_id': msg.user_id,
                     'ai_name': msg.ai_name,
                     'emotion': getattr(msg, 'emotion', None),
                     'imageUrl': msg.attach_image.url if msg.attach_image else None,
                     'reactions': reactions_list
                 }
                 message_list.append(message_data)
-            
+
             response_data = {
                 'results': message_list,
                 'count': len(message_list),
                 'has_more': len(message_list) == limit
             }
-            
-            # 캐시에 저장 (5분간 유효)
+
             cache.set(cache_key, response_data, 300)
-            
             return Response(response_data)
-            
+
         except Exception as e:
             return Response({'error': str(e)}, status=500)
 
