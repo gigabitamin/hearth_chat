@@ -439,7 +439,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             {loading ? (
                 <div className="loading">대화방 목록을 불러오는 중...</div>
             ) : error ? (
-                <div className="error">오류: {error}</div>
+                <div className="error">Please login</div>
             ) : (!loginUser ? (
                 <div className="no-rooms">
                     <button className="login-btn" onClick={() => setIsLoginModalOpen(true)} style={{ fontSize: 18, padding: '12px 32px', borderRadius: 8, background: '#2196f3', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer' }}>로그인</button>
