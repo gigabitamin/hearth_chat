@@ -125,6 +125,7 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
         } else if (r.type === 'user') {
             // 1:1 채팅방 생성/이동
             try {
+                // 403 Fobidden error 대처 csrf token 추가
                 const getCookie = (name) => {
                     const value = `; ${document.cookie}`;
                     const parts = value.split(`; ${name}=`);
@@ -133,16 +134,15 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
                 
                 const csrfToken = getCookie('csrftoken');
                 
-                const res = await fetch('http://localhost:8000/api/chat/rooms/user_chat_alt/', {
+                const res = await fetch('/api/chat/rooms/user_chat/', {
                     method: 'POST',
-                    credentials: 'include', // ✅ 세션 쿠키 전송
+                    credentials: 'include',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRFToken': csrfToken,
                     },
                     body: JSON.stringify({ user_id: r.id }),
                 });                
-                
                 
                 if (res.ok) {
                     const data = await res.json();

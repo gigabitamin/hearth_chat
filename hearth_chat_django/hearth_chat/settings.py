@@ -65,31 +65,55 @@ CSRF_TRUSTED_ORIGINS = [
 
 
 # Railway 환경에서 추가 설정
-if os.environ.get("RAILWAY_ENVIRONMENT"):
-    # 헬스체크를 위한 추가 설정
-    SECURE_SSL_REDIRECT = False
-    SECURE_PROXY_SSL_HEADER = None
-    print("Railway environment - SSL settings configured")
-    
-    # Railway 환경에서 CORS 완전 해제
-    CORS_ALLOW_ALL_ORIGINS = True
-    print("Railway environment - CORS_ALLOW_ALL_ORIGINS enabled")
-    
-    # Railway 환경에서 모든 요청 허용
-    SECURE_CONTENT_TYPE_NOSNIFF = False
-    SECURE_BROWSER_XSS_FILTER = False
-    X_FRAME_OPTIONS = 'ALLOWALL'
-    print("Railway environment - Security headers relaxed")
+# settings.py 내부
 
-    # 세션/CSRF 쿠키 설정 수정 (도메인 제거, SameSite만 설정)
+# 공통 설정
+CSRF_COOKIE_NAME = "csrftoken"
+CSRF_COOKIE_HTTPONLY = False  # JS에서 접근 가능하도록 설정
+CSRF_HEADER_NAME = "HTTP_X_CSRFTOKEN"
+
+# CORS 관련 설정 (프론트 주소)
+CORS_ALLOW_CREDENTIALS = True
+
+# Railway 환경에서 배포 여부 확인
+if os.environ.get("RAILWAY_ENVIRONMENT"):
+    # CSRF / 세션 쿠키 설정
     SESSION_COOKIE_SAMESITE = "None"
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SAMESITE = "None"
     CSRF_COOKIE_SECURE = True
-    # 도메인 설정 제거 (Railway에서 자동으로 설정됨)
-    # SESSION_COOKIE_DOMAIN = ".hearthchat-production.up.railway.app"
-    # CSRF_COOKIE_DOMAIN = ".hearthchat-production.up.railway.app"
+    CSRF_TRUSTED_ORIGINS = [
+        "https://hearthchat-production.up.railway.app",
+        "https://*.hearthchat-production.up.railway.app",  # 서브도메인 대응
+    ]
+    
+    # CORS 완전 허용 (개발 중일 경우에만)
+    CORS_ALLOW_ALL_ORIGINS = True
+
+    # 기타 보안 설정 완화 (임시)
+    SECURE_SSL_REDIRECT = False
+    SECURE_PROXY_SSL_HEADER = None
+    SECURE_CONTENT_TYPE_NOSNIFF = False
+    SECURE_BROWSER_XSS_FILTER = False
+    X_FRAME_OPTIONS = 'ALLOWALL'
+
+    print("Railway 배포 환경 설정 완료")
 else:
+    # 로컬 개발 환경 (http)
+    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SAMESITE = "Lax"
+    CSRF_COOKIE_SECURE = False
+    CSRF_TRUSTED_ORIGINS = [
+        "http://localhost:3000",
+    ]
+
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+    ]
+
+    print("로컬 개발 환경 설정 완료")
+
     # 로컬 개발 환경 (http)
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = False
