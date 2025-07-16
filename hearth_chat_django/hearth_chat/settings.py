@@ -88,7 +88,7 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
     ]
     
     # CORS 완전 허용 (개발 중일 경우에만)
-    CORS_ALLOW_ALL_ORIGINS = True
+    # CORS_ALLOW_ALL_ORIGINS = True
 
     # 기타 보안 설정 완화 (임시)
     SECURE_SSL_REDIRECT = False
@@ -194,7 +194,9 @@ if not CORS_ALLOWED_ORIGINS:
     CORS_ALLOWED_ORIGINS = [
         "https://hearthchat-production.up.railway.app",
         "http://localhost:3000",
+        "http://localhost:8000",
         "http://127.0.0.1:3000",
+        "http://127.0.0.1:8000",
         "http://192.168.44.9:3000",
         "http://192.168.44.9:8000",
     ]

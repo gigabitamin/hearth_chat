@@ -6,21 +6,23 @@ cd /app/hearth_chat_django
 
 echo "Starting Django application..."
 
-# PostgreSQL용 테이블 삭제 명령
-echo "Dropping chat app tables..."
 
-# psql 커맨드로 직접 DROP TABLE 시도 (IF EXISTS 포함)
-psql "$DATABASE_URL" <<EOF
-DROP TABLE IF EXISTS chat_voicecall CASCADE;
-DROP TABLE IF EXISTS chat_usersettings CASCADE;
-DROP TABLE IF EXISTS chat_pinnedmessage CASCADE;
-DROP TABLE IF EXISTS chat_messagereply CASCADE;
-DROP TABLE IF EXISTS chat_messagereaction CASCADE;
-DROP TABLE IF EXISTS chat_chatroomparticipant CASCADE;
-DROP TABLE IF EXISTS chat_chatroom_favorite_users CASCADE;
-DROP TABLE IF EXISTS chat_chatroom CASCADE;
-DROP TABLE IF EXISTS chat_chat CASCADE;
-EOF
+# # # psql 커맨드로 직접 DROP TABLE 시도 (IF EXISTS 포함)
+# echo "Cleaning chat app migration history..."
+# psql "$DATABASE_URL" -c "DELETE FROM django_migrations WHERE app = 'chat';"
+
+# echo "Dropping chat app tables..."
+# psql "$DATABASE_URL" <<EOF
+# DROP TABLE IF EXISTS chat_voicecall CASCADE;
+# DROP TABLE IF EXISTS chat_usersettings CASCADE;
+# DROP TABLE IF EXISTS chat_pinnedmessage CASCADE;
+# DROP TABLE IF EXISTS chat_messagereply CASCADE;
+# DROP TABLE IF EXISTS chat_messagereaction CASCADE;
+# DROP TABLE IF EXISTS chat_chatroomparticipant CASCADE;
+# DROP TABLE IF EXISTS chat_chatroom_favorite_users CASCADE;
+# DROP TABLE IF EXISTS chat_chatroom CASCADE;
+# DROP TABLE IF EXISTS chat_chat CASCADE;
+# EOF
 
 # DB 마이그레이션 (실패 로그 저장 및 출력)
 echo "Running database migrations..."
