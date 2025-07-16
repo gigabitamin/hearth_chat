@@ -22,6 +22,7 @@ const getApiBase = () => {
   return `http://${hostname}:8000`;
 };
 
+// CSRF 토큰 쿠키 가져오기
 function getCookie(name) {
   const value = `; ${document.cookie}`;
   const parts = value.split(`; ${name}=`);
@@ -44,7 +45,7 @@ const csrfFetch = async (url, options = {}) => {
     },
   };
 
-  return fetch(url, mergedOptions); // ✅ fetch로 수정
+  return fetch(url, mergedOptions);
 };
 
 
