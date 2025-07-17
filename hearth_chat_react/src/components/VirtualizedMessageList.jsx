@@ -24,6 +24,7 @@ const VirtualizedMessageList = ({
     const [localReactions, setLocalReactions] = useState({}); // {messageId: [reactions]}
     // 핀 상태 관리 (프론트 임시)
     const [pinnedIds, setPinnedIds] = useState([]);
+    const [viewerImage, setViewerImage] = useState(null); // 이미지 뷰어 모달 상태
 
     // 핀 토글 함수
     const togglePin = (msgId) => {
@@ -207,6 +208,9 @@ const VirtualizedMessageList = ({
                         style={{
                             backgroundColor: isMyMessage ? undefined : getSenderColor(msg.sender),
                             color: isMyMessage ? undefined : (getSenderColor(msg.sender) ? '#fff' : undefined),
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'flex-start',
                         }}
                     >
                         {msg.imageUrl && (
@@ -214,13 +218,15 @@ const VirtualizedMessageList = ({
                                 src={msg.imageUrl}
                                 alt="첨부 이미지"
                                 className="message-image"
-                                onClick={(e) => {
+                                onClick={e => {
                                     e.stopPropagation();
-                                    // 이미지 뷰어 열기
+                                    setViewerImage(msg.imageUrl);
                                 }}
                             />
                         )}
-                        <div className="message-text">{msg.text || msg.content}</div>
+                        {msg.text || msg.content ? (
+                            <div className="message-text" style={{ marginTop: msg.imageUrl ? 8 : 0 }}>{msg.text || msg.content}</div>
+                        ) : null}
                     </div>
                     {/* 리액션 UI */}
                     <div className="message-reactions-row" style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
@@ -320,7 +326,7 @@ const VirtualizedMessageList = ({
             >
                 {({ onItemsRendered, ref }) => (
                     <List
-                        ref={(list) => {
+                        ref={list => {
                             setListRef(list);
                             ref(list);
                         }}
@@ -335,6 +341,14 @@ const VirtualizedMessageList = ({
                     </List>
                 )}
             </InfiniteLoader>
+            {/* 이미지 전체화면 뷰어 모달 */}
+            {viewerImage && (
+                <div className="image-viewer-modal" onClick={() => setViewerImage(null)}>
+                    <div className="image-viewer-backdrop" />
+                    <img src={viewerImage} alt="전체 이미지" className="image-viewer-img" onClick={e => e.stopPropagation()} />
+                    <button className="image-viewer-close" onClick={() => setViewerImage(null)}>닫기</button>
+                </div>
+            )}
         </div>
     );
 };

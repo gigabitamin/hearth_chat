@@ -23,7 +23,6 @@ import CodeIcon from '@mui/icons-material/Code';
 import { useNavigate } from 'react-router-dom';
 
 import VirtualizedMessageList from './VirtualizedMessageList';
-
 // Chart.js core 등록 필수!
 import {
   Chart as ChartJS,
@@ -45,6 +44,48 @@ ChartJS.register(
   Tooltip,
   Legend
 );
+
+// 환경에 따라 API_BASE 자동 설정 함수 추가
+const getApiBase = () => {
+  const hostname = window.location.hostname;
+  const isProd = process.env.NODE_ENV === 'production';
+
+  if (isProd) return 'https://hearthchat-production.up.railway.app';
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:8000';
+  if (hostname === '192.168.44.9') return 'http://192.168.44.9:8000';
+
+  return `http://${hostname}:8000`;
+};
+
+// CSRF 토큰 쿠키 가져오기
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+}
+
+// csrfFetch 함수
+const csrfFetch = async (url, options = {}) => {
+  const csrftoken = getCookie('csrftoken');
+
+  const defaultHeaders = {
+    'X-CSRFToken': csrftoken,
+    'Content-Type': 'application/json',
+  };
+
+  const mergedOptions = {
+    credentials: 'include',
+    ...options,
+    headers: {
+      ...defaultHeaders,
+      ...(options.headers || {}),
+    },
+  };
+
+  return fetch(url, mergedOptions);
+};
+
+
 
 // 모달 컴포넌트 추가
 const Modal = ({ open, onClose, children }) => {
@@ -1794,14 +1835,15 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         ? 'http://localhost:8000'
         : `${window.location.protocol}//${window.location.hostname}`;
 
-      const res = await axios.post(`${apiUrl}/chat/api/chat/upload_image/`, formData, {
+      const res = await axios.post(`${apiUrl}/api/chat/upload_image/`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
+          'X-CSRFToken': getCookie('csrftoken'),
         },
         withCredentials: true,
       });
 
-      if (res.data.success) {
+      if (res.data.status === 'success') {
         // WebSocket으로 이미지 URL 전송
         const messageData = {
           message: input || '이미지 첨부',
@@ -1878,15 +1920,18 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     let newMessageId = null;
     try {
       // 1. 메시지(Chat) 전송
-      const res = await fetch('/api/messages/', {
+      const res = await csrfFetch(`${getApiBase()}/api/chat/messages/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
-          // ... 기존 필드 ...
+          room: selectedRoom?.id,
           content: textToSend,
-          // ... 기타 필드 ...
-        })
+          sender_type: 'user',
+          message_type: 'text',
+          username: loginUser?.username,
+          user_id: loginUser?.id,
+        }),
+        credentials: 'include',
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '메시지 전송 실패');
