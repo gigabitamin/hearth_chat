@@ -15,7 +15,8 @@ const VirtualizedMessageList = ({
     onMessageClick,
     getSenderColor,
     onReply, // 답장 콜백
-    onReplyQuoteClick // 인용 클릭 콜백
+    onReplyQuoteClick, // 인용 클릭 콜백
+    onImageClick // 이미지 클릭 콜백(모달)
 }) => {
     const [listRef, setListRef] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -266,7 +267,7 @@ const VirtualizedMessageList = ({
                                 className="message-image"
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    // 이미지 뷰어 열기
+                                    if (onImageClick) onImageClick(msg.imageUrl);
                                 }}
                             />
                         )}
@@ -338,7 +339,7 @@ const VirtualizedMessageList = ({
                 </div>
             </div>
         );
-    }, [messages, highlightedIndex, loginUser, onMessageClick, getSenderColor, localReactions, emojiPickerMsgId, onReply, onReplyQuoteClick, pinnedIds]);
+    }, [messages, highlightedIndex, loginUser, onMessageClick, getSenderColor, localReactions, emojiPickerMsgId, onReply, onReplyQuoteClick, pinnedIds, onImageClick]);
 
     // 아이템이 로드되었는지 확인
     const isItemLoaded = useCallback((index) => {

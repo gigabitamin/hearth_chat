@@ -1823,6 +1823,11 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   const handleImageUploadAndSend = async () => {
     if (!attachedImage || !ws.current || ws.current.readyState !== 1) return;
 
+    // 전송 직후 입력/첨부 상태 즉시 초기화 (중복 전송 방지)
+    setInput('');
+    setAttachedImage(null);
+    setAttachedImagePreview(null);
+
     try {
       // FormData로 이미지 업로드
       const formData = new FormData();
@@ -1843,7 +1848,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         withCredentials: true,
       });
 
-      if (res.data.status === 'success') {        
+      if (res.data.status === 'success') {
         const messageData = {
           message: input || '이미지 첨부',
           imageUrl: res.data.file_url,
@@ -1860,9 +1865,9 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           date: new Date().toISOString()
         }]);
 
-        setInput('');
-        setAttachedImage(null);
-        setAttachedImagePreview(null);
+        // setInput('');
+        // setAttachedImage(null);
+        // setAttachedImagePreview(null);
 
         setTimeout(() => {
           if (chatScrollRef.current) {
@@ -2646,6 +2651,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                   onMessageClick={msg => setHighlightedMessageId(msg.id)}
                   onReplyQuoteClick={id => setHighlightedMessageId(id)}
                   itemHeight={80}
+                  onImageClick={setViewerImage}
                 />
               </div>
               <div className="chat-input-area">
