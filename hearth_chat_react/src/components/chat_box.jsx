@@ -1835,7 +1835,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         ? 'http://localhost:8000'
         : `${window.location.protocol}//${window.location.hostname}`;
 
-      const res = await axios.post(`${apiUrl}/api/chat/upload_image/`, formData, {
+      const res = await axios.post(`${apiUrl}/chat/api/chat/upload_image/`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           'X-CSRFToken': getCookie('csrftoken'),
@@ -1843,7 +1843,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         withCredentials: true,
       });
 
-      if (res.data.status === 'success') {
+      if (res.data.success) {
         // WebSocket으로 이미지 URL 전송
         const messageData = {
           message: input || '이미지 첨부',
