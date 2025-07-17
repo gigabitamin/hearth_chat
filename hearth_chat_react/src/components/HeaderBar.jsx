@@ -86,7 +86,6 @@ export default function HeaderBar({
                         title="내 계정"
                         style={{ marginRight: 8 }}
                     >
-                        <span role="img" aria-label="user" style={{ fontSize: 20 }}>👤</span>
                     </button>
                 ) : (
                     <button
