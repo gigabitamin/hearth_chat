@@ -5,7 +5,7 @@
 }
 
 .message-list {
-    scrollbar-width: thin;
+    scrollbar-width: none;
     scrollbar-color: #888 #f1f1f1;
 }
 
@@ -30,6 +30,8 @@
 .message-item {
     padding: 8px 16px;
     transition: background-color 0.2s ease;
+    margin-bottom: 12px;
+    /* 메시지 간 간격 */
 }
 
 .message-item:hover {
@@ -66,26 +68,26 @@
 .message-content {
     display: flex;
     flex-direction: column;
-    max-width: 80%;
+    max-width: 85vw;
+    min-width: 0;
+    box-sizing: border-box;
 }
 
 .message-item.my-message .message-content {
     align-items: flex-end;
-    margin-left: auto;
+    margin: 0 auto;
 }
 
 .message-item.other-message .message-content {
     align-items: flex-start;
-    margin-right: auto;
+    margin: 0;
 }
 
 .message-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 4px;
-    font-size: 0.8rem;
-    color: #666;
+    font-size: 12px;
+    gap: 4px;
+    user-select: none;
+    letter-spacing: 0.01em;
 }
 
 .message-item.my-message .message-header {
@@ -102,12 +104,17 @@
 }
 
 .message-bubble {
-    background-color: #f0f0f0;
-    padding: 8px 12px;
-    border-radius: 12px;
-    word-wrap: break-word;
+    font-size: 15px;
+    padding: 7px 11px;
+    border-radius: 10px;
     max-width: 100%;
-    position: relative;
+    min-width: 0;
+    box-sizing: border-box;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    background-color: #f0f0f0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    transition: box-shadow 0.18s, background 0.18s;
 }
 
 .message-item.my-message .message-bubble {
@@ -183,7 +190,7 @@
     background: none;
     border: none;
     color: #ff9800;
-    font-size: 16px;
+    /* font-size: 16px; */
     cursor: pointer;
     margin-left: 6px;
     transition: color 0.15s;
@@ -195,29 +202,30 @@
 }
 
 .pinned-message {
+    font-size: 14px;
+    padding: 5px 8px;
     background: #fffde7;
     border-left: 4px solid #ffd600;
-    padding: 6px 12px;
     margin-bottom: 8px;
     border-radius: 8px;
-    font-size: 15px;
     color: #333;
     box-shadow: 0 2px 8px rgba(255, 214, 0, 0.08);
 }
 
 .reply-quote {
+    font-size: 12px;
+    padding: 3px 6px;
+    max-width: 95vw;
     background: rgba(33, 150, 243, 0.08);
     border-left: 3px solid #2196f3;
-    padding: 4px 8px;
     margin-bottom: 4px;
-    font-size: 13px;
     color: #2196f3;
     border-radius: 4px;
-    max-width: 90%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s, color 0.15s;
 }
 
 .message-loading {
@@ -266,45 +274,6 @@
     100% {
         background-position: 200% 0;
     }
-}
-
-/* 반응형 디자인 */
-@media (max-width: 768px) {
-    .virtualized-message-list {
-        padding: 0;
-    }
-
-    .message-content {
-        max-width: 98%;
-    }
-
-    .message-bubble {
-        font-size: 15px;
-        padding: 7px 8px;
-        border-radius: 10px;
-        max-width: 98vw;
-    }
-
-    .message-header {
-        font-size: 13px;
-        gap: 4px;
-    }
-
-    .reply-quote {
-        font-size: 12px;
-        padding: 3px 6px;
-        max-width: 95vw;
-    }
-
-    .pinned-message {
-        font-size: 14px;
-        padding: 5px 8px;
-    }
-}
-
-.message-bubble {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-    transition: box-shadow 0.18s, background 0.18s;
 }
 
 .message-bubble:hover,

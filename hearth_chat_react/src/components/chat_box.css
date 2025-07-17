@@ -244,7 +244,7 @@ body,
 
 .chat-input-area {
   position: sticky;
-  bottom: var(--header-height);
+  bottom: 0;
   left: 0;
   width: 100%;
   z-index: 10;
@@ -252,27 +252,18 @@ body,
   border-top: 1px solid #222;
   flex-shrink: 0;
   box-sizing: border-box;
+  min-height: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
 }
 
-@media (max-width: 768px) {
-  .chat-input-area {
-    position: fixed;
-    left: 0;
-    bottom: var(--header-height);
-    width: 100vw;
-    max-width: 100vw;
-    z-index: 100;
-    border-radius: 0;
-  }
-
-  .chat-container {
-    max-width: 100vw;
-    min-width: 0;
-    padding-bottom: calc(60px + var(--header-height));
-  }
-}
 
 .chat-log {
+  position: relative;
+  display: flex;
+  flex-direction: column;
   flex: 1 1 0;
   min-height: 0;
   max-height: 100%;
@@ -280,7 +271,8 @@ body,
   width: 100%;
   scrollbar-width: thin;
   scrollbar-color: rgba(120, 120, 120, 0.25) transparent;
-  padding-bottom: 80px;
+  padding-bottom: 60px;
+  /* 입력창 높이만큼 하단 여백 */
   box-sizing: border-box;
 }
 
@@ -395,11 +387,6 @@ body,
 
 /* 기존 input-row-outer, input-row, .image-upload-btn-inside 등은 참고용으로 남겨둠 */
 
-@media (min-width: 400px) {
-  .chat-textarea {
-    padding-right: 0;
-  }
-}
 
 .input-flex {
   width: 100%;
@@ -638,14 +625,7 @@ body,
   margin-left: 4px;
 }
 
-@media (max-width: 768px) {
-  .voice-modal-content {
-    margin-top: 80px;
-    min-width: 90vw;
-    max-width: 98vw;
-    padding: 18px 6vw 18px 6vw;
-  }
-}
+
 
 .image-viewer-modal {
   position: fixed;
@@ -776,50 +756,7 @@ body,
   overflow-x: auto;
 }
 
-@media (max-width: 768px) {
-  .chat-input-area {
-    padding-bottom: 24px !important;
-  }
 
-  html,
-  body,
-  #root {
-    height: 100% !important;
-    min-height: 100vh !important;
-    overflow-x: hidden !important;
-    overflow-y: hidden !important;
-  }
-
-  .chat-container-with-avatars {
-    height: 100vh;
-    overflow: hidden;
-  }
-
-  .avatar-container {
-    min-height: 60px;
-    max-height: 30vh;
-  }
-
-  .chat-section {
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-  }
-
-  .chat-log {
-    padding-bottom: 60px;
-  }
-
-  .chat-input-box {
-    width: 90%;
-    margin: 0 auto;
-  }
-
-  .input-flex {
-    font-size: 16px;
-    padding: 8px 40px 8px 8px;
-  }
-}
 
 .chat-bubble,
 .katex-display,
@@ -962,48 +899,10 @@ body,
 }
 
 /* 그룹 채팅 셀 반응형 */
-@media (max-width: 768px) {
-  .group-chat-2x2-grid {
-    gap: 12px;
-    margin: 24px auto 16px auto;
-    min-height: 280px;
-  }
 
-  .group-chat-cell {
-    min-height: 100px;
-    padding: 12px 6px 8px 6px;
-    font-size: 14px;
-  }
-
-  .group-chat-media {
-    min-height: 50px;
-  }
-
-  .local-stream-placeholder,
-  .remote-stream-placeholder {
-    width: 60px;
-    height: 45px;
-    font-size: 10px;
-  }
-
-  .group-chat-cell video {
-    width: 60px;
-    height: 45px;
-  }
-
-  .stream-control-btn {
-    font-size: 12px;
-    padding: 3px 5px;
-  }
-}
 
 /* 데스크탑에서만 채팅창 최대 너비 제한 */
-@media (min-width: 1024px) {
-  .chat-container {
-    max-width: 800px;
-    margin: 0 auto;
-  }
-}
+
 
 .ai-questioner-username {
   font-size: 0.8em;

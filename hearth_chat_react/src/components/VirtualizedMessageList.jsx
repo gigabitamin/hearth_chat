@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { FixedSizeList as List } from 'react-window';
+import { VariableSizeList as List } from 'react-window';
 import InfiniteLoader from 'react-window-infinite-loader';
+import AutoSizer from 'react-virtualized-auto-sizer';
 import './VirtualizedMessageList.css';
 
 const EMOJI_LIST = ['👍', '😂', '❤️', '😮', '😢', '👏', '🔥', '😡', '🙏', '🎉'];
@@ -9,7 +10,6 @@ const VirtualizedMessageList = ({
     messages = [],
     onLoadMore,
     hasMore = false,
-    itemHeight = 80,
     loginUser,
     highlightMessageId,
     onMessageClick,
@@ -118,6 +118,56 @@ const VirtualizedMessageList = ({
             setLoading(false);
         }
     }, [loading, hasMore, onLoadMore]);
+
+    // 메시지 높이 계산 보정: 폰트 크기, 패딩, 마진, 이미지 등 모두 반영
+    const getItemSize = useCallback((index) => {
+        const msg = messages[index];
+        if (!msg) return 80;
+
+        // 모바일 환경에서 vw 단위로 보정
+        const isMobile = typeof window !== 'undefined' && window.innerWidth <= 600;
+        const fontSize = 15;
+        const lineHeight = 1.4;
+        const maxWidth = isMobile ? window.innerWidth * 0.8 : 480; // 버블 최대 너비와 일치시킴
+        const content = msg.text || msg.content || '';
+        // 실제 줄 수 계산: 한 줄이 너무 길면 maxWidth 기준으로 줄 수 증가
+        const approxCharPerLine = Math.floor(maxWidth / (fontSize * 0.6)); // 한글/영문 혼합 기준
+        const lines = content.split('\n').reduce((acc, line) => acc + Math.ceil(line.length / approxCharPerLine), 0);
+        const textHeight = Math.max(lines * fontSize * lineHeight, fontSize * lineHeight);
+        const bubblePadding = 7 * 2;
+        const bubbleMargin = 6 * 2;
+        // 메시지 아이템 자체의 패딩과 마진(여백) 보정
+        const itemPadding = 8 * 2; // .message-item { padding: 8px 16px; }
+        const itemMargin = 12; // .message-item { margin-bottom: 12px; }
+        const extraMargin = 32; // 기본 여유 여백(겹침 방지, 기존 24px에서 32px로 증가)
+        // 타입 경계에서 추가 여백
+        let typeBoundaryMargin = 0;
+        if (index > 0) {
+            const prev = messages[index - 1];
+            if (prev && prev.type !== msg.type) {
+                typeBoundaryMargin = 32; // my-message/other-message 경계에서 추가 여백
+            }
+        }
+        // 이미지 높이: 실제 이미지 비율을 알 수 있으면 반영, 없으면 고정값
+        let imageHeight = 0;
+        if (msg.imageUrl) {
+            imageHeight = (msg.imageHeight && msg.imageWidth)
+                ? Math.min(200, (msg.imageHeight / msg.imageWidth) * maxWidth) + 8
+                : 200 + 8;
+        }
+        let extra = 0;
+        if (msg.reply) extra += 28; // 답장 인용 바 높이
+        if (msg.reactions && msg.reactions.length > 0) extra += 28; // 리액션 바 높이
+        const mobileExtra = isMobile ? 12 : 0;
+        return textHeight + bubblePadding + bubbleMargin + itemPadding + itemMargin + extraMargin + typeBoundaryMargin + imageHeight + extra + mobileExtra;
+    }, [messages]);
+
+    // VariableSizeList 높이 캐시 강제 리셋: 메시지/창 크기/폰트 등 변화 시
+    useEffect(() => {
+        if (listRef && typeof listRef.resetAfterIndex === 'function') {
+            listRef.resetAfterIndex(0, true);
+        }
+    }, [messages, window.innerWidth, window.innerHeight]);
 
     // 메시지 렌더링 함수
     const renderMessage = useCallback(({ index, style }) => {
@@ -312,29 +362,34 @@ const VirtualizedMessageList = ({
                     ))}
                 </div>
             )}
-            <InfiniteLoader
-                isItemLoaded={isItemLoaded}
-                itemCount={itemCount}
-                loadMoreItems={loadMoreItems}
-                threshold={5}
-            >
-                {({ onItemsRendered, ref }) => (
-                    <List
-                        ref={(list) => {
-                            setListRef(list);
-                            ref(list);
-                        }}
-                        height={600}
+            <AutoSizer>
+                {({ height, width }) => (
+                    <InfiniteLoader
+                        isItemLoaded={isItemLoaded}
                         itemCount={itemCount}
-                        itemSize={itemHeight}
-                        onItemsRendered={onItemsRendered}
-                        overscanCount={5}
-                        className="message-list"
+                        loadMoreItems={loadMoreItems}
+                        threshold={5}
                     >
-                        {renderMessage}
-                    </List>
+                        {({ onItemsRendered, ref }) => (
+                            <List
+                                ref={(list) => {
+                                    setListRef(list);
+                                    ref(list);
+                                }}
+                                height={height}
+                                width={width}
+                                itemCount={itemCount}
+                                itemSize={getItemSize}
+                                onItemsRendered={onItemsRendered}
+                                overscanCount={5}
+                                className="message-list"
+                            >
+                                {renderMessage}
+                            </List>
+                        )}
+                    </InfiniteLoader>
                 )}
-            </InfiniteLoader>
+            </AutoSizer>
         </div>
     );
 };
