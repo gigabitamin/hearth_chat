@@ -103,34 +103,43 @@ def upload_chat_image(request):
     file = request.FILES.get('file')
     session_id = request.POST.get('session_id', None)
     content = request.POST.get('content', '')  # 메시지 내용도 받음
+    print('file, session_id, content', file, session_id, content)
     if not file:
+        print('파일이 첨부되지 않았습니다.')
         return JsonResponse({'status': 'error', 'message': '파일이 첨부되지 않았습니다.'}, status=400)
 
     # 확장자 검사
     ext = file.name.split('.')[-1].lower()
+    print('ext', ext)
     if ext not in ALLOWED_EXTENSIONS:
+        print('허용되지 않는 확장자입니다.')
         return JsonResponse({'status': 'error', 'message': f'허용되지 않는 확장자입니다: {ext}'}, status=400)
 
     # 용량 검사
     if file.size > MAX_FILE_SIZE_MB * 1024 * 1024:
+        print('파일 용량이 너무 큽니다.')
         return JsonResponse({'status': 'error', 'message': f'파일 용량은 {MAX_FILE_SIZE_MB}MB 이하만 허용됩니다.'}, status=400)
 
     # MIME 타입 검사
     if file.content_type not in ALLOWED_MIME_TYPES:
+        print('허용되지 않는 MIME 타입입니다.')
         return JsonResponse({'status': 'error', 'message': f'허용되지 않는 MIME 타입입니다: {file.content_type}'}, status=400)
 
     # 파일 저장
     chat_obj = Chat.objects.create(
         message_type='user',
+        sender_type='user',
+        username=request.user.username,
+        user_id=request.user.id,
         content=content if content else '[이미지 첨부]',  # 메시지 내용이 있으면 저장, 없으면 [이미지 첨부]
         session_id=session_id,
         attach_image=file
     )
-
+    print('chat_obj', chat_obj)
     return JsonResponse({
         'status': 'success',
         'file_url': chat_obj.attach_image.url if chat_obj.attach_image else None,
-        'chat_id': chat_obj.id
+        'chat_id': chat_obj.id        
     })
 
 @csrf_exempt
