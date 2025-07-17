@@ -411,7 +411,11 @@ class ChatViewSet(viewsets.ModelViewSet):
         return Chat.objects.none()
 
     def perform_create(self, serializer):
-        serializer.save(sender=self.request.user)
+        # sender 필드가 없으므로, username과 user_id만 설정
+        serializer.save(
+            username=self.request.user.username,
+            user_id=self.request.user.id
+        )
         
     @action(detail=False, methods=['get'])
     def messages(self, request):

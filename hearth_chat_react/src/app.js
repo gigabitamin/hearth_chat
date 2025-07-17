@@ -49,6 +49,8 @@ const csrfFetch = async (url, options = {}) => {
   return fetch(url, mergedOptions);
 };
 
+export { csrfFetch, getApiBase };
+
 
 function LobbyPage({ loginUser, loginLoading, checkLoginStatus, userSettings, setUserSettings, onUserMenuOpen }) {
   const navigate = useNavigate();
