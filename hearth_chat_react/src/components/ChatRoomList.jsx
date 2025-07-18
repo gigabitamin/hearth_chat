@@ -473,14 +473,22 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                         💬 {room.message_count ?? 0} / 👥 {room.participant_count ?? 0}/{room.max_members ?? '-'}
                                     </span>
                                 </div>
-                                <div className="room-latest-message" style={{ fontSize: 12, color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 2 }}>
-                                    {/* 최신 메시지(임시: room.latest_message) */}
-                                    {room.latest_message?.content ? (
-                                        <span>{room.latest_message.content}</span>
-                                    ) : (
-                                        <span style={{ color: '#bbb' }}>메시지 없음</span>
+                                <div className="room-latest-message" style={{ fontSize: 12, color: '#666', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginTop: 2 }}>
+                                    {/* 메시지 내용: 오른쪽 정보와 겹치지 않게 flex-grow, overflow 처리 */}
+                                    <span style={{ flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {room.latest_message?.content ? room.latest_message.content : <span style={{ color: '#bbb' }}>메시지 없음</span>}
+                                    </span>
+                                    {/* 오른쪽: username/ai_name + 날짜/시간 (항상 보이도록 고정 폭, 줄바꿈) */}
+                                    {room.latest_message && (
+                                        <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginLeft: 8, minWidth: 60, maxWidth: 110, wordBreak: 'break-all', whiteSpace: 'normal', flexShrink: 0 }}>
+                                            <span style={{ fontSize: 10, color: '#888', fontWeight: 600, marginBottom: 0, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                {room.latest_message.username || room.latest_message.ai_name || room.latest_message.sender || 'Unknown'}
+                                            </span>
+                                            <span style={{ fontSize: 9, color: '#bbb', marginTop: 0, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                {room.latest_message.timestamp ? new Date(room.latest_message.timestamp).toLocaleString('ko-KR', { year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : ''}
+                                            </span>
+                                        </span>
                                     )}
-
                                 </div>
                             </div>
                             {/* 오른쪽: 즐겨찾기, 삭제, 입장 버튼 */}
