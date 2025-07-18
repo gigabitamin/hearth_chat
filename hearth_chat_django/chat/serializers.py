@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import ChatRoom, Chat, ChatRoomParticipant, UserSettings, VoiceCall, MessageReaction, MessageReply, PinnedMessage, NotificationRead
+from .models import ChatRoom, Chat, ChatRoomParticipant, UserSettings, VoiceCall, MessageReaction, MessageReply, PinnedMessage, NotificationRead, MessageFavorite
 from django.contrib.auth.models import User
 
 class UserSerializer(serializers.ModelSerializer):
@@ -125,3 +125,8 @@ class NotificationReadSerializer(serializers.ModelSerializer):
         model = NotificationRead
         fields = ['id', 'user', 'room', 'message', 'read_at']
         read_only_fields = ['id', 'read_at', 'user'] 
+
+class MessageFavoriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MessageFavorite
+        fields = ['id', 'user', 'message', 'created_at'] 

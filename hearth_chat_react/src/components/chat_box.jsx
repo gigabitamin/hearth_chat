@@ -2578,6 +2578,45 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     }
   }, [isMenuOpen, selectedRoom, loginUser]);
 
+  const [favoriteMessages, setFavoriteMessages] = useState([]);
+  const [favoriteMessagesLoading, setFavoriteMessagesLoading] = useState(false);
+
+  // 내 즐겨찾기 메시지 목록 fetch
+  const fetchMyFavoriteMessages = async () => {
+    setFavoriteMessagesLoading(true);
+    try {
+      const res = await fetch(`${getApiBase()}/api/chat/messages/my_favorites/`, {
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setFavoriteMessages(data.results ? data.results.map(m => m.id) : data.map(m => m.id));
+      }
+    } catch {}
+    setFavoriteMessagesLoading(false);
+  };
+  useEffect(() => { fetchMyFavoriteMessages(); }, [selectedRoom?.id]);
+
+  // 메시지 즐겨찾기 토글
+  const handleToggleFavorite = async (msg) => {
+    if (!msg.id) return;
+    const isFav = favoriteMessages.includes(msg.id);
+    const url = `${getApiBase()}/api/chat/messages/${msg.id}/${isFav ? 'unfavorite' : 'favorite'}/`;
+    const method = isFav ? 'DELETE' : 'POST';
+    try {
+      const csrftoken = getCookie('csrftoken');
+      await fetch(url, {
+        method,
+        credentials: 'include',
+        headers: { 'X-CSRFToken': csrftoken },
+      });
+      fetchMyFavoriteMessages();
+    } catch (err) {
+      alert('메시지 즐겨찾기 처리 실패: ' + err.message);
+    }
+  };
+
   return (
     <>
       {/* 이미지 뷰어 모달 */}
@@ -2696,6 +2735,8 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                   onReplyQuoteClick={id => setHighlightedMessageId(id)}
                   itemHeight={80}
                   onImageClick={setViewerImage}
+                  favoriteMessages={favoriteMessages}
+                  onToggleFavorite={handleToggleFavorite}
                 />
             </div>
             <div className="chat-input-area">

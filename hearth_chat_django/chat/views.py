@@ -20,8 +20,8 @@ from allauth.socialaccount.models import SocialAccount
 from rest_framework import viewsets, generics, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from .models import ChatRoom, Chat, ChatRoomParticipant, UserSettings, MessageReaction, MessageReply, PinnedMessage, NotificationRead
-from .serializers import ChatRoomSerializer, ChatSerializer, ChatRoomParticipantSerializer, UserSettingsSerializer, MessageReactionSerializer, MessageReplySerializer, PinnedMessageSerializer, NotificationReadSerializer
+from .models import ChatRoom, Chat, ChatRoomParticipant, UserSettings, MessageReaction, MessageReply, PinnedMessage, NotificationRead, MessageFavorite
+from .serializers import ChatRoomSerializer, ChatSerializer, ChatRoomParticipantSerializer, UserSettingsSerializer, MessageReactionSerializer, MessageReplySerializer, PinnedMessageSerializer, NotificationReadSerializer, MessageFavoriteSerializer
 from django.contrib.auth.models import User
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -34,6 +34,7 @@ import json
 from django.db import models
 from django.core.cache import cache
 from django.conf import settings
+from .models import MessageFavorite
 
 
 # Create your views here.
@@ -412,14 +413,51 @@ class ChatViewSet(viewsets.ModelViewSet):
     serializer_class = ChatSerializer
     # permission_classes = [IsAuthenticated]
     permission_classes = [AllowAny]
+            
+    @action(detail=False, methods=['get'], url_path='my_favorites')
+    def my_favorites(self, request):
+        """내 즐겨찾기 메시지 목록"""
+        user = request.user
+        favorites = MessageFavorite.objects.filter(user=user).select_related('message').order_by('-created_at')
+        data = [
+            {
+                'id': fav.message.id,
+                'content': fav.message.content,
+                'timestamp': fav.message.timestamp,
+                'room_id': fav.message.room_id,
+                'sender': fav.message.username,
+            }
+            for fav in favorites
+        ]
+        return Response({'results': data})        
+    
+    @action(detail=True, methods=['post'], url_path='favorite')
+    def favorite(self, request, pk=None):
+        """메시지 즐겨찾기 추가"""
+        message = self.get_object()
+        user = request.user
+        obj, created = MessageFavorite.objects.get_or_create(user=user, message=message)
+        return Response({'favorited': True, 'message_id': message.id})
+
+    @action(detail=True, methods=['delete'], url_path='favorite')
+    def unfavorite(self, request, pk=None):
+        """메시지 즐겨찾기 해제"""
+        message = self.get_object()
+        user = request.user
+        MessageFavorite.objects.filter(user=user, message=message).delete()
+        return Response({'favorited': False, 'message_id': message.id})
+
 
     def get_queryset(self):
-        room_id = self.request.query_params.get('room')
-        offset = int(self.request.query_params.get('offset', 0))
-        limit = int(self.request.query_params.get('limit', 20))
-        if room_id:
-            return Chat.objects.filter(room_id=room_id).order_by('-timestamp')[offset:offset+limit]
-        return Chat.objects.none()
+        if self.action == 'list':
+            room_id = self.request.query_params.get('room')
+            offset = int(self.request.query_params.get('offset', 0))
+            limit = int(self.request.query_params.get('limit', 20))
+            if room_id:
+                return Chat.objects.filter(room_id=room_id).order_by('-timestamp')[offset:offset+limit]
+            return Chat.objects.none()
+        # detail action 등에서는 전체 쿼리셋 반환
+        return Chat.objects.all()
 
     def perform_create(self, serializer):
         # sender 필드가 없으므로, username과 user_id만 설정

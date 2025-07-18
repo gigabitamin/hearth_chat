@@ -17,7 +17,9 @@ const VirtualizedMessageList = ({
     onReply, // 답장 콜백
     onReplyQuoteClick, // 인용 클릭 콜백
     onImageClick, // 이미지 클릭 콜백(모달)
-    selectedRoomId // 방이 바뀔 때마다 최신 위치로 이동
+    selectedRoomId, // 방이 바뀔 때마다 최신 위치로 이동
+    favoriteMessages = [],
+    onToggleFavorite = () => { },
 }) => {
     const [listRef, setListRef] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -207,7 +209,7 @@ const VirtualizedMessageList = ({
                 onMouseLeave={() => setEmojiPickerMsgId(null)}
             >
                 <div className="message-content">
-                    {/* 메시지 헤더: 위쪽에 username(흰색, 굵게) + 답장/핀 버튼 */}
+                    {/* 메시지 헤더: 위쪽에 username(흰색, 굵게) + 답장/핀/즐겨찾기 버튼 */}
                     <div className="message-header" style={{ display: 'flex', alignItems: 'center', marginBottom: 2 }}>
                         <span style={{ color: '#fff', fontWeight: 700, fontSize: 13, marginRight: 8 }}>
                             {msg.sender || msg.username || 'Unknown'}
@@ -225,6 +227,15 @@ const VirtualizedMessageList = ({
                             onClick={e => { e.stopPropagation(); togglePin(msg.id); }}
                             title={pinnedIds.includes(msg.id) ? '핀 해제' : '상단 고정'}
                         >📌</button>
+                        {/* 즐겨찾기(▽/▼) 버튼 */}
+                        <button
+                            className="favorite-btn"
+                            style={{ marginLeft: 8, fontSize: 18, color: favoriteMessages.includes(msg.id) ? '#1976d2' : '#bbb', background: 'none', border: 'none', cursor: 'pointer' }}
+                            title={favoriteMessages.includes(msg.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+                            onClick={e => { e.stopPropagation(); onToggleFavorite(msg); }}
+                        >
+                            {favoriteMessages.includes(msg.id) ? '▼' : '▽'}
+                        </button>
                     </div>
                     {/* 답장 인용 표시 */}
                     {msg.reply && (
@@ -356,7 +367,7 @@ const VirtualizedMessageList = ({
                 </div>
             </div>
         );
-    }, [messages, highlightedIndex, loginUser, onMessageClick, getSenderColor, localReactions, emojiPickerMsgId, onReply, onReplyQuoteClick, pinnedIds, onImageClick]);
+    }, [messages, highlightedIndex, loginUser, onMessageClick, getSenderColor, localReactions, emojiPickerMsgId, onReply, onReplyQuoteClick, pinnedIds, onImageClick, favoriteMessages, onToggleFavorite]);
 
     // 아이템이 로드되었는지 확인
     const isItemLoaded = useCallback((index) => {
