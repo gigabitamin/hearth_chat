@@ -325,12 +325,92 @@ export default function SearchModal({
         }
     };
 
-    // (3) 미리보기 연동 (props로 fetchPreviewMessages 함수 전달 필요)
-    const handlePreview = (msg) => {
-        if (typeof fetchPreviewMessages === 'function') {
-            fetchPreviewMessages(msg);
-        }
+    // 1. previewMessages, previewLoading 상태 추가
+    const [previewMessages, setPreviewMessages] = useState([]);
+    const [previewLoading, setPreviewLoading] = useState(false);
+
+    // 2. 메시지 미리보기 fetch 함수 (기존 fetchPreviewMessages와 유사, SearchModal 내부에서 구현)
+    const fetchPreviewMessagesLocal = async (msg) => {
+        if (!msg || !msg.room_id || !msg.id) return;
+        setPreviewLoading(true);
+        try {
+            // 기준 메시지 timestamp 가져오기
+            const res = await fetch(`${getApiBase()}/api/chat/messages/${msg.id}/`);
+            if (!res.ok) return;
+            const baseMsg = await res.json();
+            const baseTime = baseMsg.timestamp;
+            // 이전 2개
+            const prevRes = await fetch(`${getApiBase()}/api/chat/messages/?room=${msg.room_id}&before=${baseTime}&limit=2`);
+            const prevMsgs = prevRes.ok ? (await prevRes.json()).results || [] : [];
+            // 이후 2개
+            const nextRes = await fetch(`${getApiBase()}/api/chat/messages/?room=${msg.room_id}&after=${baseTime}&limit=2`);
+            const nextMsgs = nextRes.ok ? (await nextRes.json()).results || [] : [];
+            // 기준 메시지
+            const centerMsg = { ...msg, isCenter: true };
+            setPreviewMessages([...prevMsgs, centerMsg, ...nextMsgs]);
+        } catch { }
+        setPreviewLoading(false);
     };
+
+    // 3. handlePreview 함수에서 fetchPreviewMessagesLocal 호출
+    const handlePreview = (msg) => {
+        fetchPreviewMessagesLocal(msg);
+    };
+
+    // 4. renderResultItem 내 메시지(li)에서 메시지 타입일 때 onClick에 handlePreview(r) 연결
+    // (이미 적용되어 있으면 유지)
+
+    // 5. 하단에 미리보기 정보창 UI 추가 (대기방 정보창과 유사하게)
+    // SearchModal return문 하단에 추가
+    {
+        previewMessages.length > 0 && (
+            <div className="search-preview-box" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 9999, background: '#181c24', borderTop: '2px solid #1976d2', padding: 12, marginTop: 0, maxWidth: 600, marginLeft: 'auto', marginRight: 'auto' }}>
+                <div style={{ fontWeight: 700, color: '#1976d2', marginBottom: 6 }}>미리보기</div>
+                {previewLoading ? (
+                    <div style={{ color: '#888' }}>불러오는 중...</div>
+                ) : previewMessages.length === 0 ? (
+                    <div style={{ color: '#888' }}>미리보기 메시지가 없습니다.</div>
+                ) : (
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                        {previewMessages.map(m => (
+                            <li key={m.id} style={{ padding: '6px 0', borderBottom: '1px solid #222', fontWeight: m.isCenter ? 700 : 400, background: m.isCenter ? '#222c' : 'transparent', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: 13, color: '#1976d2', fontWeight: 600 }}>{m.room_id ? `방 #${m.room_id}` : ''}</div>
+                                    <div style={{ fontSize: 14, color: '#fff', margin: '2px 0' }}>{m.content}</div>
+                                    <div style={{ fontSize: 11, color: '#888' }}>{m.sender} | {m.timestamp ? new Date(m.timestamp).toLocaleString('ko-KR', { year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : ''}</div>
+                                </div>
+                                {/* 복사 버튼 */}
+                                <button
+                                    className="search-copy-btn"
+                                    style={{ fontSize: 13, color: '#2196f3', background: 'none', border: 'none', cursor: 'pointer' }}
+                                    title="복사"
+                                    onClick={e => { e.stopPropagation(); copy(m.content); }}
+                                >📋</button>
+                                {/* 즐겨찾기 토글 버튼 */}
+                                <button
+                                    className="favorite-btn"
+                                    style={{ fontSize: 18, color: favoriteMessages.includes(m.id) ? '#1976d2' : '#bbb', background: 'none', border: 'none', cursor: 'pointer' }}
+                                    title={favoriteMessages.includes(m.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+                                    onClick={e => { e.stopPropagation(); handleToggleFavoriteMessage(m); }}
+                                >{favoriteMessages.includes(m.id) ? '★' : '☆'}</button>
+                                {/* 입장 버튼: room_id가 존재하면 무조건 이동 */}
+                                <button
+                                    className="search-enter-btn"
+                                    style={{ fontSize: 14, color: '#1976d2', background: 'none', border: '1px solid #1976d2', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', marginLeft: 4 }}
+                                    title="입장"
+                                    onClick={e => {
+                                        e.stopPropagation();
+                                        if (onClose) onClose();
+                                        navigate(`/room/${m.room_id}?messageId=${m.id}`);
+                                    }}
+                                >입장</button>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+        )
+    }
 
     // (4) 메시지 입장
     const handleEnterRoom = (room) => {
@@ -437,7 +517,7 @@ export default function SearchModal({
                 key={index}
                 className={`search-result-item${index === activeIndex ? ' active' : ''}${isSelected ? ' selected' : ''}`}
                 style={style}
-                onClick={e => handleResultClick(index, e)}
+                onClick={r.type === 'message' ? (e => { handlePreview(r); handleResultClick(index, e); }) : (e => handleResultClick(index, e))}
                 ref={index === activeIndex ? resultListRef : undefined}
             >
                 <div className="search-result-header">
@@ -496,19 +576,6 @@ export default function SearchModal({
                                 {favoriteMessages.includes(r.id) ? '★' : '☆'}
                             </button>
                             <button
-                                className="search-preview-btn"
-                                style={{
-                                    marginLeft: 8,
-                                    fontSize: 15,
-                                    color: '#1976d2',
-                                    background: 'none',
-                                    border: 'none',
-                                    cursor: 'pointer'
-                                }}
-                                title="미리보기"
-                                onClick={e => { e.stopPropagation(); handlePreview(r); }}
-                            >미리보기</button>
-                            <button
                                 className="search-enter-btn"
                                 style={{
                                     marginLeft: 8,
@@ -519,7 +586,22 @@ export default function SearchModal({
                                     cursor: 'pointer'
                                 }}
                                 title="입장"
-                                onClick={e => { e.stopPropagation(); handleEnterRoom(r); }}
+                                onClick={async e => {
+                                    e.stopPropagation();
+                                    try {
+                                        const res = await fetch(`${getApiBase()}/api/chat/rooms/${r.room_id}/`, {
+                                            credentials: 'include'
+                                        });
+                                        if (!res.ok) {
+                                            alert('존재하지 않는 방입니다');
+                                            return;
+                                        }
+                                        if (onClose) onClose();
+                                        navigate(`/room/${r.room_id}?messageId=${r.id}`);
+                                    } catch {
+                                        alert('방 정보 확인 중 오류가 발생했습니다');
+                                    }
+                                }}
                             >입장</button>
                         </>
                     )}
