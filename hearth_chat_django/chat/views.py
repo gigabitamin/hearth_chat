@@ -630,6 +630,24 @@ class ChatViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({'error': str(e)}, status=500)
 
+    def update(self, request, *args, **kwargs):
+        room = self.get_object()
+        # 방장 권한 체크
+        is_owner = ChatRoomParticipant.objects.filter(room=room, user=request.user, is_owner=True).exists()
+        is_admin = request.user.is_superuser or request.user.is_staff
+        if not (is_owner or is_admin):
+            return Response({'error': '방장 또는 관리자만 방 설정을 변경할 수 있습니다.'}, status=403)
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        room = self.get_object()
+        # 방장 권한 체크
+        is_owner = ChatRoomParticipant.objects.filter(room=room, user=request.user, is_owner=True).exists()
+        is_admin = request.user.is_superuser or request.user.is_staff
+        if not (is_owner or is_admin):
+            return Response({'error': '방장 또는 관리자만 방 설정을 변경할 수 있습니다.'}, status=403)
+        return super().partial_update(request, *args, **kwargs)
+
 # @method_decorator(csrf_exempt, name='dispatch')
 class UserSettingsView(APIView):
     # authentication_classes = [CsrfExemptSessionAuthentication]    

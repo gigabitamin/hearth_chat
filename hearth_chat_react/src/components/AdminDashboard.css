@@ -155,20 +155,3 @@
     gap: 12px;
     justify-content: flex-end;
 }
-
-@media (max-width: 600px) {
-    .admin-dashboard {
-        padding: 8px 2px;
-    }
-
-    .admin-stats-card,
-    .admin-list-card,
-    .admin-modal {
-        padding: 10px 4px;
-    }
-
-    .admin-table th,
-    .admin-table td {
-        padding: 4px 4px;
-    }
-}

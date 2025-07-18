@@ -200,19 +200,6 @@ html,
 /* 반응형 디자인 */
 /* Remove all media queries and fixed heights for mobile */
 
-/* 모바일에서 스크롤바 숨기기 */
-@media (max-width: 768px) {
-  .room-list-container::-webkit-scrollbar {
-    width: 0;
-    background: transparent;
-  }
-
-  .room-list-container {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-}
-
 /* 하단 채팅창 스크롤바 스타일 강제 적용 */
 .chat-log::-webkit-scrollbar {
   width: 6px !important;

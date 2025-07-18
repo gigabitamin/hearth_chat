@@ -19,6 +19,7 @@ import 'prismjs/themes/prism-tomorrow.css';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import InsertChartIcon from '@mui/icons-material/InsertChart';
 import CodeIcon from '@mui/icons-material/Code';
+import RoomSettingsModal from './RoomSettingsModal';
 
 import { useNavigate } from 'react-router-dom';
 
@@ -2548,6 +2549,35 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   // 1. 상태 추가
   const [replyTo, setReplyTo] = useState(null);
 
+  const [showRoomSettings, setShowRoomSettings] = useState(false);
+
+  // isRoomOwner: 현재 로그인 유저가 방장인지 판별
+  const isRoomOwner = useMemo(() => {
+    if (!selectedRoom || !selectedRoom.participants || !loginUser) return false;
+    return selectedRoom.participants.some(
+      p => p.user?.id === loginUser.id && p.is_owner
+    );
+  }, [selectedRoom, loginUser]);
+
+  // 방 정보 갱신 핸들러
+  const handleRoomSettingsSuccess = (updatedRoom) => {
+    // selectedRoom을 갱신하거나, 필요시 fetchRooms 등 호출
+    if (updatedRoom && updatedRoom.id === selectedRoom.id) {
+      // shallow merge (필요시 setSelectedRoom 등 사용)
+      Object.assign(selectedRoom, updatedRoom);
+      // 강제 리렌더링이 필요하면 상태로 관리
+      // setSelectedRoom({ ...selectedRoom, ...updatedRoom });
+    }
+    // 추가로 방 목록/참여자 등 갱신 필요시 fetchRooms 등 호출 가능
+  };
+
+  useEffect(() => {
+    if (isMenuOpen) {
+      console.log('selectedRoom.participants:', selectedRoom?.participants);
+      console.log('loginUser:', loginUser);
+    }
+  }, [isMenuOpen, selectedRoom, loginUser]);
+
   return (
     <>
       {/* 이미지 뷰어 모달 */}
@@ -2569,6 +2599,12 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           </button>
           {isMenuOpen && (
             <div style={{ position: 'absolute', top: 44, left: 0, background: '#222', borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.18)', padding: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {/* 방장일 때만 방 설정 버튼 노출 */}
+              {isRoomOwner && (
+                <button style={{ color: '#fff', background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', padding: 8, textAlign: 'left' }} onClick={() => { setShowRoomSettings(true); setIsMenuOpen(false); }}>
+                  🛠️ 방 설정
+                </button>
+              )}
               <button style={{ color: '#fff', background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', padding: 8, textAlign: 'left' }} onClick={() => { setIsAiAvatarOn(v => !v); setIsMenuOpen(false); }}>
                 🤖 {isAiAvatarOn ? 'off' : 'on'}
               </button>
@@ -2581,6 +2617,14 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
             </div>
           )}
         </div>
+        {showRoomSettings && (
+          <RoomSettingsModal
+            open={showRoomSettings}
+            onClose={() => setShowRoomSettings(false)}
+            room={selectedRoom}
+            onSuccess={handleRoomSettingsSuccess}
+          />
+        )}
         {/* 아바타/카메라/햄버거 메뉴 복구 */}
         <div
           className="avatar-container"

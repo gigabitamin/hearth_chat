@@ -454,50 +454,6 @@
     }
 }
 
-/* 반응형 디자인 */
-@media (max-width: 768px) {
-    .voice-recognition-container {
-        padding: 10px;
-    }
-
-    .voice-recognition-button {
-        width: 100px;
-        height: 100px;
-    }
-
-    .voice-button-icon {
-        font-size: 28px;
-    }
-
-    .voice-button-text {
-        font-size: 11px;
-    }
-
-    .voice-interim-result,
-    .voice-error-message {
-        max-width: 250px;
-        font-size: 13px;
-    }
-
-    /* 3단계: 모바일 반응형 */
-    .voice-advanced-settings,
-    .voice-recognition-stats {
-        max-width: 280px;
-        padding: 12px;
-    }
-
-    .stats-grid {
-        grid-template-columns: 1fr;
-        gap: 8px;
-    }
-
-    .setting-group label {
-        font-size: 13px;
-    }
-
-
-}
-
 /* 다크 모드 지원 */
 @media (prefers-color-scheme: dark) {
     .voice-language-selector select {
@@ -680,29 +636,6 @@
     margin-bottom: 0;
 }
 
-/* 4-1단계: 모바일 반응형 */
-@media (max-width: 768px) {
-
-    .voice-detection-status,
-    .voice-enhanced-stats {
-        max-width: 280px;
-        padding: 12px;
-    }
-
-    .enhanced-stats-grid {
-        grid-template-columns: 1fr;
-        gap: 8px;
-    }
-
-    .detection-indicator {
-        font-size: 13px;
-    }
-
-    .detection-indicator i {
-        font-size: 14px;
-    }
-}
-
 /* 4-2단계: 후처리 정보 스타일 */
 .voice-post-process-info {
     margin: 15px 0;
@@ -841,32 +774,6 @@
 
 .total-changes strong {
     color: #1565c0;
-}
-
-/* 4-2단계: 모바일 반응형 */
-@media (max-width: 768px) {
-    .voice-post-process-info {
-        margin: 10px 0;
-        padding: 12px;
-    }
-
-    .text-comparison {
-        grid-template-columns: 1fr;
-        gap: 12px;
-    }
-
-    .original-text,
-    .processed-text {
-        padding: 10px;
-    }
-
-    .changes-list {
-        gap: 6px;
-    }
-
-    .change-item {
-        padding: 5px 6px;
-    }
 }
 
 /* 4-2단계: 다크 모드 */
@@ -1128,35 +1035,6 @@
 
 .quality-recommendations li i.fa-info-circle {
     color: #2196F3;
-}
-
-/* 4-2단계: 모바일 반응형 */
-@media (max-width: 768px) {
-    .voice-quality-monitoring {
-        margin: 10px 0;
-        padding: 12px;
-    }
-
-    .quality-metrics-grid {
-        gap: 12px;
-    }
-
-    .metric-item {
-        padding: 10px;
-    }
-
-    .quality-summary {
-        grid-template-columns: 1fr;
-        gap: 12px;
-    }
-
-    .score-display {
-        justify-content: center;
-    }
-
-    .score-value {
-        font-size: 20px;
-    }
 }
 
 /* 4-2단계: 다크 모드 */

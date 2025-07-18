@@ -138,17 +138,3 @@
     background: #f5f5f5;
     color: #666;
 }
-
-@media (max-width: 600px) {
-    .notify-modal {
-        min-width: 90vw;
-        max-width: 98vw;
-        padding: 0;
-    }
-
-    .notify-modal-header,
-    .notify-modal-content {
-        padding-left: 6vw;
-        padding-right: 6vw;
-    }
-}

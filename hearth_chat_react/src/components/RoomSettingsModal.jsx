@@ -6,15 +6,6 @@ const AI_PROVIDERS = [
     { value: 'CLUDE', label: 'Clude' },
 ];
 
-const getApiBase = () => {
-    const hostname = window.location.hostname;
-    const isProd = process.env.NODE_ENV === 'production';
-    if (isProd) return 'https://hearthchat-production.up.railway.app';
-    if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:8000';
-    if (hostname === '192.168.44.9') return 'http://192.168.44.9:8000';
-    return `http://${hostname}:8000`;
-};
-
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -30,32 +21,32 @@ function getCookie(name) {
     return cookieValue;
 }
 
-const CreateRoomModal = ({ open, onClose, onSuccess }) => {
-    const [createType, setCreateType] = useState('ai');
-    const [createName, setCreateName] = useState('');
-    const [createAI, setCreateAI] = useState('GEMINI');
-    const [createIsPublic, setCreateIsPublic] = useState(false);
-    const [createMaxMembers, setCreateMaxMembers] = useState(4);
-    const [creating, setCreating] = useState(false);
-    const [createError, setCreateError] = useState(null);
+const RoomSettingsModal = ({ open, onClose, room, onSuccess }) => {
+    const [name, setName] = useState(room?.name || '');
+    const [roomType, setRoomType] = useState(room?.room_type || 'ai');
+    const [aiProvider, setAiProvider] = useState(room?.ai_provider || 'GEMINI');
+    const [isPublic, setIsPublic] = useState(room?.is_public || false);
+    const [maxMembers, setMaxMembers] = useState(room?.max_members || 4);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState(null);
 
-    if (!open) return null;
+    if (!open || !room) return null;
 
-    const handleCreateRoom = async (e) => {
+    const handleSave = async (e) => {
         e.preventDefault();
-        setCreating(true);
-        setCreateError(null);
+        setSaving(true);
+        setError(null);
         try {
             const body = {
-                name: createName || (createType === 'ai' ? `${createAI}와의 대화` : ''),
-                room_type: createType,
-                ai_provider: createType === 'ai' ? createAI : '',
-                is_public: createIsPublic,
-                max_members: createMaxMembers,
+                name,
+                room_type: roomType,
+                ai_provider: roomType === 'ai' ? aiProvider : '',
+                is_public: isPublic,
+                max_members: maxMembers,
             };
             const csrftoken = getCookie('csrftoken');
-            const response = await fetch(`${getApiBase()}/api/chat/rooms/`, {
-                method: 'POST',
+            const response = await fetch(`/api/chat/rooms/${room.id}/`, {
+                method: 'PATCH',
                 credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
@@ -65,53 +56,49 @@ const CreateRoomModal = ({ open, onClose, onSuccess }) => {
             });
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || '대화방 생성 실패');
+                throw new Error(errorData.error || '방 정보 수정 실패');
             }
-            const newRoom = await response.json();
-            setCreateName('');
-            setCreateType('ai');
-            setCreateAI('GEMINI');
-            setCreateIsPublic(false);
-            if (onSuccess) onSuccess(newRoom);
+            const updatedRoom = await response.json();
+            if (onSuccess) onSuccess(updatedRoom);
+            onClose();
         } catch (err) {
-            setCreateError(err.message);
+            setError(err.message);
         } finally {
-            setCreating(false);
+            setSaving(false);
         }
     };
 
     return (
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal" onClick={e => e.stopPropagation()}>
-                <h4>새 대화방 만들기</h4>
-                <form onSubmit={handleCreateRoom}>
+                <h4>방 정보 수정</h4>
+                <form onSubmit={handleSave}>
+                    <div className="form-group">
+                        <label>대화방 이름</label>
+                        <input
+                            type="text"
+                            value={name}
+                            onChange={e => setName(e.target.value)}
+                        />
+                    </div>
                     <div className="form-group">
                         <label>대화방 타입</label>
-                        <select value={createType} onChange={e => setCreateType(e.target.value)}>
+                        <select value={roomType} onChange={e => setRoomType(e.target.value)}>
                             <option value="ai">AI 채팅</option>
                             <option value="user">1:1 채팅</option>
                             <option value="group">그룹 채팅</option>
                         </select>
                     </div>
-                    {createType === 'ai' && (
+                    {roomType === 'ai' && (
                         <div className="form-group">
                             <label>AI 종류</label>
-                            <select value={createAI} onChange={e => setCreateAI(e.target.value)}>
+                            <select value={aiProvider} onChange={e => setAiProvider(e.target.value)}>
                                 {AI_PROVIDERS.map(ai => (
                                     <option key={ai.value} value={ai.value}>{ai.label}</option>
                                 ))}
                             </select>
                         </div>
                     )}
-                    <div className="form-group">
-                        <label>대화방 이름</label>
-                        <input
-                            type="text"
-                            value={createName}
-                            onChange={e => setCreateName(e.target.value)}
-                            placeholder={createType === 'ai' ? `${createAI}와의 대화` : '대화방 이름'}
-                        />
-                    </div>
                     <div className="form-group">
                         <label>공개 설정</label>
                         <div className="radio-group">
@@ -120,8 +107,8 @@ const CreateRoomModal = ({ open, onClose, onSuccess }) => {
                                     type="radio"
                                     name="isPublic"
                                     value="false"
-                                    checked={!createIsPublic}
-                                    onChange={() => setCreateIsPublic(false)}
+                                    checked={!isPublic}
+                                    onChange={() => setIsPublic(false)}
                                 />
                                 🔒 비공개 (개인 채팅방)
                             </label>
@@ -130,8 +117,8 @@ const CreateRoomModal = ({ open, onClose, onSuccess }) => {
                                     type="radio"
                                     name="isPublic"
                                     value="true"
-                                    checked={createIsPublic}
-                                    onChange={() => setCreateIsPublic(true)}
+                                    checked={isPublic}
+                                    onChange={() => setIsPublic(true)}
                                 />
                                 🌐 공개 (오픈 채팅방)
                             </label>
@@ -143,16 +130,16 @@ const CreateRoomModal = ({ open, onClose, onSuccess }) => {
                             type="number"
                             min={2}
                             max={20}
-                            value={createMaxMembers}
-                            onChange={e => setCreateMaxMembers(Math.max(2, Math.min(20, Number(e.target.value))))}
+                            value={maxMembers}
+                            onChange={e => setMaxMembers(Math.max(2, Math.min(20, Number(e.target.value))))}
                         />
                         <small>2~20명 사이로 설정 (기본 4명)</small>
                     </div>
-                    {createError && <div className="error">{createError}</div>}
+                    {error && <div className="error">{error}</div>}
                     <div className="modal-actions">
                         <button type="button" onClick={onClose} className="cancel-btn">취소</button>
-                        <button type="submit" className="submit-btn" disabled={creating}>
-                            {creating ? '생성 중...' : '생성'}
+                        <button type="submit" className="submit-btn" disabled={saving}>
+                            {saving ? '저장 중...' : '저장'}
                         </button>
                     </div>
                 </form>
@@ -161,4 +148,4 @@ const CreateRoomModal = ({ open, onClose, onSuccess }) => {
     );
 };
 
-export default CreateRoomModal; 
+export default RoomSettingsModal; 
