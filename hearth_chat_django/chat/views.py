@@ -25,6 +25,7 @@ from .serializers import ChatRoomSerializer, ChatSerializer, ChatRoomParticipant
 from django.contrib.auth.models import User
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.authentication import SessionAuthentication
 from django.shortcuts import get_object_or_404
 from channels.layers import get_channel_layer
@@ -409,7 +410,8 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
 class ChatViewSet(viewsets.ModelViewSet):
     queryset = Chat.objects.all()
     serializer_class = ChatSerializer
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get_queryset(self):
         room_id = self.request.query_params.get('room')
@@ -632,8 +634,14 @@ class ChatViewSet(viewsets.ModelViewSet):
 
     def update(self, request, *args, **kwargs):
         room = self.get_object()
+        print('request.user:', request.user, 'id:', getattr(request.user, 'id', None))
+        is_owner = ChatRoomParticipant.objects.filter(
+            room=room,
+            user_id=int(request.user.id),  # ← int로 강제 변환
+            is_owner=True
+        ).exists()
+        print('is_owner:', is_owner)
         # 방장 권한 체크
-        is_owner = ChatRoomParticipant.objects.filter(room=room, user=request.user, is_owner=True).exists()
         is_admin = request.user.is_superuser or request.user.is_staff
         if not (is_owner or is_admin):
             return Response({'error': '방장 또는 관리자만 방 설정을 변경할 수 있습니다.'}, status=403)
@@ -641,6 +649,12 @@ class ChatViewSet(viewsets.ModelViewSet):
 
     def partial_update(self, request, *args, **kwargs):
         room = self.get_object()
+        print('request.user:', request.user, 'id:', getattr(request.user, 'id', None))
+        is_owner = ChatRoomParticipant.objects.filter(
+            room=room,
+            user_id=int(request.user.id),  # ← int로 강제 변환
+            is_owner=True
+        ).exists()        
         # 방장 권한 체크
         is_owner = ChatRoomParticipant.objects.filter(room=room, user=request.user, is_owner=True).exists()
         is_admin = request.user.is_superuser or request.user.is_staff

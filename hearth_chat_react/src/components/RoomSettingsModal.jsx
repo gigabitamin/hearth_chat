@@ -21,6 +21,16 @@ function getCookie(name) {
     return cookieValue;
 }
 
+// 환경에 따라 API_BASE 자동 설정 함수 추가
+const getApiBase = () => {
+    const hostname = window.location.hostname;
+    const isProd = process.env.NODE_ENV === 'production';
+    if (isProd) return 'https://hearthchat-production.up.railway.app';
+    if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:8000';
+    if (hostname === '192.168.44.9') return 'http://192.168.44.9:8000';
+    return `http://${hostname}:8000`;
+};
+
 const RoomSettingsModal = ({ open, onClose, room, onSuccess }) => {
     const [name, setName] = useState(room?.name || '');
     const [roomType, setRoomType] = useState(room?.room_type || 'ai');
@@ -45,7 +55,7 @@ const RoomSettingsModal = ({ open, onClose, room, onSuccess }) => {
                 max_members: maxMembers,
             };
             const csrftoken = getCookie('csrftoken');
-            const response = await fetch(`/api/chat/rooms/${room.id}/`, {
+            const response = await fetch(`${getApiBase()}/api/chat/rooms/${room.id}/`, {
                 method: 'PATCH',
                 credentials: 'include',
                 headers: {
@@ -56,6 +66,7 @@ const RoomSettingsModal = ({ open, onClose, room, onSuccess }) => {
             });
             if (!response.ok) {
                 const errorData = await response.json();
+                console.log('errorData:', errorData);
                 throw new Error(errorData.error || '방 정보 수정 실패');
             }
             const updatedRoom = await response.json();
