@@ -565,21 +565,7 @@ function AppContent(props) {
           <div className="app-container">
             <div className="room-list-container" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
               {/* lobby-tabs(파란색 탭 버튼 그룹) 완전히 삭제 */}
-              <HeaderBar
-                activeTab={overlayTab}
-                onTabChange={(tab) => {
-                  setOverlayTab(tab);
-                  if (isInRoom) setShowRoomListOverlay(true);
-                }}
-                onSearchClick={() => setIsSearchModalOpen(true)}
-                onNotifyClick={() => setIsNotifyModalOpen(true)}
-                onSettingsClick={() => setIsSettingsModalOpen(true)}
-                onLoginClick={() => setIsLoginModalOpen(true)}
-                onCreateRoomClick={() => setShowCreateModal(true)}
-                loginUser={loginUser}
-                title={headerTitle}
-                unreadNotifications={unreadNotifications}
-              />
+              {/* <HeaderBar ... /> 이 부분을 완전히 제거 */}
               <div style={{ flex: 3, overflowY: 'auto' }}>
                 <ChatRoomList
                   onRoomSelect={async (room) => {
@@ -617,27 +603,20 @@ function AppContent(props) {
           </div>
         } />
         <Route path="/room/:roomId" element={
-          <div className="chat-container">
-            <ChatBox
-              selectedRoom={selectedRoom}
-              loginUser={loginUser}
-              loginLoading={loginLoading}
-              checkLoginStatus={checkLoginStatus}
-              userSettings={userSettings}
-              setUserSettings={setUserSettings}
-              onUserMenuOpen={() => setIsSettingsModalOpen(true)}
-              isSettingsModalOpen={isSettingsModalOpen}
-              setIsSettingsModalOpen={setIsSettingsModalOpen}
-              isLoginModalOpen={isLoginModalOpen}
-              setIsLoginModalOpen={setIsLoginModalOpen}
-              settingsTab={settingsTab}
-              setSettingsTab={setSettingsTab}
-              highlightMessageId={(() => {
-                const searchParams = new URLSearchParams(window.location.search);
-                return searchParams.get('messageId');
-              })()}
-            />
-          </div>
+          <ChatRoomPage
+            loginUser={loginUser}
+            loginLoading={loginLoading}
+            checkLoginStatus={checkLoginStatus}
+            userSettings={userSettings}
+            setUserSettings={setUserSettings}
+            onUserMenuOpen={() => setIsSettingsModalOpen(true)}
+            isSettingsModalOpen={isSettingsModalOpen}
+            setIsSettingsModalOpen={setIsSettingsModalOpen}
+            isLoginModalOpen={isLoginModalOpen}
+            setIsLoginModalOpen={setIsLoginModalOpen}
+            settingsTab={settingsTab}
+            setSettingsTab={setSettingsTab}
+          />
         } />
         <Route path="/admin" element={<AdminPage loginUser={loginUser} loginLoading={loginLoading} checkLoginStatus={checkLoginStatus} />} />
       </Routes>

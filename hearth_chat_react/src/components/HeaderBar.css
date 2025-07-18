@@ -65,7 +65,7 @@
 }
 
 .header-tab-btn.active {
-    background: linear-gradient(90deg, #007bff 60%, #00c6ff 100%);
+    /* background: linear-gradient(90deg, #007bff 60%, #00c6ff 100%); */
     color: #fff;
     font-weight: 700;
     box-shadow: 0 2px 8px 0 rgba(0, 123, 255, 0.10);

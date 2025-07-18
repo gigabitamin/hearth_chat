@@ -159,4 +159,4 @@ const RoomSettingsModal = ({ open, onClose, room, onSuccess }) => {
     );
 };
 
-export default RoomSettingsModal; 
+export default RoomSettingsModal;
