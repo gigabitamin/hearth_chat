@@ -461,7 +461,7 @@ function AppContent(props) {
         unreadList={unreadNotificationList}
         onMarkAllAsRead={handleMarkAllAsRead}
       />
-      <SearchModal open={isSearchModalOpen} onClose={() => setIsSearchModalOpen(false)} rooms={allRooms} messages={allMessages} users={allUsers} />
+      <SearchModal open={isSearchModalOpen} onClose={() => setIsSearchModalOpen(false)} rooms={allRooms} messages={allMessages} users={allUsers} fetchPreviewMessages={fetchPreviewMessages} />
       {/* 로그인 모달 */}
       <LoginModal
         isOpen={isLoginModalOpen}

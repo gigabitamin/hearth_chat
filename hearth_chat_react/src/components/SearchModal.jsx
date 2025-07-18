@@ -5,7 +5,10 @@ import { FixedSizeList as List } from 'react-window';
 import copy from 'copy-to-clipboard';
 import { getApiBase } from '../app';
 
-export default function SearchModal({ open, onClose, rooms = [], messages = [], users = [] }) {
+export default function SearchModal({
+    open, onClose, rooms = [], messages = [], users = [],
+    fetchPreviewMessages // ★ props로 받음
+}) {
     const [query, setQuery] = useState('');
     const [scope, setScope] = useState('all'); // all, room, message, user
     const [useAnd, setUseAnd] = useState(false);
@@ -25,40 +28,36 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
     const [resultTypeFilter, setResultTypeFilter] = useState('all'); // all, message, room, user
     const [selectedIndexes, setSelectedIndexes] = useState([]);
     const [copiedIndex, setCopiedIndex] = useState(-1);
+    const [favoriteMessagesLoading, setFavoriteMessagesLoading] = useState(false);
 
     // 1. 즐겨찾기 상태 관리 (서버 연동)
     const [favoriteRooms, setFavoriteRooms] = useState([]);
     const [favoriteRoomsLoading, setFavoriteRoomsLoading] = useState(false);
 
-    // 2. 내 즐겨찾기 목록 fetch
-    const fetchMyFavorites = async () => {
-        setFavoriteRoomsLoading(true);
+    // (1) 메시지 즐겨찾기 상태 관리
+    const [favoriteMessages, setFavoriteMessages] = useState([]);
+    const fetchFavoriteMessages = async () => {
         try {
-            const response = await fetch(`${getApiBase()}/api/chat/rooms/my_favorites/`, {
+            const res = await fetch(`${getApiBase()}/api/chat/messages/my_favorites/`, {
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
             });
-            if (!response.ok) throw new Error('Failed to fetch favorite rooms');
-            const data = await response.json();
-            setFavoriteRooms(data.results ? data.results.map(r => r.id) : data.map(r => r.id));
-        } catch (err) {
-            // 무시
-        } finally {
-            setFavoriteRoomsLoading(false);
-        }
+            if (!res.ok) throw new Error('Failed to fetch favorite messages');
+            const data = await res.json();
+            setFavoriteMessages(data.results ? data.results.map(m => m.id) : data.map(m => m.id));
+        } catch { }
     };
-    useEffect(() => { fetchMyFavorites(); }, []);
+    useEffect(() => { fetchFavoriteMessages(); }, []);
 
-    // 3. 즐겨찾기 토글 (서버 연동)
+    // (2) 메시지 즐겨찾기 토글 함수
     function getCookie(name) {
         const value = `; ${document.cookie}`;
         const parts = value.split(`; ${name}=`);
         if (parts.length === 2) return parts.pop().split(';').shift();
     }
-    const handleToggleFavorite = async (r, index) => {
-        if (r.type !== 'room') return;
-        const isFav = favoriteRooms.includes(r.id);
-        const url = `${getApiBase()}/api/chat/rooms/${r.id}/favorite/`;
+    const handleToggleFavoriteMessage = async (msg, index) => {
+        const isFav = favoriteMessages.includes(msg.id);
+        const url = `${getApiBase()}/api/chat/messages/${msg.id}/favorite/`;
         const method = isFav ? 'DELETE' : 'POST';
         try {
             const csrftoken = getCookie('csrftoken');
@@ -67,11 +66,49 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
                 credentials: 'include',
                 headers: { 'X-CSRFToken': csrftoken },
             });
-            fetchMyFavorites();
+            fetchFavoriteMessages();
         } catch (err) {
-            alert('즐겨찾기 처리 실패: ' + err.message);
+            alert('메시지 즐겨찾기 처리 실패: ' + err.message);
         }
     };
+
+    // 내 즐겨찾기 메시지 목록 fetch
+    const fetchMyFavoriteMessages = async () => {
+        setFavoriteMessagesLoading(true);
+        try {
+            const res = await fetch(`${getApiBase()}/api/chat/messages/my_favorites/`, {
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setFavoriteMessages(data.results ? data.results.map(m => m.id) : data.map(m => m.id));
+            }
+        } catch { }
+        setFavoriteMessagesLoading(false);
+    };
+    useEffect(() => { fetchMyFavoriteMessages(); }, []);
+
+    // 메시지 즐겨찾기 토글
+    const handleToggleFavorite = async (msg) => {
+        if (!msg.id) return;
+        const isFav = favoriteMessages.includes(msg.id);
+        const url = `${getApiBase()}/api/chat/messages/${msg.id}/favorite/`;
+        const method = isFav ? 'DELETE' : 'POST';
+        try {
+            const csrftoken = getCookie('csrftoken');
+            await fetch(url, {
+                method,
+                credentials: 'include',
+                headers: { 'X-CSRFToken': csrftoken },
+            });
+            fetchMyFavoriteMessages();
+        } catch (err) {
+            alert('메시지 즐겨찾기 처리 실패: ' + err.message);
+        }
+    };
+
+
 
     // 입력 debounce 처리
     useEffect(() => {
@@ -271,6 +308,48 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
         }
     };
 
+    // (3) 미리보기 연동 (props로 fetchPreviewMessages 함수 전달 필요)
+    const handlePreview = (msg) => {
+        if (typeof fetchPreviewMessages === 'function') {
+            fetchPreviewMessages(msg);
+        }
+    };
+
+    // (4) 메시지 입장
+    const handleEnterRoom = (room) => {
+        navigate(`/room/${room.id}`);
+        if (onClose) onClose();
+    };
+
+    const handleStartChat = async (user) => {
+        try {
+            const getCookie = (name) => {
+                const value = `; ${document.cookie}`;
+                const parts = value.split(`; ${name}=`);
+                if (parts.length === 2) return parts.pop().split(';').shift();
+            };
+            const csrfToken = getCookie('csrftoken');
+            const res = await fetch(`${getApiBase()}/api/chat/rooms/user_chat_alt/`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                },
+                body: JSON.stringify({ user_id: user.id }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                navigate(`/room/${data.id}`);
+                if (onClose) onClose();
+            } else {
+                alert('1:1 채팅방 생성 실패');
+            }
+        } catch {
+            alert('1:1 채팅방 생성 오류');
+        }
+    };
+
     // 키보드 네비게이션 핸들러
     useEffect(() => {
         if (!open) return;
@@ -364,29 +443,68 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
                         {copiedIndex === index ? '✅' : '📋'}
                     </button>
                     {/* 즐겨찾기 버튼 */}
-                    {(r.type === 'room' || r.type === 'user') && (
+                    {r.type === 'room' && (
                         <button
                             className="search-favorite-btn"
-                            style={{ marginLeft: 8, fontSize: 18, color: '#FFD600', background: 'none', border: 'none', cursor: 'pointer' }}
-                            title={
-                                r.type === 'room'
-                                    ? (favoriteRooms.includes(r.id) ? '즐겨찾기 해제' : '즐겨찾기 추가')
-                                    : (favoriteRooms.includes(r.id) ? '즐겨찾기 해제' : '즐겨찾기 추가')
-                            }
-                            onClick={e => { e.stopPropagation(); handleToggleFavorite(r, index); }}
+                            style={{ marginLeft: 8, fontSize: 18, color: favoriteRooms.includes(r.id) ? '#FFD600' : '#bbb', background: 'none', border: 'none', cursor: 'pointer' }}
+                            title={favoriteRooms.includes(r.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+                            onClick={e => { e.stopPropagation(); handleToggleFavorite(r); }}
                         >
-                            {r.type === 'room'
-                                ? (favoriteRooms.includes(r.id) ? '★' : '☆')
-                                : (favoriteRooms.includes(r.id) ? '★' : '☆')}
+                            {favoriteRooms.includes(r.id) ? '★' : '☆'}
                         </button>
                     )}
                     {r.type === 'message' && (
+                        <>
+                            <button
+                                className="search-favorite-btn"
+                                style={{
+                                    marginLeft: 8,
+                                    fontSize: 18,
+                                    color: favoriteMessages.includes(r.id) ? '#FFD600' : '#bbb',
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer'
+                                }}
+                                title={favoriteMessages.includes(r.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+                                onClick={e => { e.stopPropagation(); handleToggleFavoriteMessage(r, index); }}
+                            >
+                                {favoriteMessages.includes(r.id) ? '★' : '☆'}
+                            </button>
+                            <button
+                                className="search-preview-btn"
+                                style={{
+                                    marginLeft: 8,
+                                    fontSize: 15,
+                                    color: '#1976d2',
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer'
+                                }}
+                                title="미리보기"
+                                onClick={e => { e.stopPropagation(); handlePreview(r); }}
+                            >미리보기</button>
+                            <button
+                                className="search-enter-btn"
+                                style={{
+                                    marginLeft: 8,
+                                    fontSize: 15,
+                                    color: '#1976d2',
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer'
+                                }}
+                                title="입장"
+                                onClick={e => { e.stopPropagation(); handleEnterRoom(r); }}
+                            >입장</button>
+                        </>
+                    )}
+                    {r.type === 'user' && (
                         <button
-                            className="search-favorite-btn"
-                            style={{ marginLeft: 8, fontSize: 18, color: '#bbb', background: 'none', border: 'none', cursor: 'not-allowed' }}
-                            title="메시지는 즐겨찾기 불가"
-                            disabled
-                        >☆</button>
+                            className="search-chat-btn"
+                            style={{ marginLeft: 8, fontSize: 15, color: '#1976d2', background: 'none', border: 'none', cursor: 'pointer' }}
+                            title="1:1 대화"
+                            onClick={e => { e.stopPropagation(); handleStartChat(r); }}
+                        >1:1 대화</button>
                     )}
                 </div>
                 {r.type === 'message' && (
