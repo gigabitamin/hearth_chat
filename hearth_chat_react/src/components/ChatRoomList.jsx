@@ -38,7 +38,7 @@ const API_BASE = isProd
             : `http://${hostname}:8000`;
 
 // ChatRoomList 컴포넌트에 onClose prop 추가
-const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, checkLoginStatus, onUserMenuOpen, activeTab, setActiveTab, showCreateModal, setShowCreateModal, onClose, onCreateRoomSuccess, overlayKey, wsConnected, setWsConnected, sidebarTab, setSidebarTab }) => {
+const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, checkLoginStatus, onUserMenuOpen, activeTab, setActiveTab, showCreateModal, setShowCreateModal, onClose, onCreateRoomSuccess, overlayKey, wsConnected, setWsConnected, sidebarTab, setSidebarTab, onPreviewMessage }) => {
     const navigate = useNavigate();
     // 사이드바 전용 탭 상태 분리
     // const [sidebarTab, setSidebarTab] = useState('personal'); // 이 줄 제거
@@ -62,6 +62,9 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
     const prevSelectedRoomId = useRef(null);
     const [favoriteMessages, setFavoriteMessages] = useState([]);
     const [favoriteMessagesLoading, setFavoriteMessagesLoading] = useState(false);
+    const [selectedFavoriteMessage, setSelectedFavoriteMessage] = useState(null);
+    const [previewMessages, setPreviewMessages] = useState([]);
+    const [previewLoading, setPreviewLoading] = useState(false);
 
 
     // useEffect에서 fetchRooms, fetchPublicRooms, connectWebSocket 중복 호출 최소화
@@ -439,6 +442,53 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             ? publicRooms
             : rooms;
 
+    // 미리보기 메시지 fetch
+    const fetchPreviewMessages = async (msg) => {
+        if (!msg || !msg.room_id || !msg.id) return;
+        setPreviewLoading(true);
+        try {
+            // 기준 메시지 timestamp 가져오기
+            const res = await fetch(`${API_BASE}/api/chat/messages/${msg.id}/`);
+            if (!res.ok) return;
+            const baseMsg = await res.json();
+            const baseTime = baseMsg.timestamp;
+            // 이전 2개
+            const prevRes = await fetch(`${API_BASE}/api/chat/messages/?room=${msg.room_id}&before=${baseTime}&limit=2`);
+            const prevMsgs = prevRes.ok ? (await prevRes.json()).results || [] : [];
+            // 이후 2개
+            const nextRes = await fetch(`${API_BASE}/api/chat/messages/?room=${msg.room_id}&after=${baseTime}&limit=2`);
+            const nextMsgs = nextRes.ok ? (await nextRes.json()).results || [] : [];
+            // 기준 메시지
+            const centerMsg = { ...msg, isCenter: true };
+            setPreviewMessages([...prevMsgs, centerMsg, ...nextMsgs]);
+        } catch { }
+        setPreviewLoading(false);
+    };
+
+    // 즐겨찾기 메시지 클릭 시 미리보기
+    const handleFavoriteMessageClick = (msg) => {
+        setSelectedFavoriteMessage(msg);
+        fetchPreviewMessages(msg);
+    };
+
+    const handleToggleFavorite = async (msg) => {
+        if (!msg.id) return;
+        const isFav = favoriteMessages.find(fm => fm.id === msg.id);
+        const url = `${API_BASE}/api/chat/messages/${msg.id}/favorite/`;
+        const method = isFav ? 'DELETE' : 'POST';
+        try {
+            const csrftoken = getCookie('csrftoken');
+            await fetch(url, {
+                method,
+                credentials: 'include',
+                headers: { 'X-CSRFToken': csrftoken },
+            });
+            fetchFavoriteMessages();
+        } catch (err) {
+            alert('메시지 즐겨찾기 처리 실패: ' + err.message);
+        }
+    };
+
     return (
         <div className="chat-room-list" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             {/* 내부 탭 UI 완전 제거됨. 탭은 상위(App/오버레이)에서만 렌더링 */}
@@ -576,12 +626,30 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                 ) : (
                                     <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                                         {favoriteMessages.map(msg => (
-                                            <li key={msg.id} style={{ borderBottom: '1px solid #eee', padding: '8px 0', cursor: 'pointer' }}
-                                                // onClick={() => ... 미리보기/이동(후속 구현) ...
-                                            >
-                                                <div style={{ fontSize: 13, color: '#1976d2', fontWeight: 600 }}>{msg.room_id ? `방 #${msg.room_id}` : ''}</div>
-                                                <div style={{ fontSize: 14, color: '#222', margin: '2px 0' }}>{msg.content}</div>
-                                                <div style={{ fontSize: 11, color: '#888' }}>{msg.sender} | {msg.timestamp ? new Date(msg.timestamp).toLocaleString('ko-KR', { year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : ''}</div>
+                                            <li key={msg.id} style={{ borderBottom: '1px solid #eee', padding: '8px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => onPreviewMessage ? onPreviewMessage(msg) : handleFavoriteMessageClick(msg)}>
+                                                    <div style={{ fontSize: 13, color: '#1976d2', fontWeight: 600 }}>{msg.room_id ? `방 #${msg.room_id}` : ''}</div>
+                                                    <div style={{ fontSize: 14, color: '#222', margin: '2px 0' }}>{msg.content}</div>
+                                                    <div style={{ fontSize: 11, color: '#888' }}>{msg.sender} | {msg.timestamp ? new Date(msg.timestamp).toLocaleString('ko-KR', { year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : ''}</div>
+                                                </div>
+                                                {/* 즐겨찾기 토글 버튼 */}
+                                                <button
+                                                    className="favorite-btn"
+                                                    style={{ fontSize: 18, color: favoriteMessages.find(fm => fm.id === msg.id) ? '#1976d2' : '#bbb', background: 'none', border: 'none', cursor: 'pointer' }}
+                                                    title={favoriteMessages.find(fm => fm.id === msg.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+                                                    onClick={e => { e.stopPropagation(); handleToggleFavorite(msg); }}
+                                                >
+                                                    {favoriteMessages.find(fm => fm.id === msg.id) ? '▼' : '▽'}
+                                                </button>
+                                                {/* [입장] 버튼 */}
+                                                <button
+                                                    className="enter-room-btn"
+                                                    style={{ fontSize: 14, color: '#1976d2', background: 'none', border: '1px solid #1976d2', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', marginLeft: 4 }}
+                                                    title="입장"
+                                                    onClick={e => { e.stopPropagation(); if (onClose) onClose(); navigate(`/room/${msg.room_id}?messageId=${msg.id}`); }}
+                                                >
+                                                    입장
+                                                </button>
                                             </li>
                                         ))}
                                     </ul>
@@ -716,6 +784,47 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                     )}
                 </>
             ))}
+            {/* 하단 미리보기 정보창 */}
+            {selectedFavoriteMessage && (
+                <div className="favorite-message-preview" style={{ background: '#181c24', borderTop: '2px solid #1976d2', padding: 12, marginTop: 8 }}>
+                    <div style={{ fontWeight: 700, color: '#1976d2', marginBottom: 6 }}>미리보기</div>
+                    {previewLoading ? (
+                        <div style={{ color: '#888' }}>불러오는 중...</div>
+                    ) : previewMessages.length === 0 ? (
+                        <div style={{ color: '#888' }}>미리보기 메시지가 없습니다.</div>
+                    ) : (
+                        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                            {previewMessages.map(m => (
+                                <li key={m.id} style={{ padding: '6px 0', borderBottom: '1px solid #222', fontWeight: favoriteMessages.find(fm => fm.id === m.id) ? 700 : 400, background: m.isCenter ? '#222c' : 'transparent', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontSize: 13, color: '#1976d2', fontWeight: 600 }}>{m.room_id ? `방 #${m.room_id}` : ''}</div>
+                                        <div style={{ fontSize: 14, color: '#fff', margin: '2px 0' }}>{m.content}</div>
+                                        <div style={{ fontSize: 11, color: '#888' }}>{m.sender} | {m.timestamp ? new Date(m.timestamp).toLocaleString('ko-KR', { year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : ''}</div>
+                                    </div>
+                                    {/* 즐겨찾기 토글 버튼 */}
+                                    <button
+                                        className="favorite-btn"
+                                        style={{ fontSize: 18, color: favoriteMessages.find(fm => fm.id === m.id) ? '#1976d2' : '#bbb', background: 'none', border: 'none', cursor: 'pointer' }}
+                                        title={favoriteMessages.find(fm => fm.id === m.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+                                        onClick={e => { e.stopPropagation(); handleToggleFavorite(m); }}
+                                    >
+                                        {favoriteMessages.find(fm => fm.id === m.id) ? '▼' : '▽'}
+                                    </button>
+                                    {/* [입장] 버튼 */}
+                                    <button
+                                        className="enter-room-btn"
+                                        style={{ fontSize: 14, color: '#1976d2', background: 'none', border: '1px solid #1976d2', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', marginLeft: 4 }}
+                                        title="입장"
+                                        onClick={e => { e.stopPropagation(); if (onClose) onClose(); navigate(`/room/${m.room_id}?messageId=${m.id}`); }}
+                                    >
+                                        입장
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            )}
         </div>
     );
 };

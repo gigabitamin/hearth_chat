@@ -231,6 +231,7 @@ function AppContent(props) {
     setSettingsTab,
     overlayTab,
     setOverlayTab,
+    fetchPreviewMessages,
   } = props;
 
   const [ttsRate, setTtsRate] = useState(1.5);
@@ -550,7 +551,7 @@ function AppContent(props) {
                   selectedRoomId={selectedRoom?.id}
                   onClose={() => setShowRoomListOverlay(false)}
                   overlayKey="overlay"
-
+                  onPreviewMessage={fetchPreviewMessages}
                 />
               </div>
               <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', borderTop: '1px solid #eee', background: '#fafbfc', padding: 12 }}>
@@ -647,6 +648,33 @@ function App() {
   const [allRooms, setAllRooms] = useState([]);
   const [allMessages, setAllMessages] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
+
+  // App.js 내 함수 컴포넌트 시작 부분에 추가
+  const fetchPreviewMessages = async (msg) => {
+    if (!msg || !msg.room_id || !msg.id) return;
+    try {
+      // 기준 메시지 timestamp 가져오기
+      const res = await csrfFetch(`${getApiBase()}/api/chat/messages/${msg.id}/`);
+      if (!res.ok) return;
+      const baseMsg = await res.json();
+      const baseTime = baseMsg.timestamp;
+      // 이전 2개
+      const prevRes = await csrfFetch(`${getApiBase()}/api/chat/messages/?room=${msg.room_id}&before=${baseTime}&limit=2`);
+      const prevMsgs = prevRes.ok ? (await prevRes.json()).results || [] : [];
+      // 이후 2개
+      const nextRes = await csrfFetch(`${getApiBase()}/api/chat/messages/?room=${msg.room_id}&after=${baseTime}&limit=2`);
+      const nextMsgs = nextRes.ok ? (await nextRes.json()).results || [] : [];
+      // 기준 메시지
+      const centerMsg = { ...msg, isCenter: true };
+      setSelectedRoomMessages([...prevMsgs, centerMsg, ...nextMsgs]);
+      // 방 정보도 갱신
+      const roomRes = await csrfFetch(`${getApiBase()}/api/chat/rooms/${msg.room_id}/`);
+      if (roomRes.ok) {
+        const roomData = await roomRes.json();
+        setSelectedRoom(roomData);
+      }
+    } catch { }
+  };
 
   // rooms/messages/users 데이터 fetch (rooms+users+messages)
   const fetchAllRooms = async () => {
@@ -842,6 +870,7 @@ function App() {
     setSettingsTab={setSettingsTab}
     overlayTab={overlayTab}
     setOverlayTab={setOverlayTab}
+    fetchPreviewMessages={fetchPreviewMessages}
   />;
 }
 

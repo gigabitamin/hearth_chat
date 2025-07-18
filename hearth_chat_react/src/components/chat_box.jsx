@@ -2602,7 +2602,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   const handleToggleFavorite = async (msg) => {
     if (!msg.id) return;
     const isFav = favoriteMessages.includes(msg.id);
-    const url = `${getApiBase()}/api/chat/messages/${msg.id}/${isFav ? 'unfavorite' : 'favorite'}/`;
+    const url = `${getApiBase()}/api/chat/messages/${msg.id}/favorite/`;
     const method = isFav ? 'DELETE' : 'POST';
     try {
       const csrftoken = getCookie('csrftoken');

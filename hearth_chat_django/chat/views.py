@@ -431,15 +431,26 @@ class ChatViewSet(viewsets.ModelViewSet):
         ]
         return Response({'results': data})        
     
-    @action(detail=True, methods=['post'], url_path='favorite')
+
+    @action(detail=True, methods=['post', 'delete'])
     def favorite(self, request, pk=None):
-        """메시지 즐겨찾기 추가"""
         message = self.get_object()
         user = request.user
-        obj, created = MessageFavorite.objects.get_or_create(user=user, message=message)
-        return Response({'favorited': True, 'message_id': message.id})
 
-    @action(detail=True, methods=['delete'], url_path='favorite')
+        if request.method == 'POST':
+            # 즐겨찾기 등록
+            MessageFavorite.objects.get_or_create(user=user, message=message)
+            return Response({'status': 'favorited'}, status=status.HTTP_201_CREATED)
+
+        elif request.method == 'DELETE':
+            # 즐겨찾기 해제
+            deleted, _ = MessageFavorite.objects.filter(user=user, message=message).delete()
+            if deleted:
+                return Response({'status': 'unfavorited'}, status=status.HTTP_200_OK)
+            else:
+                return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=['delete'], url_path='unfavorite')
     def unfavorite(self, request, pk=None):
         """메시지 즐겨찾기 해제"""
         message = self.get_object()
