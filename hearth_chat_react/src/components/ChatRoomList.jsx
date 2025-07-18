@@ -38,10 +38,10 @@ const API_BASE = isProd
             : `http://${hostname}:8000`;
 
 // ChatRoomList 컴포넌트에 onClose prop 추가
-const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, checkLoginStatus, onUserMenuOpen, activeTab, setActiveTab, showCreateModal, setShowCreateModal, onClose, onCreateRoomSuccess, overlayKey, wsConnected, setWsConnected }) => {
+const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, checkLoginStatus, onUserMenuOpen, activeTab, setActiveTab, showCreateModal, setShowCreateModal, onClose, onCreateRoomSuccess, overlayKey, wsConnected, setWsConnected, sidebarTab, setSidebarTab }) => {
     const navigate = useNavigate();
     // 사이드바 전용 탭 상태 분리
-    const [sidebarTab, setSidebarTab] = useState('personal');
+    // const [sidebarTab, setSidebarTab] = useState('personal'); // 이 줄 제거
     const [rooms, setRooms] = useState([]);
     const [publicRooms, setPublicRooms] = useState([]);
     const [favoriteRooms, setFavoriteRooms] = useState([]);
@@ -60,6 +60,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
     // context별(오버레이/대기방)로 스크롤 위치를 분리 저장
     const scrollPositions = useRef({});
     const prevSelectedRoomId = useRef(null);
+
 
     // useEffect에서 fetchRooms, fetchPublicRooms, connectWebSocket 중복 호출 최소화
     useEffect(() => {
@@ -408,28 +409,19 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
         justifyContent: 'center',
     };
 
+    if (typeof sidebarTab === 'undefined') {
+        throw new Error('ChatRoomList: props.sidebarTab이 반드시 필요합니다!');
+    }
+    // 목록 필터링은 오직 props.sidebarTab만 사용
+    const filteredRooms = sidebarTab === 'favorite'
+        ? favoriteRooms
+        : sidebarTab === 'open'
+            ? publicRooms
+            : rooms;
+
     return (
         <div className="chat-room-list">
-            {/* 사이드바/오버레이 상단에 탭 UI: overlayKey가 'overlay'일 때만 표시 */}
-            {overlayKey === 'overlay' && (
-                <div className="chat-roomlist-tabs" style={{ display: 'flex', gap: 4, marginBottom: 10, marginTop: 2, justifyContent: 'center' }}>
-                    <button
-                        className={`header-tab-btn${sidebarTab === 'personal' ? ' active' : ''}`}
-                        onClick={() => setSidebarTab('personal')}
-                    >개인</button>
-                    <button
-                        className={`header-tab-btn${sidebarTab === 'open' ? ' active' : ''}`}
-                        onClick={() => setSidebarTab('open')}
-                    >오픈</button>
-                    <button
-                        className={`header-tab-btn${sidebarTab === 'favorite' ? ' active' : ''}`}
-                        onClick={() => setSidebarTab('favorite')}
-                        title="즐겨찾기"
-                        style={{ color: '#FFD600', fontSize: 20, padding: '0 12px' }}
-                    >★</button>
-                </div>
-            )}
-
+            {/* 내부 탭 UI 완전 제거됨. 탭은 상위(App/오버레이)에서만 렌더링 */}
             {loading ? (
                 <div className="loading">대화방 목록을 불러오는 중...</div>
             ) : error ? (
@@ -438,14 +430,14 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                 <div className="no-rooms">
                     <button className="login-btn" onClick={() => setIsLoginModalOpen(true)} style={{ fontSize: 18, padding: '12px 32px', borderRadius: 8, background: '#2196f3', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer' }}>로그인</button>
                 </div>
-            ) : (sidebarTab === 'personal' ? rooms.length === 0 : publicRooms.length === 0) ? (
+            ) : (filteredRooms.length === 0) ? (
                 <div className="no-rooms">
                     <p>{sidebarTab === 'personal' ? '참여 중인 대화방이 없습니다.' : '공개 오픈 채팅방이 없습니다.'}</p>
                     <p>새로운 대화를 시작해보세요!</p>
                 </div>
             ) : (
                 <div className="room-items" ref={listRef}>
-                    {(sidebarTab === 'favorite' ? favoriteRooms : sidebarTab === 'personal' ? rooms : publicRooms).map((room) => (
+                    {filteredRooms.map((room) => (
                         <div
                             key={room.id}
                             className={`room-item ${selectedRoomId === room.id ? 'selected' : ''}`}
@@ -549,15 +541,12 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                     ))}
                 </div>
             ))}
-
             {/* 새 방 만들기 모달 제거 (App에서 렌더링) */}
-            {/* 로그인 모달 */}
             <LoginModal
                 isOpen={isLoginModalOpen}
                 onClose={() => setIsLoginModalOpen(false)}
                 onSocialLogin={openSocialLoginPopup}
             />
-            {/* HOME 버튼: 로그인 상태에서만 표시 */}
             {loginUser && (
                 <button
                     className="home-fab-btn"
@@ -572,6 +561,9 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             )}
         </div>
     );
+};
+
+ChatRoomList.defaultProps = {
 };
 
 export default ChatRoomList; 

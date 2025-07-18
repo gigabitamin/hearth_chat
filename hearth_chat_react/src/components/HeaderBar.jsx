@@ -32,28 +32,12 @@ export default function HeaderBar({
         <header className="header-bar">
             <div className="header-left-group">
                 <CreateRoomButton onClick={onCreateRoomClick} />
-                <nav className="header-tabs">
-                    <button
-                        className={`header-tab-btn${activeTab === 'personal' ? ' active' : ''}`}
-                        onClick={() => onTabChange('personal')}
-                    >
-                        개인
-                    </button>
-                    <button
-                        className={`header-tab-btn${activeTab === 'open' ? ' active' : ''}`}
-                        onClick={() => onTabChange('open')}
-                    >
-                        오픈
-                    </button>
-                    <button
-                        className={`header-tab-btn${activeTab === 'favorite' ? ' active' : ''}`}
-                        onClick={() => onTabChange('favorite')}
-                        title="즐겨찾기"
-                        style={{ color: '#FFD600', fontSize: 20, padding: '0 12px' }}
-                    >
-                        ★
-                    </button>
-                </nav>
+                {/* 오버레이와 동일한 탭 UI로 교체 */}
+                <div className="header-tabs" style={{ display: 'flex', gap: 8, marginLeft: 8 }}>
+                    <button onClick={() => onTabChange('personal')} className={`header-tab-btn${activeTab === 'personal' ? ' active' : ''}`}>개인</button>
+                    <button onClick={() => onTabChange('open')} className={`header-tab-btn${activeTab === 'open' ? ' active' : ''}`}>오픈</button>
+                    <button onClick={() => onTabChange('favorite')} className={`header-tab-btn${activeTab === 'favorite' ? ' active' : ''}`}>★</button>
+                </div>
             </div>
             <div className="header-center">
                 {title && <span className="header-title-text">{title}</span>}

@@ -3,6 +3,7 @@ import './SearchModal.css';
 import { useNavigate } from 'react-router-dom';
 import { FixedSizeList as List } from 'react-window';
 import copy from 'copy-to-clipboard';
+import { getApiBase } from '../app';
 
 export default function SearchModal({ open, onClose, rooms = [], messages = [], users = [] }) {
     const [query, setQuery] = useState('');
@@ -24,6 +25,53 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
     const [resultTypeFilter, setResultTypeFilter] = useState('all'); // all, message, room, user
     const [selectedIndexes, setSelectedIndexes] = useState([]);
     const [copiedIndex, setCopiedIndex] = useState(-1);
+
+    // 1. 즐겨찾기 상태 관리 (서버 연동)
+    const [favoriteRooms, setFavoriteRooms] = useState([]);
+    const [favoriteRoomsLoading, setFavoriteRoomsLoading] = useState(false);
+
+    // 2. 내 즐겨찾기 목록 fetch
+    const fetchMyFavorites = async () => {
+        setFavoriteRoomsLoading(true);
+        try {
+            const response = await fetch(`${getApiBase()}/api/chat/rooms/my_favorites/`, {
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            if (!response.ok) throw new Error('Failed to fetch favorite rooms');
+            const data = await response.json();
+            setFavoriteRooms(data.results ? data.results.map(r => r.id) : data.map(r => r.id));
+        } catch (err) {
+            // 무시
+        } finally {
+            setFavoriteRoomsLoading(false);
+        }
+    };
+    useEffect(() => { fetchMyFavorites(); }, []);
+
+    // 3. 즐겨찾기 토글 (서버 연동)
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+    const handleToggleFavorite = async (r, index) => {
+        if (r.type !== 'room') return;
+        const isFav = favoriteRooms.includes(r.id);
+        const url = `${getApiBase()}/api/chat/rooms/${r.id}/${isFav ? 'unfavorite' : 'favorite'}/`;
+        const method = isFav ? 'DELETE' : 'POST';
+        try {
+            const csrftoken = getCookie('csrftoken');
+            await fetch(url, {
+                method,
+                credentials: 'include',
+                headers: { 'X-CSRFToken': csrftoken },
+            });
+            fetchMyFavorites();
+        } catch (err) {
+            alert('즐겨찾기 처리 실패: ' + err.message);
+        }
+    };
 
     // 입력 debounce 처리
     useEffect(() => {
@@ -112,7 +160,7 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
             page: apiPage,
             page_size: apiPageSize
         });
-        fetch(`/api/search?${params.toString()}`, { credentials: 'include' })
+        fetch(`${getApiBase()}/api/search?${params.toString()}`, { credentials: 'include' })
             .then(res => res.json())
             .then(data => {
                 setApiResults(data.results || []);
@@ -199,7 +247,7 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
 
                 const csrfToken = getCookie('csrftoken');
 
-                const res = await fetch('http://localhost:8000/api/chat/rooms/user_chat_alt/', {
+                const res = await fetch(`${getApiBase()}/api/chat/rooms/user_chat_alt/`, {
                     method: 'POST',
                     credentials: 'include', // 세션 쿠키 전송
                     headers: {
@@ -315,6 +363,31 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
                     >
                         {copiedIndex === index ? '✅' : '📋'}
                     </button>
+                    {/* 즐겨찾기 버튼 */}
+                    {(r.type === 'room' || r.type === 'user') && (
+                        <button
+                            className="search-favorite-btn"
+                            style={{ marginLeft: 8, fontSize: 18, color: '#FFD600', background: 'none', border: 'none', cursor: 'pointer' }}
+                            title={
+                                r.type === 'room'
+                                    ? (favoriteRooms.includes(r.id) ? '즐겨찾기 해제' : '즐겨찾기 추가')
+                                    : (favoriteRooms.includes(r.id) ? '즐겨찾기 해제' : '즐겨찾기 추가')
+                            }
+                            onClick={e => { e.stopPropagation(); handleToggleFavorite(r, index); }}
+                        >
+                            {r.type === 'room'
+                                ? (favoriteRooms.includes(r.id) ? '★' : '☆')
+                                : (favoriteRooms.includes(r.id) ? '★' : '☆')}
+                        </button>
+                    )}
+                    {r.type === 'message' && (
+                        <button
+                            className="search-favorite-btn"
+                            style={{ marginLeft: 8, fontSize: 18, color: '#bbb', background: 'none', border: 'none', cursor: 'not-allowed' }}
+                            title="메시지는 즐겨찾기 불가"
+                            disabled
+                        >☆</button>
+                    )}
                 </div>
                 {r.type === 'message' && (
                     <div className="search-result-preview" style={{ fontSize: 14, color: '#333', marginTop: 2 }}>
@@ -376,15 +449,15 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
                     <button className="search-modal-close" onClick={onClose} aria-label="닫기" style={{ fontSize: 22, background: 'none', border: 'none', color: '#fff', cursor: 'pointer', marginLeft: 8 }}>✕</button>
                 </div>
                 <input
-                        className="search-input"
-                        type="text"
-                        placeholder="채팅방, 메시지, 사용자 검색..."
-                        value={query}
-                        onChange={e => setQuery(e.target.value)}
-                        autoFocus
-                        style={{ flex: 1, fontSize: 16, padding: '8px 12px', borderRadius: 8, border: '1px solid #ccc', background: '#222', color: '#fff' }}
-                        onKeyDown={e => { if (e.key === 'Escape' && onClose) onClose(); }}
-                />                
+                    className="search-input"
+                    type="text"
+                    placeholder="채팅방, 메시지, 사용자 검색..."
+                    value={query}
+                    onChange={e => setQuery(e.target.value)}
+                    autoFocus
+                    style={{ flex: 1, fontSize: 16, padding: '8px 12px', borderRadius: 8, border: '1px solid #ccc', background: '#222', color: '#fff' }}
+                    onKeyDown={e => { if (e.key === 'Escape' && onClose) onClose(); }}
+                />
                 <div className="search-modal-content">
                     <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
                         <div style={{ display: 'flex', gap: 4 }}>

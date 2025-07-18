@@ -229,8 +229,9 @@ function AppContent(props) {
     allUsers,
     settingsTab,
     setSettingsTab,
+    overlayTab,
+    setOverlayTab,
   } = props;
-
 
   const [ttsRate, setTtsRate] = useState(1.5);
   const [ttsPitch, setTtsPitch] = useState(1.5);
@@ -261,12 +262,9 @@ function AppContent(props) {
 
   // 탭 클릭 핸들러: 채팅방 내에서는 오버레이, 그 외에는 기존대로 탭 변경
   const handleTabChange = (tab) => {
-    if (isInRoom) {
-      setActiveTab(tab);
-      setShowRoomListOverlay(true);
-    } else {
-      setActiveTab(tab);
-    }
+    if (isSearchModalOpen) setIsSearchModalOpen(false);
+    setActiveTab(tab);
+    if (isInRoom) setShowRoomListOverlay(true);
   };
 
   // 하단 정보창 렌더 함수 (공통)
@@ -430,8 +428,11 @@ function AppContent(props) {
     <>
       {/* 상단바 공통 렌더링 */}
       <HeaderBar
-        activeTab={activeTab}
-        onTabChange={handleTabChange}
+        activeTab={overlayTab}
+        onTabChange={(tab) => {
+          setOverlayTab(tab);
+          if (isInRoom) setShowRoomListOverlay(true);
+        }}
         onSearchClick={() => setIsSearchModalOpen(true)}
         onNotifyClick={() => setIsNotifyModalOpen(true)}
         onSettingsClick={() => {
@@ -513,6 +514,11 @@ function AppContent(props) {
       {showRoomListOverlay && (
         <div className="room-list-overlay" onClick={() => setShowRoomListOverlay(false)}>
           <div className="room-list-overlay-panel" onClick={e => e.stopPropagation()}>
+            <div className="overlay-tabs" style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              <button onClick={() => setOverlayTab('personal')} className={`header-tab-btn${overlayTab === 'personal' ? ' active' : ''}`}>개인</button>
+              <button onClick={() => setOverlayTab('open')} className={`header-tab-btn${overlayTab === 'open' ? ' active' : ''}`}>오픈</button>
+              <button onClick={() => setOverlayTab('favorite')} className={`header-tab-btn${overlayTab === 'favorite' ? ' active' : ''}`}>★</button>
+            </div>
             <div className="room-list-overlay-main" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
               <div style={{ flex: 3, overflowY: 'auto' }}>
                 <ChatRoomList
@@ -536,11 +542,15 @@ function AppContent(props) {
                   checkLoginStatus={checkLoginStatus}
                   onUserMenuOpen={() => setIsSettingsModalOpen(true)}
                   activeTab={activeTab}
+                  setActiveTab={setActiveTab}
+                  sidebarTab={overlayTab}
+                  setSidebarTab={setOverlayTab}
                   showCreateModal={showCreateModal}
                   setShowCreateModal={setShowCreateModal}
                   selectedRoomId={selectedRoom?.id}
                   onClose={() => setShowRoomListOverlay(false)}
                   overlayKey="overlay"
+
                 />
               </div>
               <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', borderTop: '1px solid #eee', background: '#fafbfc', padding: 12 }}>
@@ -554,11 +564,11 @@ function AppContent(props) {
         <Route path="/" element={
           <div className="app-container">
             <div className="room-list-container" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              {/* lobby-tabs(파란색 탭 버튼 그룹) 완전히 삭제 */}
               <div style={{ flex: 3, overflowY: 'auto' }}>
                 <ChatRoomList
                   onRoomSelect={async (room) => {
                     setSelectedRoom(room);
-                    // 메시지 불러오기 (예시: 최신 10개)
                     try {
                       const res = await csrfFetch(`${getApiBase()}/api/chat/messages/messages/?room=${room.id}&limit=10&offset=0`, { credentials: 'include' });
                       if (res.ok) {
@@ -576,6 +586,9 @@ function AppContent(props) {
                   checkLoginStatus={checkLoginStatus}
                   onUserMenuOpen={() => setIsSettingsModalOpen(true)}
                   activeTab={activeTab}
+                  setActiveTab={setActiveTab}
+                  sidebarTab={overlayTab}
+                  setSidebarTab={setOverlayTab}
                   showCreateModal={showCreateModal}
                   setShowCreateModal={setShowCreateModal}
                   selectedRoomId={selectedRoom?.id}
@@ -589,20 +602,27 @@ function AppContent(props) {
           </div>
         } />
         <Route path="/room/:roomId" element={
-          <ChatRoomPage
-            loginUser={loginUser}
-            loginLoading={loginLoading}
-            checkLoginStatus={checkLoginStatus}
-            userSettings={userSettings}
-            setUserSettings={setUserSettings}
-            onUserMenuOpen={() => setIsSettingsModalOpen(true)}
-            isSettingsModalOpen={isSettingsModalOpen}
-            setIsSettingsModalOpen={setIsSettingsModalOpen}
-            isLoginModalOpen={isLoginModalOpen}
-            setIsLoginModalOpen={setIsLoginModalOpen}
-            settingsTab={settingsTab}
-            setSettingsTab={setSettingsTab}
-          />
+          <div className="chat-container">
+            <ChatBox
+              selectedRoom={selectedRoom}
+              loginUser={loginUser}
+              loginLoading={loginLoading}
+              checkLoginStatus={checkLoginStatus}
+              userSettings={userSettings}
+              setUserSettings={setUserSettings}
+              onUserMenuOpen={() => setIsSettingsModalOpen(true)}
+              isSettingsModalOpen={isSettingsModalOpen}
+              setIsSettingsModalOpen={setIsSettingsModalOpen}
+              isLoginModalOpen={isLoginModalOpen}
+              setIsLoginModalOpen={setIsLoginModalOpen}
+              settingsTab={settingsTab}
+              setSettingsTab={setSettingsTab}
+              highlightMessageId={(() => {
+                const searchParams = new URLSearchParams(window.location.search);
+                return searchParams.get('messageId');
+              })()}
+            />
+          </div>
         } />
         <Route path="/admin" element={<AdminPage loginUser={loginUser} loginLoading={loginLoading} checkLoginStatus={checkLoginStatus} />} />
       </Routes>
@@ -618,6 +638,7 @@ function App() {
   const [selectedRoomMessages, setSelectedRoomMessages] = useState([]); // 미리보기용 메시지
   // 추가: 상단 탭/모달 상태
   const [activeTab, setActiveTab] = useState('personal'); // 'personal' | 'open'
+  const [overlayTab, setOverlayTab] = useState('personal');
   const [isNotifyModalOpen, setIsNotifyModalOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -825,6 +846,8 @@ function App() {
     allUsers={allUsers}
     settingsTab={settingsTab}
     setSettingsTab={setSettingsTab}
+    overlayTab={overlayTab}
+    setOverlayTab={setOverlayTab}
   />;
 }
 

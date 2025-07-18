@@ -1445,15 +1445,15 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
     // AI 메시지 내용도 고려하여 감정 조정 (안전하게 처리)
     if (aiMessage && typeof aiMessage === 'string') {
-      const messageEmotion = analyzeEmotion(aiMessage);
-      if (messageEmotion !== 'neutral') {
-        // 메시지 감정과 사용자 감정을 조합
-        if (userEmotion === 'sad' && messageEmotion === 'happy') {
-          response.primary = 'caring'; // 위로하는 기쁨
-          response.intensity = 0.7;
-        } else if (userEmotion === 'angry' && messageEmotion === 'happy') {
-          response.primary = 'calm'; // 차분한 이해
-          response.intensity = 0.6;
+    const messageEmotion = analyzeEmotion(aiMessage);
+    if (messageEmotion !== 'neutral') {
+      // 메시지 감정과 사용자 감정을 조합
+      if (userEmotion === 'sad' && messageEmotion === 'happy') {
+        response.primary = 'caring'; // 위로하는 기쁨
+        response.intensity = 0.7;
+      } else if (userEmotion === 'angry' && messageEmotion === 'happy') {
+        response.primary = 'calm'; // 차분한 이해
+        response.intensity = 0.6;
         }
       }
     }
@@ -2590,33 +2590,33 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       <div className="chat-box-root" style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
         {/* 플로팅 메뉴(햄버거) 복구 */}
         <div className="chat-floating-menu" style={{ position: 'absolute', top: 12, left: 12, zIndex: 10 }}>
-          <button
+            <button
             onClick={() => setIsMenuOpen(v => !v)}
             style={{ background: '#222', color: '#fff', border: 'none', borderRadius: 8, width: 40, height: 40, fontSize: 22, cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}
             aria-label="메뉴 열기"
-          >
+            >
             ☰
-          </button>
+            </button>
           {isMenuOpen && (
             <div style={{ position: 'absolute', top: 44, left: 0, background: '#222', borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.18)', padding: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
               {/* 방장일 때만 방 설정 버튼 노출 */}
               {isRoomOwner && (
                 <button style={{ color: '#fff', background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', padding: 8, textAlign: 'left' }} onClick={() => { setShowRoomSettings(true); setIsMenuOpen(false); }}>
                   🛠️ 방 설정
-                </button>
+            </button>
               )}
               <button style={{ color: '#fff', background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', padding: 8, textAlign: 'left' }} onClick={() => { setIsAiAvatarOn(v => !v); setIsMenuOpen(false); }}>
                 🤖 {isAiAvatarOn ? 'off' : 'on'}
-              </button>
+            </button>
               <button style={{ color: '#fff', background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', padding: 8, textAlign: 'left' }} onClick={() => { setIsUserAvatarOn(v => !v); setIsMenuOpen(false); }}>
                 👤 {isUserAvatarOn ? 'off' : 'on'}
-              </button>
+            </button>
               <button style={{ color: '#fff', background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', padding: 8, textAlign: 'left' }} onClick={() => { setIsCameraActive(v => !v); setIsMenuOpen(false); }}>
                 📷 {isCameraActive ? 'off' : 'on'}
               </button>
             </div>
-          )}
-        </div>
+            )}
+          </div>
         {showRoomSettings && (
           <RoomSettingsModal
             open={showRoomSettings}
@@ -2697,60 +2697,60 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                   itemHeight={80}
                   onImageClick={setViewerImage}
                 />
-              </div>
-              <div className="chat-input-area">
-                {/* 첨부 이미지 썸네일+X 버튼을 textarea 바로 위에 위치 */}
-                {attachedImagePreview && (
-                  <div className="attached-image-preview-box">
-                    <img src={attachedImagePreview} alt="첨부 이미지 미리보기" className="attached-image-thumb" />
-                    <button onClick={handleRemoveAttachedImage} className="attached-image-remove-btn">✖</button>
-                  </div>
-                )}
-                <div className="input-controls">
-                  <div className="chat-input-box">
-                    {/* 이미지 첨부 버튼 (왼쪽) */}
-                    <label htmlFor="chat-image-upload" className="image-upload-btn-side">
-                      <input
-                        id="chat-image-upload"
-                        type="file"
-                        accept="image/*"
-                        style={{ display: 'none' }}
-                        onChange={handleImageUpload}
-                      />
-                      <span className="image-upload-btn-icon">📤</span>
-                    </label>
-                    <textarea
-                      ref={inputRef}
-                      placeholder="메시지를 입력하세요"
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          sendMessage();
-                        }
-                      }}
-                      onInput={e => {
-                        e.target.style.height = 'auto';
-                        e.target.style.height = e.target.scrollHeight + 'px';
-                      }}
-                      onPaste={handlePaste}
-                      className="input-flex chat-textarea"
-                      rows={1}
+            </div>
+            <div className="chat-input-area">
+              {/* 첨부 이미지 썸네일+X 버튼을 textarea 바로 위에 위치 */}
+              {attachedImagePreview && (
+                <div className="attached-image-preview-box">
+                  <img src={attachedImagePreview} alt="첨부 이미지 미리보기" className="attached-image-thumb" />
+                  <button onClick={handleRemoveAttachedImage} className="attached-image-remove-btn">✖</button>
+                </div>
+              )}
+              <div className="input-controls">
+                <div className="chat-input-box">
+                  {/* 이미지 첨부 버튼 (왼쪽) */}
+                  <label htmlFor="chat-image-upload" className="image-upload-btn-side">
+                    <input
+                      id="chat-image-upload"
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={handleImageUpload}
                     />
-                    <button
+                    <span className="image-upload-btn-icon">📤</span>
+                  </label>
+                  <textarea
+                    ref={inputRef}
+                    placeholder="메시지를 입력하세요"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        sendMessage();
+                      }
+                    }}
+                    onInput={e => {
+                      e.target.style.height = 'auto';
+                      e.target.style.height = e.target.scrollHeight + 'px';
+                    }}
+                    onPaste={handlePaste}
+                    className="input-flex chat-textarea"
+                    rows={1}
+                  />
+              <button
                       onClick={() => attachedImage ? handleImageUploadAndSend() : sendMessage()}
                       className="unified-btn"
-                    >
+              >
                       {attachedImage ? '📤' : '🔥'}
-                    </button>
-                  </div>
+              </button>
+            </div>
                 </div>
+              </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
+          </div>
       {/* 입력창 위에 답장 인용 미리보기 UI */}
       {replyTo && (
         <div className="reply-preview-bar" style={{
@@ -2771,7 +2771,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         }} onClick={() => setHighlightedMessageId(replyTo.id)}>
           <b>{replyTo.sender || replyTo.username || '익명'}</b>: {replyTo.text ? replyTo.text.slice(0, 60) : '[첨부/삭제됨]'}
           <button style={{ marginLeft: 8, color: '#2196f3', background: 'none', border: 'none', cursor: 'pointer', fontSize: 15 }} onClick={() => setReplyTo(null)}>취소</button>
-        </div>
+          </div>
       )}
     </>
   );
