@@ -40,9 +40,9 @@ const VirtualizedMessageList = ({
     const pinnedMessages = messages.filter(m => pinnedIds.includes(m.id)).slice(-3).reverse();
 
     // 하이라이트된 메시지 인덱스 찾기
-    useEffect(() => {        
+    useEffect(() => {
         if (highlightMessageId && messages.length > 0) {
-            const index = messages.findIndex(msg => msg.id === highlightMessageId);            
+            const index = messages.findIndex(msg => msg.id === highlightMessageId);
             if (index !== -1) {
                 setHighlightedIndex(index);
                 // 스크롤하여 하이라이트된 메시지로 이동
@@ -50,7 +50,7 @@ const VirtualizedMessageList = ({
                     listRef.scrollToItem(index, 'center');
                 }
                 // 3초 후 하이라이트 제거
-                setTimeout(() => setHighlightedIndex(-1), 3000);                
+                setTimeout(() => setHighlightedIndex(-1), 3000);
             }
         }
     }, [highlightMessageId, messages, listRef]);
@@ -259,16 +259,16 @@ const VirtualizedMessageList = ({
                     <div className="message-bubble" style={{ backgroundColor: isMyMessage ? undefined : getSenderColor(msg.sender), color: isMyMessage ? undefined : (getSenderColor(msg.sender) ? '#fff' : undefined), position: 'relative' }}>
                         {/* AI 메시지일 때만 질문자 username을 왼쪽 상단에 표시 */}
                         <div className="message-questioner-username">
-                        {(msg.questioner_username && (msg.type === 'ai' || msg.sender_type === 'ai')) && (
-                            <>
-                            To. 
-                            <span className="questioner-username-highlight">{msg.questioner_username}</span>{' '}
-                            {new Date(msg.date || msg.timestamp).toLocaleString('ko-KR', {
-                                year: '2-digit', month: '2-digit', day: '2-digit',
-                                hour: '2-digit', minute: '2-digit', hour12: false
-                            })}
-                            </>
-                        )}
+                            {(msg.questioner_username && (msg.type === 'ai' || msg.sender_type === 'ai')) && (
+                                <>
+                                    To.
+                                    <span className="questioner-username-highlight">{msg.questioner_username}</span>{' '}
+                                    {new Date(msg.date || msg.timestamp).toLocaleString('ko-KR', {
+                                        year: '2-digit', month: '2-digit', day: '2-digit',
+                                        hour: '2-digit', minute: '2-digit', hour12: false
+                                    })}
+                                </>
+                            )}
                         </div>
                         {msg.imageUrl && (
                             <img
@@ -368,11 +368,11 @@ const VirtualizedMessageList = ({
 
     // 방이 바뀔 때마다 최신 위치로 이동
     useEffect(() => {
-        if (listRef && messages.length > 0 && prevMessagesLength.current === 0) {
+        if (listRef && messages.length > 0) {
             listRef.scrollToItem(messages.length - 1, 'end');
         }
         prevMessagesLength.current = messages.length;
-    }, [messages, listRef]);
+    }, [selectedRoomId, listRef, messages.length]);
     // 새 메시지 도착 시 스크롤이 하단이 아니면 알림 표시
     useEffect(() => {
         if (!listRef || messages.length === 0) return;
