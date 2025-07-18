@@ -360,6 +360,21 @@ export default function SearchModal({
     // 4. renderResultItem 내 메시지(li)에서 메시지 타입일 때 onClick에 handlePreview(r) 연결
     // (이미 적용되어 있으면 유지)
 
+    // 1. 방 클릭 시 최신 메시지 10개를 미리보기 정보창에 표시
+    const handleRoomPreview = async (room) => {
+        setPreviewLoading(true);
+        try {
+            const res = await fetch(`${getApiBase()}/api/chat/messages/?room=${room.id}&limit=10&ordering=-timestamp`);
+            if (!res.ok) throw new Error('메시지 불러오기 실패');
+            let data = await res.json();
+            let msgs = data.results || data;
+            // 최신순 정렬이므로, 시간순으로 다시 정렬
+            msgs = msgs.slice().reverse();
+            setPreviewMessages(msgs);
+        } catch {}
+        setPreviewLoading(false);
+    };
+
     // 5. 하단에 미리보기 정보창 UI 추가 (대기방 정보창과 유사하게)
     // SearchModal return문 하단에 추가
     {
@@ -517,7 +532,7 @@ export default function SearchModal({
                 key={index}
                 className={`search-result-item${index === activeIndex ? ' active' : ''}${isSelected ? ' selected' : ''}`}
                 style={style}
-                onClick={r.type === 'message' ? (e => { handlePreview(r); handleResultClick(index, e); }) : (e => handleResultClick(index, e))}
+                onClick={r.type === 'message' ? (e => { handlePreview(r); handleResultClick(index, e); }) : r.type === 'room' ? (e => { handleRoomPreview(r); handleResultClick(index, e); }) : (e => handleResultClick(index, e))}
                 ref={index === activeIndex ? resultListRef : undefined}
             >
                 <div className="search-result-header">

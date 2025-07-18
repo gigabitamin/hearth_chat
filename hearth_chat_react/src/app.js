@@ -61,23 +61,23 @@ function LobbyPage({ loginUser, loginLoading, checkLoginStatus, userSettings, se
   };
 
   return (
-    <div className="app-container">
-      <div className="room-list-container">
-        <ChatRoomList
-          onRoomSelect={handleRoomSelect}
+        <div className="app-container">
+          <div className="room-list-container">
+            <ChatRoomList
+              onRoomSelect={handleRoomSelect}
           loginUser={loginUser}
           loginLoading={loginLoading}
           checkLoginStatus={checkLoginStatus}
           onUserMenuOpen={onUserMenuOpen}
-        />
-      </div>
-      <div className="welcome-container">
-        <div className="welcome-content">
-          <h1>Hearth 🔥 Chat</h1>
-          <p>대화방을 선택하여 채팅을 시작하세요!</p>
+            />
+          </div>
+          <div className="welcome-container">
+            <div className="welcome-content">
+              <h1>Hearth 🔥 Chat</h1>
+              <p>대화방을 선택하여 채팅을 시작하세요!</p>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
   );
 }
 
@@ -117,12 +117,12 @@ function ChatRoomPage({ loginUser, loginLoading, checkLoginStatus, userSettings,
   if (!room) return <div>존재하지 않는 방입니다. <button onClick={() => navigate('/')}>대기방으로</button></div>;
 
   return (
-    <div className="chat-container">
+        <div className="chat-container">
       {/*
-      <div className="chat-header">
+          <div className="chat-header">
         <button onClick={() => navigate('/')} className="back-btn">
-          ← 대화방 목록
-        </button>
+              ← 대화방 목록
+            </button>
         <h2>{room?.name}</h2>
       </div>
       */}
@@ -601,7 +601,7 @@ function AppContent(props) {
                 {renderRoomInfoPanel()}
               </div>
             </div>
-          </div>
+    </div>
         } />
         <Route path="/room/:roomId" element={
           <ChatRoomPage
@@ -644,6 +644,9 @@ function App() {
   const [notifications, setNotifications] = useState([]);
   const [settingsTab, setSettingsTab] = useState('user');
 
+  // 1. previewMessages 상태 추가
+  const [previewMessages, setPreviewMessages] = useState([]);
+
   // 검색 데이터 준비
   const [allRooms, setAllRooms] = useState([]);
   const [allMessages, setAllMessages] = useState([]);
@@ -666,7 +669,7 @@ function App() {
       const nextMsgs = nextRes.ok ? (await nextRes.json()).results || [] : [];
       // 기준 메시지
       const centerMsg = { ...msg, isCenter: true };
-      setSelectedRoomMessages([...prevMsgs, centerMsg, ...nextMsgs]);
+      setPreviewMessages([...prevMsgs, centerMsg, ...nextMsgs]);
       // 방 정보도 갱신
       const roomRes = await csrfFetch(`${getApiBase()}/api/chat/rooms/${msg.room_id}/`);
       if (roomRes.ok) {
