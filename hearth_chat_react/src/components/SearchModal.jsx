@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './SearchModal.css';
 import { useNavigate } from 'react-router-dom';
 import { FixedSizeList as List } from 'react-window';
+import copy from 'copy-to-clipboard';
 
 export default function SearchModal({ open, onClose, rooms = [], messages = [], users = [] }) {
     const [query, setQuery] = useState('');
@@ -22,6 +23,7 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
     const resultListRef = React.useRef();
     const [resultTypeFilter, setResultTypeFilter] = useState('all'); // all, message, room, user
     const [selectedIndexes, setSelectedIndexes] = useState([]);
+    const [copiedIndex, setCopiedIndex] = useState(-1);
 
     // 입력 debounce 처리
     useEffect(() => {
@@ -271,6 +273,18 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
         navigator.clipboard.writeText(text);
     };
 
+    // 복사 버튼 클릭 핸들러 (copy-to-clipboard 사용)
+    const handleCopy = (r, index) => {
+        const text =
+            r.type === 'message' ? `${r.sender || r.username || ''}: ${r.content || ''}` :
+                r.type === 'room' ? `방: ${r.name}` :
+                    r.type === 'user' ? `유저: ${r.username}` : '';
+        copy(text);
+        setCopiedIndex(index);
+        setTimeout(() => setCopiedIndex(-1), 1200);
+    };
+
+    // 검색 결과 렌더링 함수 (일부만 발췌)
     const renderResultItem = ({ index, style }) => {
         const r = filteredDisplayResults[index];
         const isSelected = selectedIndexes.includes(index);
@@ -293,6 +307,14 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
                             <span className="search-result-date" style={{ color: '#aaa', marginLeft: 8, fontSize: 12 }}>{formatDate(r.date || r.created_at)}</span>
                         </>
                     )}
+                    <button
+                        className="search-copy-btn"
+                        style={{ marginLeft: 8, fontSize: 13, color: '#2196f3', background: 'none', border: 'none', cursor: 'pointer' }}
+                        title="복사"
+                        onClick={e => { e.stopPropagation(); handleCopy(r, index); }}
+                    >
+                        {copiedIndex === index ? '✅' : '📋'}
+                    </button>
                 </div>
                 {r.type === 'message' && (
                     <div className="search-result-preview" style={{ fontSize: 14, color: '#333', marginTop: 2 }}>
@@ -327,25 +349,44 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
     return (
         <div className="search-modal-overlay" onClick={onClose}>
             <div className="search-modal" onClick={e => e.stopPropagation()}>
-                <div className="search-modal-header">
-                    <span>검색</span>
-                    <button className="search-modal-close" onClick={onClose} aria-label="닫기">✕</button>
+                <div style={{
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 10,
+                    background: '#222',
+                    padding: '12px 0 8px 0',
+                    borderBottom: '1px solid #333',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                }}>
+                    <select value={scope} onChange={e => setScope(e.target.value)} style={{ fontSize: 14 }}>
+                        <option value="all">전체</option>
+                        <option value="message">메시지</option>
+                        <option value="room">방</option>
+                        <option value="user">유저</option>
+                    </select>
+                    <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ fontSize: 14 }}>
+                        <option value="relevance">정확도순</option>
+                        <option value="date">최신순</option>
+                    </select>
+                    <label style={{ fontSize: 13 }}><input type="checkbox" checked={useAnd} onChange={e => setUseAnd(e.target.checked)} /> AND</label>
+                    <label style={{ fontSize: 13 }}><input type="checkbox" checked={useRegex} onChange={e => setUseRegex(e.target.checked)} /> 정규식</label>
+                    <label style={{ fontSize: 13 }}><input type="checkbox" checked={useApiSearch} onChange={e => setUseApiSearch(e.target.checked)} /> API 검색</label>
+                    <button className="search-modal-close" onClick={onClose} aria-label="닫기" style={{ fontSize: 22, background: 'none', border: 'none', color: '#fff', cursor: 'pointer', marginLeft: 8 }}>✕</button>
                 </div>
+                <input
+                        className="search-input"
+                        type="text"
+                        placeholder="채팅방, 메시지, 사용자 검색..."
+                        value={query}
+                        onChange={e => setQuery(e.target.value)}
+                        autoFocus
+                        style={{ flex: 1, fontSize: 16, padding: '8px 12px', borderRadius: 8, border: '1px solid #ccc', background: '#222', color: '#fff' }}
+                        onKeyDown={e => { if (e.key === 'Escape' && onClose) onClose(); }}
+                />                
                 <div className="search-modal-content">
                     <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-                        <select value={scope} onChange={e => setScope(e.target.value)} style={{ fontSize: 14 }}>
-                            <option value="all">전체</option>
-                            <option value="room">방</option>
-                            <option value="message">메시지</option>
-                            <option value="user">유저</option>
-                        </select>
-                        <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ fontSize: 14 }}>
-                            <option value="relevance">정확도순</option>
-                            <option value="date">최신순</option>
-                        </select>
-                        <label style={{ fontSize: 13 }}><input type="checkbox" checked={useAnd} onChange={e => setUseAnd(e.target.checked)} /> AND</label>
-                        <label style={{ fontSize: 13 }}><input type="checkbox" checked={useRegex} onChange={e => setUseRegex(e.target.checked)} /> 정규식</label>
-                        <label style={{ fontSize: 13 }}><input type="checkbox" checked={useApiSearch} onChange={e => setUseApiSearch(e.target.checked)} /> API 검색</label>
                         <div style={{ display: 'flex', gap: 4 }}>
                             <button onClick={() => setResultTypeFilter('all')} style={{ fontWeight: resultTypeFilter === 'all' ? 700 : 400 }}>전체</button>
                             <button onClick={() => setResultTypeFilter('message')} style={{ fontWeight: resultTypeFilter === 'message' ? 700 : 400 }}>메시지</button>
@@ -353,14 +394,6 @@ export default function SearchModal({ open, onClose, rooms = [], messages = [], 
                             <button onClick={() => setResultTypeFilter('user')} style={{ fontWeight: resultTypeFilter === 'user' ? 700 : 400 }}>유저</button>
                         </div>
                     </div>
-                    <input
-                        className="search-input"
-                        type="text"
-                        placeholder="채팅방, 메시지, 사용자 검색..."
-                        value={query}
-                        onChange={e => setQuery(e.target.value)}
-                        autoFocus
-                    />
                     {query && (
                         <ul className="search-result-list">
                             {loading ? (
