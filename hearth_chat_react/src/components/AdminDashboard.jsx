@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './AdminDashboard.css';
+import CreateRoomModal from './CreateRoomModal';
 
 const AdminDashboard = () => {
     const [activeTab, setActiveTab] = useState('overview');
@@ -13,6 +14,8 @@ const AdminDashboard = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+    const [defaultMaxMembers, setDefaultMaxMembers] = useState(4);
+    const [showCreateRoomModal, setShowCreateRoomModal] = useState(false);
 
     // API 기본 URL
     const API_BASE = '/api/admin';
@@ -406,100 +409,120 @@ const AdminDashboard = () => {
     };
 
     // 방 관리 탭 렌더링
-    const renderRooms = () => {
-        return (
-            <div className="admin-rooms">
-                <div className="table-header">
-                    <div className="search-box">
-                        <form onSubmit={handleSearch}>
-                            <input
-                                type="text"
-                                placeholder="방 이름으로 검색..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                            <button type="submit">검색</button>
-                        </form>
-                    </div>
-                    <div className="bulk-actions">
-                        {selectedItems.length > 0 && (
-                            <button onClick={() => executeBulkAction('delete_rooms', selectedItems)}>
-                                선택 삭제
-                            </button>
-                        )}
-                    </div>
+    const renderRooms = () => (
+        <div>
+            <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <label htmlFor="default-max-members">최대 인원수 기본값:</label>
+                <input
+                    id="default-max-members"
+                    type="number"
+                    min={2}
+                    max={20}
+                    value={defaultMaxMembers}
+                    onChange={e => setDefaultMaxMembers(Math.max(2, Math.min(20, Number(e.target.value))))}
+                    style={{ width: 60 }}
+                />
+                <span style={{ fontSize: 13, color: '#888' }}>(방 생성 시 기본값, 2~20명)</span>
+                <button onClick={() => setShowCreateRoomModal(true)} style={{ marginLeft: 16 }}>+ 새 방 만들기</button>
+            </div>
+            {showCreateRoomModal && (
+                <CreateRoomModal
+                    open={showCreateRoomModal}
+                    onClose={() => setShowCreateRoomModal(false)}
+                    onSuccess={() => { setShowCreateRoomModal(false); loadRooms(); }}
+                    defaultMaxMembers={defaultMaxMembers}
+                />
+            )}
+            <div className="table-header">
+                <div className="search-box">
+                    <form onSubmit={handleSearch}>
+                        <input
+                            type="text"
+                            placeholder="방 이름으로 검색..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                        <button type="submit">검색</button>
+                    </form>
                 </div>
-
-                <div className="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedItems.length === rooms.length && rooms.length > 0}
-                                        onChange={toggleAllSelection}
-                                    />
-                                </th>
-                                <th>ID</th>
-                                <th>방 이름</th>
-                                <th>타입</th>
-                                <th>상태</th>
-                                <th>참여자</th>
-                                <th>메시지</th>
-                                <th>생성일</th>
-                                <th>액션</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {rooms.map((room) => (
-                                <tr key={room.id}>
-                                    <td>
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedItems.includes(room.id)}
-                                            onChange={() => toggleItemSelection(room.id)}
-                                        />
-                                    </td>
-                                    <td>{room.id}</td>
-                                    <td>{room.name}</td>
-                                    <td>{room.room_type}</td>
-                                    <td>
-                                        <span className={`status ${room.is_active ? 'active' : 'inactive'}`}>
-                                            {room.is_active ? '활성' : '비활성'}
-                                        </span>
-                                    </td>
-                                    <td>{room.participant_count || 0}</td>
-                                    <td>{room.message_count || 0}</td>
-                                    <td>{new Date(room.created_at).toLocaleDateString()}</td>
-                                    <td>
-                                        <button onClick={() => executeAction('toggle_active', room.id)}>
-                                            {room.is_active ? '비활성화' : '활성화'}
-                                        </button>
-                                        <button onClick={() => executeAction('delete_room', room.id)}>
-                                            삭제
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-
-                <div className="pagination">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                        <button
-                            key={page}
-                            onClick={() => handlePageChange(page)}
-                            className={currentPage === page ? 'active' : ''}
-                        >
-                            {page}
+                <div className="bulk-actions">
+                    {selectedItems.length > 0 && (
+                        <button onClick={() => executeBulkAction('delete_rooms', selectedItems)}>
+                            선택 삭제
                         </button>
-                    ))}
+                    )}
                 </div>
             </div>
-        );
-    };
+
+            <div className="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>
+                                <input
+                                    type="checkbox"
+                                    checked={selectedItems.length === rooms.length && rooms.length > 0}
+                                    onChange={toggleAllSelection}
+                                />
+                            </th>
+                            <th>ID</th>
+                            <th>방 이름</th>
+                            <th>타입</th>
+                            <th>상태</th>
+                            <th>참여자</th>
+                            <th>메시지</th>
+                            <th>생성일</th>
+                            <th>액션</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rooms.map((room) => (
+                            <tr key={room.id}>
+                                <td>
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedItems.includes(room.id)}
+                                        onChange={() => toggleItemSelection(room.id)}
+                                    />
+                                </td>
+                                <td>{room.id}</td>
+                                <td>{room.name}</td>
+                                <td>{room.room_type}</td>
+                                <td>
+                                    <span className={`status ${room.is_active ? 'active' : 'inactive'}`}>
+                                        {room.is_active ? '활성' : '비활성'}
+                                    </span>
+                                </td>
+                                <td>{room.participant_count || 0}</td>
+                                <td>{room.message_count || 0}</td>
+                                <td>{new Date(room.created_at).toLocaleDateString()}</td>
+                                <td>
+                                    <button onClick={() => executeAction('toggle_active', room.id)}>
+                                        {room.is_active ? '비활성화' : '활성화'}
+                                    </button>
+                                    <button onClick={() => executeAction('delete_room', room.id)}>
+                                        삭제
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            <div className="pagination">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <button
+                        key={page}
+                        onClick={() => handlePageChange(page)}
+                        className={currentPage === page ? 'active' : ''}
+                    >
+                        {page}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
 
     // 메시지 관리 탭 렌더링
     const renderMessages = () => {

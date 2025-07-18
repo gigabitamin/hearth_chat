@@ -16,7 +16,8 @@ const VirtualizedMessageList = ({
     getSenderColor,
     onReply, // 답장 콜백
     onReplyQuoteClick, // 인용 클릭 콜백
-    onImageClick // 이미지 클릭 콜백(모달)
+    onImageClick, // 이미지 클릭 콜백(모달)
+    selectedRoomId // 방이 바뀔 때마다 최신 위치로 이동
 }) => {
     const [listRef, setListRef] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -25,6 +26,10 @@ const VirtualizedMessageList = ({
     const [localReactions, setLocalReactions] = useState({}); // {messageId: [reactions]}
     // 핀 상태 관리 (프론트 임시)
     const [pinnedIds, setPinnedIds] = useState([]);
+    const prevMessagesLength = useRef(0);
+    const [showNewMsgAlert, setShowNewMsgAlert] = useState(false);
+    const [alertBlink, setAlertBlink] = useState(0);
+    const scrollContainerRef = useRef(null);
 
     // 핀 토글 함수
     const togglePin = (msgId) => {
@@ -35,9 +40,9 @@ const VirtualizedMessageList = ({
     const pinnedMessages = messages.filter(m => pinnedIds.includes(m.id)).slice(-3).reverse();
 
     // 하이라이트된 메시지 인덱스 찾기
-    useEffect(() => {
+    useEffect(() => {        
         if (highlightMessageId && messages.length > 0) {
-            const index = messages.findIndex(msg => msg.id === highlightMessageId);
+            const index = messages.findIndex(msg => msg.id === highlightMessageId);            
             if (index !== -1) {
                 setHighlightedIndex(index);
                 // 스크롤하여 하이라이트된 메시지로 이동
@@ -45,7 +50,7 @@ const VirtualizedMessageList = ({
                     listRef.scrollToItem(index, 'center');
                 }
                 // 3초 후 하이라이트 제거
-                setTimeout(() => setHighlightedIndex(-1), 3000);
+                setTimeout(() => setHighlightedIndex(-1), 3000);                
             }
         }
     }, [highlightMessageId, messages, listRef]);
@@ -173,6 +178,7 @@ const VirtualizedMessageList = ({
     // 메시지 렌더링 함수
     const renderMessage = useCallback(({ index, style }) => {
         const msg = messages[index];
+        console.log('msg:', msg);
         if (!msg) {
             return (
                 <div style={style} className="message-loading">
@@ -201,13 +207,10 @@ const VirtualizedMessageList = ({
                 onMouseLeave={() => setEmojiPickerMsgId(null)}
             >
                 <div className="message-content">
-                    <div className="message-header">
-                        <span className="message-sender">{msg.sender || msg.username || 'Unknown'}</span>
-                        <span className="message-time">
-                            {new Date(msg.date || msg.timestamp).toLocaleTimeString('ko-KR', {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                            })}
+                    {/* 메시지 헤더: 위쪽에 username(흰색, 굵게) + 답장/핀 버튼 */}
+                    <div className="message-header" style={{ display: 'flex', alignItems: 'center', marginBottom: 2 }}>
+                        <span style={{ color: '#fff', fontWeight: 700, fontSize: 13, marginRight: 8 }}>
+                            {msg.sender || msg.username || 'Unknown'}
                         </span>
                         {/* 답장 버튼 (hover 시 노출) */}
                         <button
@@ -253,13 +256,20 @@ const VirtualizedMessageList = ({
                             </span>
                         </div>
                     )}
-                    <div
-                        className="message-bubble"
-                        style={{
-                            backgroundColor: isMyMessage ? undefined : getSenderColor(msg.sender),
-                            color: isMyMessage ? undefined : (getSenderColor(msg.sender) ? '#fff' : undefined),
-                        }}
-                    >
+                    <div className="message-bubble" style={{ backgroundColor: isMyMessage ? undefined : getSenderColor(msg.sender), color: isMyMessage ? undefined : (getSenderColor(msg.sender) ? '#fff' : undefined), position: 'relative' }}>
+                        {/* AI 메시지일 때만 질문자 username을 왼쪽 상단에 표시 */}
+                        <div className="message-questioner-username">
+                        {(msg.questioner_username && (msg.type === 'ai' || msg.sender_type === 'ai')) && (
+                            <>
+                            To. 
+                            <span className="questioner-username-highlight">{msg.questioner_username}</span>{' '}
+                            {new Date(msg.date || msg.timestamp).toLocaleString('ko-KR', {
+                                year: '2-digit', month: '2-digit', day: '2-digit',
+                                hour: '2-digit', minute: '2-digit', hour12: false
+                            })}
+                            </>
+                        )}
+                        </div>
                         {msg.imageUrl && (
                             <img
                                 src={msg.imageUrl}
@@ -272,6 +282,13 @@ const VirtualizedMessageList = ({
                             />
                         )}
                         <div className="message-text">{msg.text || msg.content}</div>
+                    </div>
+                    {/* 아래쪽에 날짜/시간(회색, 24시간) */}
+                    <div style={{ color: '#bbb', fontSize: 11, marginTop: 2, textAlign: 'left' }}>
+                        {new Date(msg.date || msg.timestamp).toLocaleString('ko-KR', {
+                            year: '2-digit', month: '2-digit', day: '2-digit',
+                            hour: '2-digit', minute: '2-digit', hour12: false
+                        })}
                     </div>
                     {/* 리액션 UI */}
                     <div className="message-reactions-row" style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
@@ -349,8 +366,45 @@ const VirtualizedMessageList = ({
     // 아이템 개수 (로딩 중인 경우 +1)
     const itemCount = hasMore ? messages.length + 1 : messages.length;
 
+    // 방이 바뀔 때마다 최신 위치로 이동
+    useEffect(() => {
+        if (listRef && messages.length > 0 && prevMessagesLength.current === 0) {
+            listRef.scrollToItem(messages.length - 1, 'end');
+        }
+        prevMessagesLength.current = messages.length;
+    }, [messages, listRef]);
+    // 새 메시지 도착 시 스크롤이 하단이 아니면 알림 표시
+    useEffect(() => {
+        if (!listRef || messages.length === 0) return;
+        // 스크롤이 하단(최신) 근처인지 확인
+        const isAtBottom = () => {
+            if (!scrollContainerRef.current) return true;
+            const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+            return scrollHeight - scrollTop - clientHeight < 40; // 40px 이내면 하단
+        };
+        if (prevMessagesLength.current > 0 && messages.length > prevMessagesLength.current) {
+            if (isAtBottom()) {
+                listRef.scrollToItem(messages.length - 1, 'end');
+            } else {
+                // 알림 3번 반짝임
+                setShowNewMsgAlert(true);
+                setAlertBlink(1);
+                let count = 0;
+                const interval = setInterval(() => {
+                    setAlertBlink(v => v + 1);
+                    count++;
+                    if (count >= 3) {
+                        clearInterval(interval);
+                        setTimeout(() => setShowNewMsgAlert(false), 1000);
+                    }
+                }, 1000);
+            }
+        }
+        prevMessagesLength.current = messages.length;
+    }, [messages, listRef]);
+
     return (
-        <div className="virtualized-message-list">
+        <div className="virtualized-message-list" ref={scrollContainerRef} style={{ position: 'relative' }}>
             {/* 상단 고정 메시지 영역 */}
             {pinnedMessages.length > 0 && (
                 <div style={{ marginBottom: 8 }}>
@@ -361,6 +415,35 @@ const VirtualizedMessageList = ({
                             <button className="pin-btn pinned" style={{ marginLeft: 8 }} onClick={() => togglePin(msg.id)}>해제</button>
                         </div>
                     ))}
+                </div>
+            )}
+            {/* 새 메시지 도착 알림 */}
+            {showNewMsgAlert && (
+                <div
+                    style={{
+                        position: 'absolute',
+                        bottom: 24,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        background: alertBlink % 2 === 1 ? '#FFD600' : '#222',
+                        color: alertBlink % 2 === 1 ? '#222' : '#FFD600',
+                        borderRadius: 16,
+                        padding: '8px 24px',
+                        fontWeight: 700,
+                        fontSize: 15,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+                        zIndex: 1000,
+                        cursor: 'pointer',
+                        transition: 'background 0.2s, color 0.2s',
+                    }}
+                    onClick={() => {
+                        if (listRef && messages.length > 0) {
+                            listRef.scrollToItem(messages.length - 1, 'end');
+                        }
+                        setShowNewMsgAlert(false);
+                    }}
+                >
+                    🔥 새 메시지 도착! (클릭 시 최신으로)
                 </div>
             )}
             <AutoSizer>

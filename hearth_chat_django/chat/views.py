@@ -445,7 +445,7 @@ class ChatViewSet(viewsets.ModelViewSet):
 
         try:
             messages = Chat.objects.filter(room_id=room_id)\
-                .select_related('room')\
+                .select_related('room', 'question_message')\
                 .prefetch_related('reactions', 'reactions__user')\
                 .order_by('-timestamp')[offset:offset + limit]
 
@@ -489,7 +489,8 @@ class ChatViewSet(viewsets.ModelViewSet):
                     'ai_name': msg.ai_name,
                     'emotion': getattr(msg, 'emotion', None),
                     'imageUrl': msg.attach_image.url if msg.attach_image else None,
-                    'reactions': reactions_list
+                    'reactions': reactions_list,
+                    'questioner_username': (msg.question_message.username if msg.sender_type == 'ai' and msg.question_message else None)
                 }
                 message_list.append(message_data)
 

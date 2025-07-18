@@ -53,10 +53,11 @@ class ChatSerializer(serializers.ModelSerializer):
     room_name = serializers.SerializerMethodField()
     sender_name = serializers.SerializerMethodField()
     reaction_count = serializers.SerializerMethodField()
+    questioner_username = serializers.SerializerMethodField()
     
     class Meta:
         model = Chat
-        fields = ['id', 'room', 'room_name', 'sender', 'sender_name', 'sender_type', 'username', 'user_id', 'ai_name', 'ai_type', 'message_type', 'content', 'timestamp', 'emotion', 'attach_image', 'reaction_count', 'created_at', 'updated_at']
+        fields = ['id', 'room', 'room_name', 'sender', 'sender_name', 'sender_type', 'username', 'user_id', 'ai_name', 'ai_type', 'message_type', 'content', 'timestamp', 'emotion', 'attach_image', 'reaction_count', 'created_at', 'updated_at', 'questioner_username']
     
     def get_room_name(self, obj):
         return obj.room.name if obj.room else 'No Room'
@@ -73,6 +74,11 @@ class ChatSerializer(serializers.ModelSerializer):
     
     def get_reaction_count(self, obj):
         return obj.reactions.count()
+
+    def get_questioner_username(self, obj):
+        if obj.sender_type == 'ai' and obj.question_message:
+            return obj.question_message.username
+        return None
 
 class UserSettingsSerializer(serializers.ModelSerializer):
     tts_enabled = serializers.BooleanField(required=False)

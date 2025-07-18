@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const AI_PROVIDERS = [
     { value: 'GEMINI', label: 'Gemini' },
@@ -30,14 +30,18 @@ function getCookie(name) {
     return cookieValue;
 }
 
-const CreateRoomModal = ({ open, onClose, onSuccess }) => {
+const CreateRoomModal = ({ open, onClose, onSuccess, defaultMaxMembers = 4 }) => {
     const [createType, setCreateType] = useState('ai');
     const [createName, setCreateName] = useState('');
     const [createAI, setCreateAI] = useState('GEMINI');
     const [createIsPublic, setCreateIsPublic] = useState(false);
-    const [createMaxMembers, setCreateMaxMembers] = useState(4);
+    const [createMaxMembers, setCreateMaxMembers] = useState(defaultMaxMembers);
     const [creating, setCreating] = useState(false);
     const [createError, setCreateError] = useState(null);
+
+    useEffect(() => {
+        setCreateMaxMembers(defaultMaxMembers);
+    }, [defaultMaxMembers, open]);
 
     if (!open) return null;
 

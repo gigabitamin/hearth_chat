@@ -130,6 +130,14 @@ class Chat(models.Model):
     user_id = models.BigIntegerField(null=True, blank=True, verbose_name='유저 ID')  # user일 때만
     ai_name = models.CharField(max_length=50, null=True, blank=True, verbose_name='AI 이름')  # ai일 때만 (gpt, gemini, clude 등)
     ai_type = models.CharField(max_length=50, null=True, blank=True, verbose_name='AI 타입')  # ai일 때만 (openai, google 등)
+    question_message = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ai_responses',
+        verbose_name='AI 응답을 유발한 질문 메시지'
+    )
     # 메시지 정보
     message_type = models.CharField(max_length=10, choices=MESSAGE_TYPE_CHOICES, verbose_name='메시지 타입')  # text, image, system 등
     # content = models.TextField(verbose_name='메시지 내용')
@@ -199,7 +207,7 @@ class Chat(models.Model):
         )
     
     @classmethod
-    def save_ai_message(cls, content, session_id=None, ai_name='Gemini', ai_type='google'):
+    def save_ai_message(cls, content, session_id=None, ai_name='Gemini', ai_type='google', question_message=None):
         """AI 메시지 저장"""
         room_id = session_id
         if room_id and str(room_id).isdigit():
@@ -222,7 +230,8 @@ class Chat(models.Model):
             ai_type=ai_type,
             message_type='text',
             content=content,
-            session_id=session_id
+            session_id=session_id,
+            question_message=question_message
         )
     
     @classmethod

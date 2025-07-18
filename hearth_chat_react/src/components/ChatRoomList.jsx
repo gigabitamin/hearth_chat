@@ -469,6 +469,9 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                             <div className="room-item-center" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                                 <div className="room-name" style={{ fontSize: 14, fontWeight: 600, color: '#222', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', borderBottom: '1px solid #f0f0f0', paddingBottom: 2 }}>
                                     {room.name}
+                                    <span style={{ fontSize: 11, color: '#888', marginLeft: 8 }}>
+                                        💬 {room.message_count ?? 0} / 👥 {room.participant_count ?? 0}/{room.max_members ?? '-'}
+                                    </span>
                                 </div>
                                 <div className="room-latest-message" style={{ fontSize: 12, color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 2 }}>
                                     {/* 최신 메시지(임시: room.latest_message) */}

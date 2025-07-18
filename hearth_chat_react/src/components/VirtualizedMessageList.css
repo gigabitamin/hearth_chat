@@ -125,6 +125,22 @@
     transition: box-shadow 0.18s, background 0.18s;
 }
 
+.message-questioner-username {
+    position: relative;
+    left: 2px;
+    top: 2px;
+    font-size: 10px;
+    color: #bbb;
+    text-align: left;
+    padding-bottom: 5px;
+}
+
+.questioner-username-highlight {
+    color: #FFD700;
+    font-weight: bold;
+}
+  
+
 .message-item.my-message .message-bubble {
     background-color: #007bff;
     color: white;
