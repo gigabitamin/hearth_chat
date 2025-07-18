@@ -515,9 +515,9 @@ function AppContent(props) {
         <div className="room-list-overlay" onClick={() => setShowRoomListOverlay(false)}>
           <div className="room-list-overlay-panel" onClick={e => e.stopPropagation()}>
             <div className="overlay-tabs" style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-              <button onClick={() => setOverlayTab('personal')} className={`header-tab-btn${overlayTab === 'personal' ? ' active' : ''}`}>개인</button>
-              <button onClick={() => setOverlayTab('open')} className={`header-tab-btn${overlayTab === 'open' ? ' active' : ''}`}>오픈</button>
-              <button onClick={() => setOverlayTab('favorite')} className={`header-tab-btn${overlayTab === 'favorite' ? ' active' : ''}`}>★</button>
+              <button onClick={() => setOverlayTab('personal')} className={`header-tab-btn${!isInRoom && overlayTab === 'personal' ? ' active' : ''}`}>개인</button>
+              <button onClick={() => setOverlayTab('open')} className={`header-tab-btn${!isInRoom && overlayTab === 'open' ? ' active' : ''}`}>오픈</button>
+              <button onClick={() => setOverlayTab('favorite')} className={`header-tab-btn${!isInRoom && overlayTab === 'favorite' ? ' active' : ''}`}>★</button>
             </div>
             <div className="room-list-overlay-main" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
               <div style={{ flex: 3, overflowY: 'auto' }}>
@@ -565,6 +565,21 @@ function AppContent(props) {
           <div className="app-container">
             <div className="room-list-container" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
               {/* lobby-tabs(파란색 탭 버튼 그룹) 완전히 삭제 */}
+              <HeaderBar
+                activeTab={overlayTab}
+                onTabChange={(tab) => {
+                  setOverlayTab(tab);
+                  if (isInRoom) setShowRoomListOverlay(true);
+                }}
+                onSearchClick={() => setIsSearchModalOpen(true)}
+                onNotifyClick={() => setIsNotifyModalOpen(true)}
+                onSettingsClick={() => setIsSettingsModalOpen(true)}
+                onLoginClick={() => setIsLoginModalOpen(true)}
+                onCreateRoomClick={() => setShowCreateModal(true)}
+                loginUser={loginUser}
+                title={headerTitle}
+                unreadNotifications={unreadNotifications}
+              />
               <div style={{ flex: 3, overflowY: 'auto' }}>
                 <ChatRoomList
                   onRoomSelect={async (room) => {

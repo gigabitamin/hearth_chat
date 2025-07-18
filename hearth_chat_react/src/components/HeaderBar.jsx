@@ -24,7 +24,8 @@ export default function HeaderBar({
     onLoginClick,
     loginUser,
     title, // 중앙에 표시할 텍스트(채팅방 이름/앱명)
-    unreadNotifications = 0 // 읽지 않은 알림 개수
+    unreadNotifications = 0, // 읽지 않은 알림 개수
+    isInRoom = false // 새로 추가된 prop
 }) {
     const navigate = useNavigate();
 
@@ -34,9 +35,9 @@ export default function HeaderBar({
                 <CreateRoomButton onClick={onCreateRoomClick} />
                 {/* 오버레이와 동일한 탭 UI로 교체 */}
                 <div className="header-tabs" style={{ display: 'flex', gap: 8, marginLeft: 8 }}>
-                    <button onClick={() => onTabChange('personal')} className={`header-tab-btn${activeTab === 'personal' ? ' active' : ''}`}>개인</button>
-                    <button onClick={() => onTabChange('open')} className={`header-tab-btn${activeTab === 'open' ? ' active' : ''}`}>오픈</button>
-                    <button onClick={() => onTabChange('favorite')} className={`header-tab-btn${activeTab === 'favorite' ? ' active' : ''}`}>★</button>
+                    <button onClick={() => onTabChange('personal')} className={`header-tab-btn${!isInRoom && activeTab === 'personal' ? ' active' : ''}`}>개인</button>
+                    <button onClick={() => onTabChange('open')} className={`header-tab-btn${!isInRoom && activeTab === 'open' ? ' active' : ''}`}>오픈</button>
+                    <button onClick={() => onTabChange('favorite')} className={`header-tab-btn${!isInRoom && activeTab === 'favorite' ? ' active' : ''}`}>★</button>
                 </div>
             </div>
             <div className="header-center">
