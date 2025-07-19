@@ -28,6 +28,7 @@ export default function HeaderBar({
     isInRoom = false // 새로 추가된 prop
 }) {
     const navigate = useNavigate();
+    console.log('[HeaderBar title]', title);
 
     return (
         <header className="header-bar">

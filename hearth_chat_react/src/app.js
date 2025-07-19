@@ -100,6 +100,7 @@ function ChatRoomPage({ loginUser, loginLoading, checkLoginStatus, userSettings,
         const res = await csrfFetch(`${getApiBase()}/api/chat/rooms/${roomId}/`, { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
+          console.log('[room data]', data);
           setRoom(data);
         } else {
           setRoom(null);
@@ -198,10 +199,10 @@ function AppContent(props) {
     loginLoading,
     userSettings,
     setUserSettings,
-    selectedRoom,
-    setSelectedRoom,
-    selectedRoomMessages,
-    setSelectedRoomMessages,
+    room, // 기존 selectedRoom
+    setRoom,
+    roomMessages, // room도 받아옴
+    setRoomMessages,
     activeTab,
     setActiveTab,
     isNotifyModalOpen,
@@ -234,6 +235,9 @@ function AppContent(props) {
     fetchPreviewMessages,
   } = props;
 
+  console.log('[AppContent selectedRoom]', room);
+  console.log('[AppContent room]', room);
+
   const [ttsRate, setTtsRate] = useState(1.5);
   const [ttsPitch, setTtsPitch] = useState(1.5);
   const [ttsVoice, setTtsVoice] = useState(null);
@@ -256,7 +260,7 @@ function AppContent(props) {
   // 헤더 타이틀: 대기방/채팅방 구분
   let headerTitle = 'Hearth 🔥 Chat';
   if (location.pathname.startsWith('/room/')) {
-    headerTitle = selectedRoom?.name || '';
+    headerTitle = room?.name || '채팅방';
   }
   // 채팅방 내에서만 오버레이 탭 동작
   const isInRoom = location.pathname.startsWith('/room/');
@@ -270,23 +274,23 @@ function AppContent(props) {
 
   // 하단 정보창 렌더 함수 (공통)
   const renderRoomInfoPanel = (onClose) => (
-    selectedRoom ? (
+    room ? (
       <div className="selected-room-info">
-        <h2>{selectedRoom.name}</h2>
+        <h2>{room.name}</h2>
         {/* 방장이 설정한 프로필 이미지 등 추가 가능 */}
         <div style={{ maxHeight: 300, overflowY: 'auto', background: 'rgba(0,0,0,0.1)', borderRadius: 8, padding: 12, marginTop: 16 }}>
           <h4>최근 메시지</h4>
-          {selectedRoomMessages.length === 0 ? (
+          {roomMessages.length === 0 ? (
             <div style={{ color: '#888' }}>아직 메시지가 없습니다.</div>
           ) : (
-            selectedRoomMessages.map(msg => (
+            roomMessages.map(msg => (
               <div key={msg.id} style={{ marginBottom: 8, color: msg.type === 'send' ? '#2196f3' : '#fff' }}>
                 <b>{msg.sender}:</b> {msg.text}
               </div>
             ))
           )}
         </div>
-        <button className="enter-room-btn" style={{ marginTop: 16 }} onClick={() => { if (onClose) onClose(); window.location.href = `/room/${selectedRoom.id}`; }}>입장하기</button>
+        <button className="enter-room-btn" style={{ marginTop: 16 }} onClick={() => { if (onClose) onClose(); window.location.href = `/room/${room.id}`; }}>입장하기</button>
       </div>
     ) : (
       <div className="welcome-content">
@@ -437,11 +441,11 @@ function AppContent(props) {
         onSearchClick={() => setIsSearchModalOpen(true)}
         onNotifyClick={() => setIsNotifyModalOpen(true)}
         onSettingsClick={() => {
-          console.log('설정 버튼 클릭됨!');
+          // console.log('설정 버튼 클릭됨!');
           setIsSettingsModalOpen(true);
         }}
         onLoginClick={() => {
-          console.log('로그인 버튼 클릭됨!');
+          // console.log('로그인 버튼 클릭됨!');
           setIsLoginModalOpen(true);
         }}
         onCreateRoomClick={() => setShowCreateModal(true)}
@@ -530,18 +534,18 @@ function AppContent(props) {
               <div style={{ flex: 3, overflowY: 'auto' }}>
                 <ChatRoomList
                   onRoomSelect={async (room) => {
-                    setSelectedRoom(room);
+                    setRoom(room);
                     // 메시지 불러오기 (예시: 최신 10개)
                     try {
                       const res = await csrfFetch(`${getApiBase()}/api/chat/messages/messages/?room=${room.id}&limit=10&offset=0`, { credentials: 'include' });
                       if (res.ok) {
                         const data = await res.json();
-                        setSelectedRoomMessages(data.results || []);
+                        setRoomMessages(data.results || []);
                       } else {
-                        setSelectedRoomMessages([]);
+                        setRoomMessages([]);
                       }
                     } catch {
-                      setSelectedRoomMessages([]);
+                      setRoomMessages([]);
                     }
                   }}
                   loginUser={loginUser}
@@ -554,7 +558,7 @@ function AppContent(props) {
                   setSidebarTab={setOverlayTab}
                   showCreateModal={showCreateModal}
                   setShowCreateModal={setShowCreateModal}
-                  selectedRoomId={selectedRoom?.id}
+                  selectedRoomId={room?.id}
                   onClose={() => setShowRoomListOverlay(false)}
                   overlayKey="overlay"
                   onPreviewMessage={fetchPreviewMessages}
@@ -576,17 +580,17 @@ function AppContent(props) {
               <div style={{ flex: 3, overflowY: 'auto' }}>
                 <ChatRoomList
                   onRoomSelect={async (room) => {
-                    setSelectedRoom(room);
+                    setRoom(room);
                     try {
                       const res = await csrfFetch(`${getApiBase()}/api/chat/messages/messages/?room=${room.id}&limit=10&offset=0`, { credentials: 'include' });
                       if (res.ok) {
                         const data = await res.json();
-                        setSelectedRoomMessages(data.results || []);
+                        setRoomMessages(data.results || []);
                       } else {
-                        setSelectedRoomMessages([]);
+                        setRoomMessages([]);
                       }
                     } catch {
-                      setSelectedRoomMessages([]);
+                      setRoomMessages([]);
                     }
                   }}
                   loginUser={loginUser}
@@ -599,7 +603,7 @@ function AppContent(props) {
                   setSidebarTab={setOverlayTab}
                   showCreateModal={showCreateModal}
                   setShowCreateModal={setShowCreateModal}
-                  selectedRoomId={selectedRoom?.id}
+                  selectedRoomId={room?.id}
                   overlayKey="lobby"
                 />
               </div>
@@ -632,11 +636,13 @@ function AppContent(props) {
 }
 
 function App() {
+  const location = useLocation();
   const [loginUser, setLoginUser] = useState(null);
   const [loginLoading, setLoginLoading] = useState(true);
   const [userSettings, setUserSettings] = useState(null);
-  const [selectedRoom, setSelectedRoom] = useState(null); // 미리보기용 선택 방
-  const [selectedRoomMessages, setSelectedRoomMessages] = useState([]); // 미리보기용 메시지
+  // 1. App 컴포넌트에서 room, setRoom, roomMessages, setRoomMessages를 전역 상태로 선언
+  const [room, setRoom] = useState(null);
+  const [roomMessages, setRoomMessages] = useState([]);
   // 추가: 상단 탭/모달 상태
   const [activeTab, setActiveTab] = useState('personal'); // 'personal' | 'open'
   const [overlayTab, setOverlayTab] = useState('personal');
@@ -680,7 +686,7 @@ function App() {
       const roomRes = await csrfFetch(`${getApiBase()}/api/chat/rooms/${msg.room_id}/`);
       if (roomRes.ok) {
         const roomData = await roomRes.json();
-        setSelectedRoom(roomData);
+        setRoom(roomData);
       }
     } catch { }
   };
@@ -842,15 +848,40 @@ function App() {
     return () => { if (ws) ws.close(); };
   }, []);
 
+  // 현재 페이지가 /room/:roomId로 시작하면 room 상태를 업데이트하는 useEffect 추가
+  useEffect(() => {
+    // /room/:roomId 패턴 매칭
+    const match = location.pathname.match(/^\/room\/(\d+)/);
+    if (match) {
+      const roomId = match[1];
+      const fetchRoom = async () => {
+        try {
+          const res = await csrfFetch(`${getApiBase()}/api/chat/rooms/${roomId}/`, { credentials: 'include' });
+          if (res.ok) {
+            const data = await res.json();
+            setRoom(data);
+          } else {
+            setRoom(null);
+          }
+        } catch {
+          setRoom(null);
+        }
+      };
+      fetchRoom();
+    } else {
+      setRoom(null); // 대기방 등에서는 room을 null로
+    }
+  }, [location.pathname]);
+
   return <AppContent
     loginUser={loginUser}
     loginLoading={loginLoading}
     userSettings={userSettings}
     setUserSettings={setUserSettings}
-    selectedRoom={selectedRoom}
-    setSelectedRoom={setSelectedRoom}
-    selectedRoomMessages={selectedRoomMessages}
-    setSelectedRoomMessages={setSelectedRoomMessages}
+    room={room}
+    setRoom={setRoom}
+    roomMessages={roomMessages}
+    setRoomMessages={setRoomMessages}
     activeTab={activeTab}
     setActiveTab={setActiveTab}
     isNotifyModalOpen={isNotifyModalOpen}
