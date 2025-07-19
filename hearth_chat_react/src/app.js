@@ -61,23 +61,23 @@ function LobbyPage({ loginUser, loginLoading, checkLoginStatus, userSettings, se
   };
 
   return (
-        <div className="app-container">
-          <div className="room-list-container">
-            <ChatRoomList
-              onRoomSelect={handleRoomSelect}
+    <div className="app-container">
+      <div className="room-list-container">
+        <ChatRoomList
+          onRoomSelect={handleRoomSelect}
           loginUser={loginUser}
           loginLoading={loginLoading}
           checkLoginStatus={checkLoginStatus}
           onUserMenuOpen={onUserMenuOpen}
-            />
-          </div>
-          <div className="welcome-container">
-            <div className="welcome-content">
-              <h1>Hearth 🔥 Chat</h1>
-              <p>대화방을 선택하여 채팅을 시작하세요!</p>
-            </div>
-          </div>
+        />
+      </div>
+      <div className="welcome-container">
+        <div className="welcome-content">
+          <h1>Hearth 🔥 Chat</h1>
+          <p>대화방을 선택하여 채팅을 시작하세요!</p>
         </div>
+      </div>
+    </div>
   );
 }
 
@@ -117,7 +117,7 @@ function ChatRoomPage({ loginUser, loginLoading, checkLoginStatus, userSettings,
   if (!room) return <div>존재하지 않는 방입니다. <button onClick={() => navigate('/')}>대기방으로</button></div>;
 
   return (
-        <div className="chat-container">
+    <div className="chat-container">
       {/*
           <div className="chat-header">
         <button onClick={() => navigate('/')} className="back-btn">
@@ -519,6 +519,12 @@ function AppContent(props) {
               <button onClick={() => setOverlayTab('personal')} className={`header-tab-btn${!isInRoom && overlayTab === 'personal' ? ' active' : ''}`}>개인</button>
               <button onClick={() => setOverlayTab('open')} className={`header-tab-btn${!isInRoom && overlayTab === 'open' ? ' active' : ''}`}>오픈</button>
               <button onClick={() => setOverlayTab('favorite')} className={`header-tab-btn${!isInRoom && overlayTab === 'favorite' ? ' active' : ''}`}>★</button>
+              {/* 모닥불 새 대화방 버튼 */}
+              <button
+                onClick={() => { setShowCreateModal(true); setShowRoomListOverlay(false); }}
+                title="새 대화방 만들기"
+                style={{ background: 'none', border: 'none', fontSize: 24, marginLeft: 4, cursor: 'pointer', color: '#ff9800', padding: '0 6px' }}
+              >🔥</button>
             </div>
             <div className="room-list-overlay-main" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
               <div style={{ flex: 3, overflowY: 'auto' }}>
@@ -601,7 +607,7 @@ function AppContent(props) {
                 {renderRoomInfoPanel()}
               </div>
             </div>
-    </div>
+          </div>
         } />
         <Route path="/room/:roomId" element={
           <ChatRoomPage

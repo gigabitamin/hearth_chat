@@ -31,38 +31,19 @@ export default function HeaderBar({
 
     return (
         <header className="header-bar">
-            <div className="header-left-group">
-                <CreateRoomButton onClick={onCreateRoomClick} />
+            <div className="header-left-group">                
                 {/* 오버레이와 동일한 탭 UI로 교체 */}
                 <div className="header-tabs" style={{ display: 'flex', gap: 8, marginLeft: 8 }}>
                     <button onClick={() => onTabChange('personal')} className={`header-tab-btn${!isInRoom && activeTab === 'personal' ? ' active' : ''}`}>개인</button>
                     <button onClick={() => onTabChange('open')} className={`header-tab-btn${!isInRoom && activeTab === 'open' ? ' active' : ''}`}>오픈</button>
-                    <button onClick={() => onTabChange('favorite')} className={`header-tab-btn${!isInRoom && activeTab === 'favorite' ? ' active' : ''}`}>★</button>
+                    <button onClick={() => onTabChange('favorite')} className={`header-tab-btn${!isInRoom && activeTab === 'favorite' ? ' active' : ''}`}>★</button>                    
                 </div>
-            </div>
-            <div className="header-center">
-                {title && <span className="header-title-text">{title}</span>}
+                <CreateRoomButton onClick={onCreateRoomClick} />
+            </div>            
+            <div className="header-center">                
+                <div>{title && <span className="header-title-text">{title}</span>}</div>
             </div>
             <div className="header-actions">
-                {/* 관리자 링크 (관리자만 표시) */}
-                {loginUser && loginUser.is_staff && (
-                    <button
-                        className="header-action-btn"
-                        onClick={() => navigate('/admin')}
-                        title="관리자 대시보드"
-                        style={{
-                            marginRight: 8,
-                            background: '#ff6b6b',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            padding: '8px 12px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        <span role="img" aria-label="admin" style={{ fontSize: 18 }}>👑</span>
-                    </button>
-                )}
                 {/* 로그인/유저 버튼 */}
                 {loginUser ? (
                     <button

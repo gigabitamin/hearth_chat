@@ -490,11 +490,6 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                 <div className="no-rooms">
                     <button className="login-btn" onClick={() => setIsLoginModalOpen(true)} style={{ fontSize: 18, padding: '12px 32px', borderRadius: 8, background: '#2196f3', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer' }}>로그인</button>
                 </div>
-            ) : (filteredRooms.length === 0) ? (
-                <div className="no-rooms">
-                    <p>{sidebarTab === 'personal' ? '참여 중인 대화방이 없습니다.' : '공개 오픈 채팅방이 없습니다.'}</p>
-                    <p>새로운 대화를 시작해보세요!</p>
-                </div>
             ) : (
                 <>
                     {sidebarTab === 'favorite' ? (

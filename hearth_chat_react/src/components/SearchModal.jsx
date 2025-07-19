@@ -714,16 +714,22 @@ export default function SearchModal({
                     <label style={{ fontSize: 13 }}><input type="checkbox" checked={useApiSearch} onChange={e => setUseApiSearch(e.target.checked)} /> API 검색</label>
                     <button className="search-modal-close" onClick={onClose} aria-label="닫기" style={{ fontSize: 22, background: 'none', border: 'none', color: '#fff', cursor: 'pointer', marginLeft: 8 }}>✕</button>
                 </div>
-                <input
-                    className="search-input"
-                    type="text"
-                    placeholder="채팅방, 메시지, 사용자 검색..."
-                    value={query}
-                    onChange={e => setQuery(e.target.value)}
-                    autoFocus
-                    style={{ flex: 1, fontSize: 16, padding: '8px 12px', borderRadius: 8, border: '1px solid #ccc', background: '#222', color: '#fff' }}
-                    onKeyDown={e => { if (e.key === 'Escape' && onClose) onClose(); }}
-                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
+                    <input
+                        type="text"
+                        value={query}
+                        onChange={e => setQuery(e.target.value)}
+                        placeholder="검색어를 입력하세요"
+                        style={{ flex: 1, fontSize: 16, padding: '8px 12px', borderRadius: 8, border: '1px solid #333', background: '#222', color: '#fff' }}
+                        onKeyDown={e => { if (e.key === 'Enter') setDebouncedQuery(query); }}
+                    />
+                    <button
+                        className="search-copy-btn"
+                        style={{ fontSize: 18, color: '#2196f3', background: 'none', border: 'none', cursor: 'pointer', marginLeft: 4, padding: 4 }}
+                        title="검색 결과 복사"
+                        onClick={handleCopySelected}
+                    >📋</button>
+                </div>
                 <div className="search-modal-content">
                     <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
                         <div style={{ display: 'flex', gap: 4 }}>
