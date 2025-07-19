@@ -42,6 +42,9 @@ const GlobalChatInput = ({ room, loginUser, ws, setRoomMessages, onOpenCreateRoo
 
     // --- [수정 1] long-press 발생 여부를 추적할 ref 추가 ---
     const longPressTriggered = useRef(false);
+    // --- [수정 2] 타이머와 long-press 상태를 관리할 useRef 선언 ---
+    const pressTimer = useRef(null);
+    const isLongPress = useRef(false);
 
     // 이미지 업로드 핸들러
     const handleImageUpload = (e) => {
@@ -285,22 +288,61 @@ const GlobalChatInput = ({ room, loginUser, ws, setRoomMessages, onOpenCreateRoo
         handleCreateNewAiRoom();
     };
 
+    // --- [수정 2] 새로운 이벤트 핸들러 로직 ---
+
+    // 버튼을 누르기 시작할 때 호출될 함수
+    const handlePressStart = () => {
+        // 이전 타이머가 남아있을 경우를 대비해 초기화
+        if (pressTimer.current) {
+            clearTimeout(pressTimer.current);
+        }
+        isLongPress.current = false; // long-press 상태 초기화
+
+        pressTimer.current = setTimeout(() => {
+            isLongPress.current = true; // 600ms가 지나면 long-press로 처리
+            if (onOpenCreateRoomModal) onOpenCreateRoomModal(); // 모달 열기
+        }, 600);
+    };
+
+    // 버튼에서 손을 뗄 때 호출될 함수 (성공적인 클릭)
+    const handlePressEnd = () => {
+        // 진행 중이던 타이머를 즉시 중단
+        if (pressTimer.current) {
+            clearTimeout(pressTimer.current);
+        }
+
+        // isLongPress 플래그가 false일 때만 짧은 클릭으로 간주
+        if (!isLongPress.current) {
+            handleCreateNewAiRoom(); // 짧은 클릭 동작 실행
+        }
+        // isLongPress가 true이면 아무것도 하지 않고 종료 (long-press가 이미 실행됨)
+    };
+    
+    // 버튼 누른 상태로 벗어나거나 취소될 때 호출될 함수
+    const handleCancel = () => {
+        if (pressTimer.current) {
+            clearTimeout(pressTimer.current);
+        }
+        // 사용자가 의도적으로 취소한 것이므로 아무 동작도 하지 않음
+    };
+
+
+
     return (
         <div className="global-chat-input" style={{ width: '100%', background: '#23242a', padding: 8, borderTop: '1px solid #333', position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 100 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, maxWidth: 700, margin: '0 auto' }}>
                 {/* 새로운 AI 채팅방 생성 버튼 (입력창 왼쪽) */}
+                {/* --- [수정 3] 버튼에 새로운 핸들러 연결 및 onClick 제거 --- */}
                 <button
-                    // --- [수정 5] onClick에 새로운 핸들러 연결 ---
-                    onClick={handleClick}
-                    onTouchStart={handleTouchStart}
-                    onTouchEnd={handleTouchEnd}
-                    onTouchCancel={handleTouchEnd}
-                    onMouseDown={handleMouseDown}
-                    onMouseUp={handleMouseUp}
-                    onMouseLeave={handleMouseUp}
+                    onMouseDown={handlePressStart}
+                    onMouseUp={handlePressEnd}
+                    onMouseLeave={handleCancel}
+                    onTouchStart={handlePressStart}
+                    onTouchEnd={handlePressEnd}
+                    onTouchCancel={handleCancel}
                     disabled={loading || !input.trim()}
                     style={{ background: '#ff6a00', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', fontSize: 18, cursor: 'pointer', minWidth: 48 }}
-                    title="새 AI 채팅방 생성"
+                    title="짧게 클릭: 새 AI 채팅방 자동 생성 / 길게 누르기: 옵션"
                 >
                     🔥
                 </button>
