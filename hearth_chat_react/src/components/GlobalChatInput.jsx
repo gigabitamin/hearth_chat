@@ -40,6 +40,9 @@ const GlobalChatInput = ({ room, loginUser, ws, setRoomMessages, onOpenCreateRoo
     const [attachedImagePreview, setAttachedImagePreview] = useState(null);
     const [longPressTimer, setLongPressTimer] = useState(null);
 
+    // --- [수정 1] long-press 발생 여부를 추적할 ref 추가 ---
+    const longPressTriggered = useRef(false);
+
     // 이미지 업로드 핸들러
     const handleImageUpload = (e) => {
         const file = e.target.files && e.target.files[0];
@@ -233,11 +236,16 @@ const GlobalChatInput = ({ room, loginUser, ws, setRoomMessages, onOpenCreateRoo
 
     // 모바일 long-press 핸들러
     const handleTouchStart = () => {
+        // --- [수정 2] 타이머 시작 전, 플래그 초기화 ---
+        longPressTriggered.current = false; 
         const timer = setTimeout(() => {
             if (onOpenCreateRoomModal) onOpenCreateRoomModal();
-        }, 600); // 600ms 이상 누르면 long-press로 간주
+            // --- [수정 3] long-press가 성공했음을 기록 ---
+            longPressTriggered.current = true; 
+        }, 600);
         setLongPressTimer(timer);
     };
+
     const handleTouchEnd = () => {
         if (longPressTimer) {
             clearTimeout(longPressTimer);
@@ -247,12 +255,17 @@ const GlobalChatInput = ({ room, loginUser, ws, setRoomMessages, onOpenCreateRoo
 
     // PC용 long-press 핸들러
     const handleMouseDown = (e) => {
-        if (e.button !== 0) return; // 왼쪽 버튼만
+        if (e.button !== 0) return;
+        // --- [수정 2] 타이머 시작 전, 플래그 초기화 ---
+        longPressTriggered.current = false;
         const timer = setTimeout(() => {
             if (onOpenCreateRoomModal) onOpenCreateRoomModal();
+            // --- [수정 3] long-press가 성공했음을 기록 ---
+            longPressTriggered.current = true;
         }, 600);
         setLongPressTimer(timer);
     };
+
     const handleMouseUp = () => {
         if (longPressTimer) {
             clearTimeout(longPressTimer);
@@ -260,12 +273,25 @@ const GlobalChatInput = ({ room, loginUser, ws, setRoomMessages, onOpenCreateRoo
         }
     };
 
+    // --- [수정 4] 클릭 이벤트를 분기 처리할 새로운 핸들러 ---
+    const handleClick = () => {
+        // long-press가 실행되었다면, 짧은 클릭 로직(방 생성)을 실행하지 않음
+        if (longPressTriggered.current) {
+            // 플래그를 다시 초기화하고 함수를 종료
+            longPressTriggered.current = false;
+            return;
+        }
+        // long-press가 아니었다면, 기존의 짧은 클릭 로직 실행
+        handleCreateNewAiRoom();
+    };
+
     return (
         <div className="global-chat-input" style={{ width: '100%', background: '#23242a', padding: 8, borderTop: '1px solid #333', position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 100 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, maxWidth: 700, margin: '0 auto' }}>
                 {/* 새로운 AI 채팅방 생성 버튼 (입력창 왼쪽) */}
                 <button
-                    onClick={handleCreateNewAiRoom}
+                    // --- [수정 5] onClick에 새로운 핸들러 연결 ---
+                    onClick={handleClick}
                     onTouchStart={handleTouchStart}
                     onTouchEnd={handleTouchEnd}
                     onTouchCancel={handleTouchEnd}
