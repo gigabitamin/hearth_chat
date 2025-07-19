@@ -4,7 +4,10 @@
 
 ==========================================
 
-## 250718  -error
+## 250719  
+- headerBar title 출력 문제 해결 -> app.js 전역 관리 fetch 로 setRoomId 갱신
+
+## 250718 -error
 - virtualized message 구현을 위해 채팅창 리뉴얼, autosize 로 부모창의 사이즈 자동감지해서 가상화 메시지 창 제어, 검색 결과창 즐겨찾기 연동
 
 ## 250717 v0.9 - error
