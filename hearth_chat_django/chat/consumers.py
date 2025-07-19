@@ -119,7 +119,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         # 사용자 메시지를 DB에 저장 (감정 정보 포함)
         print(f"사용자 메시지 저장 시도: {user_message} (감정: {user_emotion}) 이미지: {image_url} 방ID: {room_id}")
         user_obj = self.scope.get('user', None)
-        user_message_obj = await self.save_user_message(user_message or '[이미지 첨부]', room_id, user_emotion, user_obj)
+        user_message_obj = await self.save_user_message(user_message or '[이미지 첨부]', room_id, user_emotion, user_obj, image_url)
 
         # 사용자 메시지를 방의 모든 참여자에게 브로드캐스트
         print(f"[SEND] 사용자 메시지 group_send: chat_room_{room_id} (채널: {self.channel_name})")
@@ -135,7 +135,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 ) if user_message_obj else 'Unknown',
                 'user_id': user_message_obj.user_id if user_message_obj and hasattr(user_message_obj, 'user_id') else None,
                 'timestamp': user_message_obj.timestamp.isoformat() if user_message_obj and hasattr(user_message_obj, 'timestamp') else None,
-                'emotion': user_emotion
+                'emotion': user_emotion,
+                'imageUrl': image_url  # imageUrl 추가
             }
             print(f"[DEBUG][group_send][user_message] event: ", json.dumps(debug_event, ensure_ascii=False, indent=2))
         except Exception as e:
@@ -153,7 +154,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 ),
                 'user_id': user_message_obj.user_id if hasattr(user_message_obj, 'user_id') else None,  # user_id 추가
                 'timestamp': user_message_obj.timestamp.isoformat(),
-                'emotion': user_emotion
+                'emotion': user_emotion,
+                'imageUrl': image_url  # imageUrl 추가
             }
         )
 
@@ -255,7 +257,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'sender': event['sender'],
             'user_id': event.get('user_id'),  # user_id 필드 추가
             'timestamp': event['timestamp'],
-            'emotion': event.get('emotion', 'neutral')
+            'emotion': event.get('emotion', 'neutral'),
+            'imageUrl': event.get('imageUrl', '')  # imageUrl 추가
         }))
 
     async def ai_message(self, event):
@@ -333,7 +336,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return "stable"
 
     @sync_to_async
-    def save_user_message(self, content, room_id, emotion="neutral", user=None):
+    def save_user_message(self, content, room_id, emotion="neutral", user=None, image_url=None):
         """사용자 메시지를 DB에 저장 (감정 정보 포함)"""
         try:
             from .models import Chat
@@ -342,8 +345,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 import unicodedata
                 content = unicodedata.normalize('NFC', content)
             
-            result = Chat.save_user_message(content, room_id, emotion, user)
-            print(f"사용자 메시지 저장 성공: {result.id} (감정: {emotion})")
+            result = Chat.save_user_message(content, room_id, emotion, user, image_url)
+            print(f"사용자 메시지 저장 성공: {result.id} (감정: {emotion}, 이미지: {image_url})")
             return result
         except Exception as e:
             print(f"사용자 메시지 저장 실패: {e}")

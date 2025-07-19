@@ -32,7 +32,7 @@ const csrfFetch = async (url, options = {}) => {
     return fetch(url, mergedOptions);
 };
 
-const GlobalChatInput = ({ room, loginUser, ws, setRoomMessages, onOpenCreateRoomModal }) => {
+const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageClick }) => {
     console.log('onOpenCreateRoomModal 프롭:', onOpenCreateRoomModal);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
@@ -79,18 +79,23 @@ const GlobalChatInput = ({ room, loginUser, ws, setRoomMessages, onOpenCreateRoo
 
     // 이미지 업로드 후 전송
     const handleImageUploadAndSend = async () => {
-        if (!attachedImage || !ws || ws.readyState !== 1) return;
+        if (!attachedImage) return;
+
+        // 전송 직후 입력/첨부 상태 즉시 초기화 (중복 전송 방지)
         setInput('');
         setAttachedImage(null);
         setAttachedImagePreview(null);
+
         try {
             const formData = new FormData();
             formData.append('file', attachedImage);
             formData.append('content', input || '이미지 첨부');
+
             const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
             const apiUrl = isLocalhost
                 ? 'http://localhost:8000'
                 : `${window.location.protocol}//${window.location.hostname}`;
+
             const res = await fetch(`${apiUrl}/api/chat/upload_image/`, {
                 method: 'POST',
                 headers: {
@@ -99,27 +104,63 @@ const GlobalChatInput = ({ room, loginUser, ws, setRoomMessages, onOpenCreateRoo
                 credentials: 'include',
                 body: formData,
             });
+
             const data = await res.json();
             if (data.status === 'success') {
-                const messageData = {
-                    message: input || '이미지 첨부',
-                    imageUrl: data.file_url,
-                    roomId: room?.id || null
-                };
-                ws.send(JSON.stringify(messageData));
-                if (setRoomMessages) {
-                    setRoomMessages(prev => [
-                        ...prev,
-                        {
-                            type: 'send',
-                            text: input || '이미지 첨부',
-                            imageUrl: data.file_url,
-                            date: new Date().toISOString()
-                        }
-                    ]);
+                console.log('[DEBUG] GlobalChatInput - 이미지 업로드 성공:', data);
+
+                if (!room) {
+                    // 방이 없는 경우: 방 생성 후 이동
+                    const now = new Date();
+                    const title = `${input.slice(0, 20)} - ${now.toLocaleString('ko-KR', { hour12: false })}`;
+
+                    // 이미지 URL을 localStorage에 임시 저장
+                    localStorage.setItem('pending_image_url', data.file_url);
+                    localStorage.setItem('pending_auto_message', input || '이미지 첨부');
+
+                    const res = await csrfFetch(`${getApiBase()}/api/chat/rooms/`, {
+                        method: 'POST',
+                        body: JSON.stringify({ name: title, is_public: false, room_type: 'ai', ai_provider: 1, ai_response_enabled: true }),
+                    });
+                    if (res.ok) {
+                        const roomData = await res.json();
+                        // 방 생성 후 user settings도 자동 ON
+                        try {
+                            await fetch(`${getApiBase()}/api/chat/user/settings/`, {
+                                method: 'PATCH',
+                                credentials: 'include',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': getCookie('csrftoken'),
+                                },
+                                body: JSON.stringify({ ai_response_enabled: true }),
+                            });
+                        } catch (e) { /* 무시 */ }
+                        setTimeout(() => {
+                            window.location.href = `/room/${roomData.id}`;
+                        }, 300);
+                    } else {
+                        alert('방 생성 실패');
+                    }
+                } else {
+                    // 방이 있는 경우: WebSocket으로 메시지 전송
+                    if (!ws || ws.readyState !== 1) {
+                        alert('연결이 끊어졌습니다.');
+                        return;
+                    }
+
+                    const messageData = {
+                        message: input || '이미지 첨부',
+                        imageUrl: data.file_url,
+                        roomId: room.id
+                    };
+
+                    console.log('[DEBUG] GlobalChatInput - WebSocket 메시지 전송:', messageData);
+                    ws.send(JSON.stringify(messageData));
                 }
             }
         } catch (error) {
+            console.error('이미지 업로드 실패:', error);
             alert('이미지 업로드에 실패했습니다.');
         }
     };
@@ -179,21 +220,7 @@ const GlobalChatInput = ({ room, loginUser, ws, setRoomMessages, onOpenCreateRoo
                 client_id: clientId,
             };
             ws.send(JSON.stringify(messageData));
-            if (setRoomMessages) {
-                setRoomMessages(prev => [
-                    ...prev,
-                    {
-                        id: clientId,
-                        type: 'send',
-                        text: input,
-                        date: new Date().toISOString(),
-                        sender: loginUser?.username,
-                        user_id: loginUser?.id,
-                        pending: true,
-                        client_id: clientId,
-                    }
-                ]);
-            }
+            // setRoomMessages 호출 제거 - WebSocket을 통해 받은 메시지가 chat_box.jsx에서 처리됨
         }
         setInput('');
         setLoading(false);

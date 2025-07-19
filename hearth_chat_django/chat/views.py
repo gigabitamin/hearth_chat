@@ -128,19 +128,33 @@ def upload_chat_image(request):
         return JsonResponse({'status': 'error', 'message': f'허용되지 않는 MIME 타입입니다: {file.content_type}'}, status=400)
 
     # 파일 저장
+    from django.core.files.storage import default_storage
+    from django.core.files.base import ContentFile
+    from django.conf import settings
+    
+    # 파일을 저장하고 URL 생성
+    file_path = default_storage.save(f'image/chat_attach/{file.name}', ContentFile(file.read()))
+    
+    # 절대 URL 생성
+    if hasattr(settings, 'MEDIA_URL') and settings.MEDIA_URL.startswith('http'):
+        file_url = f"{settings.MEDIA_URL}{file_path}"
+    else:
+        # 로컬 개발 환경에서는 상대 경로를 절대 경로로 변환
+        file_url = f"/media/{file_path}"
+    
     chat_obj = Chat.objects.create(
-        message_type='user',
+        message_type='image',
         sender_type='user',
         username=request.user.username,
         user_id=request.user.id,
         content=content if content else '[이미지 첨부]',  # 메시지 내용이 있으면 저장, 없으면 [이미지 첨부]
         session_id=session_id,
-        attach_image=file
+        attach_image=file_url  # URL 문자열 저장
     )
     print('chat_obj', chat_obj)
     return JsonResponse({
         'status': 'success',
-        'file_url': chat_obj.attach_image.url if chat_obj.attach_image else None,
+        'file_url': file_url,
         'chat_id': chat_obj.id        
     })
 
@@ -538,7 +552,7 @@ class ChatViewSet(viewsets.ModelViewSet):
                     'user_id': msg.user_id,
                     'ai_name': msg.ai_name,
                     'emotion': getattr(msg, 'emotion', None),
-                    'imageUrl': msg.attach_image.url if msg.attach_image else None,
+                    'imageUrl': msg.attach_image if msg.attach_image else None,  # .url 제거
                     'reactions': reactions_list,
                     'questioner_username': (msg.question_message.username if msg.sender_type == 'ai' and msg.question_message else None)
                 }

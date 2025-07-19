@@ -234,6 +234,9 @@ function AppContent(props) {
     fetchPreviewMessages,
     ws,
     setRoomMessages,
+    // 이미지 뷰어 모달 상태 추가
+    viewerImage,
+    setViewerImage,
   } = props;  
 
   const [ttsRate, setTtsRate] = useState(1.5);
@@ -434,6 +437,15 @@ function AppContent(props) {
       notification.close();
     };
   }, [notifications, unreadNotifications, unreadNotificationList]);
+
+  // ESC 키로 이미지 뷰어 닫기
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') setViewerImage(null);
+    };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, []);
 
   return (
     <>
@@ -642,9 +654,16 @@ function AppContent(props) {
         room={room}
         loginUser={loginUser}
         ws={ws}
-        setRoomMessages={setRoomMessages}
         onOpenCreateRoomModal={onOpenCreateRoomModal}
+        onImageClick={setViewerImage}
       />
+      {/* 이미지 뷰어 모달 */}
+      {viewerImage && (
+        <div className="image-viewer-modal" onClick={() => setViewerImage(null)}>
+          <img src={viewerImage} alt="확대 이미지" className="image-viewer-img" onClick={e => e.stopPropagation()} />
+          <button className="image-viewer-close" onClick={() => setViewerImage(null)}>✖</button>
+        </div>
+      )}
       {/* --- [최종 수정] --- */}
       {/* CreateRoomModal에 open prop을 전달합니다. */}
       {isCreateNewChatOpen && (
@@ -678,6 +697,8 @@ function App() {
   const [wsConnected, setWsConnected] = useState(false); // WebSocket 연결 상태 전역 관리
   const [notifications, setNotifications] = useState([]);
   const [settingsTab, setSettingsTab] = useState('user');
+  // 이미지 뷰어 모달 상태 추가
+  const [viewerImage, setViewerImage] = useState(null);
 
   // 1. previewMessages 상태 추가
   const [previewMessages, setPreviewMessages] = useState([]);
@@ -938,6 +959,9 @@ function App() {
     fetchPreviewMessages={fetchPreviewMessages}
     ws={ws.current}
     setRoomMessages={setRoomMessages}
+    // 이미지 뷰어 모달 상태 추가
+    viewerImage={viewerImage}
+    setViewerImage={setViewerImage}
   />;
 }
 

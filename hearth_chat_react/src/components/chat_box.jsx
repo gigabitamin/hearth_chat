@@ -59,6 +59,24 @@ const getApiBase = () => {
   return `http://${hostname}:8000`;
 };
 
+// 이미지 URL을 절대 경로로 변환하는 함수
+const getImageUrl = (imageUrl) => {
+  if (!imageUrl) return null;
+
+  // 이미 절대 URL인 경우 그대로 반환
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    return imageUrl;
+  }
+
+  // 상대 경로인 경우 Django 서버 주소를 앞에 붙임
+  if (imageUrl.startsWith('/media/')) {
+    return `${getApiBase()}${imageUrl}`;
+  }
+
+  // 기타 경우는 그대로 반환
+  return imageUrl;
+};
+
 // CSRF 토큰 쿠키 가져오기
 function getCookie(name) {
   const value = `; ${document.cookie}`;
@@ -382,14 +400,13 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       // console.log('[WebSocket] onmessage 수신:', e.data);
       try {
         const data = JSON.parse(e.data);
-        if (data.roomId !== selectedRoomRef.current?.id) {
-          // console.log('[WebSocket] 다른 방 메시지 무시:', data.roomId);
-          return;
-        }
-        const username = loginUserRef.current?.username;
-        const userId = loginUserRef.current?.id;
+        console.log('[DEBUG] WebSocket 메시지 수신:', data);
+        console.log('[DEBUG] data.type:', data.type);
+
         if (data.type === 'user_message' && data.message) {
-          const isMyMessage = (data.sender === username) || (data.user_id === userId);
+          const isMyMessage = (data.sender === loginUserRef.current?.username) || (data.user_id === loginUserRef.current?.id);
+          console.log('[DEBUG] WebSocket user_message 수신:', data);
+          console.log('[DEBUG] imageUrl 값:', data.imageUrl);
           const newMessage = {
             id: Date.now(),
             type: isMyMessage ? 'send' : 'recv',
@@ -399,8 +416,9 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
             sender_type: 'user',
             user_id: data.user_id,
             emotion: data.emotion,
-            imageUrl: null
+            imageUrl: data.imageUrl || null  // data.imageUrl 사용
           };
+          console.log('[DEBUG] 생성된 메시지 객체:', newMessage);
           setMessages((prev) => {
             let next;
             if (isMyMessage) {
@@ -931,45 +949,55 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     ws.current.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
+        console.log('[DEBUG] WebSocket 메시지 수신 (재연결):', data);
+        console.log('[DEBUG] data.type (재연결):', data.type);
+
         const username = loginUserRef.current?.username;
         const userId = loginUserRef.current?.id;
         if (data.type === 'user_message' && data.message) {
           const isMyMessage = (data.sender === username) || (data.user_id === userId);
-          // 서버 echo 메시지에 client_id가 있으면, 해당 pending 메시지 제거
+          console.log('[DEBUG] user_message 처리 (재연결):', data);
+          console.log('[DEBUG] imageUrl 값 (재연결):', data.imageUrl);
+          const newMessage = {
+            id: Date.now(),
+            type: isMyMessage ? 'send' : 'recv',
+            text: data.message,
+            date: data.timestamp,
+            sender: data.sender,
+            sender_type: 'user',
+            user_id: data.user_id,
+            emotion: data.emotion,
+            imageUrl: data.imageUrl || null  // data.imageUrl 사용
+          };
+          console.log('[DEBUG] 생성된 메시지 객체:', newMessage);
           setMessages((prev) => {
-            let arr = prev;
-            // 1. client_id로 매칭 제거(가장 정확)
-            if (data.client_id) {
-              arr = arr.filter(
-                (msg) => !(msg.pending && msg.client_id === data.client_id)
-              );
+            let next;
+            if (isMyMessage) {
+              // echo 메시지라면 pending 메시지 제거
+              next = [
+                ...prev.filter(msg => !(msg.pending && msg.text === data.message)),
+                newMessage
+              ];
+              console.log('[setMessages][onmessage][echo] pending 제거 후:', next);
             } else {
-              // 2. fallback: text+timestamp+sender로 매칭
-              arr = arr.filter(
-                (msg) =>
-                  !(
-                    msg.pending &&
-                    msg.text === data.message &&
-                    msg.sender === data.sender &&
-                    Math.abs(new Date(msg.date).getTime() - new Date(data.timestamp).getTime()) < 2000
-                  )
-              );
+              next = [...prev, newMessage];
+              console.log('[setMessages][onmessage][상대] 추가 후:', next);
             }
-            // 서버 메시지 추가
-            const newMsg = {
-              id: data.id || `${data.sender}_${data.timestamp}`,
-              type: isMyMessage ? 'send' : 'recv',
-              text: data.message,
-              date: data.timestamp,
-              sender: data.sender,
-              user_id: data.user_id,
-              pending: false,
-            };
-            const result = [...arr, newMsg];
-            console.log('[setMessages][user_message 수신] 전체:', result);
-            return result;
+            return next;
           });
         } else if (data.type === 'ai_message' && data.message) {
+          const newMessage = {
+            id: Date.now(),
+            type: 'recv',
+            text: data.message,
+            date: data.timestamp,
+            sender: 'AI',
+            sender_type: 'ai',
+            questioner_username: data.questioner_username,
+            ai_name: data.ai_name, // AI 이름 포함
+            emotion: null,
+            imageUrl: null
+          };
           setMessages((prev) => {
             // 중복 메시지 방지: 동일 timestamp/text/questioner_username/ai_name이 이미 있으면 추가하지 않음
             if (prev.some(m => m.type === 'ai' && m.date === data.timestamp && m.text === data.message && m.questioner_username === data.questioner_username && m.ai_name === data.ai_name)) {
@@ -989,9 +1017,26 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
             console.log('[setMessages][ai_message 수신] 전체:', arr);
             return arr;
           });
+          setCurrentAiMessage(data.message);
+          setIsAiTalking(true);
+          if (isTTSEnabled) {
+            speakAIMessage(data.message);
+          } else {
+            setDisplayedAiText(data.message);
+          }
+          const aiEmotionResponse = getAIEmotionResponse(userEmotion, data.message);
+          setAiEmotion(aiEmotionResponse.primary);
+          setEmotionDisplay(prev => ({ ...prev, ai: aiEmotionResponse.primary }));
+          setEmotionCaptureStatus(prev => ({ ...prev, ai: true }));
+          setTimeout(() => {
+            setAiEmotion('neutral');
+            setEmotionDisplay(prev => ({ ...prev, ai: 'neutral' }));
+            setEmotionCaptureStatus(prev => ({ ...prev, ai: false }));
+          }, aiEmotionResponse.duration);
         }
-      } catch (err) {
-        console.error('[WebSocket onmessage] 파싱 오류:', err, e.data);
+        // 기타 message 타입에서는 setMessages를 호출하지 않음
+      } catch (error) {
+        console.error('WebSocket 메시지 처리 중 오류:', error);
       }
     };
   }, [isTTSEnabled]);
@@ -2393,13 +2438,13 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         ? 'http://localhost:8000'
         : `${window.location.protocol}//${window.location.hostname}`;
 
-      console.log('메시지 조회 API 호출:', `${apiUrl}/api/chat/messages/messages/?room=${roomId}&limit=${limit}&offset=${offset}`);
+      // console.log('메시지 조회 API 호출:', `${apiUrl}/api/chat/messages/messages/?room=${roomId}&limit=${limit}&offset=${offset}`);
 
       const res = await fetch(`${apiUrl}/api/chat/messages/messages/?room=${roomId}&limit=${limit}&offset=${offset}`, {
         credentials: 'include',
       });
 
-      console.log('메시지 조회 응답 상태:', res.status);
+      // console.log('메시지 조회 응답 상태:', res.status);
 
       if (res.ok) {
         const data = await res.json();
@@ -2411,8 +2456,14 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           console.warn('userId가 undefined입니다! 로그인 상태/응답을 확인하세요.');
         }
         const mappedMessages = (data.results || []).map(msg => {
+          console.log('[DEBUG] 원본 msg 객체:', msg);
+          console.log('[DEBUG] msg.attach_image:', msg.attach_image);
+          console.log('[DEBUG] msg.imageUrl:', msg.imageUrl);
+
           // 방향 판별 통일
           let isMine = false;
+          let messageType = 'recv';
+
           if (msg.sender_type === 'user') {
             if (userId !== undefined && userId !== null) {
               isMine = Number(msg.user_id) === Number(userId);
@@ -2421,7 +2472,11 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
               isMine = msg.username === username;
               console.log('userId 없음, username 비교:', msg.username, username, 'isMine:', isMine);
             }
+            messageType = isMine ? 'send' : 'recv';
+          } else if (msg.sender_type === 'ai') {
+            messageType = 'ai';
           }
+
           let sender = '';
           if (msg.sender_type === 'user') {
             sender = msg.username || '사용자';
@@ -2432,12 +2487,21 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           } else {
             sender = msg.sender || '알 수 없음';
           }
+
+          // imageUrl 처리: attach_image 또는 imageUrl 중에서 찾기
+          // const imageUrl = getImageUrl(msg.attach_image);
+          const imageUrl = getImageUrl(msg.imageUrl);
+          // console.log('[DEBUG] 최종 imageUrl:', imageUrl);
+
           return {
             ...msg,
             sender: sender,
-            type: isMine ? 'send' : 'recv',
+            type: messageType,
+            imageUrl: imageUrl
           };
         });
+
+        console.log('[DEBUG] 최종 매핑된 메시지들:', mappedMessages);
         if (append) {
           setMessages(prev => [...mappedMessages.reverse(), ...prev]);
         } else {
@@ -2470,6 +2534,28 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           type: 'join_room',
           roomId: selectedRoom.id
         }));
+
+        // localStorage에 저장된 이미지 URL이 있는지 확인
+        const pendingImageUrl = localStorage.getItem('pending_image_url');
+        const pendingMessage = localStorage.getItem('pending_auto_message');
+
+        if (pendingImageUrl && pendingMessage) {
+          console.log('[DEBUG] localStorage에서 이미지 메시지 발견:', { pendingImageUrl, pendingMessage });
+
+          // WebSocket으로 이미지 메시지 전송
+          const messageData = {
+            message: pendingMessage,
+            imageUrl: pendingImageUrl,
+            roomId: selectedRoom.id
+          };
+
+          console.log('[DEBUG] localStorage 이미지 메시지 전송:', messageData);
+          ws.current.send(JSON.stringify(messageData));
+
+          // localStorage 정리
+          localStorage.removeItem('pending_image_url');
+          localStorage.removeItem('pending_auto_message');
+        }
       }
     }
   }, [selectedRoom]);

@@ -151,9 +151,9 @@ class Chat(models.Model):
     # 감정 정보 (사용자 메시지에만 적용)
     emotion = models.CharField(max_length=20, blank=True, null=True, verbose_name='감정 상태')
     # 이미지 파일 경로 (선택적)
-    attach_image = models.ImageField(
-        upload_to='image/chat_attach/',  # 원하는 하위 폴더 경로
-        blank=True, null=True, verbose_name='첨부 이미지'
+    attach_image = models.CharField(
+        max_length=500,  # URL 길이를 고려한 충분한 길이
+        blank=True, null=True, verbose_name='첨부 이미지 URL'
     )
     # 메타 정보
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='생성 시간')
@@ -180,7 +180,7 @@ class Chat(models.Model):
         return f"{sender} - {self.get_message_type_display()} - {self.content[:50]}..."
     
     @classmethod
-    def save_user_message(cls, content, session_id=None, emotion=None, user=None):
+    def save_user_message(cls, content, session_id=None, emotion=None, user=None, image_url=None):
         """사용자 메시지 저장 (감정 정보 포함)"""
         room_id = session_id
         if room_id and str(room_id).isdigit():
@@ -196,6 +196,10 @@ class Chat(models.Model):
                 room = ChatRoom.create_ai_chat_room(User.objects.first(), 'GEMINI')
         username = user.username if user and hasattr(user, 'username') else None
         user_id = user.id if user and hasattr(user, 'id') else None
+        
+        # 이미지 URL이 있으면 message_type을 'image'로 설정
+        message_type = 'image' if image_url else 'text'
+        
         return cls.objects.create(
             room=room,
             sender_type='user',
@@ -203,10 +207,11 @@ class Chat(models.Model):
             user_id=user_id,
             ai_name=None,
             ai_type=None,
-            message_type='text',
+            message_type=message_type,
             content=content,
             session_id=session_id,
-            emotion=emotion
+            emotion=emotion,
+            attach_image=image_url  # 이미지 URL 저장
         )
     
     @classmethod

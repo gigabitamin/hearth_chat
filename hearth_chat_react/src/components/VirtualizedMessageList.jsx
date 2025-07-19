@@ -1,8 +1,38 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { VariableSizeList as List } from 'react-window';
-import InfiniteLoader from 'react-window-infinite-loader';
 import AutoSizer from 'react-virtualized-auto-sizer';
+import InfiniteLoader from 'react-window-infinite-loader';
 import './VirtualizedMessageList.css';
+
+// 환경에 따라 API_BASE 자동 설정 함수
+const getApiBase = () => {
+    const hostname = window.location.hostname;
+    const isProd = process.env.NODE_ENV === 'production';
+
+    if (isProd) return 'https://hearthchat-production.up.railway.app';
+    if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:8000';
+    if (hostname === '192.168.44.9') return 'http://192.168.44.9:8000';
+
+    return `http://${hostname}:8000`;
+};
+
+// 이미지 URL을 절대 경로로 변환하는 함수
+const getImageUrl = (imageUrl) => {
+    if (!imageUrl) return null;
+
+    // 이미 절대 URL인 경우 그대로 반환
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+        return imageUrl;
+    }
+
+    // 상대 경로인 경우 Django 서버 주소를 앞에 붙임
+    if (imageUrl.startsWith('/media/')) {
+        return `${getApiBase()}${imageUrl}`;
+    }
+
+    // 기타 경우는 그대로 반환
+    return imageUrl;
+};
 
 const EMOJI_LIST = ['👍', '😂', '❤️', '😮', '😢', '👏', '🔥', '😡', '🙏', '🎉'];
 
@@ -274,14 +304,15 @@ const VirtualizedMessageList = ({
                                 </>
                             )}
                         </div>
+                        {console.log('[msg.imageUrl]', msg.imageUrl)}
                         {msg.imageUrl && (
                             <img
-                                src={msg.imageUrl}
+                                src={getImageUrl(msg.imageUrl)}
                                 alt="첨부 이미지"
                                 className="message-image"
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    if (onImageClick) onImageClick(msg.imageUrl);
+                                    if (onImageClick) onImageClick(getImageUrl(msg.imageUrl));
                                 }}
                             />
                         )}
