@@ -38,7 +38,7 @@ export default function HeaderBar({
                     <button onClick={() => onTabChange('open')} className={`header-tab-btn${!isInRoom && activeTab === 'open' ? ' active' : ''}`}>오픈</button>
                     <button onClick={() => onTabChange('favorite')} className={`header-tab-btn${!isInRoom && activeTab === 'favorite' ? ' active' : ''}`}>★</button>                    
                 </div>
-                <CreateRoomButton onClick={onCreateRoomClick} />
+                {/* <CreateRoomButton onClick={onCreateRoomClick} /> */}
             </div>            
             <div className="header-center">                
                 <div>{title && <span className="header-title-text">{title}</span>}</div>

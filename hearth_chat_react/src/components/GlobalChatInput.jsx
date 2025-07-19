@@ -241,11 +241,11 @@ const GlobalChatInput = ({ room, loginUser, ws, setRoomMessages, onOpenCreateRoo
     // 모바일 long-press 핸들러
     const handleTouchStart = () => {
         // --- [수정 2] 타이머 시작 전, 플래그 초기화 ---
-        longPressTriggered.current = false; 
-        const timer = setTimeout(() => {            
+        longPressTriggered.current = false;
+        const timer = setTimeout(() => {
             if (onOpenCreateRoomModal) onOpenCreateRoomModal();
             // --- [수정 3] long-press가 성공했음을 기록 ---
-            longPressTriggered.current = true;             
+            longPressTriggered.current = true;
         }, 600);
         setLongPressTimer(timer);
     };
@@ -262,10 +262,10 @@ const GlobalChatInput = ({ room, loginUser, ws, setRoomMessages, onOpenCreateRoo
         if (e.button !== 0) return;
         // --- [수정 2] 타이머 시작 전, 플래그 초기화 ---
         longPressTriggered.current = false;
-        const timer = setTimeout(() => {            
+        const timer = setTimeout(() => {
             if (onOpenCreateRoomModal) onOpenCreateRoomModal();
             // --- [수정 3] long-press가 성공했음을 기록 ---
-            longPressTriggered.current = true;            
+            longPressTriggered.current = true;
         }, 600);
         setLongPressTimer(timer);
     };
@@ -320,7 +320,7 @@ const GlobalChatInput = ({ room, loginUser, ws, setRoomMessages, onOpenCreateRoo
         }
         // isLongPress가 true이면 아무것도 하지 않고 종료 (long-press가 이미 실행됨)
     };
-    
+
     // 버튼 누른 상태로 벗어나거나 취소될 때 호출될 함수
     const handleCancel = () => {
         if (pressTimer.current) {

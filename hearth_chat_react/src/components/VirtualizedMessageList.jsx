@@ -173,7 +173,7 @@ const VirtualizedMessageList = ({
 
     // 메시지 렌더링 함수
     const renderMessage = useCallback(({ index, style }) => {
-        const msg = messages[index];        
+        const msg = messages[index];
         if (!msg) {
             return (
                 <div style={style} className="message-loading">
