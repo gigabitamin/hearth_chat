@@ -246,6 +246,14 @@ function AppContent(props) {
   const [isContinuousRecognition, setIsContinuousRecognition] = useState(false);
   const voiceRecognitionRef = React.useRef(null);
   const [permissionStatus, setPermissionStatus] = useState('prompt');
+  const [isCreateNewChatOpen, setIsCreateNewChatOpen] = useState(false);
+
+  // 새 대화방 만들기 모달 열기
+  const onOpenCreateRoomModal = () => {
+    console.log('onOpenCreateRoomModal 호출됨!');
+    setIsCreateNewChatOpen(true);
+  };
+
 
   const handleVoiceRecognitionToggle = () => {
     setIsVoiceRecognitionEnabled(v => !v);
@@ -507,8 +515,8 @@ function AppContent(props) {
       />
       {/* 새 방 만들기 모달을 AppContent에서 항상 렌더링 */}
       {showCreateModal && (
-        <CreateRoomModal
-          open={showCreateModal}
+        <CreateRoomModal          
+          open={isCreateNewChatOpen}
           onClose={() => setShowCreateModal(false)}
           onSuccess={handleCreateRoomSuccess}
         />
@@ -635,7 +643,17 @@ function AppContent(props) {
         loginUser={loginUser}
         ws={ws}
         setRoomMessages={setRoomMessages}
+        onOpenCreateRoomModal={onOpenCreateRoomModal}
       />
+      {/* --- [최종 수정] --- */}
+      {/* CreateRoomModal에 open prop을 전달합니다. */}
+      {isCreateNewChatOpen && (
+        <CreateRoomModal 
+          open={isCreateNewChatOpen}  // <--- 이 줄을 추가해주세요!
+          onClose={() => setIsCreateNewChatOpen(false)} 
+          onSuccess={handleCreateRoomSuccess} // onSuccess도 추가하면 좋습니다.
+        />
+      )}
     </>
   );
 }

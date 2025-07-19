@@ -33,6 +33,7 @@ const csrfFetch = async (url, options = {}) => {
 };
 
 const GlobalChatInput = ({ room, loginUser, ws, setRoomMessages, onOpenCreateRoomModal }) => {
+    console.log('onOpenCreateRoomModal 프롭:', onOpenCreateRoomModal);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const inputRef = useRef();
@@ -241,10 +242,10 @@ const GlobalChatInput = ({ room, loginUser, ws, setRoomMessages, onOpenCreateRoo
     const handleTouchStart = () => {
         // --- [수정 2] 타이머 시작 전, 플래그 초기화 ---
         longPressTriggered.current = false; 
-        const timer = setTimeout(() => {
+        const timer = setTimeout(() => {            
             if (onOpenCreateRoomModal) onOpenCreateRoomModal();
             // --- [수정 3] long-press가 성공했음을 기록 ---
-            longPressTriggered.current = true; 
+            longPressTriggered.current = true;             
         }, 600);
         setLongPressTimer(timer);
     };
@@ -261,10 +262,10 @@ const GlobalChatInput = ({ room, loginUser, ws, setRoomMessages, onOpenCreateRoo
         if (e.button !== 0) return;
         // --- [수정 2] 타이머 시작 전, 플래그 초기화 ---
         longPressTriggered.current = false;
-        const timer = setTimeout(() => {
+        const timer = setTimeout(() => {            
             if (onOpenCreateRoomModal) onOpenCreateRoomModal();
             // --- [수정 3] long-press가 성공했음을 기록 ---
-            longPressTriggered.current = true;
+            longPressTriggered.current = true;            
         }, 600);
         setLongPressTimer(timer);
     };
@@ -299,8 +300,10 @@ const GlobalChatInput = ({ room, loginUser, ws, setRoomMessages, onOpenCreateRoo
         isLongPress.current = false; // long-press 상태 초기화
 
         pressTimer.current = setTimeout(() => {
+            console.log('Long Press 타이머 실행! 모달을 엽니다.');
             isLongPress.current = true; // 600ms가 지나면 long-press로 처리
             if (onOpenCreateRoomModal) onOpenCreateRoomModal(); // 모달 열기
+            // alert('길게 누르기 성공!');
         }, 600);
     };
 
@@ -340,7 +343,8 @@ const GlobalChatInput = ({ room, loginUser, ws, setRoomMessages, onOpenCreateRoo
                     onTouchStart={handlePressStart}
                     onTouchEnd={handlePressEnd}
                     onTouchCancel={handleCancel}
-                    disabled={loading || !input.trim()}
+                    // disabled={loading || !input.trim()}
+                    disabled={loading}
                     style={{ background: '#ff6a00', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', fontSize: 18, cursor: 'pointer', minWidth: 48 }}
                     title="짧게 클릭: 새 AI 채팅방 자동 생성 / 길게 누르기: 옵션"
                 >

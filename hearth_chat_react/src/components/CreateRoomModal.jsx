@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import './CreateRoomModal.css';
 
 const AI_PROVIDERS = [
     { value: 'GEMINI', label: 'Gemini' },
@@ -31,14 +32,14 @@ function getCookie(name) {
 }
 
 const CreateRoomModal = ({ open, onClose, onSuccess, defaultMaxMembers = 4 }) => {
-    const [createType, setCreateType] = useState('ai');
+    const [createType, setCreateType] = useState('user'); // 기본값을 'user'로 변경
     const [createName, setCreateName] = useState('');
     const [createAI, setCreateAI] = useState('GEMINI');
     const [createIsPublic, setCreateIsPublic] = useState(false);
     const [createMaxMembers, setCreateMaxMembers] = useState(defaultMaxMembers);
     const [creating, setCreating] = useState(false);
     const [createError, setCreateError] = useState(null);
-    const [aiResponseEnabled, setAiResponseEnabled] = useState(true);
+    const [aiResponseEnabled, setAiResponseEnabled] = useState(false); // user 타입이므로 기본값 false
 
     useEffect(() => {
         setCreateMaxMembers(defaultMaxMembers);
@@ -52,14 +53,26 @@ const CreateRoomModal = ({ open, onClose, onSuccess, defaultMaxMembers = 4 }) =>
 
     if (!open) return null;
 
+    // 방제가 비어있을 때 자동 생성하는 함수
+    const generateDefaultRoomName = () => {
+        const now = new Date();
+        const dateStr = now.toISOString().slice(0, 19).replace('T', ' ').replace(/:/g, '-');
+        const randomId = Math.random().toString(36).substr(2, 9);
+        return `${randomId} - ${dateStr}`;
+    };
+
     const handleCreateRoom = async (e) => {
         e.preventDefault();
         setCreating(true);
         setCreateError(null);
         console.log('========test========')
         try {
+            // 방제가 비어있으면 자동 생성
+            const roomName = createName.trim() || generateDefaultRoomName();
+
             const body = {
-                name: createName || (createType === 'ai' ? `${createAI}와의 대화` : ''),
+                // name: createName || (createType === 'ai' ? `${createAI}와의 대화` : ''),
+                name: roomName,
                 room_type: createType,
                 ai_provider: createType === 'ai' ? createAI : '',
                 is_public: createIsPublic,
@@ -83,17 +96,17 @@ const CreateRoomModal = ({ open, onClose, onSuccess, defaultMaxMembers = 4 }) =>
             const newRoom = await response.json();
             // 방 생성 후, ai_response_enabled가 true면 사용자 설정도 자동 ON                        
             if (aiResponseEnabled) {
-                try {                               
-                    await fetch(`${getApiBase()}/api/chat/user/settings/`, {                    
+                try {
+                    await fetch(`${getApiBase()}/api/chat/user/settings/`, {
                         method: 'PATCH',
                         credentials: 'include',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-CSRFToken': csrftoken,                            
+                            'X-CSRFToken': csrftoken,
                         },
-                        body: JSON.stringify({ ai_response_enabled: true }),                        
+                        body: JSON.stringify({ ai_response_enabled: true }),
                     });
-                } catch (e) { /* 무시 */ }             
+                } catch (e) { /* 무시 */ }
             }
             setCreateName('');
             setCreateType('ai');
@@ -116,7 +129,7 @@ const CreateRoomModal = ({ open, onClose, onSuccess, defaultMaxMembers = 4 }) =>
                         <label>대화방 타입</label>
                         <select value={createType} onChange={e => setCreateType(e.target.value)}>
                             <option value="ai">AI 채팅</option>
-                            <option value="user">1:1 채팅</option>
+                            <option value="user">1:N 채팅</option>
                             <option value="group">그룹 채팅</option>
                         </select>
                     </div>
