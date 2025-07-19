@@ -43,6 +43,7 @@ export default function SearchModal({
     const [selectedIndexes, setSelectedIndexes] = useState([]);
     const [copiedIndex, setCopiedIndex] = useState(-1);
     const [favoriteMessagesLoading, setFavoriteMessagesLoading] = useState(false);
+    const [selectedUser, setSelectedUser] = useState(null);
 
     // 1. 즐겨찾기 상태 관리 (서버 연동)
     const [favoriteRooms, setFavoriteRooms] = useState([]);
@@ -299,33 +300,32 @@ export default function SearchModal({
     // 검색 결과 클릭 핸들러
     const onResultClick = async (r) => {
         if (r.type === 'room') {
+            setSelectedUser(null);
             navigate(`/room/${r.id}`);
             if (onClose) onClose();
         } else if (r.type === 'message') {
+            setSelectedUser(null);
             navigate(`/room/${r.room_id}?messageId=${r.id}`);
             if (onClose) onClose();
         } else if (r.type === 'user') {
-            // 1:1 채팅방 생성/이동
+            setSelectedUser(r);
+            // 1:1 채팅방 생성/이동 로직은 그대로 유지
             try {
                 const getCookie = (name) => {
                     const value = `; ${document.cookie}`;
                     const parts = value.split(`; ${name}=`);
                     if (parts.length === 2) return parts.pop().split(';').shift();
                 };
-
                 const csrfToken = getCookie('csrftoken');
-
                 const res = await fetch(`${getApiBase()}/api/chat/rooms/user_chat_alt/`, {
                     method: 'POST',
-                    credentials: 'include', // 세션 쿠키 전송
+                    credentials: 'include',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRFToken': csrfToken,
                     },
                     body: JSON.stringify({ user_id: r.id }),
                 });
-
-
                 if (res.ok) {
                     const data = await res.json();
                     navigate(`/room/${data.id}`);
@@ -399,7 +399,7 @@ export default function SearchModal({
                     <div style={{ color: '#888' }}>미리보기 메시지가 없습니다.</div>
                 ) : (
                     <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                        {previewMessages.map(m => (
+                        {previewMessages.slice(-5).map(m => (
                             <li key={m.id} className={m.id === tempHighlightId ? 'temp-highlight' : ''} style={{ padding: '6px 0', borderBottom: '1px solid #222', fontWeight: m.isCenter ? 700 : 400, background: m.isCenter ? 'transparent' : 'transparent', display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <div style={{ flex: 1 }}>
                                     <div style={{ fontSize: 13, color: '#1976d2', fontWeight: 600 }}>{m.room_id ? `방 #${m.room_id}` : ''}</div>
@@ -409,7 +409,7 @@ export default function SearchModal({
                                 {/* 복사 버튼 */}
                                 <button
                                     className="search-copy-btn"
-                                    style={{ fontSize: 13, color: '#2196f3', background: 'none', border: 'none', cursor: 'pointer' }}
+                                    style={{ fontSize: 13, color: '#2196f3', background: 'none', border: 'none', cursor: 'pointer', alignSelf: 'flex-end', marginLeft: 'auto' }}
                                     title="복사"
                                     onClick={e => { e.stopPropagation(); copy(m.content); }}
                                 >📋</button>
@@ -434,6 +434,20 @@ export default function SearchModal({
                             </li>
                         ))}
                     </ul>
+                )}
+                {/* 유저 정보 미리보기: 유저 검색 결과 클릭 시 */}
+                {selectedUser && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 12, padding: 16, background: '#222', borderRadius: 12 }}>
+                        {/* 프로필 사진 자리(회색 원형) */}
+                        <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#444', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, color: '#bbb' }}>
+                            {/* 추후 프로필 이미지 들어갈 자리 */}
+                            <span>👤</span>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 700, fontSize: 18, color: '#fff' }}>{selectedUser.username}</div>
+                            <div style={{ fontSize: 14, color: '#bbb', marginTop: 4 }}>가입일: {selectedUser.date_joined ? new Date(selectedUser.date_joined).toLocaleDateString('ko-KR') : '알 수 없음'}</div>
+                        </div>
+                    </div>
                 )}
             </div>
         )

@@ -198,7 +198,7 @@ const VirtualizedMessageList = ({
             <div
                 style={style}
                 className={`message-item ${isMyMessage ? 'my-message' : 'other-message'} ${tempHighlightedId === msg.id ? 'temp-highlight' : ''}`}
-                onClick={() => onMessageClick && onMessageClick(msg)}
+                // onClick={() => onMessageClick && onMessageClick(msg)}
                 onMouseLeave={() => setEmojiPickerMsgId(null)}
             >
                 <div className="message-content">
