@@ -23,7 +23,6 @@ const VirtualizedMessageList = ({
 }) => {
     const [listRef, setListRef] = useState(null);
     const [loading, setLoading] = useState(false);
-    const [highlightedIndex, setHighlightedIndex] = useState(-1);
     const [emojiPickerMsgId, setEmojiPickerMsgId] = useState(null); // 이모지 선택창 표시용
     const [localReactions, setLocalReactions] = useState({}); // {messageId: [reactions]}
     // 핀 상태 관리 (프론트 임시)
@@ -40,22 +39,6 @@ const VirtualizedMessageList = ({
 
     // 핀된 메시지 추출 (최신순, 최대 3개)
     const pinnedMessages = messages.filter(m => pinnedIds.includes(m.id)).slice(-3).reverse();
-
-    // 하이라이트된 메시지 인덱스 찾기
-    useEffect(() => {
-        if (highlightMessageId && messages.length > 0) {
-            const index = messages.findIndex(msg => msg.id === highlightMessageId);
-            if (index !== -1) {
-                setHighlightedIndex(index);
-                // 스크롤하여 하이라이트된 메시지로 이동
-                if (listRef) {
-                    listRef.scrollToItem(index, 'center');
-                }
-                // 3초 후 하이라이트 제거
-                setTimeout(() => setHighlightedIndex(-1), 3000);
-            }
-        }
-    }, [highlightMessageId, messages, listRef]);
 
     // 메시지 목록이 바뀌면 localReactions 동기화
     useEffect(() => {
@@ -177,6 +160,17 @@ const VirtualizedMessageList = ({
         }
     }, [messages, window.innerWidth, window.innerHeight]);
 
+
+    // 1. highlightMessageId prop이 바뀔 때마다 내부 tempHighlightedId 상태를 1초간 유지하는 useEffect 추가
+    const [tempHighlightedId, setTempHighlightedId] = useState(null);
+    useEffect(() => {
+        if (highlightMessageId) {
+            setTempHighlightedId(highlightMessageId);
+            const timeout = setTimeout(() => setTempHighlightedId(null), 1000);
+            return () => clearTimeout(timeout);
+        }
+    }, [highlightMessageId]);
+
     // 메시지 렌더링 함수
     const renderMessage = useCallback(({ index, style }) => {
         const msg = messages[index];
@@ -195,7 +189,6 @@ const VirtualizedMessageList = ({
             );
         }
 
-        const isHighlighted = highlightedIndex === index;
         const isMyMessage = msg.type === 'send' ||
             (loginUser && (msg.username === loginUser.username || msg.user_id === loginUser.id));
         const reactions = localReactions[msg.id] || [];
@@ -204,7 +197,7 @@ const VirtualizedMessageList = ({
         return (
             <div
                 style={style}
-                className={`message-item ${isHighlighted ? 'highlighted' : ''} ${isMyMessage ? 'my-message' : 'other-message'}`}
+                className={`message-item ${isMyMessage ? 'my-message' : 'other-message'} ${tempHighlightedId === msg.id ? 'temp-highlight' : ''}`}
                 onClick={() => onMessageClick && onMessageClick(msg)}
                 onMouseLeave={() => setEmojiPickerMsgId(null)}
             >
@@ -367,7 +360,7 @@ const VirtualizedMessageList = ({
                 </div>
             </div>
         );
-    }, [messages, highlightedIndex, loginUser, onMessageClick, getSenderColor, localReactions, emojiPickerMsgId, onReply, onReplyQuoteClick, pinnedIds, onImageClick, favoriteMessages, onToggleFavorite]);
+    }, [messages, loginUser, onMessageClick, getSenderColor, localReactions, emojiPickerMsgId, onReply, onReplyQuoteClick, pinnedIds, onImageClick, favoriteMessages, onToggleFavorite, tempHighlightedId]);
 
     // 아이템이 로드되었는지 확인
     const isItemLoaded = useCallback((index) => {

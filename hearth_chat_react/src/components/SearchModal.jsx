@@ -9,6 +9,20 @@ export default function SearchModal({
     open, onClose, rooms = [], messages = [], users = [],
     fetchPreviewMessages // ★ props로 받음
 }) {
+    // previewMessages 상태를 tempHighlightId보다 먼저 선언
+    const [previewMessages, setPreviewMessages] = useState([]);
+    const [previewLoading, setPreviewLoading] = useState(false);
+    const [tempHighlightId, setTempHighlightId] = useState(null);
+    useEffect(() => {
+        if (previewMessages && previewMessages.length > 0) {
+            const centerMsg = previewMessages.find(m => m.isCenter);
+            if (centerMsg) {
+                setTempHighlightId(centerMsg.id);
+                const timeout = setTimeout(() => setTempHighlightId(null), 1000);
+                return () => clearTimeout(timeout);
+            }
+        }
+    }, [previewMessages]);
     const [query, setQuery] = useState('');
     const [scope, setScope] = useState('all'); // all, room, message, user
     const [useAnd, setUseAnd] = useState(false);
@@ -325,13 +339,10 @@ export default function SearchModal({
         }
     };
 
-    // 1. previewMessages, previewLoading 상태 추가
-    const [previewMessages, setPreviewMessages] = useState([]);
-    const [previewLoading, setPreviewLoading] = useState(false);
-
     // 2. 메시지 미리보기 fetch 함수 (기존 fetchPreviewMessages와 유사, SearchModal 내부에서 구현)
     const fetchPreviewMessagesLocal = async (msg) => {
         if (!msg || !msg.room_id || !msg.id) return;
+        setPreviewMessages([]); // 기존 메시지 초기화
         setPreviewLoading(true);
         try {
             // 기준 메시지 timestamp 가져오기
@@ -362,6 +373,7 @@ export default function SearchModal({
 
     // 1. 방 클릭 시 최신 메시지 10개를 미리보기 정보창에 표시
     const handleRoomPreview = async (room) => {
+        setPreviewMessages([]); // 기존 메시지 초기화
         setPreviewLoading(true);
         try {
             const res = await fetch(`${getApiBase()}/api/chat/messages/?room=${room.id}&limit=10&ordering=-timestamp`);
@@ -371,7 +383,7 @@ export default function SearchModal({
             // 최신순 정렬이므로, 시간순으로 다시 정렬
             msgs = msgs.slice().reverse();
             setPreviewMessages(msgs);
-        } catch {}
+        } catch { }
         setPreviewLoading(false);
     };
 
@@ -388,7 +400,7 @@ export default function SearchModal({
                 ) : (
                     <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                         {previewMessages.map(m => (
-                            <li key={m.id} style={{ padding: '6px 0', borderBottom: '1px solid #222', fontWeight: m.isCenter ? 700 : 400, background: m.isCenter ? '#222c' : 'transparent', display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <li key={m.id} className={m.id === tempHighlightId ? 'temp-highlight' : ''} style={{ padding: '6px 0', borderBottom: '1px solid #222', fontWeight: m.isCenter ? 700 : 400, background: m.isCenter ? 'transparent' : 'transparent', display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <div style={{ flex: 1 }}>
                                     <div style={{ fontSize: 13, color: '#1976d2', fontWeight: 600 }}>{m.room_id ? `방 #${m.room_id}` : ''}</div>
                                     <div style={{ fontSize: 14, color: '#fff', margin: '2px 0' }}>{m.content}</div>
