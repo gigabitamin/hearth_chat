@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Routes, Route, useNavigate, useParams, useLocation } from 'react-router-dom';
 import ChatBox from './components/chat_box';
 import ChatRoomList from './components/ChatRoomList';
@@ -9,6 +9,7 @@ import CreateRoomModal from './components/CreateRoomModal'; // (가정: 모달 �
 import LoginModal from './components/LoginModal';
 import SettingsModal from './components/SettingsModal';
 import AdminDashboard from './components/AdminDashboard';
+import GlobalChatInput from './components/GlobalChatInput';
 import './App.css';
 
 
@@ -202,7 +203,6 @@ function AppContent(props) {
     room, // 기존 selectedRoom
     setRoom,
     roomMessages, // room도 받아옴
-    setRoomMessages,
     activeTab,
     setActiveTab,
     isNotifyModalOpen,
@@ -222,7 +222,6 @@ function AppContent(props) {
     wsConnected,
     setWsConnected,
     userInfo,
-    onDeleteAccount,
     notifications,
     setNotifications,
     allRooms,
@@ -233,10 +232,9 @@ function AppContent(props) {
     overlayTab,
     setOverlayTab,
     fetchPreviewMessages,
-  } = props;
-
-  console.log('[AppContent selectedRoom]', room);
-  console.log('[AppContent room]', room);
+    ws,
+    setRoomMessages,
+  } = props;  
 
   const [ttsRate, setTtsRate] = useState(1.5);
   const [ttsPitch, setTtsPitch] = useState(1.5);
@@ -540,12 +538,12 @@ function AppContent(props) {
                       const res = await csrfFetch(`${getApiBase()}/api/chat/messages/messages/?room=${room.id}&limit=10&offset=0`, { credentials: 'include' });
                       if (res.ok) {
                         const data = await res.json();
-                        setRoomMessages(data.results || []);
+                        // setRoomMessages(data.results || []); // AppContent에서 관리
                       } else {
-                        setRoomMessages([]);
+                        // setRoomMessages([]); // AppContent에서 관리
                       }
                     } catch {
-                      setRoomMessages([]);
+                      // setRoomMessages([]); // AppContent에서 관리
                     }
                   }}
                   loginUser={loginUser}
@@ -585,12 +583,12 @@ function AppContent(props) {
                       const res = await csrfFetch(`${getApiBase()}/api/chat/messages/messages/?room=${room.id}&limit=10&offset=0`, { credentials: 'include' });
                       if (res.ok) {
                         const data = await res.json();
-                        setRoomMessages(data.results || []);
+                        // setRoomMessages(data.results || []); // AppContent에서 관리
                       } else {
-                        setRoomMessages([]);
+                        // setRoomMessages([]); // AppContent에서 관리
                       }
                     } catch {
-                      setRoomMessages([]);
+                      // setRoomMessages([]); // AppContent에서 관리
                     }
                   }}
                   loginUser={loginUser}
@@ -631,6 +629,13 @@ function AppContent(props) {
         } />
         <Route path="/admin" element={<AdminPage loginUser={loginUser} loginLoading={loginLoading} checkLoginStatus={checkLoginStatus} />} />
       </Routes>
+      {/* 항상 하단에 입력창 렌더링 */}
+      <GlobalChatInput
+        room={room}
+        loginUser={loginUser}
+        ws={ws}
+        setRoomMessages={setRoomMessages}
+      />
     </>
   );
 }
@@ -824,16 +829,17 @@ function App() {
 
   // WebSocket 실시간 알림 push 연동
   React.useEffect(() => {
-    let ws;
+    let wsInstance;
     const connect = () => {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const host = window.location.hostname;
       const wsUrl = (host === 'localhost' || host === '127.0.0.1')
         ? `${protocol}//${host}:8000/ws/chat/`
         : `${protocol}//${host}/ws/chat/`;
-      ws = new window.WebSocket(wsUrl);
-      ws.onopen = () => { console.log('[App] WebSocket 연결됨'); };
-      ws.onmessage = (event) => {
+      wsInstance = new window.WebSocket(wsUrl);
+      ws.current = wsInstance;      
+      wsInstance.onopen = () => { console.log(''); };
+      wsInstance.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
           if (data.type === 'room_list_update') {
@@ -841,13 +847,13 @@ function App() {
           }
         } catch (e) { console.error('[App] WebSocket onmessage 파싱 오류', e); }
       };
-      ws.onclose = () => { setTimeout(connect, 3000); };
-      ws.onerror = () => { ws.close(); };
+      wsInstance.onclose = () => { setTimeout(connect, 3000); };
+      wsInstance.onerror = () => { wsInstance.close(); };
     };
     connect();
-    return () => { if (ws) ws.close(); };
+    return () => { if (wsInstance) wsInstance.close(); };
   }, []);
-
+  // console.log('APP [getApiBase()]', getApiBase())
   // 현재 페이지가 /room/:roomId로 시작하면 room 상태를 업데이트하는 useEffect 추가
   useEffect(() => {
     // /room/:roomId 패턴 매칭
@@ -873,6 +879,7 @@ function App() {
     }
   }, [location.pathname]);
 
+  const ws = useRef(null);
   return <AppContent
     loginUser={loginUser}
     loginLoading={loginLoading}
@@ -911,6 +918,8 @@ function App() {
     overlayTab={overlayTab}
     setOverlayTab={setOverlayTab}
     fetchPreviewMessages={fetchPreviewMessages}
+    ws={ws.current}
+    setRoomMessages={setRoomMessages}
   />;
 }
 

@@ -38,10 +38,17 @@ const CreateRoomModal = ({ open, onClose, onSuccess, defaultMaxMembers = 4 }) =>
     const [createMaxMembers, setCreateMaxMembers] = useState(defaultMaxMembers);
     const [creating, setCreating] = useState(false);
     const [createError, setCreateError] = useState(null);
+    const [aiResponseEnabled, setAiResponseEnabled] = useState(true);
 
     useEffect(() => {
         setCreateMaxMembers(defaultMaxMembers);
     }, [defaultMaxMembers, open]);
+
+    // 대화방 타입 변경 시 AI 응답 옵션 기본값 자동 설정
+    useEffect(() => {
+        if (createType === 'ai') setAiResponseEnabled(true);
+        else setAiResponseEnabled(false);
+    }, [createType]);
 
     if (!open) return null;
 
@@ -49,6 +56,7 @@ const CreateRoomModal = ({ open, onClose, onSuccess, defaultMaxMembers = 4 }) =>
         e.preventDefault();
         setCreating(true);
         setCreateError(null);
+        console.log('========test========')
         try {
             const body = {
                 name: createName || (createType === 'ai' ? `${createAI}와의 대화` : ''),
@@ -56,6 +64,7 @@ const CreateRoomModal = ({ open, onClose, onSuccess, defaultMaxMembers = 4 }) =>
                 ai_provider: createType === 'ai' ? createAI : '',
                 is_public: createIsPublic,
                 max_members: createMaxMembers,
+                ai_response_enabled: aiResponseEnabled,
             };
             const csrftoken = getCookie('csrftoken');
             const response = await fetch(`${getApiBase()}/api/chat/rooms/`, {
@@ -72,6 +81,20 @@ const CreateRoomModal = ({ open, onClose, onSuccess, defaultMaxMembers = 4 }) =>
                 throw new Error(errorData.error || '대화방 생성 실패');
             }
             const newRoom = await response.json();
+            // 방 생성 후, ai_response_enabled가 true면 사용자 설정도 자동 ON                        
+            if (aiResponseEnabled) {
+                try {                               
+                    await fetch(`${getApiBase()}/api/chat/user/settings/`, {                    
+                        method: 'PATCH',
+                        credentials: 'include',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrftoken,                            
+                        },
+                        body: JSON.stringify({ ai_response_enabled: true }),                        
+                    });
+                } catch (e) { /* 무시 */ }             
+            }
             setCreateName('');
             setCreateType('ai');
             setCreateAI('GEMINI');
@@ -151,6 +174,20 @@ const CreateRoomModal = ({ open, onClose, onSuccess, defaultMaxMembers = 4 }) =>
                             onChange={e => setCreateMaxMembers(Math.max(2, Math.min(20, Number(e.target.value))))}
                         />
                         <small>2~20명 사이로 설정 (기본 4명)</small>
+                    </div>
+                    <div className="form-group">
+                        <label>AI 응답</label>
+                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                            <input
+                                type="checkbox"
+                                checked={aiResponseEnabled}
+                                onChange={e => setAiResponseEnabled(e.target.checked)}
+                            />
+                            {aiResponseEnabled ? 'ON' : 'OFF'}
+                        </label>
+                        <small style={{ marginLeft: 8, color: '#888' }}>
+                            (AI 채팅: ON, 1:1/그룹: OFF 기본값, 직접 변경 가능)
+                        </small>
                     </div>
                     {createError && <div className="error">{createError}</div>}
                     <div className="modal-actions">

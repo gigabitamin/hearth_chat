@@ -241,7 +241,8 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         """대화방 생성 시 WebSocket으로 실시간 알림"""
         # 공개/비공개 설정 처리
         is_public = serializer.validated_data.get('is_public', False)
-        room = serializer.save(is_public=is_public)
+        ai_response_enabled = serializer.validated_data.get('ai_response_enabled', False)
+        room = serializer.save(is_public=is_public, ai_response_enabled=ai_response_enabled)
         
         # 대화방 생성자 자동 참여 (방장으로 설정)
         ChatRoomParticipant.objects.get_or_create(
@@ -714,8 +715,10 @@ class ChatViewSet(viewsets.ModelViewSet):
 
 # @method_decorator(csrf_exempt, name='dispatch')
 class UserSettingsView(APIView):
+    # print('UserSettingsView')
     # authentication_classes = [CsrfExemptSessionAuthentication]    
     permission_classes = [IsAuthenticated]
+    # permission_classes = [AllowAny]
 
     def get(self, request):
         """사용자 설정 조회"""
@@ -760,7 +763,7 @@ class UserSettingsView(APIView):
 
     def patch(self, request):
         """사용자 설정 부분 업데이트"""
-        try:
+        try:            
             settings, created = UserSettings.objects.get_or_create(user=request.user)
             serializer = UserSettingsSerializer(settings, data=request.data, partial=True)
             if serializer.is_valid():

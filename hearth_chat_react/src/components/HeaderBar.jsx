@@ -27,8 +27,7 @@ export default function HeaderBar({
     unreadNotifications = 0, // 읽지 않은 알림 개수
     isInRoom = false // 새로 추가된 prop
 }) {
-    const navigate = useNavigate();
-    console.log('[HeaderBar title]', title);
+    const navigate = useNavigate();    
 
     return (
         <header className="header-bar">
@@ -58,7 +57,7 @@ export default function HeaderBar({
                     <button
                         className="header-action-btn"
                         onClick={() => {
-                            console.log('HeaderBar 로그인 버튼 클릭됨!');
+                            // console.log('HeaderBar 로그인 버튼 클릭됨!');
                             onLoginClick();
                         }}
                         title="로그인"
@@ -84,7 +83,7 @@ export default function HeaderBar({
                     )}
                 </button>
                 <button className="header-action-btn" onClick={() => {
-                    console.log('HeaderBar 설정 버튼 클릭됨!');
+                    // console.log('HeaderBar 설정 버튼 클릭됨!');
                     onSettingsClick();
                 }} title="설정">
                     <span role="img" aria-label="settings" style={{ fontSize: 22 }}>⚙️</span>

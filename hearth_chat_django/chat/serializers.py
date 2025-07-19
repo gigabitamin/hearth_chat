@@ -23,7 +23,7 @@ class ChatRoomSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ChatRoom
-        fields = ['id', 'name', 'room_type', 'ai_provider', 'is_public', 'is_active', 'is_voice_call', 'max_members', 'participants', 'favorite_users', 'is_favorite', 'latest_message', 'participant_count', 'message_count', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'room_type', 'ai_provider', 'is_public', 'is_active', 'is_voice_call', 'max_members', 'participants', 'favorite_users', 'is_favorite', 'latest_message', 'participant_count', 'message_count', 'ai_response_enabled', 'created_at', 'updated_at']
 
     def get_is_favorite(self, obj):
         user = self.context.get('request').user

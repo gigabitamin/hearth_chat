@@ -165,10 +165,10 @@ function MyChart() {
   );
 }
 
-const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, userSettings, setUserSettings, onUserMenuOpen, isSettingsModalOpen, setIsSettingsModalOpen, isLoginModalOpen, setIsLoginModalOpen, settingsTab, setSettingsTab }) => {                                    
+const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, userSettings, setUserSettings, onUserMenuOpen, isSettingsModalOpen, setIsSettingsModalOpen, isLoginModalOpen, setIsLoginModalOpen, settingsTab, setSettingsTab }) => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
-  const highlightParamId = searchParams.get('messageId');  
+  const highlightParamId = searchParams.get('messageId');
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [userAvatar, setUserAvatar] = useState(null);
@@ -343,7 +343,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     // 배포 환경에서는 포트 없이 wss://도메인/ws/chat/로 연결
     const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}/ws/chat/`;
 
-    console.log('[WebSocket] 연결 시도:', wsUrl);
+    // console.log('[WebSocket] 연결 시도:', wsUrl);
     try {
       ws.current = new window.WebSocket(wsUrl);
     } catch (error) {
@@ -358,14 +358,14 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         const joinMessage = { type: 'join_room', roomId: selectedRoom.id };
         if (safeWebSocketSend(joinMessage)) {
           joinSent = true;
-          console.log('[WebSocket] join_room 메시지 전송:', selectedRoom.id);
+          // console.log('[WebSocket] join_room 메시지 전송:', selectedRoom.id);
           clearInterval(joinInterval);
         }
       }
     }, 500); // 500ms 간격으로 안전하게 처리
 
     ws.current.onopen = () => {
-      console.log('[WebSocket] 연결 성공');
+      // console.log('[WebSocket] 연결 성공');
 
       // 연결 후 약간의 지연을 두고 join_room 메시지 전송
       setTimeout(() => {
@@ -373,17 +373,17 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           const joinMessage = { type: 'join_room', roomId: selectedRoom.id };
           if (safeWebSocketSend(joinMessage)) {
             joinSent = true;
-            console.log('[WebSocket] onopen에서 join_room 전송:', selectedRoom.id);
+            // console.log('[WebSocket] onopen에서 join_room 전송:', selectedRoom.id);
           }
         }
       }, 200); // 100ms에서 200ms로 증가하여 더 안전하게 처리
     };
     ws.current.onmessage = (e) => {
-      console.log('[WebSocket] onmessage 수신:', e.data);
+      // console.log('[WebSocket] onmessage 수신:', e.data);
       try {
         const data = JSON.parse(e.data);
         if (data.roomId !== selectedRoomRef.current?.id) {
-          console.log('[WebSocket] 다른 방 메시지 무시:', data.roomId);
+          // console.log('[WebSocket] 다른 방 메시지 무시:', data.roomId);
           return;
         }
         const username = loginUserRef.current?.username;
@@ -471,12 +471,12 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       }
     };
     ws.current.onclose = () => {
-      console.log('[WebSocket] 연결 종료');
+      // console.log('[WebSocket] 연결 종료');
 
       // 연결이 끊어지면 3초 후 재연결 시도 (단, 컴포넌트가 마운트된 상태일 때만)
       setTimeout(() => {
         if (selectedRoomRef.current?.id && ws.current) {
-          console.log('[WebSocket] 재연결 시도...');
+          // console.log('[WebSocket] 재연결 시도...');
         }
       }, 3000);
     };
@@ -785,19 +785,19 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     const isLocalhost = host === 'localhost' || host === '127.0.0.1';
     const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}/ws/chat/`;
 
-    console.log('WebSocket 연결 시도:', wsUrl);
+    // console.log('WebSocket 연결 시도:', wsUrl);
     ws.current = new WebSocket(wsUrl);
 
     ws.current.onopen = () => {
-      console.log('WebSocket 연결 성공');
+      // console.log('WebSocket 연결 성공');
     };
 
     ws.current.onclose = () => {
-      console.log('WebSocket 연결 종료');
+      // console.log('WebSocket 연결 종료');
     };
 
     ws.current.onerror = (error) => {
-      console.error('WebSocket 연결 오류:', error);
+      // console.error('WebSocket 연결 오류:', error);
     };
 
     // WebSocket 메시지 수신 처리 (재연결 시에도 동일하게)
@@ -2621,6 +2621,48 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       alert('메시지 즐겨찾기 처리 실패: ' + err.message);
     }
   };
+
+  useEffect(() => {
+    // 채팅방 입장 시 자동 메시지 전송 및 AI 응답 활성화
+    if (selectedRoom && selectedRoom.id) {
+      const autoMsg = localStorage.getItem('pending_auto_message');
+      if (autoMsg) {
+        // 1. user setting ai_response_enabled true로 PATCH
+        fetch('/api/chat/user/settings/', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ ai_response_enabled: true })
+        });
+        // 2. 메시지 자동 전송
+        setTimeout(() => {
+          if (ws.current && ws.current.readyState === 1) {
+            const clientId = `${Date.now()}_${Math.random()}`;
+            const messageData = {
+              message: autoMsg,
+              roomId: selectedRoom.id,
+              client_id: clientId,
+            };
+            ws.current.send(JSON.stringify(messageData));
+            setMessages(prev => [
+              ...prev,
+              {
+                id: clientId,
+                type: 'send',
+                text: autoMsg,
+                date: new Date().toISOString(),
+                sender: loginUser?.username,
+                user_id: loginUser?.id,
+                pending: true,
+                client_id: clientId,
+              }
+            ]);
+            localStorage.removeItem('pending_auto_message');
+          }
+        }, 500);
+      }
+    }
+  }, [selectedRoom?.id]);
 
   return (
     <>

@@ -22,6 +22,9 @@ class ChatRoom(models.Model):
     # 공개/비공개 설정
     is_public = models.BooleanField(default=False, verbose_name='공개 방 여부')
     
+    # AI 응답 활성화 여부
+    ai_response_enabled = models.BooleanField(default=False, verbose_name='AI 응답 활성화')
+    
     # 대화방 참여자들
     participants = models.ManyToManyField(User, through='ChatRoomParticipant', verbose_name='참여자들')
     
