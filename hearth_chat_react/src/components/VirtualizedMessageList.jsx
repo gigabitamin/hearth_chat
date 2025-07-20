@@ -506,6 +506,8 @@ const VirtualizedMessageList = ({
             <AutoSizer>
                 {({ height, width }) => {
                     console.log('AutoSizer', height, width); // 디버그용
+                    // 전체 브라우저 width보다 16px 작게 강제 조정
+                    const safeWidth = Math.min(width, typeof window !== 'undefined' ? window.innerWidth - 16 : width);
                     return (
                         <InfiniteLoader
                             isItemLoaded={isItemLoaded}
@@ -520,7 +522,7 @@ const VirtualizedMessageList = ({
                                         ref(list);
                                     }}
                                     height={height}
-                                    width={width}
+                                    width={safeWidth}
                                     itemCount={itemCount}
                                     itemSize={getItemSize}
                                     onItemsRendered={onItemsRendered}
