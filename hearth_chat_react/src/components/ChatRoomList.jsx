@@ -493,11 +493,13 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                     <button className="login-btn" onClick={() => setIsLoginModalOpen(true)} style={{ fontSize: 18, padding: '12px 32px', borderRadius: 8, background: '#2196f3', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer' }}>로그인</button>
                 </div>
             ) : (
-                <>
+                <>                
                     {sidebarTab === 'favorite' ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', flex: 1 }}>
+                    // 즐겨찾기 탭 관리 영역
+                        <div className="favorite-list-container">
                             {/* 방 목록 50% */}
-                            <div style={{ flex: 1, overflowY: 'auto', borderBottom: '1px solid #222' }}>
+                            <div>★ 즐겨찾기 채팅방</div>
+                            <div className="favorite-room-section">
                                 <div className="room-items" ref={listRef}>
                                     {filteredRooms.map((room) => (
                                         <div
@@ -604,8 +606,8 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                 </div>
                             </div>
                             {/* 메시지 목록 50% */}
-                            <div className="favorite-messages-section" style={{ flex: 1, overflowY: 'auto', marginTop: 0, paddingTop: 8 }}>
-                                <h4 style={{ color: '#1976d2', marginBottom: 8 }}>★ 즐겨찾기 메시지</h4>
+                            <div>★ 즐겨찾기 메시지</div>
+                            <div className="favorite-messages-section">                                                                
                                 {favoriteMessagesLoading ? (
                                     <div style={{ color: '#888' }}>불러오는 중...</div>
                                 ) : favoriteMessages.length === 0 ? (
@@ -644,6 +646,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                             </div>
                         </div>
                     ) : (
+                    // 개인/오픈 탭 관리 영역
                         <>
                             <div className="room-items" ref={listRef}>
                                 {filteredRooms.map((room) => (

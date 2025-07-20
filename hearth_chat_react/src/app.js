@@ -289,10 +289,9 @@ function AppContent(props) {
   // 하단 정보창 렌더 함수 (공통)
   const renderRoomInfoPanel = (onClose) => (
     room ? (
-      <div className="selected-room-info">
-        <span>최근 메시지 `{room.name}`</span>
+      <div className="selected-room-info">        
         {/* 방장이 설정한 프로필 이미지 등 추가 가능 */}
-        <div style={{ maxHeight: 300, overflowY: 'auto', background: 'rgba(0,0,0,0.1)', borderRadius: 2, padding: 2, marginTop: 2 }}>          
+        <div className="selected-room-info-messages">
           {roomMessages.length === 0 ? (
             <div style={{ color: '#888' }}>아직 메시지가 없습니다.</div>
           ) : (
@@ -539,10 +538,11 @@ function AppContent(props) {
           onSuccess={handleCreateRoomSuccess}
         />
       )}
-      {/* 채팅방 내 오버레이: showRoomListOverlay가 true일 때만 표시 */}
+      {/* 채팅방 내 사이드바 오버레이: showRoomListOverlay가 true일 때만 표시 */}
       {showRoomListOverlay && (
         <div className="room-list-overlay" onClick={() => setShowRoomListOverlay(false)}>
           <div className="room-list-overlay-panel" onClick={e => e.stopPropagation()}>
+            {/* 사이드바 탭 헤더 관리 영역 */}
             <div className="overlay-tabs" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
               <div style={{ display: 'flex', flexDirection: 'row', gap: 8 }}>
                 <button onClick={() => setOverlayTab('personal')} className={`header-tab-btn${!isInRoom && overlayTab === 'personal' ? ' active' : ''}`}>개인</button>
@@ -550,49 +550,51 @@ function AppContent(props) {
                 <button onClick={() => setOverlayTab('favorite')} className={`header-tab-btn${!isInRoom && overlayTab === 'favorite' ? ' active' : ''}`}>★</button>
               </div>
               <div style={{ display: 'flex', flexDirection: 'row', gap: 8 }}>
-              <button
+                <button
                   onClick={() => { setShowCreateModal(true); setShowRoomListOverlay(false); }}
                   title="새 대화방 만들기"
                   style={{ background: 'none', border: 'none', fontSize: 24, marginLeft: 4, cursor: 'pointer', color: '#ff9800', padding: '0 6px' }}
                 >🔥
-              </button>
-              <button
-                className="sidebar-home-overlay-btn"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: 28,
-                  cursor: 'pointer',
-                  padding: 0,
-                  margin: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: 'none',
-                }}
-                title="홈으로"
-                onClick={() => window.location.href = '/'}
-              >
-                🏠
-              </button>
+                </button>
+                <button
+                  className="sidebar-home-overlay-btn"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    fontSize: 28,
+                    cursor: 'pointer',
+                    padding: 0,
+                    margin: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: 'none',
+                  }}
+                  title="홈으로"
+                  onClick={() => window.location.href = '/'}
+                >
+                  🏠
+                </button>
               </div>
             </div>
+            {/* 사이드바 채팅방 목록 관리 영역 */}
             <div className="room-list-overlay-main" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-              <div style={{ flex: 3, overflowY: 'auto' }}>
+              <div className="sidebar-room-list-info-panel">
                 <ChatRoomList
                   onRoomSelect={async (room) => {
+                    if (overlayTab === 'favorite') return; // 즐겨찾기 탭일 때는 메시지 요청/갱신 중단
                     setRoom(room);
                     // 메시지 불러오기 (예시: 최신 10개)
                     try {
                       const res = await csrfFetch(`${getApiBase()}/api/chat/messages/messages/?room=${room.id}&limit=10&offset=0`, { credentials: 'include' });
                       if (res.ok) {
                         const data = await res.json();
-                        // setRoomMessages(data.results || []); // AppContent에서 관리
+                        setRoomMessages(data.results || []); // AppContent에서 관리
                       } else {
-                        // setRoomMessages([]); // AppContent에서 관리
+                        setRoomMessages([]); // AppContent에서 관리
                       }
                     } catch {
-                      // setRoomMessages([]); // AppContent에서 관리
+                      setRoomMessages([]); // AppContent에서 관리
                     }
                   }}
                   loginUser={loginUser}
@@ -611,9 +613,14 @@ function AppContent(props) {
                   onPreviewMessage={fetchPreviewMessages}
                 />
               </div>
-              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', borderTop: '1px solid #eee', background: '#fafbfc', padding: 12 }}>
-                {renderRoomInfoPanel(() => setShowRoomListOverlay(false))}
-              </div>
+              {overlayTab !== 'favorite' && (
+                <div className="selected-room-info-title-sidebar">최근 메시지 `{room.name}`</div>
+              )}
+              {overlayTab !== 'favorite' && (
+                <div className="sidebar-room-info-panel">                  
+                  {renderRoomInfoPanel(() => setShowRoomListOverlay(false))}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -621,23 +628,26 @@ function AppContent(props) {
       <Routes>
         <Route path="/" element={
           <div className="app-container">
+            {/* Lobby 대기방 ChatRoomList 관리 영역 */}
             <div className="room-list-container" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
               {/* lobby-tabs(파란색 탭 버튼 그룹) 완전히 삭제 */}
               {/* <HeaderBar ... /> 이 부분을 완전히 제거 */}
+              {/* 대기방 상단 목록 관리 영역 */}
               <div className="room-list-info-panel">
                 <ChatRoomList
                   onRoomSelect={async (room) => {
                     setRoom(room);
                     try {
+                      if (overlayTab === 'favorite') return; // 즐겨찾기 탭일 때는 메시지 요청/갱신 중단
                       const res = await csrfFetch(`${getApiBase()}/api/chat/messages/messages/?room=${room.id}&limit=10&offset=0`, { credentials: 'include' });
                       if (res.ok) {
                         const data = await res.json();
-                        // setRoomMessages(data.results || []); // AppContent에서 관리
+                        setRoomMessages(data.results || []); // AppContent에서 관리
                       } else {
-                        // setRoomMessages([]); // AppContent에서 관리
+                        setRoomMessages([]); // AppContent에서 관리
                       }
                     } catch {
-                      // setRoomMessages([]); // AppContent에서 관리
+                      setRoomMessages([]); // AppContent에서 관리
                     }
                   }}
                   loginUser={loginUser}
@@ -652,11 +662,17 @@ function AppContent(props) {
                   setShowCreateModal={setShowCreateModal}
                   selectedRoomId={room?.id}
                   overlayKey="lobby"
-                />
+                />                
               </div>
-              <div className="room-info-panel">
-                {renderRoomInfoPanel()}
-              </div>
+              {overlayTab !== 'favorite' && (
+                <div className="selected-room-info-title">최근 메시지 `{room?.name}`</div>
+              )}               
+              {/* 대가방 하단 정보 관리 영역 */}
+              {overlayTab !== 'favorite' && (
+                <div className="room-info-panel">
+                  {renderRoomInfoPanel()}
+                </div>
+              )}
             </div>
           </div>
         } />

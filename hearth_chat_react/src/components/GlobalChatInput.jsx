@@ -33,9 +33,9 @@ const csrfFetch = async (url, options = {}) => {
 };
 
 const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageClick, setPendingImageFile }) => {
-    console.log('[DEBUG] GlobalChatInput 컴포넌트 렌더링됨');
-    console.log('[DEBUG] props:', { room, loginUser, ws, onOpenCreateRoomModal, onImageClick });
-    console.log('onOpenCreateRoomModal 프롭:', onOpenCreateRoomModal);
+    // console.log('[DEBUG] GlobalChatInput 컴포넌트 렌더링됨');
+    // console.log('[DEBUG] props:', { room, loginUser, ws, onOpenCreateRoomModal, onImageClick });
+    // console.log('onOpenCreateRoomModal 프롭:', onOpenCreateRoomModal);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const inputRef = useRef();

@@ -427,3 +427,37 @@
     background: #e3f2fd;
     box-shadow: 0 6px 24px rgba(0, 123, 255, 0.18);
 }
+
+.room-list-info-panel {
+    flex: 4;
+    overflow-y: auto;
+}
+
+.room-info-panel {
+    flex: 3;
+    min-height: 0;
+    overflow-y: auto;
+    border-top: 1px solid #eee;
+    background: #fafbfc;
+    padding: 12px;
+}
+
+.favorite-list-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    flex: 1;
+}
+
+.favorite-room-section {
+    flex: 1;
+    overflow-y: auto;
+    border-bottom: 1px solid #222;    
+}
+
+.favorite-messages-section {
+    flex: 1;
+    overflow-y: auto;
+    margin-top: 0;    
+    padding: 8px;
+}

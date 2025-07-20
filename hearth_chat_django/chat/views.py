@@ -770,7 +770,7 @@ class UserSettingsView(APIView):
 
     def patch(self, request):
         """사용자 설정 부분 업데이트"""
-        try:            
+        try:
             settings, created = UserSettings.objects.get_or_create(user=request.user)
             serializer = UserSettingsSerializer(settings, data=request.data, partial=True)
             if serializer.is_valid():
