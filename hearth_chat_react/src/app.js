@@ -290,10 +290,9 @@ function AppContent(props) {
   const renderRoomInfoPanel = (onClose) => (
     room ? (
       <div className="selected-room-info">
-        <h2>{room.name}</h2>
+        <span>최근 메시지 `{room.name}`</span>
         {/* 방장이 설정한 프로필 이미지 등 추가 가능 */}
-        <div style={{ maxHeight: 300, overflowY: 'auto', background: 'rgba(0,0,0,0.1)', borderRadius: 8, padding: 12, marginTop: 16 }}>
-          <h4>최근 메시지</h4>
+        <div style={{ maxHeight: 300, overflowY: 'auto', background: 'rgba(0,0,0,0.1)', borderRadius: 2, padding: 2, marginTop: 2 }}>          
           {roomMessages.length === 0 ? (
             <div style={{ color: '#888' }}>아직 메시지가 없습니다.</div>
           ) : (
@@ -304,7 +303,8 @@ function AppContent(props) {
             ))
           )}
         </div>
-        <button className="enter-room-btn" style={{ marginTop: 16 }} onClick={() => { if (onClose) onClose(); window.location.href = `/room/${room.id}`; }}>입장하기</button>
+        {/* 입장하기 버튼 삭제 */}
+        {/* <button className="enter-room-btn" style={{ marginTop: 16 }} onClick={() => { if (onClose) onClose(); window.location.href = `/room/${room.id}`; }}>입장하기</button> */}
       </div>
     ) : (
       <div className="welcome-content">
@@ -624,7 +624,7 @@ function AppContent(props) {
             <div className="room-list-container" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
               {/* lobby-tabs(파란색 탭 버튼 그룹) 완전히 삭제 */}
               {/* <HeaderBar ... /> 이 부분을 완전히 제거 */}
-              <div style={{ flex: 3, overflowY: 'auto' }}>
+              <div className="room-list-info-panel">
                 <ChatRoomList
                   onRoomSelect={async (room) => {
                     setRoom(room);
@@ -654,7 +654,7 @@ function AppContent(props) {
                   overlayKey="lobby"
                 />
               </div>
-              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', borderTop: '1px solid #eee', background: '#fafbfc', padding: 12 }}>
+              <div className="room-info-panel">
                 {renderRoomInfoPanel()}
               </div>
             </div>

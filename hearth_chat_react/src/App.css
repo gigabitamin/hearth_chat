@@ -255,6 +255,22 @@ html,
   flex-direction: column;
 }
 
+.room-list-info-panel {
+  flex: 4;
+  overflow-y: auto;  
+  overflow-x: hidden;
+}
+
+.room-info-panel {
+  flex: 3;
+  min-height: 0;
+  overflow-y: auto;
+  border-top: 5px solid #eee;
+  background: #fafbfc;
+  padding: 8px;
+  overflow-x: hidden;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;

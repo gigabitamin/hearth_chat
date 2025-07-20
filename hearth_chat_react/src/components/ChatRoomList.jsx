@@ -757,19 +757,6 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                         onClose={() => setIsLoginModalOpen(false)}
                         onSocialLogin={openSocialLoginPopup}
                     />
-                    {/* 기존 하단 HOME 버튼 완전 삭제 */}
-                    {/* {loginUser && (
-                        <button
-                            className="home-fab-btn"
-                            onClick={() => {
-                                if (onClose) onClose();
-                                navigate('/');
-                            }}
-                            title="홈으로"
-                        >
-                            🏠
-                        </button>
-                    )} */}
                 </>
             ))}
             {/* 하단 미리보기 정보창 */}
