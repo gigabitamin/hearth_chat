@@ -32,7 +32,9 @@ const csrfFetch = async (url, options = {}) => {
     return fetch(url, mergedOptions);
 };
 
-const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageClick }) => {
+const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageClick, setPendingImageFile }) => {
+    console.log('[DEBUG] GlobalChatInput 컴포넌트 렌더링됨');
+    console.log('[DEBUG] props:', { room, loginUser, ws, onOpenCreateRoomModal, onImageClick });
     console.log('onOpenCreateRoomModal 프롭:', onOpenCreateRoomModal);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
@@ -49,12 +51,31 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
 
     // 이미지 업로드 핸들러
     const handleImageUpload = (e) => {
+        console.log('[DEBUG] handleImageUpload 호출됨');
+        console.log('[DEBUG] e.target:', e.target);
+        console.log('[DEBUG] e.target.files:', e.target.files);
+        console.log('[DEBUG] e.target.files.length:', e.target.files ? e.target.files.length : 'undefined');
+
         const file = e.target.files && e.target.files[0];
-        if (!file) return;
+        if (!file) {
+            console.log('[DEBUG] 파일이 없음');
+            return;
+        }
+
+        console.log('[DEBUG] 선택된 파일:', file);
+        console.log('[DEBUG] 파일 이름:', file.name);
+        console.log('[DEBUG] 파일 크기:', file.size);
+        console.log('[DEBUG] 파일 타입:', file.type);
+
         const allowedExt = ['jpg', 'jpeg', 'png', 'webp'];
         const allowedMime = ['image/jpeg', 'image/png', 'image/webp'];
         const maxSize = 4 * 1024 * 1024;
         const ext = file.name.split('.').pop().toLowerCase();
+
+        console.log('[DEBUG] 파일 확장자:', ext);
+        console.log('[DEBUG] 허용된 확장자:', allowedExt);
+        console.log('[DEBUG] 확장자 검사 결과:', allowedExt.includes(ext));
+
         if (!allowedExt.includes(ext)) {
             alert('허용되지 않는 확장자입니다: ' + ext);
             return;
@@ -67,8 +88,14 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
             alert('허용되지 않는 이미지 형식입니다: ' + file.type);
             return;
         }
+
+        console.log('[DEBUG] 이미지 파일 검증 통과');
+        console.log('[DEBUG] 이미지 파일 설정:', file.name, file.size);
+
         setAttachedImage(file);
         setAttachedImagePreview(URL.createObjectURL(file));
+
+        console.log('[DEBUG] attachedImage 상태 설정 완료');
     };
 
     // 첨부 이미지 해제
@@ -77,25 +104,17 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
         setAttachedImagePreview(null);
     };
 
-    // 이미지 업로드 후 전송
-    const handleImageUploadAndSend = async () => {
-        if (!attachedImage) return;
-
-        // 전송 직후 입력/첨부 상태 즉시 초기화 (중복 전송 방지)
-        setInput('');
-        setAttachedImage(null);
-        setAttachedImagePreview(null);
-
+    // 1. 이미지 업로드 후 전송 함수 정의 (chat_box.jsx와 동일하게)
+    const handleImageUploadAndSendWithFile = async (imageFile, messageText) => {
+        if (!imageFile) return;
         try {
             const formData = new FormData();
-            formData.append('file', attachedImage);
-            formData.append('content', input || '이미지 첨부');
-
+            formData.append('file', imageFile);
+            formData.append('content', messageText || '이미지 첨부');
             const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
             const apiUrl = isLocalhost
                 ? 'http://localhost:8000'
                 : `${window.location.protocol}//${window.location.hostname}`;
-
             const res = await fetch(`${apiUrl}/api/chat/upload_image/`, {
                 method: 'POST',
                 headers: {
@@ -104,70 +123,35 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                 credentials: 'include',
                 body: formData,
             });
-
             const data = await res.json();
             if (data.status === 'success') {
-                console.log('[DEBUG] GlobalChatInput - 이미지 업로드 성공:', data);
-
-                if (!room) {
-                    // 방이 없는 경우: 방 생성 후 이동
-                    const now = new Date();
-                    const title = `${input.slice(0, 20)} - ${now.toLocaleString('ko-KR', { hour12: false })}`;
-
-                    // 이미지 URL을 localStorage에 임시 저장
-                    localStorage.setItem('pending_image_url', data.file_url);
-                    localStorage.setItem('pending_auto_message', input || '이미지 첨부');
-
-                    const res = await csrfFetch(`${getApiBase()}/api/chat/rooms/`, {
-                        method: 'POST',
-                        body: JSON.stringify({ name: title, is_public: false, room_type: 'ai', ai_provider: 1, ai_response_enabled: true }),
-                    });
-                    if (res.ok) {
-                        const roomData = await res.json();
-                        // 방 생성 후 user settings도 자동 ON
-                        try {
-                            await fetch(`${getApiBase()}/api/chat/user/settings/`, {
-                                method: 'PATCH',
-                                credentials: 'include',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'X-CSRFToken': getCookie('csrftoken'),
-                                },
-                                body: JSON.stringify({ ai_response_enabled: true }),
-                            });
-                        } catch (e) { /* 무시 */ }
-                        setTimeout(() => {
-                            window.location.href = `/room/${roomData.id}`;
-                        }, 300);
-                    } else {
-                        alert('방 생성 실패');
-                    }
-                } else {
-                    // 방이 있는 경우: WebSocket으로 메시지 전송
-                    if (!ws || ws.readyState !== 1) {
-                        alert('연결이 끊어졌습니다.');
-                        return;
-                    }
-
+                // 방이 있으면 WebSocket 전송, 없으면 localStorage에 임시 저장
+                if (room && ws && ws.readyState === 1) {
                     const messageData = {
-                        message: input || '이미지 첨부',
+                        message: messageText || '이미지 첨부',
                         imageUrl: data.file_url,
                         roomId: room.id
                     };
-
-                    console.log('[DEBUG] GlobalChatInput - WebSocket 메시지 전송:', messageData);
                     ws.send(JSON.stringify(messageData));
+                } else {
+                    // 대기방: localStorage에 임시 저장 후 방 생성
+                    localStorage.setItem('pending_image_url', data.file_url);
+                    localStorage.setItem('pending_auto_message', messageText || '이미지 첨부');
                 }
+                setInput('');
+                setAttachedImage(null);
+                setAttachedImagePreview(null);
             }
         } catch (error) {
-            console.error('이미지 업로드 실패:', error);
             alert('이미지 업로드에 실패했습니다.');
         }
     };
 
     const handleSend = async () => {
+        console.log('[DEBUG] handleSend 호출됨, attachedImage:', attachedImage);
         if (attachedImage) {
-            await handleImageUploadAndSend();
+            console.log('[DEBUG] 이미지가 있으므로 handleImageUploadAndSend 호출');
+            await handleImageUploadAndSendWithFile(attachedImage, input);
             return;
         }
         if (!input.trim()) return;
@@ -392,19 +376,44 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                     style={{ flex: 1, borderRadius: 8, border: '1px solid #444', padding: 10, fontSize: 16, background: '#181a20', color: '#fff', resize: 'none' }}
                     disabled={loading}
                 />
-                <label htmlFor="global-chat-image-upload" className="image-upload-btn-side">
+                <button
+                    type="button"
+                    className="image-upload-btn-side"
+                    onClick={() => {
+                        console.log('[DEBUG] 이미지 업로드 버튼 클릭됨');
+                        // 파일 input을 직접 클릭
+                        const fileInput = document.getElementById('global-chat-image-upload');
+                        if (fileInput) {
+                            console.log('[DEBUG] 파일 input을 찾았습니다');
+                            fileInput.click();
+                        } else {
+                            console.error('[DEBUG] 파일 input을 찾을 수 없음');
+                        }
+                    }}
+                    style={{ cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
+                >
                     <input
                         id="global-chat-image-upload"
                         type="file"
                         accept="image/*"
                         style={{ display: 'none' }}
                         onChange={handleImageUpload}
+                        onClick={(e) => {
+                            console.log('[DEBUG] 파일 input 클릭됨');
+                        }}
                     />
                     <span className="image-upload-btn-icon">📤</span>
-                </label>
+                </button>
                 <button
-                    onClick={handleSend}
-                    disabled={loading || (!input.trim() && !attachedImage)}
+                    onClick={() => {
+                        if (attachedImage) {
+                            const currentInput = input;
+                            handleImageUploadAndSendWithFile(attachedImage, currentInput);
+                        } else {
+                            handleSend();
+                        }
+                    }}
+                    disabled={!input.trim() && !attachedImage}
                     style={{ background: '#ff6a00', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', fontSize: 18, cursor: 'pointer', minWidth: 48 }}
                 >
                     {attachedImage ? '📤' : (room ? '전송' : '개설')}

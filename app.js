@@ -82,7 +82,7 @@ function LobbyPage({ loginUser, loginLoading, checkLoginStatus, userSettings, se
   );
 }
 
-function ChatRoomPage({ loginUser, loginLoading, checkLoginStatus, userSettings, setUserSettings, onUserMenuOpen, isSettingsModalOpen, setIsSettingsModalOpen, isLoginModalOpen, setIsLoginModalOpen, settingsTab, setSettingsTab, pendingImageFile, setPendingImageFile }) {
+function ChatRoomPage({ loginUser, loginLoading, checkLoginStatus, userSettings, setUserSettings, onUserMenuOpen, isSettingsModalOpen, setIsSettingsModalOpen, isLoginModalOpen, setIsLoginModalOpen, settingsTab, setSettingsTab }) {
   const { roomId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -143,8 +143,6 @@ function ChatRoomPage({ loginUser, loginLoading, checkLoginStatus, userSettings,
         settingsTab={settingsTab}
         setSettingsTab={setSettingsTab}
         highlightMessageId={highlightMessageId}
-        pendingImageFile={pendingImageFile}
-        setPendingImageFile={setPendingImageFile}
       />
     </div>
   );
@@ -236,21 +234,6 @@ function AppContent(props) {
     fetchPreviewMessages,
     ws,
     setRoomMessages,
-    // 이미지 뷰어 모달 상태 추가
-    viewerImage,
-    setViewerImage,
-    // GlobalChatInput에서 전달받은 이미지 파일 상태
-    pendingImageFile,
-    setPendingImageFile,
-  } = props;  
-
-  const [ttsRate, setTtsRate] = useState(1.5);
-  const [ttsPitch, setTtsPitch] = useState(1.5);
-  const [ttsVoice, setTtsVoice] = useState(null);
-  const [voiceList, setVoiceList] = useState([]); // 음성 목록이 필요 없다면 빈 배열로
-  const [isTTSEnabled, setIsTTSEnabled] = useState(false);
-  const [isVoiceRecognitionEnabled, setIsVoiceRecognitionEnabled] = useState(false);
-  const [autoSend, setAutoSend] = useState(false);
   const [isContinuousRecognition, setIsContinuousRecognition] = useState(false);
   const voiceRecognitionRef = React.useRef(null);
   const [permissionStatus, setPermissionStatus] = useState('prompt');
@@ -443,51 +426,15 @@ function AppContent(props) {
     };
   }, [notifications, unreadNotifications, unreadNotificationList]);
 
-  // ESC 키로 이미지 뷰어 닫기
-  useEffect(() => {
-    const handleEsc = (e) => {
-      if (e.key === 'Escape') setViewerImage(null);
-    };
-    document.addEventListener('keydown', handleEsc);
-    return () => document.removeEventListener('keydown', handleEsc);
-  }, []);
-
   return (
     <>
       {/* 상단바 공통 렌더링 */}
-      <HeaderBar
-        activeTab={overlayTab}
-        onTabChange={(tab) => {
-          setOverlayTab(tab);
-          if (isInRoom) setShowRoomListOverlay(true);
-        }}
-        onSearchClick={() => setIsSearchModalOpen(true)}
-        onNotifyClick={() => setIsNotifyModalOpen(true)}
-        onSettingsClick={() => {
           // console.log('설정 버튼 클릭됨!');
           setIsSettingsModalOpen(true);
         }}
-        onLoginClick={() => {
-          // console.log('로그인 버튼 클릭됨!');
-          setIsLoginModalOpen(true);
-        }}
-        onCreateRoomClick={() => setShowCreateModal(true)}
-        loginUser={loginUser}
-        title={headerTitle}
-        unreadNotifications={unreadNotifications}
-      />
       {/* 알림/검색 모달 */}
       <NotifyModal
         open={isNotifyModalOpen}
-        onClose={() => setIsNotifyModalOpen(false)}
-        notifications={notifications.map(n => ({
-          ...n,
-          read: !unreadNotificationList.some(u => u.message_id === n.messageId)
-        }))}
-        onNotificationRead={(id, roomId, messageId) => handleNotificationRead(id, roomId, messageId)}
-        unreadList={unreadNotificationList}
-        onMarkAllAsRead={handleMarkAllAsRead}
-      />
       <SearchModal open={isSearchModalOpen} onClose={() => setIsSearchModalOpen(false)} rooms={allRooms} messages={allMessages} users={allUsers} fetchPreviewMessages={fetchPreviewMessages} />
       {/* 로그인 모달 */}
       <LoginModal
@@ -650,8 +597,6 @@ function AppContent(props) {
             setIsLoginModalOpen={setIsLoginModalOpen}
             settingsTab={settingsTab}
             setSettingsTab={setSettingsTab}
-            pendingImageFile={pendingImageFile}
-            setPendingImageFile={setPendingImageFile}
           />
         } />
         <Route path="/admin" element={<AdminPage loginUser={loginUser} loginLoading={loginLoading} checkLoginStatus={checkLoginStatus} />} />
@@ -661,17 +606,9 @@ function AppContent(props) {
         room={room}
         loginUser={loginUser}
         ws={ws}
+        setRoomMessages={setRoomMessages}
         onOpenCreateRoomModal={onOpenCreateRoomModal}
-        onImageClick={setViewerImage}
-        setPendingImageFile={setPendingImageFile}
       />
-      {/* 이미지 뷰어 모달 */}
-      {viewerImage && (
-        <div className="image-viewer-modal" onClick={() => setViewerImage(null)}>
-          <img src={viewerImage} alt="확대 이미지" className="image-viewer-img" onClick={e => e.stopPropagation()} />
-          <button className="image-viewer-close" onClick={() => setViewerImage(null)}>✖</button>
-        </div>
-      )}
       {/* --- [최종 수정] --- */}
       {/* CreateRoomModal에 open prop을 전달합니다. */}
       {isCreateNewChatOpen && (
@@ -681,16 +618,9 @@ function AppContent(props) {
           onSuccess={handleCreateRoomSuccess} // onSuccess도 추가하면 좋습니다.
         />
       )}
+        setRoomMessages={setRoomMessages}
     </>
-  );
 }
-
-function App() {
-  const location = useLocation();
-  const [loginUser, setLoginUser] = useState(null);
-  const [loginLoading, setLoginLoading] = useState(true);
-  const [userSettings, setUserSettings] = useState(null);
-  // 1. App 컴포넌트에서 room, setRoom, roomMessages, setRoomMessages를 전역 상태로 선언
   const [room, setRoom] = useState(null);
   const [roomMessages, setRoomMessages] = useState([]);
   // 추가: 상단 탭/모달 상태
@@ -702,19 +632,7 @@ function App() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false); // 새 채팅방 모달 상태
   const [showRoomListOverlay, setShowRoomListOverlay] = useState(false); // 채팅방 내 오버레이 상태
-  const [wsConnected, setWsConnected] = useState(false); // WebSocket 연결 상태 전역 관리
   const [notifications, setNotifications] = useState([]);
-  const [settingsTab, setSettingsTab] = useState('user');
-  // 이미지 뷰어 모달 상태 추가
-  const [viewerImage, setViewerImage] = useState(null);
-  // GlobalChatInput에서 전달받은 이미지 파일 상태
-  const [pendingImageFile, setPendingImageFile] = useState(null);
-
-  // 1. previewMessages 상태 추가
-  const [previewMessages, setPreviewMessages] = useState([]);
-
-  // 검색 데이터 준비
-  const [allRooms, setAllRooms] = useState([]);
   const [allMessages, setAllMessages] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
 
@@ -726,10 +644,6 @@ function App() {
       const res = await csrfFetch(`${getApiBase()}/api/chat/messages/${msg.id}/`);
       if (!res.ok) return;
       const baseMsg = await res.json();
-      const baseTime = baseMsg.timestamp;
-      // 이전 2개
-      const prevRes = await csrfFetch(`${getApiBase()}/api/chat/messages/?room=${msg.room_id}&before=${baseTime}&limit=2`);
-      const prevMsgs = prevRes.ok ? (await prevRes.json()).results || [] : [];
       // 이후 2개
       const nextRes = await csrfFetch(`${getApiBase()}/api/chat/messages/?room=${msg.room_id}&after=${baseTime}&limit=2`);
       const nextMsgs = nextRes.ok ? (await nextRes.json()).results || [] : [];
@@ -750,8 +664,6 @@ function App() {
     try {
       const res = await csrfFetch(`${getApiBase()}/api/chat/rooms/`, { credentials: 'include' });
       if (res.ok) {
-        const data = await res.json();
-        setAllRooms(data.results || data);
       }
     } catch { }
   };
@@ -766,8 +678,6 @@ function App() {
     } catch { }
   };
 
-  const fetchAllMessages = async (query = '') => {
-    try {
       let res;
 
       if (query.trim().length > 0) {
@@ -969,13 +879,36 @@ function App() {
     fetchPreviewMessages={fetchPreviewMessages}
     ws={ws.current}
     setRoomMessages={setRoomMessages}
-    // 이미지 뷰어 모달 상태 추가
-    viewerImage={viewerImage}
-    setViewerImage={setViewerImage}
-    // GlobalChatInput에서 전달받은 이미지 파일 상태
-    pendingImageFile={pendingImageFile}
-    setPendingImageFile={setPendingImageFile}
   />;
 }
 
 export default App;
+    // 이미지 뷰어 모달 상태 추가
+    viewerImage={viewerImage}
+    setViewerImage={setViewerImage}
+    // 이미지 뷰어 모달 상태 추가
+    viewerImage={viewerImage}
+    setViewerImage={setViewerImage}
+    // 이미지 뷰어 모달 상태 추가
+    viewerImage={viewerImage}
+    setViewerImage={setViewerImage}
+    // 이미지 뷰어 모달 상태 추가
+    viewerImage={viewerImage}
+    setViewerImage={setViewerImage}
+    // 이미지 뷰어 모달 상태 추가
+    viewerImage={viewerImage}
+    setViewerImage={setViewerImage}
+    // 이미지 뷰어 모달 상태 추가
+    viewerImage={viewerImage}
+    // 이미지 뷰어 모달 상태 추가
+    viewerImage={viewerImage}
+    setViewerImage={setViewerImage}
+    // 이미지 뷰어 모달 상태 추가
+    viewerImage={viewerImage}
+    setViewerImage={setViewerImage}
+    // 이미지 뷰어 모달 상태 추가
+    viewerImage={viewerImage}
+    setViewerImage={setViewerImage}
+    // 이미지 뷰어 모달 상태 추가
+    viewerImage={viewerImage}
+    setViewerImage={setViewerImage}

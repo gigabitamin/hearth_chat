@@ -3002,7 +3002,63 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                   onToggleFavorite={handleToggleFavorite}
                 />
               </div>
-
+              <div className="chat-input-area">
+                {/* 첨부 이미지 썸네일+X 버튼을 textarea 바로 위에 위치 */}
+                {attachedImagePreview && (
+                  <div className="attached-image-preview-box">
+                    <img src={attachedImagePreview} alt="첨부 이미지 미리보기" className="attached-image-thumb" />
+                    <button onClick={handleRemoveAttachedImage} className="attached-image-remove-btn">✖</button>
+                  </div>
+                )}
+                <div className="input-controls">
+                  <div className="chat-input-box">
+                    {/* 이미지 첨부 버튼 (왼쪽) */}
+                    <label htmlFor="chat-image-upload" className="image-upload-btn-side">
+                      <input
+                        id="chat-image-upload"
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={handleImageUpload}
+                      />
+                      <span className="image-upload-btn-icon">📤</span>
+                    </label>
+                    <textarea
+                      ref={inputRef}
+                      placeholder="메시지를 입력하세요"
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          sendMessage();
+                        }
+                      }}
+                      onInput={e => {
+                        e.target.style.height = 'auto';
+                        e.target.style.height = e.target.scrollHeight + 'px';
+                      }}
+                      onPaste={handlePaste}
+                      className="input-flex chat-textarea"
+                      rows={1}
+                    />
+                    <button
+                      onClick={() => {
+                        if (attachedImage) {
+                          const currentInput = input;
+                          handleImageUploadAndSendWithFile(attachedImage, currentInput);
+                        } else {
+                          sendMessage();
+                        }
+                      }}
+                      disabled={(!input.trim() && !attachedImage)}
+                      style={{ background: '#ff6a00', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', fontSize: 18, cursor: 'pointer', minWidth: 48 }}
+                    >
+                      {attachedImage ? '📤' : (selectedRoom ? '전송' : '개설')}
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -142,20 +142,13 @@ def upload_chat_image(request):
         # 로컬 개발 환경에서는 상대 경로를 절대 경로로 변환
         file_url = f"/media/{file_path}"
     
-    chat_obj = Chat.objects.create(
-        message_type='image',
-        sender_type='user',
-        username=request.user.username,
-        user_id=request.user.id,
-        content=content if content else '[이미지 첨부]',  # 메시지 내용이 있으면 저장, 없으면 [이미지 첨부]
-        session_id=session_id,
-        attach_image=file_url  # URL 문자열 저장
-    )
-    print('chat_obj', chat_obj)
+    # 메시지 저장 제거 - WebSocket을 통해 받은 메시지만 저장
+    print(f'[DEBUG] 이미지 업로드 성공: {file_url}')
+    print(f'[DEBUG] 메시지 저장 제거됨 - WebSocket을 통해 저장됨')
+    
     return JsonResponse({
         'status': 'success',
-        'file_url': file_url,
-        'chat_id': chat_obj.id        
+        'file_url': file_url
     })
 
 @csrf_exempt
