@@ -33,8 +33,11 @@ export default function HeaderBar({
     const navigate = useNavigate();
     const [showAboutModal, setShowAboutModal] = useState(false);
     const [ignoreNextMouseUp, setIgnoreNextMouseUp] = useState(false);
+    // --- 추가: 모바일 롱클릭 플래그 및 타이머 ---
+    const titleTouchTimer = useRef(null);
+    const ignoreNextTouchEnd = useRef(false);
 
-    // 롱클릭/숏클릭 분기
+    // 롱클릭/숏클릭 분기 (PC)
     const handleTitleMouseDown = () => {
         titleClickTimer.current = setTimeout(() => {
             // 롱클릭: 홈으로 이동
@@ -59,6 +62,31 @@ export default function HeaderBar({
     };
     const handleTitleMouseLeave = () => {
         if (titleClickTimer.current) clearTimeout(titleClickTimer.current);
+    };
+    // --- 모바일 롱클릭/숏클릭 분기 ---
+    const handleTitleTouchStart = () => {
+        titleTouchTimer.current = setTimeout(() => {
+            ignoreNextTouchEnd.current = true;
+            navigate('/');
+        }, 600);
+    };
+    const handleTitleTouchEnd = () => {
+        if (titleTouchTimer.current) {
+            clearTimeout(titleTouchTimer.current);
+            if (ignoreNextTouchEnd.current) {
+                ignoreNextTouchEnd.current = false;
+                return;
+            }
+            // 숏클릭: 전체 타이틀 팝업 토글 (채팅방 내부)
+            if (isInRoom) {
+                setShowTitlePopup(v => !v);
+            } else {
+                setShowAboutModal(v => !v);
+            }
+        }
+    };
+    const handleTitleTouchCancel = () => {
+        if (titleTouchTimer.current) clearTimeout(titleTouchTimer.current);
     };
 
     // 팝업 바깥 클릭 시 닫힘 처리
@@ -94,6 +122,9 @@ export default function HeaderBar({
                             onMouseDown={handleTitleMouseDown}
                             onMouseUp={handleTitleMouseUp}
                             onMouseLeave={handleTitleMouseLeave}
+                            onTouchStart={handleTitleTouchStart}
+                            onTouchEnd={handleTitleTouchEnd}
+                            onTouchCancel={handleTitleTouchCancel}
                             style={{
                                 maxWidth: 140,
                                 // fontSize: '0.98rem',
