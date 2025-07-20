@@ -543,16 +543,36 @@ function AppContent(props) {
       {showRoomListOverlay && (
         <div className="room-list-overlay" onClick={() => setShowRoomListOverlay(false)}>
           <div className="room-list-overlay-panel" onClick={e => e.stopPropagation()}>
-            <div className="overlay-tabs" style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-              <button onClick={() => setOverlayTab('personal')} className={`header-tab-btn${!isInRoom && overlayTab === 'personal' ? ' active' : ''}`}>개인</button>
-              <button onClick={() => setOverlayTab('open')} className={`header-tab-btn${!isInRoom && overlayTab === 'open' ? ' active' : ''}`}>오픈</button>
-              <button onClick={() => setOverlayTab('favorite')} className={`header-tab-btn${!isInRoom && overlayTab === 'favorite' ? ' active' : ''}`}>★</button>
-              {/* 모닥불 새 대화방 버튼 */}
+            <div className="overlay-tabs" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+              <div style={{ display: 'flex', flexDirection: 'row', gap: 8 }}>
+                <button onClick={() => setOverlayTab('personal')} className={`header-tab-btn${!isInRoom && overlayTab === 'personal' ? ' active' : ''}`}>개인</button>
+                <button onClick={() => setOverlayTab('open')} className={`header-tab-btn${!isInRoom && overlayTab === 'open' ? ' active' : ''}`}>오픈</button>
+                <button onClick={() => setOverlayTab('favorite')} className={`header-tab-btn${!isInRoom && overlayTab === 'favorite' ? ' active' : ''}`}>★</button>
+                <button
+                  onClick={() => { setShowCreateModal(true); setShowRoomListOverlay(false); }}
+                  title="새 대화방 만들기"
+                  style={{ background: 'none', border: 'none', fontSize: 24, marginLeft: 4, cursor: 'pointer', color: '#ff9800', padding: '0 6px' }}
+                >🔥</button>
+              </div>
               <button
-                onClick={() => { setShowCreateModal(true); setShowRoomListOverlay(false); }}
-                title="새 대화방 만들기"
-                style={{ background: 'none', border: 'none', fontSize: 24, marginLeft: 4, cursor: 'pointer', color: '#ff9800', padding: '0 6px' }}
-              >🔥</button>
+                className="sidebar-home-overlay-btn"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: 28,
+                  cursor: 'pointer',
+                  padding: 0,
+                  margin: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: 'none',
+                }}
+                title="홈으로"
+                onClick={() => window.location.href = '/'}
+              >
+                🏠
+              </button>
             </div>
             <div className="room-list-overlay-main" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
               <div style={{ flex: 3, overflowY: 'auto' }}>

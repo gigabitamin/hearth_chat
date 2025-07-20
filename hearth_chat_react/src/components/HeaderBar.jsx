@@ -32,17 +32,23 @@ export default function HeaderBar({
     const titleClickTimer = useRef(null);
     const navigate = useNavigate();
     const [showAboutModal, setShowAboutModal] = useState(false);
+    const [ignoreNextMouseUp, setIgnoreNextMouseUp] = useState(false);
 
     // 롱클릭/숏클릭 분기
     const handleTitleMouseDown = () => {
         titleClickTimer.current = setTimeout(() => {
             // 롱클릭: 홈으로 이동
+            setIgnoreNextMouseUp(true);
             navigate('/');
         }, 600); // 600ms 이상이면 롱클릭
     };
     const handleTitleMouseUp = () => {
         if (titleClickTimer.current) {
             clearTimeout(titleClickTimer.current);
+            if (ignoreNextMouseUp) {
+                setIgnoreNextMouseUp(false);
+                return;
+            }
             // 숏클릭: 전체 타이틀 팝업 토글 (채팅방 내부)
             if (isInRoom) {
                 setShowTitlePopup(v => !v);
@@ -54,6 +60,19 @@ export default function HeaderBar({
     const handleTitleMouseLeave = () => {
         if (titleClickTimer.current) clearTimeout(titleClickTimer.current);
     };
+
+    // 팝업 바깥 클릭 시 닫힘 처리
+    React.useEffect(() => {
+        if (isInRoom && showTitlePopup) {
+            const handleClick = (e) => {
+                // 팝업 내부 클릭은 무시
+                if (e.target.closest('.header-title-popup')) return;
+                setShowTitlePopup(false);
+            };
+            document.addEventListener('mousedown', handleClick);
+            return () => document.removeEventListener('mousedown', handleClick);
+        }
+    }, [isInRoom, showTitlePopup]);
 
     return (
         <header className="header-bar">
@@ -76,7 +95,7 @@ export default function HeaderBar({
                             onMouseUp={handleTitleMouseUp}
                             onMouseLeave={handleTitleMouseLeave}
                             style={{
-                                maxWidth: 260,
+                                maxWidth: 50,
                                 fontSize: '0.98rem',
                                 fontWeight: 600,
                                 color: '#23242a',
