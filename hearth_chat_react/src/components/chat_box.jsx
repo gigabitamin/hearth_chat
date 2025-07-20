@@ -2576,23 +2576,15 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         }));
 
         // localStorage에 저장된 이미지 URL이 있는지 확인
-        console.log('[DEBUG] localStorage 확인 시작');
         const pendingImageUrl = localStorage.getItem('pending_image_url');
         const pendingMessage = localStorage.getItem('pending_auto_message');
-        const pendingImageMessageContent = localStorage.getItem('pending_image_message_content');
+        const pendingRoomId = localStorage.getItem('pending_room_id');
 
-        console.log('[DEBUG] localStorage에서 읽어온 값:');
-        console.log('[DEBUG] pending_image_url:', pendingImageUrl);
-        console.log('[DEBUG] pending_auto_message:', pendingMessage);
-        console.log('[DEBUG] pending_image_message_content:', pendingImageMessageContent);
-
-        if (pendingImageUrl && pendingMessage) {
-          console.log('[DEBUG] localStorage에서 이미지 메시지 발견:', { pendingImageUrl, pendingMessage });
-
-          // localStorage 정리 (먼저 정리하여 중복 전송 방지)
+        if (pendingImageUrl && pendingMessage && String(selectedRoom.id) === String(pendingRoomId)) {
+          // localStorage 정리 (중복 전송 방지)
           localStorage.removeItem('pending_image_url');
           localStorage.removeItem('pending_auto_message');
-          console.log('[DEBUG] localStorage 정리 완료');
+          localStorage.removeItem('pending_room_id');
 
           // WebSocket으로 이미지 메시지 전송 (백엔드 저장용)
           const messageData = {
@@ -2600,8 +2592,6 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
             imageUrl: pendingImageUrl,
             roomId: selectedRoom.id
           };
-
-          console.log('[DEBUG] localStorage 이미지 메시지 전송:', messageData);
           ws.current.send(JSON.stringify(messageData));
 
           // 즉시 로컬 상태에 이미지 메시지 추가 (WebSocket 응답 기다리지 않음)
@@ -2614,66 +2604,9 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
             sender_type: 'user',
             user_id: loginUserRef.current?.id,
             emotion: 'neutral',
-            imageUrl: getImageUrl(pendingImageUrl)  // 절대 URL로 변환
+            imageUrl: getImageUrl(pendingImageUrl)
           };
-
-          console.log('[DEBUG] 즉시 추가할 이미지 메시지:', immediateMessage);
-          console.log('[DEBUG] getImageUrl 결과:', getImageUrl(pendingImageUrl));
           setMessages(prev => [...prev, immediateMessage]);
-        } else {
-          console.log('[DEBUG] localStorage에 이미지 메시지가 없음');
-
-          // localStorage에 이미지 메시지가 없지만, 대기방에서 이미지 첨부 후 방 생성한 경우
-          // 바로 이전 메시지에서 이미지 URL을 찾아서 연결
-          console.log('[DEBUG] 대기방에서 이미지 첨부 후 방 생성한 경우 확인');
-
-          // 최근 메시지들을 가져와서 이미지 URL이 있는 메시지를 찾기
-          const checkForPreviousImageMessage = async () => {
-            try {
-              const res = await fetch(`${getApiBase()}/api/chat/messages/messages/?room=${selectedRoom.id}&limit=10&offset=0`, {
-                credentials: 'include',
-              });
-              if (res.ok) {
-                const data = await res.json();
-                const recentMessages = data.results || [];
-                console.log('[DEBUG] 최근 메시지들:', recentMessages);
-
-                // 현재 사용자가 보낸 메시지 중에서 이미지 URL이 있는 가장 최근 메시지 찾기
-                const userImageMessage = recentMessages.find(msg =>
-                  msg.sender === loginUserRef.current?.username &&
-                  msg.attach_image &&
-                  msg.attach_image.trim() !== ''
-                );
-
-                if (userImageMessage) {
-                  console.log('[DEBUG] 사용자의 이미지 메시지 발견:', userImageMessage);
-
-                  // 현재 메시지 목록에서 해당 이미지 URL을 가진 메시지 찾기
-                  const existingMessage = messages.find(msg =>
-                    msg.text === userImageMessage.content &&
-                    !msg.imageUrl
-                  );
-
-                  if (existingMessage) {
-                    console.log('[DEBUG] 이미지 URL을 추가할 메시지 발견:', existingMessage);
-
-                    // 메시지 목록에서 해당 메시지의 imageUrl 업데이트
-                    setMessages(prev => prev.map(msg =>
-                      msg.id === existingMessage.id
-                        ? { ...msg, imageUrl: getImageUrl(userImageMessage.attach_image) }
-                        : msg
-                    ));
-
-                    console.log('[DEBUG] 메시지에 이미지 URL 추가 완료:', getImageUrl(userImageMessage.attach_image));
-                  }
-                }
-              }
-            } catch (error) {
-              console.error('[DEBUG] 최근 메시지 조회 실패:', error);
-            }
-          };
-
-          checkForPreviousImageMessage();
         }
       }
     }

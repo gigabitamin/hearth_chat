@@ -108,6 +108,14 @@ const CreateRoomModal = ({ open, onClose, onSuccess, defaultMaxMembers = 4 }) =>
                     });
                 } catch (e) { /* 무시 */ }
             }
+            // 이미지 첨부 자동 메시지 전송을 위해 localStorage에 방 id도 함께 저장
+            if (window.localStorage) {
+                if (createName && window.pendingImageUrl) {
+                    localStorage.setItem('pending_auto_message', createName);
+                    localStorage.setItem('pending_image_url', window.pendingImageUrl);
+                    localStorage.setItem('pending_room_id', newRoom.id);
+                }
+            }
             setCreateName('');
             setCreateType('ai');
             setCreateAI('GEMINI');
