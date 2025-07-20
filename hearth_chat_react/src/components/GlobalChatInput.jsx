@@ -32,6 +32,8 @@ const csrfFetch = async (url, options = {}) => {
     return fetch(url, mergedOptions);
 };
 
+const EMOJI_LIST = ['👍', '😂', '❤️', '😮', '😢', '👏', '🔥', '😡', '🙏', '🎉'];
+
 const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageClick, setPendingImageFile }) => {
     // console.log('[DEBUG] GlobalChatInput 컴포넌트 렌더링됨');
     // console.log('[DEBUG] props:', { room, loginUser, ws, onOpenCreateRoomModal, onImageClick });
@@ -218,13 +220,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
         const now = new Date();
         const title = `${input.slice(0, 20)} - ${now.toLocaleString('ko-KR', { hour12: false })}`;
         try {
-            // 입력 메시지를 localStorage에 임시 저장 (이미지 첨부 시에도)
-            if (attachedImage) {
-                // 이미지 업로드 후 file_url을 localStorage에 저장
-                await handleImageUploadAndSendWithFile(attachedImage, input);
-            } else {
-                localStorage.setItem('pending_auto_message', input);
-            }
+            // 1. 방을 먼저 생성
             const res = await csrfFetch(`${getApiBase()}/api/chat/rooms/`, {
                 method: 'POST',
                 body: JSON.stringify({ name: title, is_public: false, room_type: 'ai', ai_provider: 1, ai_response_enabled: true }),
@@ -243,7 +239,42 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                         body: JSON.stringify({ ai_response_enabled: true }),
                     });
                 } catch (e) { /* 무시 */ }
-                // localStorage 정리 X (자동 전송 후 chat_box.jsx에서 정리)
+                // 2. 이미지 첨부가 있으면, 해당 roomId로 이미지 업로드 및 localStorage 저장
+                if (attachedImage) {
+                    try {
+                        const formData = new FormData();
+                        formData.append('file', attachedImage);
+                        formData.append('content', input || '이미지 첨부');
+                        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                        const apiUrl = isLocalhost
+                            ? 'http://localhost:8000'
+                            : `${window.location.protocol}//${window.location.hostname}`;
+                        const imgRes = await fetch(`${apiUrl}/api/chat/upload_image/`, {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRFToken': getCookie('csrftoken'),
+                            },
+                            credentials: 'include',
+                            body: formData,
+                        });
+                        const imgData = await imgRes.json();
+                        if (imgData.status === 'success') {
+                            localStorage.setItem('pending_auto_message', input || '이미지 첨부');
+                            localStorage.setItem('pending_image_url', imgData.file_url);
+                            localStorage.setItem('pending_room_id', String(roomData.id));
+                        }
+                    } catch {
+                        alert('이미지 업로드에 실패했습니다.');
+                    }
+                } else {
+                    // 텍스트만 있을 때도 roomId와 함께 저장
+                    localStorage.setItem('pending_auto_message', input);
+                    localStorage.setItem('pending_room_id', String(roomData.id));
+                    localStorage.removeItem('pending_image_url');
+                }
+                setInput('');
+                setAttachedImage(null);
+                setAttachedImagePreview(null);
                 setTimeout(() => {
                     window.location.href = `/room/${roomData.id}`;
                 }, 300);
@@ -251,14 +282,14 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                 // 방 생성 실패 시 localStorage 정리 및 알림
                 localStorage.removeItem('pending_auto_message');
                 localStorage.removeItem('pending_image_url');
-                localStorage.removeItem('pending_image_message_content');
+                localStorage.removeItem('pending_room_id');
                 alert('방 생성 실패');
             }
         } catch {
             // 예외 발생 시 localStorage 정리 및 알림
             localStorage.removeItem('pending_auto_message');
             localStorage.removeItem('pending_image_url');
-            localStorage.removeItem('pending_image_message_content');
+            localStorage.removeItem('pending_room_id');
             alert('방 생성 오류');
         }
         setLoading(false);
@@ -355,96 +386,151 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
         // 사용자가 의도적으로 취소한 것이므로 아무 동작도 하지 않음
     };
 
+    // 이모지 추가/리액션 함수 (전역 입력창에서는 임시 alert)
+    const handleAddEmoji = (emoji) => {
+        alert('이모지 리액션 기능은 채팅방에서만 지원됩니다.');
+        setShowEmojiMenu(false);
+    };
+    // 답장/핀/삭제 버튼 핸들러 (전역 입력창에서는 임시 alert)
+    const handleReply = () => { alert('답장 기능은 채팅방에서만 지원됩니다.'); setShowEmojiMenu(false); };
+    const handlePin = () => { alert('고정핀 기능은 채팅방에서만 지원됩니다.'); setShowEmojiMenu(false); };
+    const handleDelete = () => { alert('삭제 기능은 채팅방에서만 지원됩니다.'); setShowEmojiMenu(false); };
 
+    const [showEmojiMenu, setShowEmojiMenu] = useState(false);
 
     return (
         <div className="global-chat-input" style={{ width: '100%', background: '#23242a', padding: 8, borderTop: '1px solid #333', position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 100 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, maxWidth: 700, margin: '0 auto' }}>
-                {/* 새로운 AI 채팅방 생성 버튼 (입력창 왼쪽) */}
-                {/* --- [수정 3] 버튼에 새로운 핸들러 연결 및 onClick 제거 --- */}
-                <button
-                    onMouseDown={handlePressStart}
-                    onMouseUp={handlePressEnd}
-                    onMouseLeave={handleCancel}
-                    onTouchStart={handlePressStart}
-                    onTouchEnd={handlePressEnd}
-                    onTouchCancel={handleCancel}
-                    // disabled={loading || !input.trim()}
-                    disabled={loading}
-                    style={{ background: '#ff6a00', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', fontSize: 18, cursor: 'pointer', minWidth: 48 }}
-                    title="짧게 클릭: 새 AI 채팅방 자동 생성 / 길게 누르기: 옵션"
-                >
-                    🔥
-                </button>
-                <textarea
-                    ref={inputRef}
-                    placeholder={room ? '메시지를 입력하세요' : '메시지를 입력하면 새 대화방이 생성됩니다'}
-                    value={input}
-                    onChange={e => setInput(e.target.value)}
-                    onKeyDown={e => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault();
-                            handleSend();
-                        }
-                    }}
-                    rows={1}
-                    style={{ flex: 1, borderRadius: 8, border: '1px solid #444', padding: 10, fontSize: 16, background: '#181a20', color: '#fff', resize: 'none' }}
-                    disabled={loading}
-                />
-                <button
-                    type="button"
-                    className="image-upload-btn-side"
-                    onClick={() => {
-                        console.log('[DEBUG] 이미지 업로드 버튼 클릭됨');
-                        // 파일 input을 직접 클릭
-                        const fileInput = document.getElementById('global-chat-image-upload');
-                        if (fileInput) {
-                            console.log('[DEBUG] 파일 input을 찾았습니다');
-                            fileInput.click();
-                        } else {
-                            console.error('[DEBUG] 파일 input을 찾을 수 없음');
-                        }
-                    }}
-                    style={{ cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
-                >
-                    <input
-                        id="global-chat-image-upload"
-                        type="file"
-                        accept="image/*"
-                        style={{ display: 'none' }}
-                        onChange={handleImageUpload}
-                        onClick={(e) => {
-                            console.log('[DEBUG] 파일 input 클릭됨');
+            <div style={{ position: 'relative', maxWidth: 700, margin: '0 auto' }}>
+                {/* 입력창 위에 딱 붙는 첨부 이미지 미리보기 (겹치지 않게) */}
+                {attachedImagePreview && (
+                    <div className="attached-image-preview-box" style={{
+                        position: 'absolute',
+                        left: 0,
+                        bottom: '100%',
+                        background: '#23242a',
+                        borderRadius: 8,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
+                        padding: 4,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        marginBottom: 4,
+                        maxWidth: 220,
+                        zIndex: 200
+                    }}>
+                        <img src={attachedImagePreview} alt="첨부 이미지 미리보기" className="attached-image-thumb" style={{ maxHeight: 60, borderRadius: 6 }} />
+                        <button onClick={handleRemoveAttachedImage} className="attached-image-remove-btn" style={{ marginLeft: 6, color: '#fff', background: '#f44336', border: 'none', borderRadius: 4, padding: '2px 8px', cursor: 'pointer' }}>✖</button>
+                    </div>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'relative' }}>
+                    {/* 새로운 AI 채팅방 생성 버튼 (입력창 왼쪽) */}
+                    <button
+                        onMouseDown={handlePressStart}
+                        onMouseUp={handlePressEnd}
+                        onMouseLeave={handleCancel}
+                        onTouchStart={handlePressStart}
+                        onTouchEnd={handlePressEnd}
+                        onTouchCancel={handleCancel}
+                        disabled={loading}
+                        style={{ background: '#ff6a00', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', fontSize: 18, cursor: 'pointer', minWidth: 48 }}
+                        title="짧게 클릭: 새 AI 채팅방 자동 생성 / 길게 누르기: 옵션"
+                    >
+                        🔥
+                    </button>
+                    <textarea
+                        ref={inputRef}
+                        placeholder={room ? '메시지를 입력하세요' : '메시지를 입력하면 새 대화방이 생성됩니다'}
+                        value={input}
+                        onChange={e => setInput(e.target.value)}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSend();
+                            }
                         }}
+                        rows={1}
+                        style={{ flex: 1, borderRadius: 8, border: '1px solid #444', padding: 10, fontSize: 16, background: '#181a20', color: '#fff', resize: 'none' }}
+                        disabled={loading}
                     />
-                    <span className="image-upload-btn-icon">📤</span>
-                </button>
-                <button
-                    onClick={() => {
-                        if (!room) {
-                            // 대기방: 방 생성 + 메시지/이미지 전송
-                            handleCreateNewAiRoom();
-                        } else if (attachedImage) {
-                            // 채팅방: 이미지 전송
-                            const currentInput = input;
-                            handleImageUploadAndSendWithFile(attachedImage, currentInput);
-                        } else {
-                            // 채팅방: 텍스트 전송
-                            handleSend();
-                        }
-                    }}
-                    disabled={!input.trim() && !attachedImage}
-                    style={{ background: '#ff6a00', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', fontSize: 18, cursor: 'pointer', minWidth: 48 }}
-                >
-                    {!room ? '개설' : (attachedImage ? '📤' : '전송')}
-                </button>
-            </div>
-            {attachedImagePreview && (
-                <div className="attached-image-preview-box" style={{ marginTop: 8 }}>
-                    <img src={attachedImagePreview} alt="첨부 이미지 미리보기" className="attached-image-thumb" style={{ maxHeight: 80, borderRadius: 8 }} />
-                    <button onClick={handleRemoveAttachedImage} className="attached-image-remove-btn" style={{ marginLeft: 8, color: '#fff', background: '#f44336', border: 'none', borderRadius: 4, padding: '2px 8px', cursor: 'pointer' }}>✖</button>
+                    {/* 이모지(+) 버튼 및 메뉴 */}
+                    <div style={{ position: 'relative' }}>
+                        <button
+                            className="add-emoji-btn"
+                            style={{ fontSize: 18, background: 'none', border: 'none', color: '#888', borderRadius: 8, padding: '0 6px', cursor: 'pointer' }}
+                            onClick={() => setShowEmojiMenu(v => !v)}
+                        >
+                            ＋
+                        </button>
+                        {showEmojiMenu && (
+                            <div className="emoji-picker-popup" style={{ position: 'absolute', zIndex: 10, background: '#222', borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.18)', padding: 6, display: 'flex', flexDirection: 'column', gap: 4, top: 32, right: 0 }}>
+                                <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+                                    {EMOJI_LIST.map(emoji => (
+                                        <span
+                                            key={emoji}
+                                            style={{ fontSize: 20, cursor: 'pointer', padding: 2 }}
+                                            onClick={e => { e.stopPropagation(); handleAddEmoji(emoji); }}
+                                        >
+                                            {emoji}
+                                        </span>
+                                    ))}
+                                </div>
+                                <div style={{ display: 'flex', gap: 8, borderTop: '1px solid #333', paddingTop: 6, marginTop: 2, justifyContent: 'flex-end' }}>
+                                    <button
+                                        className="emoji-menu-reply-btn"
+                                        style={{ color: '#2196f3', background: 'none', border: 'none', fontSize: 14, cursor: 'pointer', padding: '2px 8px', borderRadius: 4 }}
+                                        onClick={e => { e.stopPropagation(); handleReply(); }}
+                                    >↩️ 답장</button>
+                                    <button
+                                        className="emoji-menu-pin-btn"
+                                        style={{ color: '#ff9800', background: 'none', border: 'none', fontSize: 14, cursor: 'pointer', padding: '2px 8px', borderRadius: 4 }}
+                                        onClick={e => { e.stopPropagation(); handlePin(); }}
+                                    >📌 고정핀</button>
+                                    {/* 삭제 버튼은 본인 메시지일 때만 노출 (전역 입력창에서는 항상 비활성화) */}
+                                    <button
+                                        className="emoji-menu-delete-btn"
+                                        style={{ color: '#f44336', background: 'none', border: 'none', fontSize: 14, cursor: 'pointer', padding: '2px 8px', borderRadius: 4, opacity: 0.5, pointerEvents: 'none' }}
+                                        disabled
+                                    >🗑️ 삭제</button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <button
+                        type="button"
+                        className="image-upload-btn-side"
+                        onClick={() => {
+                            const fileInput = document.getElementById('global-chat-image-upload');
+                            if (fileInput) fileInput.click();
+                        }}
+                        style={{ cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
+                    >
+                        <input
+                            id="global-chat-image-upload"
+                            type="file"
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            onChange={handleImageUpload}
+                        />
+                        <span className="image-upload-btn-icon">📤</span>
+                    </button>
+                    <button
+                        onClick={() => {
+                            if (!room) {
+                                handleCreateNewAiRoom();
+                            } else if (attachedImage) {
+                                const currentInput = input;
+                                handleImageUploadAndSendWithFile(attachedImage, currentInput);
+                            } else {
+                                handleSend();
+                            }
+                        }}
+                        disabled={!input.trim() && !attachedImage}
+                        style={{ background: '#ff6a00', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', fontSize: 18, cursor: 'pointer', minWidth: 48 }}
+                    >
+                        {!room ? '개설' : (attachedImage ? '📤' : '전송')}
+                    </button>
                 </div>
-            )}
+            </div>
         </div>
     );
 };

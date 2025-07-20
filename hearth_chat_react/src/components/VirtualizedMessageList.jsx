@@ -50,6 +50,7 @@ const VirtualizedMessageList = ({
     selectedRoomId, // 방이 바뀔 때마다 최신 위치로 이동
     favoriteMessages = [],
     onToggleFavorite = () => { },
+    onDeleteMessage, // 메시지 삭제 콜백
 }) => {
     const [listRef, setListRef] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -375,23 +376,44 @@ const VirtualizedMessageList = ({
                         </button>
                         {/* 이모지 선택 팝업 */}
                         {emojiPickerMsgId === msg.id && (
-                            <div className="emoji-picker-popup" style={{ position: 'absolute', zIndex: 10, background: '#222', borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.18)', padding: 6, display: 'flex', gap: 4, top: 32, left: 60 }}>
-                                {EMOJI_LIST.map(emoji => (
-                                    <span
-                                        key={emoji}
-                                        style={{ fontSize: 20, cursor: 'pointer', padding: 2 }}
-                                        onClick={e => { e.stopPropagation(); toggleReaction(msg.id, emoji); setEmojiPickerMsgId(null); }}
-                                    >
-                                        {emoji}
-                                    </span>
-                                ))}
+                            <div className="emoji-picker-popup" style={{ position: 'absolute', zIndex: 10, background: '#222', borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.18)', padding: 6, display: 'flex', flexDirection: 'column', gap: 4, top: 32, left: 60 }}>
+                                <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+                                    {EMOJI_LIST.map(emoji => (
+                                        <span
+                                            key={emoji}
+                                            style={{ fontSize: 20, cursor: 'pointer', padding: 2 }}
+                                            onClick={e => { e.stopPropagation(); toggleReaction(msg.id, emoji); setEmojiPickerMsgId(null); }}
+                                        >
+                                            {emoji}
+                                        </span>
+                                    ))}
+                                </div>
+                                <div style={{ display: 'flex', gap: 8, borderTop: '1px solid #333', paddingTop: 6, marginTop: 2, justifyContent: 'flex-end' }}>
+                                    <button
+                                        className="emoji-menu-reply-btn"
+                                        style={{ color: '#2196f3', background: 'none', border: 'none', fontSize: 14, cursor: 'pointer', padding: '2px 8px', borderRadius: 4 }}
+                                        onClick={e => { e.stopPropagation(); onReply && onReply(msg); setEmojiPickerMsgId(null); }}
+                                    >↩️ 답장</button>
+                                    <button
+                                        className="emoji-menu-pin-btn"
+                                        style={{ color: '#ff9800', background: 'none', border: 'none', fontSize: 14, cursor: 'pointer', padding: '2px 8px', borderRadius: 4 }}
+                                        onClick={e => { e.stopPropagation(); togglePin(msg.id); setEmojiPickerMsgId(null); }}
+                                    >📌 고정핀</button>
+                                    {loginUser && (msg.username === loginUser.username || msg.user_id === loginUser.id) && (
+                                        <button
+                                            className="emoji-menu-delete-btn"
+                                            style={{ color: '#f44336', background: 'none', border: 'none', fontSize: 14, cursor: 'pointer', padding: '2px 8px', borderRadius: 4 }}
+                                            onClick={e => { e.stopPropagation(); if (typeof onDeleteMessage === 'function') onDeleteMessage(msg); setEmojiPickerMsgId(null); }}
+                                        >🗑️ 삭제</button>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>
                 </div>
             </div>
         );
-    }, [messages, loginUser, onMessageClick, getSenderColor, localReactions, emojiPickerMsgId, onReply, onReplyQuoteClick, pinnedIds, onImageClick, favoriteMessages, onToggleFavorite, tempHighlightedId]);
+    }, [messages, loginUser, onMessageClick, getSenderColor, localReactions, emojiPickerMsgId, onReply, onReplyQuoteClick, pinnedIds, onImageClick, favoriteMessages, onToggleFavorite, tempHighlightedId, onDeleteMessage]);
 
     // 아이템이 로드되었는지 확인
     const isItemLoaded = useCallback((index) => {

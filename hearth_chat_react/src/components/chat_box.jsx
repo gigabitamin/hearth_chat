@@ -1918,8 +1918,8 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   const handleImageUploadAndSend = async () => {
     if (!attachedImage || !ws.current || ws.current.readyState !== 1) return;
 
-    console.log('[DEBUG] handleImageUploadAndSend 시작');
-    console.log('[DEBUG] 현재 입력된 텍스트:', input);
+    // console.log('[DEBUG] handleImageUploadAndSend 시작');
+    // console.log('[DEBUG] 현재 입력된 텍스트:', input);
 
     // 입력된 텍스트를 미리 저장 (초기화 전에)
     const messageText = input || '이미지 첨부';
@@ -2796,6 +2796,29 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     }
   }, [selectedRoom]);
 
+  // 메시지 삭제 함수
+  const handleDeleteMessage = async (msg) => {
+    if (!msg.id) return;
+    if (!(loginUser && (msg.username === loginUser.username || msg.user_id === loginUser.id))) {
+      alert('본인 메시지만 삭제할 수 있습니다.');
+      return;
+    }
+    if (!window.confirm('정말 이 메시지를 삭제하시겠습니까?')) return;
+    try {
+      const res = await csrfFetch(`${getApiBase()}/api/chat/messages/${msg.id}/`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setMessages(prev => prev.filter(m => m.id !== msg.id));
+      } else {
+        alert('메시지 삭제에 실패했습니다.');
+      }
+    } catch (e) {
+      alert('메시지 삭제 중 오류: ' + e.message);
+    }
+  };
+
   return (
     <>
       {/* 이미지 뷰어 모달 */}
@@ -2916,6 +2939,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                   onImageClick={setViewerImage}
                   favoriteMessages={favoriteMessages}
                   onToggleFavorite={handleToggleFavorite}
+                  onDeleteMessage={handleDeleteMessage}
                 />
               </div>
 
@@ -2923,6 +2947,13 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           </div>
         </div>
       </div>
+      {/* 입력창 위에 첨부 이미지 미리보기 UI */}
+      {attachedImagePreview && (
+        <div className="attached-image-preview-box" style={{ margin: '8px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <img src={attachedImagePreview} alt="첨부 미리보기" className="attached-image-thumb" style={{ maxWidth: 120, maxHeight: 120, borderRadius: 8 }} />
+          <button className="attached-image-remove-btn" style={{ color: '#f44336', background: 'none', border: 'none', fontSize: 15, cursor: 'pointer', marginLeft: 8 }} onClick={handleRemoveAttachedImage}>제거</button>
+        </div>
+      )}
       {/* 입력창 위에 답장 인용 미리보기 UI */}
       {replyTo && (
         <div className="reply-preview-bar" style={{
