@@ -78,7 +78,7 @@ export default function HeaderBar({
         <header className="header-bar">
             <div className="header-left-group">
                 {/* 오버레이와 동일한 탭 UI로 교체 */}
-                <div className="header-tabs" style={{ display: 'flex', gap: 8, marginLeft: 8 }}>
+                <div className="header-tabs">
                     <button onClick={() => onTabChange('personal')} className={`header-tab-btn${!isInRoom && activeTab === 'personal' ? ' active' : ''}`}>개인</button>
                     <button onClick={() => onTabChange('open')} className={`header-tab-btn${!isInRoom && activeTab === 'open' ? ' active' : ''}`}>오픈</button>
                     <button onClick={() => onTabChange('favorite')} className={`header-tab-btn${!isInRoom && activeTab === 'favorite' ? ' active' : ''}`}>★</button>
@@ -182,10 +182,10 @@ export default function HeaderBar({
                     </button>
                 )}
                 <button className="header-action-btn" onClick={onSearchClick} title="검색">
-                    <span role="img" aria-label="search" style={{ fontSize: 22 }}>🔍</span>
+                    <span role="img" aria-label="search">🔍</span>
                 </button>
                 <button className="header-action-btn notify-btn" onClick={onNotifyClick} title="알림">
-                    <span role="img" aria-label="notify" style={{ fontSize: 22 }}>🔔</span>
+                    <span role="img" aria-label="notify">🔔</span>
                     {unreadNotifications > 0 && (
                         <span className="notification-badge">{unreadNotifications > 99 ? '99+' : unreadNotifications}</span>
                     )}

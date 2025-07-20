@@ -23,8 +23,8 @@
 .header-tabs {
     display: flex;
     align-items: center;
-    gap: 2px;
-    margin-left: 2px;
+    gap: 1px;
+    margin-left: 1px;    
 }
 
 .header-center {
@@ -52,10 +52,10 @@
 .header-tab-btn {
     background: #2e2f36;
     border: none;
-    font-size: 0.95rem;
+    font-size: 0.80rem;
     font-weight: 600;
     color: #b0b3c0;
-    padding: 4px 10px;
+    padding: 0px 8px;
     border-radius: 6px;
     margin: 0 1px;
     cursor: pointer;
@@ -67,7 +67,7 @@
 }
 
 .header-tab-btn.active {
-    /* background: linear-gradient(90deg, #007bff 60%, #00c6ff 100%); */
+    background: linear-gradient(90deg, #313131 20%, #a1a1a1 100%);
     color: #fff;
     font-weight: 700;
     box-shadow: 0 2px 8px 0 rgba(0, 123, 255, 0.10);
@@ -89,14 +89,15 @@
 }
 
 .header-action-btn {
+    /* font-size: 1.2rem; */
     background: none;
     border: none;
-    padding: 4px 7px;
+    padding: 2px 2px;
     border-radius: 50%;
     cursor: pointer;
     transition: background 0.18s;
-    margin-left: 2px;
-    font-size: 1rem;
+    margin-left: 1x;
+    font-size: 1.2rem;
     color: #444;
     outline: none;
     display: flex;

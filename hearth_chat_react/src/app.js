@@ -548,12 +548,14 @@ function AppContent(props) {
                 <button onClick={() => setOverlayTab('personal')} className={`header-tab-btn${!isInRoom && overlayTab === 'personal' ? ' active' : ''}`}>개인</button>
                 <button onClick={() => setOverlayTab('open')} className={`header-tab-btn${!isInRoom && overlayTab === 'open' ? ' active' : ''}`}>오픈</button>
                 <button onClick={() => setOverlayTab('favorite')} className={`header-tab-btn${!isInRoom && overlayTab === 'favorite' ? ' active' : ''}`}>★</button>
-                <button
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'row', gap: 8 }}>
+              <button
                   onClick={() => { setShowCreateModal(true); setShowRoomListOverlay(false); }}
                   title="새 대화방 만들기"
                   style={{ background: 'none', border: 'none', fontSize: 24, marginLeft: 4, cursor: 'pointer', color: '#ff9800', padding: '0 6px' }}
-                >🔥</button>
-              </div>
+                >🔥
+              </button>
               <button
                 className="sidebar-home-overlay-btn"
                 style={{
@@ -573,6 +575,7 @@ function AppContent(props) {
               >
                 🏠
               </button>
+              </div>
             </div>
             <div className="room-list-overlay-main" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
               <div style={{ flex: 3, overflowY: 'auto' }}>
@@ -716,7 +719,8 @@ function App() {
   const [roomMessages, setRoomMessages] = useState([]);
   // 추가: 상단 탭/모달 상태
   const [activeTab, setActiveTab] = useState('personal'); // 'personal' | 'open'
-  const [overlayTab, setOverlayTab] = useState('personal');
+  // 오버레이 탭 상태: 기본값을 'favorite'으로(즐겨찾기)
+  const [overlayTab, setOverlayTab] = useState('favorite');
   const [isNotifyModalOpen, setIsNotifyModalOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
