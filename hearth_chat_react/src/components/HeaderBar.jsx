@@ -95,8 +95,8 @@ export default function HeaderBar({
                             onMouseUp={handleTitleMouseUp}
                             onMouseLeave={handleTitleMouseLeave}
                             style={{
-                                maxWidth: 50,
-                                fontSize: '0.98rem',
+                                maxWidth: 140,
+                                // fontSize: '0.98rem',
                                 fontWeight: 600,
                                 color: '#23242a',
                                 whiteSpace: 'nowrap',
@@ -154,13 +154,9 @@ export default function HeaderBar({
             <div className="header-actions">
                 {/* 로그인/유저 버튼 */}
                 {loginUser ? (
-                    <button
-                        className="header-action-btn"
-                        onClick={onSettingsClick}
-                        title="내 계정"
-                        style={{ marginRight: 8 }}
-                    >
-                    </button>
+                    <div>
+                        {/* <button className="header-action-btn" onClick={onSettingsClick} title="내 계정"></button> */}
+                    </div>
                 ) : (
                     <button
                         className="header-action-btn"
@@ -174,8 +170,9 @@ export default function HeaderBar({
                             background: '#f0f0f0',
                             border: '1px solid #ddd',
                             borderRadius: '4px',
-                            padding: '8px 12px',
-                            cursor: 'pointer'
+                            padding: '4px 4px',
+                            cursor: 'pointer',
+                            zIndex: 1000,
                         }}
                     >
                         <span role="img" aria-label="login" style={{ fontSize: 20 }}>🔑</span>
