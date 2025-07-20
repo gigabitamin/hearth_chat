@@ -2,13 +2,9 @@ body,
 html,
 #root,
 .app,
-.app-container,
-.chat-container,
-.chat-log,
-.chat-section,
-.virtualized-message-list {
-  height: 100% !important;
-  min-height: 0 !important;
+.app-container {
+  height: var(--real-vh);
+  min-height: 0;
   width: 100% !important;
   min-width: 0 !important;
   box-sizing: border-box !important;

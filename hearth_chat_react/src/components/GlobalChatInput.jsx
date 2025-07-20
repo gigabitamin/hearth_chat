@@ -282,6 +282,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                 // 방 생성 실패 시 localStorage 정리 및 알림
                 localStorage.removeItem('pending_auto_message');
                 localStorage.removeItem('pending_image_url');
+                localStorage.removeItem('pending_image_message_content');
                 localStorage.removeItem('pending_room_id');
                 alert('방 생성 실패');
             }
@@ -289,6 +290,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
             // 예외 발생 시 localStorage 정리 및 알림
             localStorage.removeItem('pending_auto_message');
             localStorage.removeItem('pending_image_url');
+            localStorage.removeItem('pending_image_message_content');
             localStorage.removeItem('pending_room_id');
             alert('방 생성 오류');
         }

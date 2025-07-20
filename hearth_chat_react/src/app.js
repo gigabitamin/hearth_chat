@@ -969,6 +969,16 @@ function App() {
     }
   }, [location.pathname]);
 
+  // 실제 뷰포트 높이를 --real-vh 변수로 할당
+  function setRealVh() {
+    document.documentElement.style.setProperty('--real-vh', `${window.innerHeight}px`);
+  }
+  useEffect(() => {
+    setRealVh();
+    window.addEventListener('resize', setRealVh);
+    return () => window.removeEventListener('resize', setRealVh);
+  }, []);
+
   const ws = useRef(null);
   return <AppContent
     loginUser={loginUser}

@@ -768,30 +768,30 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // 모바일 브라우저에서 실제 보이는 영역의 높이로 --real-vh CSS 변수 설정
-  useEffect(() => {
-    function setRealVh() {
-      const vh = window.visualViewport
-        ? window.visualViewport.height * 0.01
-        : window.innerHeight * 0.01;
-      document.documentElement.style.setProperty('--real-vh', `${vh}px`);
-    }
-    window.addEventListener('resize', setRealVh);
-    window.addEventListener('orientationchange', setRealVh);
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', setRealVh);
-      window.visualViewport.addEventListener('scroll', setRealVh);
-    }
-    setRealVh();
-    return () => {
-      window.removeEventListener('resize', setRealVh);
-      window.removeEventListener('orientationchange', setRealVh);
-      if (window.visualViewport) {
-        window.visualViewport.removeEventListener('resize', setRealVh);
-        window.visualViewport.removeEventListener('scroll', setRealVh);
-      }
-    };
-  }, []);
+  // // 모바일 브라우저에서 실제 보이는 영역의 높이로 --real-vh CSS 변수 설정
+  // useEffect(() => {
+  //   function setRealVh() {
+  //     const vh = window.visualViewport
+  //       ? window.visualViewport.height * 0.01
+  //       : window.innerHeight * 0.01;
+  //     document.documentElement.style.setProperty('--real-vh', `${vh}px`);
+  //   }
+  //   window.addEventListener('resize', setRealVh);
+  //   window.addEventListener('orientationchange', setRealVh);
+  //   if (window.visualViewport) {
+  //     window.visualViewport.addEventListener('resize', setRealVh);
+  //     window.visualViewport.addEventListener('scroll', setRealVh);
+  //   }
+  //   setRealVh();
+  //   return () => {
+  //     window.removeEventListener('resize', setRealVh);
+  //     window.removeEventListener('orientationchange', setRealVh);
+  //     if (window.visualViewport) {
+  //       window.visualViewport.removeEventListener('resize', setRealVh);
+  //       window.visualViewport.removeEventListener('scroll', setRealVh);
+  //     }
+  //   };
+  // }, []);
 
   // 컴포넌트 마운트 시 실행
   useEffect(() => {
