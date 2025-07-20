@@ -389,14 +389,21 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
     // 이모지 추가/리액션 함수 (전역 입력창에서는 임시 alert)
     const handleAddEmoji = (emoji) => {
         alert('이모지 리액션 기능은 채팅방에서만 지원됩니다.');
-        setShowEmojiMenu(false);
+        // setShowEmojiMenu(false); // 이 부분은 이모지 메뉴 제거로 인해 필요 없어짐
     };
     // 답장/핀/삭제 버튼 핸들러 (전역 입력창에서는 임시 alert)
-    const handleReply = () => { alert('답장 기능은 채팅방에서만 지원됩니다.'); setShowEmojiMenu(false); };
-    const handlePin = () => { alert('고정핀 기능은 채팅방에서만 지원됩니다.'); setShowEmojiMenu(false); };
-    const handleDelete = () => { alert('삭제 기능은 채팅방에서만 지원됩니다.'); setShowEmojiMenu(false); };
+    const handleReply = () => {
+        alert('답장 기능은 채팅방에서만 지원됩니다.'); // setShowEmojiMenu(false); // 이 부분은 이모지 메뉴 제거로 인해 필요 없어짐
+    };
+    const handlePin = () => {
+        alert('고정핀 기능은 채팅방에서만 지원됩니다.'); // setShowEmojiMenu(false); // 이 부분은 이모지 메뉴 제거로 인해 필요 없어짐
+    };
+    const handleDelete = () => {
+        alert('삭제 기능은 채팅방에서만 지원됩니다.'); // setShowEmojiMenu(false); // 이 부분은 이모지 메뉴 제거로 인해 필요 없어짐
+    };
 
-    const [showEmojiMenu, setShowEmojiMenu] = useState(false);
+    // 이모지 메뉴 관련 상태 및 함수 제거
+    // const [showEmojiMenu, setShowEmojiMenu] = useState(false);
 
     return (
         <div className="global-chat-input" style={{ width: '100%', background: '#23242a', padding: 8, borderTop: '1px solid #333', position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 100 }}>
@@ -453,48 +460,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                         disabled={loading}
                     />
                     {/* 이모지(+) 버튼 및 메뉴 */}
-                    <div style={{ position: 'relative' }}>
-                        <button
-                            className="add-emoji-btn"
-                            style={{ fontSize: 18, background: 'none', border: 'none', color: '#888', borderRadius: 8, padding: '0 6px', cursor: 'pointer' }}
-                            onClick={() => setShowEmojiMenu(v => !v)}
-                        >
-                            ＋
-                        </button>
-                        {showEmojiMenu && (
-                            <div className="emoji-picker-popup" style={{ position: 'absolute', zIndex: 10, background: '#222', borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.18)', padding: 6, display: 'flex', flexDirection: 'column', gap: 4, top: 32, right: 0 }}>
-                                <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
-                                    {EMOJI_LIST.map(emoji => (
-                                        <span
-                                            key={emoji}
-                                            style={{ fontSize: 20, cursor: 'pointer', padding: 2 }}
-                                            onClick={e => { e.stopPropagation(); handleAddEmoji(emoji); }}
-                                        >
-                                            {emoji}
-                                        </span>
-                                    ))}
-                                </div>
-                                <div style={{ display: 'flex', gap: 8, borderTop: '1px solid #333', paddingTop: 6, marginTop: 2, justifyContent: 'flex-end' }}>
-                                    <button
-                                        className="emoji-menu-reply-btn"
-                                        style={{ color: '#2196f3', background: 'none', border: 'none', fontSize: 14, cursor: 'pointer', padding: '2px 8px', borderRadius: 4 }}
-                                        onClick={e => { e.stopPropagation(); handleReply(); }}
-                                    >↩️ 답장</button>
-                                    <button
-                                        className="emoji-menu-pin-btn"
-                                        style={{ color: '#ff9800', background: 'none', border: 'none', fontSize: 14, cursor: 'pointer', padding: '2px 8px', borderRadius: 4 }}
-                                        onClick={e => { e.stopPropagation(); handlePin(); }}
-                                    >📌 고정핀</button>
-                                    {/* 삭제 버튼은 본인 메시지일 때만 노출 (전역 입력창에서는 항상 비활성화) */}
-                                    <button
-                                        className="emoji-menu-delete-btn"
-                                        style={{ color: '#f44336', background: 'none', border: 'none', fontSize: 14, cursor: 'pointer', padding: '2px 8px', borderRadius: 4, opacity: 0.5, pointerEvents: 'none' }}
-                                        disabled
-                                    >🗑️ 삭제</button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                    {/* 이모지 메뉴 제거로 인해 이 부분은 필요 없어짐 */}
                     <button
                         type="button"
                         className="image-upload-btn-side"
