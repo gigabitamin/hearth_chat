@@ -479,8 +479,42 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
     };
     // 즐겨찾기 메시지 목록에서 onClick={() => handleFavoriteMessageClick(msg)}로 연결
 
+    // 사이드바 상단 HOME 오버레이 버튼 (오버레이에서만)
+    const showHomeOverlayBtn = !!(window.location.pathname.startsWith('/room/') || window.location.hash.includes('overlay'));
+
     return (
-        <div className="chat-room-list" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <div className="chat-room-list" style={{ height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+            {/* HOME 오버레이 버튼 (사이드바 상단 우측, 탭/새방만들기 버튼과 같은 수평선상) */}
+            {showHomeOverlayBtn && (
+                <button
+                    className="sidebar-home-overlay-btn"
+                    style={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        zIndex: 1001,
+                        background: '#fff',
+                        border: '1.5px solid #1976d2',
+                        color: '#1976d2',
+                        borderRadius: '50%',
+                        fontWeight: 700,
+                        fontSize: 22,
+                        width: 38,
+                        height: 38,
+                        boxShadow: '0 2px 8px rgba(25,118,210,0.08)',
+                        cursor: 'pointer',
+                        outline: 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'background 0.18s',
+                    }}
+                    onClick={() => navigate('/')}
+                    title="홈으로"
+                >
+                    🏠
+                </button>
+            )}
             {/* 내부 탭 UI 완전 제거됨. 탭은 상위(App/오버레이)에서만 렌더링 */}
             {loading ? (
                 <div className="loading">대화방 목록을 불러오는 중...</div>
@@ -755,7 +789,8 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                         onClose={() => setIsLoginModalOpen(false)}
                         onSocialLogin={openSocialLoginPopup}
                     />
-                    {loginUser && (
+                    {/* 기존 하단 HOME 버튼 완전 삭제 */}
+                    {/* {loginUser && (
                         <button
                             className="home-fab-btn"
                             onClick={() => {
@@ -766,7 +801,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                         >
                             🏠
                         </button>
-                    )}
+                    )} */}
                 </>
             ))}
             {/* 하단 미리보기 정보창 */}

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './HeaderBar.css';
+import AboutModal from './AboutModal';
 
 const CreateRoomButton = ({ onClick }) => (
     <button
@@ -27,21 +28,109 @@ export default function HeaderBar({
     unreadNotifications = 0, // 읽지 않은 알림 개수
     isInRoom = false // 새로 추가된 prop
 }) {
-    const navigate = useNavigate();    
+    const [showTitlePopup, setShowTitlePopup] = useState(false);
+    const titleClickTimer = useRef(null);
+    const navigate = useNavigate();
+    const [showAboutModal, setShowAboutModal] = useState(false);
+
+    // 롱클릭/숏클릭 분기
+    const handleTitleMouseDown = () => {
+        titleClickTimer.current = setTimeout(() => {
+            // 롱클릭: 홈으로 이동
+            navigate('/');
+        }, 600); // 600ms 이상이면 롱클릭
+    };
+    const handleTitleMouseUp = () => {
+        if (titleClickTimer.current) {
+            clearTimeout(titleClickTimer.current);
+            // 숏클릭: 전체 타이틀 팝업 토글 (채팅방 내부)
+            if (isInRoom) {
+                setShowTitlePopup(v => !v);
+            } else {
+                setShowAboutModal(v => !v);
+            }
+        }
+    };
+    const handleTitleMouseLeave = () => {
+        if (titleClickTimer.current) clearTimeout(titleClickTimer.current);
+    };
 
     return (
         <header className="header-bar">
-            <div className="header-left-group">                
+            <div className="header-left-group">
                 {/* 오버레이와 동일한 탭 UI로 교체 */}
                 <div className="header-tabs" style={{ display: 'flex', gap: 8, marginLeft: 8 }}>
                     <button onClick={() => onTabChange('personal')} className={`header-tab-btn${!isInRoom && activeTab === 'personal' ? ' active' : ''}`}>개인</button>
                     <button onClick={() => onTabChange('open')} className={`header-tab-btn${!isInRoom && activeTab === 'open' ? ' active' : ''}`}>오픈</button>
-                    <button onClick={() => onTabChange('favorite')} className={`header-tab-btn${!isInRoom && activeTab === 'favorite' ? ' active' : ''}`}>★</button>                    
+                    <button onClick={() => onTabChange('favorite')} className={`header-tab-btn${!isInRoom && activeTab === 'favorite' ? ' active' : ''}`}>★</button>
                 </div>
                 {/* <CreateRoomButton onClick={onCreateRoomClick} /> */}
-            </div>            
-            <div className="header-center">                
-                <div>{title && <span className="header-title-text">{title}</span>}</div>
+            </div>
+            <div className="header-center">
+                <div>
+                    {title && (
+                        <span
+                            className="header-title-text"
+                            title={title}
+                            onMouseDown={handleTitleMouseDown}
+                            onMouseUp={handleTitleMouseUp}
+                            onMouseLeave={handleTitleMouseLeave}
+                            style={{
+                                maxWidth: 260,
+                                fontSize: '0.98rem',
+                                fontWeight: 600,
+                                color: '#23242a',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                display: 'inline-block',
+                                textAlign: 'center',
+                                cursor: 'pointer',
+                                verticalAlign: 'middle',
+                                userSelect: 'none',
+                                padding: '0 8px',
+                                lineHeight: '1.2',
+                                letterSpacing: '0.2px',
+                            }}
+                        >
+                            {title}
+                        </span>
+                    )}
+                    {/* 전체 타이틀 팝업 (채팅방 내부) */}
+                    {isInRoom && showTitlePopup && (
+                        <div
+                            className="header-title-popup"
+                            style={{
+                                position: 'absolute',
+                                left: '50%',
+                                top: 44,
+                                transform: 'translateX(-50%)',
+                                background: '#fff',
+                                color: '#23242a',
+                                border: '1px solid #ddd',
+                                borderRadius: 8,
+                                boxShadow: '0 4px 16px rgba(0,0,0,0.13)',
+                                padding: '16px 24px',
+                                zIndex: 9999,
+                                minWidth: 120,
+                                maxWidth: 420,
+                                fontSize: '1.08rem',
+                                fontWeight: 600,
+                                textAlign: 'center',
+                                wordBreak: 'break-all',
+                                whiteSpace: 'pre-line',
+                                cursor: 'pointer',
+                            }}
+                            onClick={() => setShowTitlePopup(false)}
+                        >
+                            {title}
+                        </div>
+                    )}
+                    {/* About/QnA/HelpEmail 모달 (대기방에서만) */}
+                    {!isInRoom && showAboutModal && (
+                        <AboutModal open={showAboutModal} onClose={() => setShowAboutModal(false)} />
+                    )}
+                </div>
             </div>
             <div className="header-actions">
                 {/* 로그인/유저 버튼 */}

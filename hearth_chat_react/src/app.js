@@ -242,7 +242,7 @@ function AppContent(props) {
     // GlobalChatInput에서 전달받은 이미지 파일 상태
     pendingImageFile,
     setPendingImageFile,
-  } = props;  
+  } = props;
 
   const [ttsRate, setTtsRate] = useState(1.5);
   const [ttsPitch, setTtsPitch] = useState(1.5);
@@ -475,6 +475,7 @@ function AppContent(props) {
         loginUser={loginUser}
         title={headerTitle}
         unreadNotifications={unreadNotifications}
+        isInRoom={isInRoom}
       />
       {/* 알림/검색 모달 */}
       <NotifyModal
@@ -532,8 +533,8 @@ function AppContent(props) {
       />
       {/* 새 방 만들기 모달을 AppContent에서 항상 렌더링 */}
       {showCreateModal && (
-        <CreateRoomModal          
-          open={isCreateNewChatOpen}
+        <CreateRoomModal
+          open={showCreateModal}
           onClose={() => setShowCreateModal(false)}
           onSuccess={handleCreateRoomSuccess}
         />
@@ -675,9 +676,9 @@ function AppContent(props) {
       {/* --- [최종 수정] --- */}
       {/* CreateRoomModal에 open prop을 전달합니다. */}
       {isCreateNewChatOpen && (
-        <CreateRoomModal 
+        <CreateRoomModal
           open={isCreateNewChatOpen}  // <--- 이 줄을 추가해주세요!
-          onClose={() => setIsCreateNewChatOpen(false)} 
+          onClose={() => setIsCreateNewChatOpen(false)}
           onSuccess={handleCreateRoomSuccess} // onSuccess도 추가하면 좋습니다.
         />
       )}
@@ -886,7 +887,7 @@ function App() {
         ? `${protocol}//${host}:8000/ws/chat/`
         : `${protocol}//${host}/ws/chat/`;
       wsInstance = new window.WebSocket(wsUrl);
-      ws.current = wsInstance;      
+      ws.current = wsInstance;
       wsInstance.onopen = () => { console.log(''); };
       wsInstance.onmessage = (event) => {
         try {
