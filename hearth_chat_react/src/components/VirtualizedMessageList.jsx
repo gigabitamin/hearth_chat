@@ -461,7 +461,7 @@ const VirtualizedMessageList = ({
     }, [messages, listRef]);
 
     return (
-        <div className="virtualized-message-list" ref={scrollContainerRef} style={{ position: 'relative' }}>
+        <div className="virtualized-message-list" ref={scrollContainerRef} style={{ position: 'relative', height: '100%', width: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             {/* 상단 고정 메시지 영역 */}
             {pinnedMessages.length > 0 && (
                 <div style={{ marginBottom: 8 }}>
@@ -504,32 +504,35 @@ const VirtualizedMessageList = ({
                 </div>
             )}
             <AutoSizer>
-                {({ height, width }) => (
-                    <InfiniteLoader
-                        isItemLoaded={isItemLoaded}
-                        itemCount={itemCount}
-                        loadMoreItems={loadMoreItems}
-                        threshold={5}
-                    >
-                        {({ onItemsRendered, ref }) => (
-                            <List
-                                ref={(list) => {
-                                    setListRef(list);
-                                    ref(list);
-                                }}
-                                height={height}
-                                width={width}
-                                itemCount={itemCount}
-                                itemSize={getItemSize}
-                                onItemsRendered={onItemsRendered}
-                                overscanCount={5}
-                                className="message-list"
-                            >
-                                {renderMessage}
-                            </List>
-                        )}
-                    </InfiniteLoader>
-                )}
+                {({ height, width }) => {
+                    console.log('AutoSizer', height, width); // 디버그용
+                    return (
+                        <InfiniteLoader
+                            isItemLoaded={isItemLoaded}
+                            itemCount={itemCount}
+                            loadMoreItems={loadMoreItems}
+                            threshold={5}
+                        >
+                            {({ onItemsRendered, ref }) => (
+                                <List
+                                    ref={(list) => {
+                                        setListRef(list);
+                                        ref(list);
+                                    }}
+                                    height={height}
+                                    width={width}
+                                    itemCount={itemCount}
+                                    itemSize={getItemSize}
+                                    onItemsRendered={onItemsRendered}
+                                    overscanCount={5}
+                                    className="message-list"
+                                >
+                                    {renderMessage}
+                                </List>
+                            )}
+                        </InfiniteLoader>
+                    );
+                }}
             </AutoSizer>
         </div>
     );

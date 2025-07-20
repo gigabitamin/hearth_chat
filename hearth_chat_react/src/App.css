@@ -1,21 +1,23 @@
 body,
 html,
-#root {
-  margin: 0;
-  padding: 0;
-  width: 100vw;
-  height: 100vh;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
+#root,
+.app,
+.app-container,
+.chat-container,
+.chat-log,
+.chat-section,
+.virtualized-message-list {
+  height: 100% !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  overflow-x: hidden !important;
 }
 
 .app {
-  height: 100vh;
+  height: 100%;
+  width: 100%;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   overflow: hidden;
 }
@@ -108,9 +110,9 @@ html,
 .app-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
   min-height: 0;
-  width: 100vw;
+  width: 100%;
 }
 
 .room-list-container {
@@ -160,8 +162,8 @@ html,
 }
 
 .chat-container {
-  height: 100vh;
-  width: 100vw;
+  height: 100%;
+  width: 100%;
   display: flex;
   flex-direction: column;
 }
@@ -250,7 +252,7 @@ html,
   box-shadow: 2px 0 16px rgba(0, 0, 0, 0.18);
   border-top-right-radius: 16px;
   border-bottom-right-radius: 16px;
-  /* overflow-y: auto; */ 
+  /* overflow-y: auto; */
   position: relative;
   animation: slideInLeft 0.2s;
   display: flex;
@@ -259,7 +261,7 @@ html,
 
 .room-list-info-panel {
   flex: 4;
-  overflow-y: auto;  
+  overflow-y: auto;
   overflow-x: hidden;
 }
 
@@ -271,12 +273,12 @@ html,
   background: #fafbfc;
   padding: 8px;
   overflow-x: hidden;
-  margin-bottom: 19%;  
+  margin-bottom: 19%;
 }
 
 .sidebar-room-list-info-panel {
   flex: 4;
-  overflow-y: auto;  
+  overflow-y: auto;
   overflow-x: hidden;
   padding: auto;
 }
@@ -284,38 +286,38 @@ html,
 .sidebar-room-info-panel {
   flex: 3;
   min-height: 0;
-  overflow-y: auto;  
+  overflow-y: auto;
   background: #fafbfc;
   padding: 8px;
   overflow-x: hidden;
 }
 
-.selected-room-info {      
+.selected-room-info {
   /* overflow-y: auto;   */
 }
 
-.selected-room-info-title {      
+.selected-room-info-title {
   padding: 8px;
   font-weight: bold;
   border-top: 5px solid #eee;
-  border-bottom: 1px solid #eee;  
+  border-bottom: 1px solid #eee;
   background: #fafbfc;
 }
 
-.selected-room-info-title-sidebar {      
+.selected-room-info-title-sidebar {
   padding: 8px;
   font-weight: bold;
   border-top: 5px solid #eee;
-  border-bottom: 1px solid #eee;  
+  border-bottom: 1px solid #eee;
 }
 
 .selected-room-info-messages {
   /* max-height: 300px; */
   /* overflow-y: auto; */
-  background: rgba(0,0,0,0.1);
+  background: rgba(0, 0, 0, 0.1);
   border-radius: 2px;
   padding: 2px;
-  margin-top: 2px;  
+  margin-top: 2px;
 }
 
 
@@ -340,13 +342,14 @@ html,
     opacity: 1;
   }
 }
+
 /* 이미지 뷰어 모달 스타일 */
 .image-viewer-modal {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   background: rgba(0, 0, 0, 0.8);
   display: flex;
   align-items: center;
@@ -355,8 +358,8 @@ html,
 }
 
 .image-viewer-img {
-  max-width: 90vw;
-  max-height: 90vh;
+  max-width: 90%;
+  max-height: 90%;
   border-radius: 12px;
   box-shadow: 0 4px 32px #000a;
 }
