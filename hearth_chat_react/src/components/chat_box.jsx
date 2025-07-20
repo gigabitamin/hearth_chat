@@ -2842,43 +2842,26 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     // 채팅방 입장 시 자동 메시지 전송 및 AI 응답 활성화
     if (selectedRoom && selectedRoom.id) {
       const autoMsg = localStorage.getItem('pending_auto_message');
-      if (autoMsg) {
-        // 1. user setting ai_response_enabled true로 PATCH
-        fetch('/api/chat/user/settings/', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ ai_response_enabled: true })
-        });
-        // 2. 메시지 자동 전송
+      const autoImg = localStorage.getItem('pending_image_url');
+      if (autoMsg || autoImg) {
         setTimeout(() => {
           if (ws.current && ws.current.readyState === 1) {
             const clientId = `${Date.now()}_${Math.random()}`;
             const messageData = {
-              message: autoMsg,
+              message: autoMsg || '[이미지 첨부]',
+              imageUrl: autoImg || '',
               roomId: selectedRoom.id,
               client_id: clientId,
             };
             ws.current.send(JSON.stringify(messageData));
-            setMessages(prev => [
-              ...prev,
-              {
-                id: clientId,
-                type: 'send',
-                text: autoMsg,
-                date: new Date().toISOString(),
-                sender: loginUser?.username,
-                user_id: loginUser?.id,
-                pending: true,
-                client_id: clientId,
-              }
-            ]);
+            // localStorage 정리
             localStorage.removeItem('pending_auto_message');
+            localStorage.removeItem('pending_image_url');
           }
         }, 500);
       }
     }
-  }, [selectedRoom?.id]);
+  }, [selectedRoom]);
 
   return (
     <>

@@ -211,20 +211,26 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
     };
 
     // 새로운 AI 채팅방 생성 및 이동
+    // 방 생성 함수 내에서 localStorage 정리 및 강제 이동 보장
     const handleCreateNewAiRoom = async () => {
-        if (!input.trim()) return;
+        if (!input.trim() && !attachedImage) return;
         setLoading(true);
         const now = new Date();
         const title = `${input.slice(0, 20)} - ${now.toLocaleString('ko-KR', { hour12: false })}`;
         try {
-            // 입력 메시지를 localStorage에 임시 저장
-            localStorage.setItem('pending_auto_message', input);
+            // 입력 메시지를 localStorage에 임시 저장 (이미지 첨부 시에도)
+            if (attachedImage) {
+                // 이미지 업로드 후 file_url을 localStorage에 저장
+                await handleImageUploadAndSendWithFile(attachedImage, input);
+            } else {
+                localStorage.setItem('pending_auto_message', input);
+            }
             const res = await csrfFetch(`${getApiBase()}/api/chat/rooms/`, {
                 method: 'POST',
                 body: JSON.stringify({ name: title, is_public: false, room_type: 'ai', ai_provider: 1, ai_response_enabled: true }),
             });
             if (res.ok) {
-                const data = await res.json();
+                const roomData = await res.json();
                 // 방 생성 후 user settings도 자동 ON
                 try {
                     await fetch(`${getApiBase()}/api/chat/user/settings/`, {
@@ -237,13 +243,22 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                         body: JSON.stringify({ ai_response_enabled: true }),
                     });
                 } catch (e) { /* 무시 */ }
+                // localStorage 정리 X (자동 전송 후 chat_box.jsx에서 정리)
                 setTimeout(() => {
-                    window.location.href = `/room/${data.id}`;
+                    window.location.href = `/room/${roomData.id}`;
                 }, 300);
             } else {
+                // 방 생성 실패 시 localStorage 정리 및 알림
+                localStorage.removeItem('pending_auto_message');
+                localStorage.removeItem('pending_image_url');
+                localStorage.removeItem('pending_image_message_content');
                 alert('방 생성 실패');
             }
         } catch {
+            // 예외 발생 시 localStorage 정리 및 알림
+            localStorage.removeItem('pending_auto_message');
+            localStorage.removeItem('pending_image_url');
+            localStorage.removeItem('pending_image_message_content');
             alert('방 생성 오류');
         }
         setLoading(false);
@@ -406,17 +421,22 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                 </button>
                 <button
                     onClick={() => {
-                        if (attachedImage) {
+                        if (!room) {
+                            // 대기방: 방 생성 + 메시지/이미지 전송
+                            handleCreateNewAiRoom();
+                        } else if (attachedImage) {
+                            // 채팅방: 이미지 전송
                             const currentInput = input;
                             handleImageUploadAndSendWithFile(attachedImage, currentInput);
                         } else {
+                            // 채팅방: 텍스트 전송
                             handleSend();
                         }
                     }}
                     disabled={!input.trim() && !attachedImage}
                     style={{ background: '#ff6a00', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', fontSize: 18, cursor: 'pointer', minWidth: 48 }}
                 >
-                    {attachedImage ? '📤' : (room ? '전송' : '개설')}
+                    {!room ? '개설' : (attachedImage ? '📤' : '전송')}
                 </button>
             </div>
             {attachedImagePreview && (
