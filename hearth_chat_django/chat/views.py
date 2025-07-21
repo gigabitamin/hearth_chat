@@ -468,6 +468,7 @@ class ChatViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['delete'])
     def delete_message(self, request, pk=None):
+        print('delete_message', request.user, request.data)
         """메시지 삭제 (본인만 가능)"""
         message = self.get_object()
         user = request.user

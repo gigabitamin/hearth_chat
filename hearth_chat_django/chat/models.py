@@ -180,8 +180,9 @@ class Chat(models.Model):
         return f"{sender} - {self.get_message_type_display()} - {self.content[:50]}..."
     
     @classmethod
-    def save_user_message(cls, content, session_id=None, emotion=None, user=None, image_url=None):
+    def save_user_message(cls, content, session_id=None, emotion=None, user=None, image_url=None, question_message=None):
         """사용자 메시지 저장 (감정 정보 포함)"""
+        print('Chat.save_ai_message question_message:', question_message)
         room_id = session_id
         if room_id and str(room_id).isdigit():
             try:
@@ -211,7 +212,8 @@ class Chat(models.Model):
             content=content,
             session_id=session_id,
             emotion=emotion,
-            attach_image=image_url  # 이미지 URL 저장
+            attach_image=image_url,  # 이미지 URL 저장
+            # questioner_username=question_message.username if question_message else None,
         )
     
     @classmethod

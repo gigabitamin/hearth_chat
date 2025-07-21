@@ -418,7 +418,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
             emotion: data.emotion,
             imageUrl: data.imageUrl || null  // data.imageUrl 사용
           };
-          console.log('[DEBUG] 생성된 메시지 객체:', newMessage);
+          // console.log('[DEBUG] 생성된 메시지 객체:', newMessage);
           setMessages((prev) => {
             let next;
             if (isMyMessage) {
@@ -427,10 +427,10 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                 ...prev.filter(msg => !(msg.pending && msg.text === data.message)),
                 newMessage
               ];
-              console.log('[setMessages][onmessage][echo] pending 제거 후:', next);
+              // console.log('[setMessages][onmessage][echo] pending 제거 후:', next);
             } else {
               next = [...prev, newMessage];
-              console.log('[setMessages][onmessage][상대] 추가 후:', next);
+              // console.log('[setMessages][onmessage][상대] 추가 후:', next);
             }
             return next;
           });
@@ -447,6 +447,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
             emotion: null,
             imageUrl: null
           };
+          console.log('[DEBUG] newMessage', newMessage);
           setMessages((prev) => {
             // 중복 메시지 방지: 동일 timestamp/text/questioner_username/ai_name이 이미 있으면 추가하지 않음
             if (prev.some(m => m.type === 'ai' && m.date === data.timestamp && m.text === data.message && m.questioner_username === data.questioner_username && m.ai_name === data.ai_name)) {
@@ -1011,8 +1012,8 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
               sender: data.ai_name, // sender는 항상 ai_name
               ai_name: data.ai_name,
               questioner_username: data.questioner_username,
-              pending: false,
-            };
+              pending: false,              
+            };            
             const arr = [...prev, newMsg];
             console.log('[setMessages][ai_message 수신] 전체:', arr);
             return arr;
@@ -2939,8 +2940,11 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                   onImageClick={setViewerImage}
                   favoriteMessages={favoriteMessages}
                   onToggleFavorite={handleToggleFavorite}
-                  onMessageDelete={(messageId) => {
-                    setMessages(prev => prev.filter(m => m.id !== messageId));
+                  onMessageDelete={() => {
+                    // console.log('[onMessageDelete]');
+                    if (selectedRoom && selectedRoom.id) {
+                      fetchMessages(selectedRoom.id, 0, 20, false);
+                    }
                   }}
                 />
               </div>

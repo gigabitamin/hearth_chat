@@ -4,6 +4,36 @@ import AutoSizer from 'react-virtualized-auto-sizer';
 import InfiniteLoader from 'react-window-infinite-loader';
 import './VirtualizedMessageList.css';
 
+
+// CSRF 토큰 쿠키 가져오기
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+  }
+  
+  // csrfFetch 함수
+  const csrfFetch = async (url, options = {}) => {
+    const csrftoken = getCookie('csrftoken');
+  
+    const defaultHeaders = {
+      'X-CSRFToken': csrftoken,
+      'Content-Type': 'application/json',
+    };
+  
+    const mergedOptions = {
+      credentials: 'include',
+      ...options,
+      headers: {
+        ...defaultHeaders,
+        ...(options.headers || {}),
+      },
+    };
+  
+    return fetch(url, mergedOptions);
+  };
+  
+
 // 환경에 따라 API_BASE 자동 설정 함수
 const getApiBase = () => {
     const hostname = window.location.hostname;
@@ -50,7 +80,7 @@ const VirtualizedMessageList = ({
     selectedRoomId, // 방이 바뀔 때마다 최신 위치로 이동
     favoriteMessages = [],
     onToggleFavorite = () => { },
-    onMessageDelete, // 메시지 삭제 콜백
+    onMessageDelete, // 메시지 삭제 콜백    
 }) => {
     const [listRef, setListRef] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -62,7 +92,34 @@ const VirtualizedMessageList = ({
     const prevMessagesLength = useRef(0);
     const [showNewMsgAlert, setShowNewMsgAlert] = useState(false);
     const [alertBlink, setAlertBlink] = useState(0);
-    const scrollContainerRef = useRef(null);
+    const scrollContainerRef = useRef(null);    
+
+
+    const [messages_chat, setMessages_chat] = useState([]);
+    
+  // 메시지 삭제 함수
+  const handleDeleteMessage = async (msg) => {
+    if (!msg.id) return;
+    if (!(loginUser && (msg.username === loginUser.username || msg.user_id === loginUser.id))) {
+      alert('본인 메시지만 삭제할 수 있습니다.');
+      return;
+    }
+    if (!window.confirm('정말 이 메시지를 삭제하시겠습니까?')) return;
+    try {
+      const res = await csrfFetch(`${getApiBase()}/api/chat/messages/${msg.id}/`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        // 삭제 성공 후 부모 콜백 호출!
+        if (onMessageDelete) onMessageDelete(msg.id);
+      } else {
+        alert('메시지 삭제에 실패했습니다.');
+      }
+    } catch (e) {
+      alert('메시지 삭제 중 오류: ' + e.message);
+    }
+  };
 
     // 핀 토글 함수
     const togglePin = (msgId) => {
@@ -126,7 +183,7 @@ const VirtualizedMessageList = ({
         } catch (e) {
             alert('이모지 반응 처리 실패');
         }
-    };
+    };    
 
     // 메시지 삭제 API 호출
     const deleteMessage = async (messageId) => {
@@ -140,6 +197,7 @@ const VirtualizedMessageList = ({
                 // 메시지 목록에서 삭제된 메시지 제거
                 // 부모 컴포넌트에서 메시지 목록을 다시 불러오도록 콜백 호출
                 if (onMessageDelete) {
+                    console.log('[onMessageDelete_vml]');
                     onMessageDelete(messageId);
                 }
             } else {
@@ -563,11 +621,13 @@ const VirtualizedMessageList = ({
                                         즐겨찾기
                                     </button>
 
+                                    {/* 메시지 삭제 버튼 (본인 메시지만 삭제 가능) */}
                                     {isMyMessage && (
                                         <button
                                             onClick={() => {
                                                 if (window.confirm('이 메시지를 삭제하시겠습니까?')) {
-                                                    deleteMessage(msg.id);
+                                                    handleDeleteMessage(msg);
+                                                    // deleteMessage(msg.id);
                                                     setEmojiPickerMsgId(null);
                                                 }
                                             }}

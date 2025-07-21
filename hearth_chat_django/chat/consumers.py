@@ -120,6 +120,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         print(f"사용자 메시지 저장 시도: {user_message} (감정: {user_emotion}) 이미지: {image_url} 방ID: {room_id}")
         user_obj = self.scope.get('user', None)
         user_message_obj = await self.save_user_message(user_message or '[이미지 첨부]', room_id, user_emotion, user_obj, image_url)
+        print('user_message_obj:', user_message_obj, type(user_message_obj))
 
         # 사용자 메시지를 방의 모든 참여자에게 브로드캐스트
         print(f"[SEND] 사용자 메시지 group_send: chat_room_{room_id} (채널: {self.channel_name})")
@@ -185,8 +186,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
             
             # AI 응답을 DB에 저장
             print(f"AI 응답 저장 시도: {ai_response}")
-            ai_message_obj = await self.save_ai_message(ai_response, room_id, ai_name='Gemini', ai_type='google')
+            ai_message_obj = await self.save_ai_message(ai_response, room_id, ai_name='Gemini', ai_type='google', question_message=user_message_obj)
             
+            # FK select_related로 새로 불러오기
+            from .models import Chat
+            ai_message_obj = await sync_to_async(lambda: Chat.objects.select_related('question_message').get(id=ai_message_obj.id))()
+
             # 대화 컨텍스트 업데이트
             self.conversation_context.append({
                 "user": {"message": user_message, "emotion": user_emotion, "image": image_url},
@@ -205,7 +210,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'message': ai_response,
                     'roomId': room_id,
                     'timestamp': ai_message_obj.timestamp.isoformat() if ai_message_obj and hasattr(ai_message_obj, 'timestamp') else None,
-                    'questioner_username': user_message_obj.username if user_message_obj and hasattr(user_message_obj, 'username') else None
+                    'questioner_username': (
+                        ai_message_obj.question_message.username if ai_message_obj and ai_message_obj.question_message else None
+                    ),
+                    'ai_name': ai_message_obj.ai_name if ai_message_obj else 'AI',
+                    'sender': ai_message_obj.ai_name if ai_message_obj else 'AI',
                 }
                 print(f"[DEBUG][group_send][ai_message] event: ", json.dumps(debug_event, ensure_ascii=False, indent=2))
             except Exception as e:
@@ -356,7 +365,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             raise e
 
     @sync_to_async
-    def save_ai_message(self, content, room_id, ai_name='Gemini', ai_type='google'):
+    def save_ai_message(self, content, room_id, ai_name='Gemini', ai_type='google', question_message=None):
         """AI 메시지를 DB에 저장"""
         try:
             from .models import Chat
@@ -364,13 +373,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
             if content:
                 import unicodedata
                 content = unicodedata.normalize('NFC', content)
-            
-            result = Chat.save_ai_message(content, room_id, ai_name=ai_name, ai_type=ai_type)
-            print(f"AI 메시지 저장 성공: {result.id}")
+            # question_message를 반드시 넘김
+            result = Chat.save_ai_message(content, room_id, ai_name=ai_name, ai_type=ai_type, question_message=question_message)
+            print(f"AI 메시지 저장 성공: {result.id}, question_message: {question_message}")
             return result
         except Exception as e:
             print(f"AI 메시지 저장 실패: {e}")
-            # 커스텀 백엔드가 적용되지 않은 경우를 위한 디버깅
             print(f"커스텀 백엔드 디버깅 - 오류 타입: {type(e)}")
             print(f"커스텀 백엔드 디버깅 - 오류 내용: {str(e)}")
             raise e
