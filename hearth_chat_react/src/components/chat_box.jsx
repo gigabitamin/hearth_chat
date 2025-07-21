@@ -2830,7 +2830,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       )}
       <div className="chat-box-root" style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
         {/* 플로팅 메뉴(햄버거) 복구 */}
-        <div className="chat-floating-menu" style={{ position: 'absolute', top: 12, left: 12, zIndex: 10 }}>
+        <div className="chat-floating-menu" style={{ position: 'absolute', top: 15, left: -15, zIndex: 10 }}>
           <button
             onClick={() => setIsMenuOpen(v => !v)}
             style={{ background: '#222', color: '#fff', border: 'none', borderRadius: 8, width: 40, height: 40, fontSize: 22, cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}
@@ -2843,7 +2843,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
               {/* 방장일 때만 방 설정 버튼 노출 */}
               {isRoomOwner && (
                 <button style={{ color: '#fff', background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', padding: 8, textAlign: 'left' }} onClick={() => { setShowRoomSettings(true); setIsMenuOpen(false); }}>
-                  🛠️ 방 설정
+                  🛠️ room
                 </button>
               )}
               <button style={{ color: '#fff', background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', padding: 8, textAlign: 'left' }} onClick={() => { setIsAiAvatarOn(v => !v); setIsMenuOpen(false); }}>
@@ -2939,7 +2939,9 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                   onImageClick={setViewerImage}
                   favoriteMessages={favoriteMessages}
                   onToggleFavorite={handleToggleFavorite}
-                  onDeleteMessage={handleDeleteMessage}
+                  onMessageDelete={(messageId) => {
+                    setMessages(prev => prev.filter(m => m.id !== messageId));
+                  }}
                 />
               </div>
 

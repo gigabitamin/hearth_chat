@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 const getApiBase = () => {
     const hostname = window.location.hostname;
@@ -50,6 +50,73 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
     // --- [수정 2] 타이머와 long-press 상태를 관리할 useRef 선언 ---
     const pressTimer = useRef(null);
     const isLongPress = useRef(false);
+
+    // 클립보드 이벤트 리스너 추가
+    useEffect(() => {
+        const handlePaste = async (e) => {
+            // Ctrl+V 또는 Cmd+V가 눌렸을 때만 처리
+            if (!((e.ctrlKey || e.metaKey) && e.key === 'v')) {
+                return;
+            }
+
+            try {
+                const clipboardItems = await navigator.clipboard.read();
+                for (const clipboardItem of clipboardItems) {
+                    for (const type of clipboardItem.types) {
+                        if (type.startsWith('image/')) {
+                            const blob = await clipboardItem.getType(type);
+                            const file = new File([blob], `screenshot-${Date.now()}.png`, { type });
+
+                            // 이미지 파일 검증
+                            const allowedMime = ['image/jpeg', 'image/png', 'image/webp'];
+                            const maxSize = 4 * 1024 * 1024;
+
+                            if (!allowedMime.includes(file.type)) {
+                                console.log('허용되지 않는 이미지 형식입니다:', file.type);
+                                return;
+                            }
+                            if (file.size > maxSize) {
+                                alert('파일 용량은 4MB 이하만 허용됩니다.');
+                                return;
+                            }
+
+                            // 이미지 첨부
+                            setAttachedImage(file);
+                            setAttachedImagePreview(URL.createObjectURL(file));
+                            console.log('클립보드에서 이미지가 자동으로 첨부되었습니다:', file.name);
+                            return;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.log('클립보드 접근 실패 또는 이미지가 없음:', error);
+            }
+        };
+
+        // 키보드 이벤트 리스너 추가
+        document.addEventListener('keydown', handlePaste);
+
+        return () => {
+            document.removeEventListener('keydown', handlePaste);
+        };
+    }, []);
+
+    // textarea 높이 자동 조절 함수
+    const adjustTextareaHeight = () => {
+        if (inputRef.current) {
+            const textarea = inputRef.current;
+            // 높이를 초기화하여 정확한 스크롤 높이를 계산
+            textarea.style.height = 'auto';
+            // 스크롤 높이에 패딩을 고려하여 높이 설정 (최대 120px)
+            const newHeight = Math.min(textarea.scrollHeight, 120);
+            textarea.style.height = `${newHeight}px`;
+        }
+    };
+
+    // input 값이 변경될 때마다 높이 조절
+    useEffect(() => {
+        adjustTextareaHeight();
+    }, [input]);
 
     // 이미지 업로드 핸들러
     const handleImageUpload = (e) => {
@@ -409,7 +476,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
 
     return (
         <div className="global-chat-input" style={{ width: '100%', background: '#23242a', padding: 8, borderTop: '1px solid #333', position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 100 }}>
-            <div style={{ position: 'relative', maxWidth: 700, margin: '0 auto' }}>
+            <div style={{ position: 'relative', maxWidth: 720, margin: '0 auto' }}>
                 {/* 입력창 위에 딱 붙는 첨부 이미지 미리보기 (겹치지 않게) */}
                 {attachedImagePreview && (
                     <div className="attached-image-preview-box" style={{
@@ -424,10 +491,10 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                         alignItems: 'center',
                         gap: 6,
                         marginBottom: 4,
-                        maxWidth: 220,
+                        maxWidth: 320,
                         zIndex: 200
                     }}>
-                        <img src={attachedImagePreview} alt="첨부 이미지 미리보기" className="attached-image-thumb" style={{ maxHeight: 60, borderRadius: 6 }} />
+                        <img src={attachedImagePreview} alt="첨부 이미지 미리보기" className="attached-image-thumb" style={{ maxHeight: 240, borderRadius: 6 }} />
                         <button onClick={handleRemoveAttachedImage} className="attached-image-remove-btn" style={{ marginLeft: 6, color: '#fff', background: '#f44336', border: 'none', borderRadius: 4, padding: '2px 8px', cursor: 'pointer' }}>✖</button>
                     </div>
                 )}
@@ -453,12 +520,25 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                         onChange={e => setInput(e.target.value)}
                         onKeyDown={e => {
                             if (e.key === 'Enter' && !e.shiftKey) {
-                                e.preventDefault();
-                                handleSend();
+                                e.stopPropagation(); // 엔터키 전송 방지
+                                // e.preventDefault(); // 엔터키 전송, 줄바꿈 방지
+                                // handleSend(); // 엔터키 전송
                             }
                         }}
                         rows={1}
-                        style={{ flex: 1, borderRadius: 8, border: '1px solid #444', padding: 10, fontSize: 16, background: '#181a20', color: '#fff', resize: 'none' }}
+                        style={{
+                            flex: 1,
+                            borderRadius: 8,
+                            border: '1px solid #444',
+                            padding: 6,
+                            fontSize: 15,
+                            background: '#181a20',
+                            color: '#fff',
+                            resize: 'none',
+                            minHeight: '10px',
+                            maxHeight: '120px',
+                            overflowY: 'auto'
+                        }}
                         disabled={loading}
                     />
                     {/* 이모지(+) 버튼 및 메뉴 */}

@@ -289,7 +289,7 @@ function AppContent(props) {
   // 하단 정보창 렌더 함수 (공통)
   const renderRoomInfoPanel = (onClose) => (
     room ? (
-      <div className="selected-room-info">        
+      <div className="selected-room-info">
         {/* 방장이 설정한 프로필 이미지 등 추가 가능 */}
         <div className="selected-room-info-messages">
           {roomMessages.length === 0 ? (
@@ -617,7 +617,7 @@ function AppContent(props) {
                 <div className="selected-room-info-title-sidebar">최근 메시지 `{room.name}`</div>
               )}
               {overlayTab !== 'favorite' && (
-                <div className="sidebar-room-info-panel">                  
+                <div className="sidebar-room-info-panel">
                   {renderRoomInfoPanel(() => setShowRoomListOverlay(false))}
                 </div>
               )}
@@ -662,11 +662,11 @@ function AppContent(props) {
                   setShowCreateModal={setShowCreateModal}
                   selectedRoomId={room?.id}
                   overlayKey="lobby"
-                />                
+                />
               </div>
               {overlayTab !== 'favorite' && (
                 <div className="selected-room-info-title">최근 메시지 `{room?.name}`</div>
-              )}               
+              )}
               {/* 대가방 하단 정보 관리 영역 */}
               {overlayTab !== 'favorite' && (
                 <div className="room-info-panel">
@@ -969,14 +969,15 @@ function App() {
     }
   }, [location.pathname]);
 
-  // 실제 뷰포트 높이를 --real-vh 변수로 할당
-  function setRealVh() {
-    document.documentElement.style.setProperty('--real-vh', `${window.innerHeight}px`);
+  // 실제 뷰포트 높이와 너비를 --real-vh, --real-vw 변수로 할당
+  function setRealViewport() {
+    document.documentElement.style.setProperty('--real-vh', `${window.innerHeight - 8}px`);
+    document.documentElement.style.setProperty('--real-vw', `${window.innerWidth - 8}px`);
   }
   useEffect(() => {
-    setRealVh();
-    window.addEventListener('resize', setRealVh);
-    return () => window.removeEventListener('resize', setRealVh);
+    setRealViewport();
+    window.addEventListener('resize', setRealViewport);
+    return () => window.removeEventListener('resize', setRealViewport);
   }, []);
 
   const ws = useRef(null);
@@ -1019,7 +1020,6 @@ function App() {
     setOverlayTab={setOverlayTab}
     fetchPreviewMessages={fetchPreviewMessages}
     ws={ws.current}
-    setRoomMessages={setRoomMessages}
     // 이미지 뷰어 모달 상태 추가
     viewerImage={viewerImage}
     setViewerImage={setViewerImage}

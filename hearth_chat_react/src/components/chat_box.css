@@ -243,6 +243,8 @@ body,
   padding: 0;
   position: relative;
   box-sizing: border-box;
+  padding-top: 15px;
+  /* HeaderBar 높이만큼 상단 여백 추가 */
 }
 
 /* 입력창이 헤더에 가려지지 않도록 하단 여백 조정 */
@@ -314,12 +316,6 @@ body,
   scrollbar-width: thin;
   scrollbar-color: rgba(120, 120, 120, 0.25) transparent;
 }
-
-.chat-log:hover,
-.chat-log:active,
-.chat-log.scrolling {
-  scrollbar-color: rgba(120, 120, 120, 0.5) transparent;
-} */
 
 .chat-bubble {
   margin: 10px 0;
@@ -613,8 +609,8 @@ body,
 }
 
 .attached-image-thumb {
-  max-width: 80px;
-  max-height: 80px;
+  max-width: 320px;
+  max-height: 240px;
   border-radius: 8px;
   margin-right: 8px;
   border: 1px solid #ccc;

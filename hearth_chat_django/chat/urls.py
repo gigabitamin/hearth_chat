@@ -25,6 +25,7 @@ urlpatterns = [
     path('user/', views.user_info, name='user_info'),
     path('logout/', views.logout_api, name='logout_api'),
     path('rooms/user_chat_alt/', UserChatCreateAPIView.as_view(), name='user_chat_api'),  # APIView 추가
+    path('messages/<int:pk>/delete/', ChatViewSet.as_view({'delete': 'delete_message'}), name='delete_message'),  # 메시지 삭제 API
 ]
 
 urlpatterns += router.urls

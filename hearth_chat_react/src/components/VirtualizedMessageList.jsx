@@ -50,10 +50,12 @@ const VirtualizedMessageList = ({
     selectedRoomId, // 방이 바뀔 때마다 최신 위치로 이동
     favoriteMessages = [],
     onToggleFavorite = () => { },
+    onMessageDelete, // 메시지 삭제 콜백
 }) => {
     const [listRef, setListRef] = useState(null);
     const [loading, setLoading] = useState(false);
-    const [emojiPickerMsgId, setEmojiPickerMsgId] = useState(null); // 이모지 선택창 표시용
+    // 이모지 피커 상태 관리
+    const [emojiPickerMsgId, setEmojiPickerMsgId] = useState(null);
     const [localReactions, setLocalReactions] = useState({}); // {messageId: [reactions]}
     // 핀 상태 관리 (프론트 임시)
     const [pinnedIds, setPinnedIds] = useState([]);
@@ -123,6 +125,29 @@ const VirtualizedMessageList = ({
             });
         } catch (e) {
             alert('이모지 반응 처리 실패');
+        }
+    };
+
+    // 메시지 삭제 API 호출
+    const deleteMessage = async (messageId) => {
+        try {
+            const res = await fetch(`/api/chat/messages/${messageId}/delete/`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+            });
+            if (res.ok) {
+                // 메시지 목록에서 삭제된 메시지 제거
+                // 부모 컴포넌트에서 메시지 목록을 다시 불러오도록 콜백 호출
+                if (onMessageDelete) {
+                    onMessageDelete(messageId);
+                }
+            } else {
+                const data = await res.json();
+                alert(data.error || '메시지 삭제에 실패했습니다.');
+            }
+        } catch (e) {
+            alert('메시지 삭제 중 오류가 발생했습니다.');
         }
     };
 
@@ -233,23 +258,28 @@ const VirtualizedMessageList = ({
             >
                 <div className="message-content">
                     {/* 메시지 헤더: 위쪽에 username(흰색, 굵게) + 답장/핀/즐겨찾기 버튼 */}
-                    <div className="message-header" style={{ display: 'flex', alignItems: 'center', marginBottom: 2 }}>
+                    <div className="message-header" 
+                        style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            marginBottom: 2,                                                        
+                            justifyContent: 'space-between',}}>
                         <span style={{ color: '#fff', fontWeight: 700, fontSize: 13, marginRight: 8 }}>
                             {msg.sender || msg.username || 'Unknown'}
                         </span>
                         {/* 답장 버튼 (hover 시 노출) */}
-                        <button
+                        {/* <button
                             className="reply-btn"
                             style={{ marginLeft: 8, fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', color: '#2196f3', display: 'inline-block' }}
                             onClick={e => { e.stopPropagation(); onReply && onReply(msg); }}
                             title="답장"
-                        >↩️ 답장</button>
+                        >↩️ 답장</button> */}
                         {/* 핀(고정) 버튼 */}
-                        <button
+                        {/* <button
                             className={`pin-btn${pinnedIds.includes(msg.id) ? ' pinned' : ''}`}
                             onClick={e => { e.stopPropagation(); togglePin(msg.id); }}
                             title={pinnedIds.includes(msg.id) ? '핀 해제' : '상단 고정'}
-                        >📌</button>
+                        >📌</button> */}
                         {/* 즐겨찾기(▽/▼) 버튼 */}
                         <button
                             className="favorite-btn"
@@ -359,39 +389,178 @@ const VirtualizedMessageList = ({
                             style={{
                                 marginLeft: 2,
                                 fontSize: 16,
-                                background: 'none',
+                                background: emojiPickerMsgId === msg.id ? 'rgba(33,150,243,0.15)' : 'none',
                                 border: 'none',
                                 cursor: 'pointer',
-                                color: '#888',
+                                color: emojiPickerMsgId === msg.id ? '#2196f3' : '#888',
                                 borderRadius: 8,
                                 padding: '0 6px',
                                 transition: 'background 0.15s',
                             }}
-                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(33,150,243,0.08)'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                            onClick={e => { e.stopPropagation(); setEmojiPickerMsgId(msg.id); }}
+                            onMouseEnter={e => {
+                                if (emojiPickerMsgId !== msg.id) {
+                                    e.currentTarget.style.background = 'rgba(33,150,243,0.08)';
+                                    e.currentTarget.style.color = '#2196f3';
+                                }
+                            }}
+                            onMouseLeave={e => {
+                                if (emojiPickerMsgId !== msg.id) {
+                                    e.currentTarget.style.background = 'none';
+                                    e.currentTarget.style.color = '#888';
+                                }
+                            }}
+                            onClick={() => setEmojiPickerMsgId(emojiPickerMsgId === msg.id ? null : msg.id)}
                         >
-                            ＋
+                            {emojiPickerMsgId === msg.id ? '−' : '+'}
                         </button>
-                        {/* 이모지 선택 팝업 */}
+
+                        {/* 컨텍스트 메뉴 */}
                         {emojiPickerMsgId === msg.id && (
-                            <div className="emoji-picker-popup" style={{ position: 'absolute', zIndex: 10, background: '#222', borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.18)', padding: 6, display: 'flex', gap: 4, top: 32, left: 60 }}>
-                                {EMOJI_LIST.map(emoji => (
-                                    <span
-                                        key={emoji}
-                                        style={{ fontSize: 20, cursor: 'pointer', padding: 2 }}
-                                        onClick={e => { e.stopPropagation(); toggleReaction(msg.id, emoji); setEmojiPickerMsgId(null); }}
+                            <div
+                                className="context-menu-popup"
+                                style={{
+                                    position: 'absolute',
+                                    left: isMyMessage ? 'auto' : '60px',
+                                    right: isMyMessage ? '60px' : 'auto',
+                                    backgroundColor: '#2d2d2d',
+                                    border: '1px solid #444',
+                                    borderRadius: 8,
+                                    padding: '8px 0',
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                                    zIndex: 1000,
+                                    minWidth: 120,
+                                    top: 32,
+                                }}
+                            >
+                                {/* 이모지 선택 영역 */}
+                                <div style={{ padding: '8px 12px', borderBottom: '1px solid #444' }}>
+                                    <div style={{ fontSize: 12, color: '#888', marginBottom: 6 }}>이모지</div>
+                                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                                        {['👍', '❤️', '😂', '😮', '😢', '😡'].map(emoji => (
+                                            <button
+                                                key={emoji}
+                                                onClick={() => {
+                                                    toggleReaction(msg.id, emoji);
+                                                    setEmojiPickerMsgId(null);
+                                                }}
+                                                style={{
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    fontSize: 20,
+                                                    cursor: 'pointer',
+                                                    padding: 4,
+                                                    borderRadius: 4,
+                                                    transition: 'background 0.15s',
+                                                }}
+                                                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                                                onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                            >
+                                                {emoji}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* 액션 버튼들 */}
+                                <div style={{ padding: '4px 0' }}>
+                                    <button
+                                        onClick={() => {
+                                            onReply(msg);
+                                            setEmojiPickerMsgId(null);
+                                        }}
+                                        style={{
+                                            width: '100%',
+                                            background: 'none',
+                                            border: 'none',
+                                            padding: '8px 12px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 8,
+                                            color: '#fff',
+                                            fontSize: 14,
+                                            transition: 'background 0.15s',
+                                        }}
+                                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(33,150,243,0.1)'}
+                                        onMouseLeave={e => e.currentTarget.style.background = 'none'}
                                     >
-                                        {emoji}
-                                    </span>
-                                ))}
+                                        <div style={{
+                                            width: 16,
+                                            height: 16,
+                                            backgroundColor: '#2196f3',
+                                            borderRadius: 3,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontSize: 10,
+                                            color: '#fff'
+                                        }}>
+                                            ↶
+                                        </div>
+                                        답장
+                                    </button>
+
+                                    <button
+                                        onClick={() => {
+                                            // 고정핀 기능 구현 필요
+                                            setEmojiPickerMsgId(null);
+                                        }}
+                                        style={{
+                                            width: '100%',
+                                            background: 'none',
+                                            border: 'none',
+                                            padding: '8px 12px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 8,
+                                            color: '#ff9800',
+                                            fontSize: 14,
+                                            transition: 'background 0.15s',
+                                        }}
+                                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,152,0,0.1)'}
+                                        onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                    >
+                                        <div style={{ fontSize: 16 }}>📌</div>
+                                        고정핀
+                                    </button>
+
+                                    {isMyMessage && (
+                                        <button
+                                            onClick={() => {
+                                                if (window.confirm('이 메시지를 삭제하시겠습니까?')) {
+                                                    deleteMessage(msg.id);
+                                                    setEmojiPickerMsgId(null);
+                                                }
+                                            }}
+                                            style={{
+                                                width: '100%',
+                                                background: 'none',
+                                                border: 'none',
+                                                padding: '8px 12px',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 8,
+                                                color: '#f44336',
+                                                fontSize: 14,
+                                                transition: 'background 0.15s',
+                                            }}
+                                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(244,67,54,0.1)'}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                        >
+                                            <div style={{ fontSize: 16 }}>🗑️</div>
+                                            삭제
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>
                 </div>
             </div>
         );
-    }, [messages, loginUser, onMessageClick, getSenderColor, localReactions, emojiPickerMsgId, onReply, onReplyQuoteClick, pinnedIds, onImageClick, favoriteMessages, onToggleFavorite, tempHighlightedId]);
+    }, [messages, loginUser, onMessageClick, getSenderColor, localReactions, emojiPickerMsgId, onReply, onReplyQuoteClick, pinnedIds, onImageClick, favoriteMessages, onToggleFavorite, tempHighlightedId, deleteMessage]);
 
     // 아이템이 로드되었는지 확인
     const isItemLoaded = useCallback((index) => {
@@ -437,6 +606,25 @@ const VirtualizedMessageList = ({
         }
         prevMessagesLength.current = messages.length;
     }, [messages, listRef]);
+
+    // 메뉴가 열린 후 아무 곳이나 클릭하면 닫히도록 처리
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (emojiPickerMsgId && !event.target.closest('.context-menu-popup') && !event.target.closest('.add-emoji-btn')) {
+                setEmojiPickerMsgId(null);
+            }
+        };
+
+        if (emojiPickerMsgId) {
+            document.addEventListener('mousedown', handleClickOutside);
+            document.addEventListener('touchstart', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('touchstart', handleClickOutside);
+        };
+    }, [emojiPickerMsgId]);
 
     return (
         <div className="virtualized-message-list" ref={scrollContainerRef} style={{ position: 'relative' }}>

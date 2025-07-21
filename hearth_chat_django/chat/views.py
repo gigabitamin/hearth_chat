@@ -466,6 +466,22 @@ class ChatViewSet(viewsets.ModelViewSet):
         MessageFavorite.objects.filter(user=user, message=message).delete()
         return Response({'favorited': False, 'message_id': message.id})
 
+    @action(detail=True, methods=['delete'])
+    def delete_message(self, request, pk=None):
+        """메시지 삭제 (본인만 가능)"""
+        message = self.get_object()
+        user = request.user
+        
+        # 본인이 작성한 메시지인지 확인
+        if message.username != user.username and message.user_id != user.id:
+            return Response({'error': '본인이 작성한 메시지만 삭제할 수 있습니다.'}, status=403)
+        
+        # 메시지 삭제
+        message_id = message.id
+        message.delete()
+        
+        return Response({'status': 'deleted', 'message_id': message_id})
+
 
     def get_queryset(self):
         if self.action == 'list':
