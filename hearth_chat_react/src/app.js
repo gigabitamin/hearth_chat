@@ -244,6 +244,12 @@ function AppContent(props) {
     setPendingImageFile,
   } = props;
 
+  const [isFavoriteRoom, setIsFavoriteRoom] = useState(false);
+    // 즐겨찾기 토글 함수
+  const handleToggleFavoriteRoom = () => {
+    setIsFavoriteRoom(prev => !prev);
+  };
+
   const [ttsRate, setTtsRate] = useState(1.5);
   const [ttsPitch, setTtsPitch] = useState(1.5);
   const [ttsVoice, setTtsVoice] = useState(null);
@@ -455,6 +461,8 @@ function AppContent(props) {
     <>
       {/* 상단바 공통 렌더링 */}
       <HeaderBar
+        isFavoriteRoom={isFavoriteRoom}
+        onToggleFavoriteRoom={handleToggleFavoriteRoom}
         activeTab={overlayTab}
         onTabChange={(tab) => {
           setOverlayTab(tab);
@@ -725,7 +733,7 @@ function AppContent(props) {
   );
 }
 
-function App() {
+function App() {      
   const location = useLocation();
   const [loginUser, setLoginUser] = useState(null);
   const [loginLoading, setLoginLoading] = useState(true);

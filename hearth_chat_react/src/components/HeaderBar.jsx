@@ -26,7 +26,9 @@ export default function HeaderBar({
     loginUser,
     title, // 중앙에 표시할 텍스트(채팅방 이름/앱명)
     unreadNotifications = 0, // 읽지 않은 알림 개수
-    isInRoom = false // 새로 추가된 prop
+    isInRoom = false, // 새로 추가된 prop
+    isFavoriteRoom, // 즐겨찾기 상태
+    onToggleFavoriteRoom // 즐겨찾기 토글 함수
 }) {
     const [showTitlePopup, setShowTitlePopup] = useState(false);
     const titleClickTimer = useRef(null);
@@ -115,7 +117,8 @@ export default function HeaderBar({
             </div>
             <div className="header-center">
                 <div>
-                    {title && (
+                    
+                    {title && (                                                                    
                         <span
                             className="header-title-text"
                             title={title}
@@ -143,10 +146,20 @@ export default function HeaderBar({
                                 letterSpacing: '0.2px',
                             }}
                         >
-                            {title}
-                        </span>
+                            {/* 즐겨찾기(▽/▼) 버튼 */}
+                            <button
+                                className="favorite-btn1"
+                                title={isFavoriteRoom ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+                                onClick={e => { e.stopPropagation(); onToggleFavoriteRoom && onToggleFavoriteRoom(); }}
+                                style={{ marginRight: 6, background: 'none', border: 'none', fontSize: 16, color: '#FFD600', cursor: 'pointer', paddingRight: 10, paddingLeft: 0}}
+                            >
+                                <div style={{ background: 'none', border: 'none', fontSize: 16, color: '#FFD600', cursor: 'pointer'}}>{isFavoriteRoom ?'★' : '☆'}</div>
+                            </button>                            
+                            {title}                            
+                        </span>                        
                     )}
-                    {/* 전체 타이틀 팝업 (채팅방 내부) */}
+
+                {/* 전체 타이틀 팝업 (채팅방 내부) */}
                     {isInRoom && showTitlePopup && (
                         <div
                             className="header-title-popup"

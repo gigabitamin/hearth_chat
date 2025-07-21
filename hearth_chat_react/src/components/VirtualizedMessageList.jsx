@@ -254,16 +254,18 @@ const VirtualizedMessageList = ({
                 style={style}
                 className={`message-item ${isMyMessage ? 'my-message' : 'other-message'} ${tempHighlightedId === msg.id ? 'temp-highlight' : ''}`}
                 // onClick={() => onMessageClick && onMessageClick(msg)}
-                onMouseLeave={() => setEmojiPickerMsgId(null)}
+                // onMouseLeave={() => setEmojiPickerMsgId(null)}
             >
                 <div className="message-content">
                     {/* 메시지 헤더: 위쪽에 username(흰색, 굵게) + 답장/핀/즐겨찾기 버튼 */}
                     <div className="message-header" 
                         style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            marginBottom: 2,                                                        
-                            justifyContent: 'space-between',}}>
+                        display: 'flex',                         
+                        // alignItems: 'center', 
+                        // marginBottom: 2,                                                        
+                        // justifyContent: 'space-between',                        
+                    }}
+                    >
                         <span style={{ color: '#fff', fontWeight: 700, fontSize: 13, marginRight: 8 }}>
                             {msg.sender || msg.username || 'Unknown'}
                         </span>
@@ -275,20 +277,20 @@ const VirtualizedMessageList = ({
                             title="답장"
                         >↩️ 답장</button> */}
                         {/* 핀(고정) 버튼 */}
-                        {/* <button
+                        <button
                             className={`pin-btn${pinnedIds.includes(msg.id) ? ' pinned' : ''}`}
                             onClick={e => { e.stopPropagation(); togglePin(msg.id); }}
                             title={pinnedIds.includes(msg.id) ? '핀 해제' : '상단 고정'}
-                        >📌</button> */}
-                        {/* 즐겨찾기(▽/▼) 버튼 */}
-                        <button
+                        >📌</button>
+                        {/* 즐겨찾기(▽/▼) 버튼 */}                        
+                        {/* <button
                             className="favorite-btn"
                             style={{ marginLeft: 8, fontSize: 18, color: favoriteMessages.includes(msg.id) ? '#1976d2' : '#bbb', background: 'none', border: 'none', cursor: 'pointer' }}
                             title={favoriteMessages.includes(msg.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
                             onClick={e => { e.stopPropagation(); onToggleFavorite(msg); }}
                         >
                             {favoriteMessages.includes(msg.id) ? '▼' : '▽'}
-                        </button>
+                        </button> */}
                     </div>
                     {/* 답장 인용 표시 */}
                     {msg.reply && (
@@ -320,33 +322,43 @@ const VirtualizedMessageList = ({
                             </span>
                         </div>
                     )}
-                    <div className="message-bubble" style={{ backgroundColor: isMyMessage ? undefined : getSenderColor(msg.sender), color: isMyMessage ? undefined : (getSenderColor(msg.sender) ? '#fff' : undefined), position: 'relative' }}>
-                        {/* AI 메시지일 때만 질문자 username을 왼쪽 상단에 표시 */}
-                        <div className="message-questioner-username">
-                            {(msg.questioner_username && (msg.type === 'ai' || msg.sender_type === 'ai')) && (
-                                <>
-                                    To.
-                                    <span className="questioner-username-highlight">{msg.questioner_username}</span>{' '}
-                                    {new Date(msg.date || msg.timestamp).toLocaleString('ko-KR', {
-                                        year: '2-digit', month: '2-digit', day: '2-digit',
-                                        hour: '2-digit', minute: '2-digit', hour12: false
-                                    })}
-                                </>
+                    <div className="message-bubble-row" style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                        {/* 메시지 버블 */}
+                        <div className="message-bubble" 
+                            style={{ 
+                                backgroundColor: isMyMessage ? undefined : getSenderColor(msg.sender), 
+                                color: isMyMessage ? undefined : (getSenderColor(msg.sender) ? '#fff' : undefined), 
+                                position: 'relative',
+                                width: '100%',
+                                maxWidth: '100%',
+                            }}>
+                            {/* AI 메시지일 때만 질문자 username을 왼쪽 상단에 표시 */}
+                            <div className="message-questioner-username">
+                                {(msg.questioner_username && (msg.type === 'ai' || msg.sender_type === 'ai')) && (
+                                    <>
+                                        To.
+                                        <span className="questioner-username-highlight">{msg.questioner_username}</span>{' '}
+                                        {new Date(msg.date || msg.timestamp).toLocaleString('ko-KR', {
+                                            year: '2-digit', month: '2-digit', day: '2-digit',
+                                            hour: '2-digit', minute: '2-digit', hour12: false
+                                        })}
+                                    </>
+                                )}
+                            </div>
+                            {/* {console.log('[msg.imageUrl]', msg.imageUrl)} */}
+                            {msg.imageUrl && (
+                                <img
+                                    src={getImageUrl(msg.imageUrl)}
+                                    alt="첨부 이미지"
+                                    className="message-image"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (onImageClick) onImageClick(getImageUrl(msg.imageUrl));
+                                    }}
+                                />
                             )}
+                            <div className="message-text">{msg.text || msg.content}</div>
                         </div>
-                        {console.log('[msg.imageUrl]', msg.imageUrl)}
-                        {msg.imageUrl && (
-                            <img
-                                src={getImageUrl(msg.imageUrl)}
-                                alt="첨부 이미지"
-                                className="message-image"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (onImageClick) onImageClick(getImageUrl(msg.imageUrl));
-                                }}
-                            />
-                        )}
-                        <div className="message-text">{msg.text || msg.content}</div>
                     </div>
                     {/* 아래쪽에 날짜/시간(회색, 24시간) */}
                     <div style={{ color: '#bbb', fontSize: 11, marginTop: 2, textAlign: 'left' }}>
@@ -420,8 +432,8 @@ const VirtualizedMessageList = ({
                                 className="context-menu-popup"
                                 style={{
                                     position: 'absolute',
-                                    left: isMyMessage ? 'auto' : '60px',
-                                    right: isMyMessage ? '60px' : 'auto',
+                                    left: isMyMessage ? 'auto' : '75px',
+                                    right: isMyMessage ? '75px' : 'auto',
                                     backgroundColor: '#2d2d2d',
                                     border: '1px solid #444',
                                     borderRadius: 8,
@@ -429,12 +441,12 @@ const VirtualizedMessageList = ({
                                     boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
                                     zIndex: 1000,
                                     minWidth: 120,
-                                    top: 32,
+                                    top: '60%',
                                 }}
                             >
                                 {/* 이모지 선택 영역 */}
                                 <div style={{ padding: '8px 12px', borderBottom: '1px solid #444' }}>
-                                    <div style={{ fontSize: 12, color: '#888', marginBottom: 6 }}>이모지</div>
+                                    {/* <div style={{ fontSize: 12, color: '#888', marginBottom: 6 }}>이모지</div> */}
                                     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                                         {['👍', '❤️', '😂', '😮', '😢', '😡'].map(emoji => (
                                             <button
@@ -463,6 +475,7 @@ const VirtualizedMessageList = ({
 
                                 {/* 액션 버튼들 */}
                                 <div style={{ padding: '4px 0' }}>
+                                    {/* 답장 버튼 */}
                                     <button
                                         onClick={() => {
                                             onReply(msg);
@@ -499,12 +512,12 @@ const VirtualizedMessageList = ({
                                         </div>
                                         답장
                                     </button>
-
+                                    
+                                    {/* 고정핀 버튼 */}
                                     <button
-                                        onClick={() => {
-                                            // 고정핀 기능 구현 필요
-                                            setEmojiPickerMsgId(null);
-                                        }}
+                                        className={`pin-btn${pinnedIds.includes(msg.id) ? ' pinned' : ''}`}
+                                        onClick={e => { e.stopPropagation(); togglePin(msg.id); }}
+                                        title={pinnedIds.includes(msg.id) ? '핀 해제' : '상단 고정'}                                    
                                         style={{
                                             width: '100%',
                                             background: 'none',
@@ -523,6 +536,31 @@ const VirtualizedMessageList = ({
                                     >
                                         <div style={{ fontSize: 16 }}>📌</div>
                                         고정핀
+                                    </button>
+
+                                    {/* 즐겨찾기(▽/▼) 버튼 */}                        
+                                    <button
+                                        className="favorite-btn"                                        
+                                        title={favoriteMessages.includes(msg.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+                                        onClick={e => { e.stopPropagation(); onToggleFavorite(msg); }}
+                                        style={{
+                                            width: '100%',
+                                            background: 'none',
+                                            border: 'none',
+                                            padding: '8px 12px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 8,
+                                            color: '#4aa8d8',
+                                            fontSize: 14,
+                                            transition: 'background 0.15s',
+                                        }}
+                                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(0, 68, 255, 0.1)'}
+                                        onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                    >
+                                        <div style={{ fontSize: 16 }}>{favoriteMessages.includes(msg.id) ? '▼' : '▽'}</div> 
+                                        즐겨찾기
                                     </button>
 
                                     {isMyMessage && (
