@@ -12,7 +12,7 @@ const EmotionCamera = ({ isActive = true, hideControls = false, userAvatar, user
     const startCamera = useCallback(async () => {
         try {
             setError(null);
-            console.log('웹캠 시작 시도...');
+            // console.log('웹캠 시작 시도...');
 
             // 사용 가능한 미디어 디바이스 확인
             const devices = await navigator.mediaDevices.enumerateDevices();

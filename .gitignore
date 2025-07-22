@@ -12,6 +12,8 @@ backup/
 hearth-chat.tar
 # etc
 settings_local.py
+test.vrm
+avatar_vrm_test/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

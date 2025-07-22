@@ -1014,3 +1014,12 @@ class NotificationReadViewSet(viewsets.ModelViewSet):
                     'timestamp': latest.timestamp,
                 })
         return Response(unread)
+
+# 파일 존재 여부 확인
+
+def file_exists(request):
+    rel_path = request.GET.get("path", "").lstrip("/")
+    abs_path = os.path.join(settings.MEDIA_ROOT, rel_path)
+    exists = os.path.exists(abs_path)
+    print('abs_path:', abs_path, 'exists:', exists)
+    return JsonResponse({ "exists": exists })

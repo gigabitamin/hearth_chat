@@ -9,26 +9,11 @@ import faceTrackingService from '../services/faceTrackingService';
 import { AnimationMixer } from 'three';
 import { Quaternion } from 'three';
 
-
-// 환경에 따라 API_BASE 자동 설정 함수 추가
-const getApiBase = () => {
-    const hostname = window.location.hostname;
-    const isProd = process.env.NODE_ENV === 'production';
-  
-    if (isProd) return 'https://hearthchat-production.up.railway.app';
-    if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:8000';
-    if (hostname === '192.168.44.9') return 'http://192.168.44.9:8000';
-  
-    return `http://${hostname}:8000`;
-  };
-  
-
 // VRM 아바타 컴포넌트
 function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess, onLoadError, position, enableTracking = false }) {
 
-    console.log('avatarUrl real 2', avatarUrl);
     // console.log('=== [TEST 1] ===');    
-    const testUrl = `/media/avatar_vrm_test/test.vrm`
+    const testUrl = '/avatar_vrm/test_f.vrm'
     const [vrm, setVrm] = useState(null);
     const [error, setError] = useState(null);
     const avatarRef = useRef();
@@ -81,20 +66,6 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
             setBlinkOffset(Math.max(trackingData.eyeBlink.left, trackingData.eyeBlink.right));
         }
     }, [trackingData.isDetected, trackingData.eyeBlink.left, trackingData.eyeBlink.right, blinkOffset]);
-
-    // === 모델 트레이스 출력 ===
-    if (vrm && vrm.scene) {
-        // 안전하게 접근
-        vrm.scene.traverse(child => { 
-            if (child.isBone) {
-                // console.log('child.name' , child.name);
-                // console.log('child.rotation', child.rotation);
-            }
-        });
-    } else {
-        console.warn('모델이 아직 로드되지 않았습니다.');
-    }    
-
 
     // === 프로그래밍적 Idle 애니메이션 함수 ===
     const createProgrammaticIdleAnimation = useCallback((vrmInstance) => {
@@ -165,7 +136,7 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
 
         // 클린업 함수 반환
         return () => {
-            // console.log('프로그래밍적 idle 애니메이션 정리');
+            console.log('프로그래밍적 idle 애니메이션 정리');
             if (animationId) {
                 cancelAnimationFrame(animationId);
             }
@@ -218,7 +189,6 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
     // VRM 모델 로딩
     useEffect(() => {
         if (!avatarUrl) return;
-        console.log('avatarUrl real 0', avatarUrl);
         setVrm(null);
         setError(null);
         setIdleLoaded(false);
@@ -299,6 +269,171 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
                     }
                 }
 
+                // 기본 포즈 설정 (T-pose에서 자연스러운 자세로) - 안전한 방식
+                if (avatarUrl === !testUrl) {                
+                    if (vrmInstance.humanoid) {
+                        try {
+                            // 새로운 방식으로 본 노드들 가져오기
+                            const getBoneNode = (boneName) => {
+                                return vrmInstance.humanoid.getNormalizedBoneNode ?
+                                    vrmInstance.humanoid.getNormalizedBoneNode(boneName) :
+                                    vrmInstance.humanoid.getBoneNode(boneName);
+                            };
+
+                            const leftArm = getBoneNode('leftUpperArm');
+                            const rightArm = getBoneNode('rightUpperArm');
+                            const leftForeArm = getBoneNode('leftLowerArm');
+                            const rightForeArm = getBoneNode('rightLowerArm');
+
+                            console.log('포즈 설정 시작:', {
+                                leftArm: !!leftArm,
+                                rightArm: !!rightArm,
+                                leftForeArm: !!leftForeArm,
+                                rightForeArm: !!rightForeArm
+                            });
+
+                            // x, y축은 0, z축만 조정
+                            const ARM_DOWN_Z = Math.PI / 4; // 약 45도
+                            const FOREARM_BEND_Z = Math.PI / 15; // 약 12도
+
+                            // 모든 축을 0으로 (T자 기본 포즈)
+                            if (leftArm) {
+                                leftArm.rotation.x = 0;
+                                leftArm.rotation.y = 0;
+                                leftArm.rotation.z = -ARM_DOWN_Z;
+                            }
+                            if (rightArm) {
+                                rightArm.rotation.x = 0;
+                                rightArm.rotation.y = 0;
+                                rightArm.rotation.z = ARM_DOWN_Z;
+                            }
+                            if (leftForeArm) {
+                                leftForeArm.rotation.x = 0;
+                                leftForeArm.rotation.y = 0;
+                                leftForeArm.rotation.z = 0;
+                            }
+                            if (rightForeArm) {
+                                rightForeArm.rotation.x = 0;
+                                rightForeArm.rotation.y = 0;
+                                rightForeArm.rotation.z = 0;
+                            }
+                            // 척추와 가슴을 살짝 앞으로
+                            const spine = getBoneNode('spine');
+                            const chest = getBoneNode('chest');
+                            if (spine) spine.rotation.x = -Math.PI / 60;   // 약 -3도
+                            if (chest) chest.rotation.x = -Math.PI / 80;   // 약 -2도
+
+                            // 어깨 회전 추가
+                            const leftShoulder = getBoneNode('leftShoulder');
+                            const rightShoulder = getBoneNode('rightShoulder');
+
+                            // 어깨는 살짝만 내림
+                            if (leftShoulder) {
+                                leftShoulder.rotation.x = 0;
+                                leftShoulder.rotation.y = 0;
+                                // leftShoulder.rotation.z = 0;
+                                // leftShoulder.rotation.X = -Math.PI / 4; // 약 -10도
+                                // leftShoulder.rotation.Y = -Math.PI / 4; // 약 -10도
+                                leftShoulder.rotation.z = -Math.PI / 8; // 약 -10도
+                            }
+                            if (rightShoulder) {
+                                rightShoulder.rotation.x = 0;
+                                rightShoulder.rotation.y = 0;
+                                // rightShoulder.rotation.z = 0;
+                                // rightShoulder.rotation.X = Math.PI / 4; // 약 10도
+                                // rightShoulder.rotation.Y = Math.PI / 4; // 약 10도
+                                rightShoulder.rotation.z = Math.PI / 8; // 약 10도
+                            }
+
+                            // console.log('포즈 설정 완료');
+                        } catch (e) {
+                            // console.warn('포즈 설정 실패:', e);
+                        }
+                    }
+                }
+
+
+                if (avatarUrl === testUrl) {                
+                    if (vrmInstance.humanoid) {
+                        try {
+                            // 새로운 방식으로 본 노드들 가져오기
+                            const getBoneNode = (boneName) => {
+                                return vrmInstance.humanoid.getNormalizedBoneNode ?
+                                    vrmInstance.humanoid.getNormalizedBoneNode(boneName) :
+                                    vrmInstance.humanoid.getBoneNode(boneName);
+                            };
+
+                            const leftArm = getBoneNode('leftUpperArm');
+                            const rightArm = getBoneNode('rightUpperArm');
+                            const leftForeArm = getBoneNode('leftLowerArm');
+                            const rightForeArm = getBoneNode('rightLowerArm');
+
+                            console.log('포즈 설정 시작:', {
+                                leftArm: !!leftArm,
+                                rightArm: !!rightArm,
+                                leftForeArm: !!leftForeArm,
+                                rightForeArm: !!rightForeArm
+                            });
+
+                            // x, y축은 0, z축만 조정
+                            const ARM_DOWN_Z = Math.PI / 4; // 약 45도
+                            const FOREARM_BEND_Z = Math.PI / 15; // 약 12도
+
+                            // 모든 축을 0으로 (T자 기본 포즈)
+                            if (leftArm) {
+                                leftArm.rotation.x = 0;
+                                leftArm.rotation.y = 0;
+                                leftArm.rotation.z = -ARM_DOWN_Z;
+                            }
+                            if (rightArm) {
+                                rightArm.rotation.x = 0;
+                                rightArm.rotation.y = 0;
+                                rightArm.rotation.z = ARM_DOWN_Z;
+                            }
+                            if (leftForeArm) {
+                                leftForeArm.rotation.x = 0;
+                                leftForeArm.rotation.y = 0;
+                                leftForeArm.rotation.z = 0;
+                            }
+                            if (rightForeArm) {
+                                rightForeArm.rotation.x = 0;
+                                rightForeArm.rotation.y = 0;
+                                rightForeArm.rotation.z = 0;
+                            }
+                            // 척추와 가슴을 살짝 앞으로
+                            // const spine = getBoneNode('spine');
+                            // const chest = getBoneNode('chest');
+                            // if (spine) spine.rotation.x = -Math.PI / 60;   // 약 -3도
+                            // if (chest) chest.rotation.x = -Math.PI / 80;   // 약 -2도
+
+                            // 어깨 회전 추가
+                            const leftShoulder = getBoneNode('leftShoulder');
+                            const rightShoulder = getBoneNode('rightShoulder');
+
+                            // 어깨는 살짝만 내림
+                            if (leftShoulder) {
+                                leftShoulder.rotation.x = 0;
+                                leftShoulder.rotation.y = 0;
+                                // leftShoulder.rotation.z = 0;
+                                // leftShoulder.rotation.X = -Math.PI / 4; // 약 -10도
+                                // leftShoulder.rotation.Y = -Math.PI / 4; // 약 -10도
+                                leftShoulder.rotation.z = -Math.PI / 8; // 약 -10도
+                            }
+                            if (rightShoulder) {
+                                rightShoulder.rotation.x = 0.4;
+                                rightShoulder.rotation.y = 0.5;
+                                rightShoulder.rotation.z = 0.5;
+                                // rightShoulder.rotation.X = Math.PI / 4; // 약 10도
+                                // rightShoulder.rotation.Y = Math.PI / 4; // 약 10도
+                                // rightShoulder.rotation.z = Math.PI / 8; // 약 10도
+                            }
+
+                            // console.log('포즈 설정 완료');
+                        } catch (e) {
+                            // console.warn('포즈 설정 실패:', e);
+                        }
+                    }
+                }                
 
 
                 // 표정 매니저 초기화
@@ -311,6 +446,8 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
                     // 기본 표정 설정
                     vrmInstance.expressionManager.setValue('neutral', 1.0);
                 }
+
+
 
                 // 위치 및 회전 설정
                 vrmInstance.scene.rotation.y = 0;
@@ -325,7 +462,7 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
                 if (onLoadSuccess) onLoadSuccess(vrmInstance);
 
                 // === Idle 모션 로딩 시작 ===
-                loadIdleMotion(vrmInstance);                
+                loadIdleMotion(vrmInstance);
 
                 // === 정자세(arms down) 포즈 쿼터니언 적용 ===
                 const getBoneNode = (boneName) => {
@@ -333,166 +470,28 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
                         vrmInstance.humanoid.getNormalizedBoneNode(boneName) :
                         vrmInstance.humanoid.getBoneNode(boneName);
                 };
-                // console.log('vrmInstance.humanoid', vrmInstance.humanoid);                
-                console.log('avatarUrl real', avatarUrl);
-                // 기본 포즈 설정 (T-pose에서 자연스러운 자세로) - 안전한 방식 : vroid 1.0 f
-                if (avatarUrl === !testUrl) {                
-                    if (vrmInstance.humanoid) {
-                        try {
-
-                            const leftArm = getBoneNode('leftUpperArm');
-                            const rightArm = getBoneNode('rightUpperArm');
-                            const leftForeArm = getBoneNode('leftLowerArm');
-                            const rightForeArm = getBoneNode('rightLowerArm');
-
-                            // x, y축은 0, z축만 조정
-                            const ARM_DOWN_Z = Math.PI / 4; // 약 45도
-                            const FOREARM_BEND_Z = Math.PI / 15; // 약 12도
-
-                            // 모든 축을 0으로 (T자 기본 포즈)
-                            if (leftArm) {
-                                leftArm.rotation.x = 0;
-                                leftArm.rotation.y = 0;
-                                leftArm.rotation.z = -0;
-                            }
-                            if (rightArm) {
-                                rightArm.rotation.x = 0;
-                                rightArm.rotation.y = 0;
-                                rightArm.rotation.z = 0;
-                            }
-                            if (leftForeArm) {
-                                leftForeArm.rotation.x = 0;
-                                leftForeArm.rotation.y = 0;
-                                leftForeArm.rotation.z = 0;
-                            }
-                            if (rightForeArm) {
-                                rightForeArm.rotation.x = 0;
-                                rightForeArm.rotation.y = 0;
-                                rightForeArm.rotation.z = 0;
-                            }
-
-                            // 척추와 가슴을 살짝 앞으로
-                            // const spine = getBoneNode('spine');
-                            // const chest = getBoneNode('chest');
-                            // if (spine) spine.rotation.x = -Math.PI / 60;
-                            // if (chest) chest.rotation.x = -Math.PI / 80;
-
-                            // 어깨 회전 추가
-                            const leftShoulder = getBoneNode('leftShoulder');
-                            const rightShoulder = getBoneNode('rightShoulder');
-
-                            // 어깨는 살짝만 내림
-                            if (leftShoulder) {
-                                leftShoulder.rotation.x = 0;
-                                leftShoulder.rotation.y = 0;
-                                leftShoulder.rotation.z = 0;
-                            }
-                            if (rightShoulder) {
-                                rightShoulder.rotation.x = 0;
-                                rightShoulder.rotation.y = 0;
-                                rightShoulder.rotation.z = 0;
-                            }                            
-                        } catch (e) {
-                            console.warn('포즈 설정 실패:', e);
-                        }
-                    }
-                }
-
-                // 테스트 아바타 포즈 설정 shouler 만 조정
-                else {                
-                    if (vrmInstance.humanoid) {
-                        try {
-                            const leftShoulder = getBoneNode('leftShoulder');
-                            const rightShoulder = getBoneNode('rightShoulder');
-                            const leftUpperArm = getBoneNode('leftUpperArm');
-                            const rightUpperArm = getBoneNode('rightUpperArm');
-                            const leftLowerArm = getBoneNode('leftLowerArm');
-                            const rightLowerArm = getBoneNode('rightLowerArm');
-                            const leftArm = getBoneNode('lefArm');
-                            const rightArm = getBoneNode('rightArm');
-
-                            if (leftShoulder) {                                
-                                leftShoulder.rotation.X = 0;
-                                leftShoulder.rotation.Y = 0;
-                                leftShoulder.rotation.z = 0;
-                            }
-                            if (rightShoulder) {            
-                                // rightShoulder.rotation.x = -0.2;
-                                rightShoulder.rotation.y = 0;
-                                rightShoulder.rotation.z = 0;
-                            }        
-
-                            if (leftUpperArm) {
-                                // leftUpperArm.rotation.x = 0.3;
-                                // leftUpperArm.rotation.y = 0.3;
-                                // leftUpperArm.rotation.z = 0.3;
-                            }
-                            if (rightUpperArm) {
-                                // rightUpperArm.rotation.w = 0.620;
-                                // rightUpperArm.rotation.x = 0.1;
-                                // rightUpperArm.rotation.y = -0.559;
-                                // rightUpperArm.rotation.z = -0.7;
-                            }
-
-                            if (leftLowerArm) {
-                                // leftLowerArm.rotation.x = 0.3;
-                                // leftLowerArm.rotation.y = 0.3;
-                                // leftLowerArm.rotation.z = 0.3;
-                            }
-                            if (rightLowerArm) {
-                                // rightUpperArm.rotation.w = 0.620;
-                                // rightUpperArm.rotation.x = -0.344;
-                                // rightUpperArm.rotation.y = -0.559;
-                                // rightUpperArm.rotation.z = 0.430;
-                            }
-
-                            if (leftArm) {
-                                // leftArm.rotation.x = 0.3;
-                                // leftArm.rotation.y = 0.3;
-                                // leftArm.rotation.z = 0.3;
-                            }
-                            if (rightArm) {
-                                // rightUpperArm.rotation.w = 0.620;
-                                // rightUpperArm.rotation.x = -0.7;
-                                // rightUpperArm.rotation.y = -0.559;
-                                // rightUpperArm.rotation.z = 0.430;
-                            }
-                                                
-                        } catch (e) {
-                            console.warn('포즈 설정 실패:', e);
-                        }
-                    }
-                }                
-
                 // === 정자세(arms down) 포즈 쿼터니언 적용 ===
-                // --- vroid 생성 모델, pmx2vrm 모델델
-                const armsDownPose = (avatarUrl !== testUrl) ? {
-                    leftUpperArm: { x: 0.4, y: 0.4, z: 0.4, w: 0.8 },
-                    rightUpperArm: { x: 0.4, y: -0.4, z: -0.4, w: 0.8},
-
-                    leftLowerArm: { x: 0, y: 0, z: -0.4, w: 0.8 },
-                    rightLowerArm: { x: -0, y: 0, z: 0.4, w: 0.8 },
-
-                    leftHand: { x: 0, y: 0, z: -0.2, w: 0.8 },                                        
-                    rightHand: { x: -0, y: 0, z: 0.2, w: 0.8 },
-                } : {
-                    leftUpperArm: { x: 0.495, y: 0.375, z: 0.437, w: 0.8 },
-                    rightUpperArm: { x: 0.495, y: -0.375, z: -0.437, w: 0.8},
-
-                    leftLowerArm: { x: -0.4, y: 0, z: 0.1, w: 0.8 },
-                    rightLowerArm: { x: -0.4, y: 0, z: -0.1, w: 0.8 },
-
-                    leftHand: { x: -0.4, y: 0, z: 0.2, w: 0.8 },                                        
-                    rightHand: { x: -0.4, y: 0, z: -0.2, w: 0.8 },
+                const armsDownPose = {
+                    leftUpperArm: { x: -0.1, y: 0.1, z: 0.7, w: 0.7 },
+                    leftLowerArm: { x: 0, y: 0, z: 0, w: 1 },
+                    leftHand: { x: 0, y: 0, z: 0, w: 1 },
+                    rightUpperArm: { x: -0.1, y: -0.1, z: -0.7, w: 0.7 },
+                    rightLowerArm: { x: 0, y: 0, z: 0, w: 1 },
+                    rightHand: { x: 0, y: 0, z: 0, w: 1 }
                 };
-                
                 Object.entries(armsDownPose).forEach(([boneName, quat]) => {
                     const node = getBoneNode(boneName);
                     if (node) {
                         node.quaternion.set(quat.x, quat.y, quat.z, quat.w);
                     }
                 });
-                vrmInstance.scene.updateMatrixWorld(true);                                
+                vrmInstance.scene.updateMatrixWorld(true);
+
+                console.log('VRM 모델 초기화 완료:', {
+                    hasHumanoid: !!vrmInstance.humanoid,
+                    hasExpressionManager: !!vrmInstance.expressionManager,
+                    hasSpringBoneManager: !!vrmInstance.springBoneManager
+                });
             },
             undefined,
             (e) => {
@@ -500,12 +499,12 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
                 if (onLoadError) onLoadError(e);
             }
         );
-    }, [avatarUrl, onLoadSuccess, onLoadError, position, loadIdleMotion]);    
+    }, [avatarUrl, onLoadSuccess, onLoadError, position, loadIdleMotion]);
 
     // === 프로그래밍적 Idle 애니메이션 활성화 ===
     useEffect(() => {
         if (programmaticIdle && vrm) {
-            // console.log('프로그래밍적 idle 애니메이션 시작');
+            console.log('프로그래밍적 idle 애니메이션 시작');
             const cleanup = createProgrammaticIdleAnimation(vrm);
 
             return () => {
@@ -544,7 +543,7 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
     useEffect(() => {
         if (!enableTracking) return;
 
-        // console.log('트래킹 활성화됨 - VRMAvatar');
+        console.log('트래킹 활성화됨 - VRMAvatar');
 
         const handleTrackingUpdate = (data) => {
             // 트래킹이 처음 감지될 때 오프셋 저장
@@ -560,11 +559,11 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
         };
 
         const handleFaceDetected = () => {
-            // console.log('얼굴이 감지되었습니다.');
+            console.log('얼굴이 감지되었습니다.');
         };
 
         const handleFaceLost = () => {
-            // console.log('얼굴이 감지되지 않습니다.');
+            console.log('얼굴이 감지되지 않습니다.');
         };
 
         faceTrackingService.on('trackingUpdate', handleTrackingUpdate);
@@ -684,7 +683,7 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
 
         // 트래킹 데이터 적용
         if (enableTracking && trackingData.isDetected && vrm.humanoid) {
-            // console.log('트래킹 데이터 아바타에 적용:', trackingData.headRotation);
+            console.log('트래킹 데이터 아바타에 적용:', trackingData.headRotation);
 
             // 머리 회전 적용
             const headBone = vrm.humanoid.getNormalizedBoneNode ?
@@ -778,7 +777,7 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
                     vrm.expressionManager.setValue('blink', lerpedBlink * BLINK_SHAPE_MAX + BLINK_OFFSET);
                     vrm.expressionManager.setValue('blinkLeft', lerpedBlinkLeft * BLINK_SHAPE_MAX + BLINK_OFFSET);
                     vrm.expressionManager.setValue('blinkRight', lerpedBlinkRight * BLINK_SHAPE_MAX + BLINK_OFFSET);
-                    // console.log('[EYE BLINK] blink:', blinkValue, 'offset:', blinkOffset, 'adjusted:', adjustedBlink, 'normalized:', normalizedBlink, 'lerped:', lerpedBlink, 'blinkLeft:', blinkLeft, 'blinkRight:', blinkRight);
+                    console.log('[EYE BLINK] blink:', blinkValue, 'offset:', blinkOffset, 'adjusted:', adjustedBlink, 'normalized:', normalizedBlink, 'lerped:', lerpedBlink, 'blinkLeft:', blinkLeft, 'blinkRight:', blinkRight);
                 }
 
                 // 립싱크 (트래킹 데이터 우선)
@@ -802,7 +801,7 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
                         vrm.expressionManager.setValue('ih', ihValue);
 
                         // 디버그 로그
-                        // console.log('[LIP SYNC] mouthOpen:', mouthOpen, 'aa:', aaValue, 'ih:', ihValue);
+                        console.log('[LIP SYNC] mouthOpen:', mouthOpen, 'aa:', aaValue, 'ih:', ihValue);
                     } else {
                         vrm.expressionManager.setValue('aa', 0);
                         vrm.expressionManager.setValue('ih', 0);
@@ -829,12 +828,12 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
         // 포즈 유지 (필요시)
         if (vrm.humanoid) {
             try {
-                const getBoneNode = (boneName) => {                                       
+                const getBoneNode = (boneName) => {
                     return vrm.humanoid.getNormalizedBoneNode ?
                         vrm.humanoid.getNormalizedBoneNode(boneName) :
                         vrm.humanoid.getBoneNode(boneName);
                 };
-                
+
                 const leftArm = getBoneNode('leftUpperArm');
                 const rightArm = getBoneNode('rightUpperArm');
 
@@ -854,9 +853,9 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
     // VRM 표정(BlendShape/Expression) 목록 출력
     useEffect(() => {
         if (vrm && vrm.expressionManager && vrm.expressionManager.expressions) {
-            // console.log('[VRM 표정(BlendShape/Expression) 목록]');
+            console.log('[VRM 표정(BlendShape/Expression) 목록]');
             Object.keys(vrm.expressionManager.expressions).forEach(name => {
-                // console.log('표정 이름:', name);
+                console.log('표정 이름:', name);
             });
         }
     }, [vrm]);
@@ -867,18 +866,26 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
     if (!vrm) {
         return null;
     }
-        
+    
+    
     return (
         // 초기 위치 포즈 설정
+        // <primitive
+        //     ref={avatarRef}
+        //     object={vrm.scene}
+        //     scale={[12, 12, 12]}
+        //     position={position === 'left' ? [0, -16.7, 0] : [0, -18.7, 0]}
+        // />
+        
         <primitive        
             ref={avatarRef}
             object={vrm.scene}
-            scale={avatarUrl === testUrl ? [7, 7, 7] : [9, 9, 9]}
+            scale={avatarUrl === testUrl ? [9, 9, 9] : [12, 12, 12]}
             rotation={avatarUrl === testUrl ? [0, 135, 0] : undefined}
             position={
                 avatarUrl === testUrl
-                    ? [0, -9, 0]
-                    : (position === 'left' ? [0, -12.2, 0] : [0, -13.5, 0])
+                    ? [0, -13.8, 0]
+                    : (position === 'left' ? [0, -16.7, 0] : [0, -18.7, 0])
             }
         />
     );
@@ -897,6 +904,7 @@ function RealisticAvatar3D({
     onAvatarClick = null,
     enableTracking = false
 }) {
+    const testUrl = '/avatar_vrm/test_f.vrm'
 
     const [isHovered, setIsHovered] = useState(false);
     const [gltfLoaded, setGltfLoaded] = useState(false);
@@ -905,7 +913,7 @@ function RealisticAvatar3D({
 
     // VRM 로딩 성공/실패 콜백 (useCallback으로 안정화)
     const handleLoadSuccess = useCallback((vrmInstance) => {
-        // console.log('VRM 아바타 로딩 성공!');
+        console.log('VRM 아바타 로딩 성공!');
         setGltfLoaded(true);
         setUseFallbackAvatar(false);
         setLoadError(null);

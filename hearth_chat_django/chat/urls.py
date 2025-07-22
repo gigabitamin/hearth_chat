@@ -1,5 +1,5 @@
 from rest_framework.routers import DefaultRouter
-from .views import ChatRoomViewSet, ChatViewSet, UserSettingsView, UserDeleteView, user_info, chat_home, get_chat_history, get_all_sessions, upload_chat_image, logout_api, UserListView, MessageReactionViewSet, MessageReplyViewSet, PinnedMessageViewSet, UserChatCreateAPIView, NotificationReadViewSet
+from .views import ChatRoomViewSet, ChatViewSet, UserSettingsView, UserDeleteView, user_info, chat_home, get_chat_history, get_all_sessions, upload_chat_image, logout_api, UserListView, MessageReactionViewSet, MessageReplyViewSet, PinnedMessageViewSet, UserChatCreateAPIView, NotificationReadViewSet, file_exists
 from django.urls import path, include
 
 # from hearth_chat_package.hearth_chat_django.chat import views  # 삭제
@@ -26,6 +26,7 @@ urlpatterns = [
     path('logout/', views.logout_api, name='logout_api'),
     path('rooms/user_chat_alt/', UserChatCreateAPIView.as_view(), name='user_chat_api'),  # APIView 추가
     path('messages/<int:pk>/delete/', ChatViewSet.as_view({'delete': 'delete_message'}), name='delete_message'),  # 메시지 삭제 API
+    path('file_exists/', views.file_exists, name='file_exists'),
 ]
 
 urlpatterns += router.urls

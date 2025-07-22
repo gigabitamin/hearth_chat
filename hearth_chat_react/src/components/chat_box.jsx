@@ -1344,25 +1344,43 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     };
   }, []);
 
+
+  // 아바타 초기화
+  // 파일 존재 여부 확인
+  const checkFileExists = async (relPath) => {
+    try {
+      const apiBase = getApiBase(); 
+      const res = await fetch(`${apiBase}/api/chat/file_exists/?path=${relPath}`);
+      const data = await res.json();
+      return data.exists;
+    } catch (e) {
+      console.warn('파일 존재 확인 중 오류:', e);
+      return false;
+    }
+  };
+  
   // 아바타 초기화
   const initializeAvatars = async () => {
     try {
-      console.log('아바타 초기화 시작');
-
-      // VRM 아바타 파일 경로 설정
-      // VRM 파일은 avatar_vrm 폴더에 저장
-      const userAvatarUrl = '/avatar_vrm/gb_m_v1.vrm'; // 사용자 VRM 아바타 (남성)
-      const aiAvatarUrl = '/avatar_vrm/gb_f_v1.vrm';   // AI VRM 아바타 (여성)
-
-      console.log('사용자 아바타 URL:', userAvatarUrl);
+      const userAvatarUrl = '/avatar_vrm/gb_m_v1.vrm';
+      let aiAvatarUrl = '/avatar_vrm/gb_f_v1.vrm';
+  
+      const testPath = 'avatar_vrm_test/test.vrm';  // 슬래시 없이
+      const exists = await checkFileExists(testPath);
+      console.log('파일 존재 여부:', exists);
+  
+      if (exists) {
+        aiAvatarUrl = `/media/${testPath}`;
+      }
+  
       console.log('AI 아바타 URL:', aiAvatarUrl);
-
       setUserAvatar(userAvatarUrl);
       setAiAvatar(aiAvatarUrl);
     } catch (error) {
       console.error('아바타 초기화 실패:', error);
     }
   };
+  
 
   // 감정 분석 (더 정교한 키워드 기반)
   const analyzeEmotion = (text) => {
