@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import './NotifyModal.css';
 
-export default function NotifyModal({ open, onClose, notifications = [], onNotificationRead, unreadList = [], onMarkAllAsRead }) {
+export default function NotifyModal({ 
+    open, 
+    onClose, 
+    notifications = [], 
+    onNotificationRead, 
+    unreadList = [], 
+    onMarkAllAsRead, 
+    setScrollToMessageId }) {
     if (!open) return null;
     return (
         <div className="notify-modal-overlay" onClick={onClose}>

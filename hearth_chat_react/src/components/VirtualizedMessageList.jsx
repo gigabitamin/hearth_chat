@@ -1,7 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { VariableSizeList as List } from 'react-window';
-import AutoSizer from 'react-virtualized-auto-sizer';
-import InfiniteLoader from 'react-window-infinite-loader';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Virtuoso } from 'react-virtuoso';
 import './VirtualizedMessageList.css';
 
 
@@ -10,29 +8,29 @@ function getCookie(name) {
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
     if (parts.length === 2) return parts.pop().split(';').shift();
-  }
-  
-  // csrfFetch 함수
-  const csrfFetch = async (url, options = {}) => {
+}
+
+// csrfFetch 함수
+const csrfFetch = async (url, options = {}) => {
     const csrftoken = getCookie('csrftoken');
-  
+
     const defaultHeaders = {
-      'X-CSRFToken': csrftoken,
-      'Content-Type': 'application/json',
+        'X-CSRFToken': csrftoken,
+        'Content-Type': 'application/json',
     };
-  
+
     const mergedOptions = {
-      credentials: 'include',
-      ...options,
-      headers: {
-        ...defaultHeaders,
-        ...(options.headers || {}),
-      },
+        credentials: 'include',
+        ...options,
+        headers: {
+            ...defaultHeaders,
+            ...(options.headers || {}),
+        },
     };
-  
+
     return fetch(url, mergedOptions);
-  };
-  
+};
+
 
 // 환경에 따라 API_BASE 자동 설정 함수
 const getApiBase = () => {
@@ -81,6 +79,7 @@ const VirtualizedMessageList = ({
     favoriteMessages = [],
     onToggleFavorite = () => { },
     onMessageDelete, // 메시지 삭제 콜백    
+    scrollToMessageId, // [입장] 버튼 클릭 시 전달받는 메시지 id
 }) => {
     const [listRef, setListRef] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -92,34 +91,34 @@ const VirtualizedMessageList = ({
     const prevMessagesLength = useRef(0);
     const [showNewMsgAlert, setShowNewMsgAlert] = useState(false);
     const [alertBlink, setAlertBlink] = useState(0);
-    const scrollContainerRef = useRef(null);    
+    const scrollContainerRef = useRef(null);
 
 
     const [messages_chat, setMessages_chat] = useState([]);
-    
-  // 메시지 삭제 함수
-  const handleDeleteMessage = async (msg) => {
-    if (!msg.id) return;
-    if (!(loginUser && (msg.username === loginUser.username || msg.user_id === loginUser.id))) {
-      alert('본인 메시지만 삭제할 수 있습니다.');
-      return;
-    }
-    if (!window.confirm('정말 이 메시지를 삭제하시겠습니까?')) return;
-    try {
-      const res = await csrfFetch(`${getApiBase()}/api/chat/messages/${msg.id}/`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      if (res.ok) {
-        // 삭제 성공 후 부모 콜백 호출!
-        if (onMessageDelete) onMessageDelete(msg.id);
-      } else {
-        alert('메시지 삭제에 실패했습니다.');
-      }
-    } catch (e) {
-      alert('메시지 삭제 중 오류: ' + e.message);
-    }
-  };
+
+    // 메시지 삭제 함수
+    const handleDeleteMessage = async (msg) => {
+        if (!msg.id) return;
+        if (!(loginUser && (msg.username === loginUser.username || msg.user_id === loginUser.id))) {
+            alert('본인 메시지만 삭제할 수 있습니다.');
+            return;
+        }
+        if (!window.confirm('정말 이 메시지를 삭제하시겠습니까?')) return;
+        try {
+            const res = await csrfFetch(`${getApiBase()}/api/chat/messages/${msg.id}/`, {
+                method: 'DELETE',
+                credentials: 'include',
+            });
+            if (res.ok) {
+                // 삭제 성공 후 부모 콜백 호출!
+                if (onMessageDelete) onMessageDelete(msg.id);
+            } else {
+                alert('메시지 삭제에 실패했습니다.');
+            }
+        } catch (e) {
+            alert('메시지 삭제 중 오류: ' + e.message);
+        }
+    };
 
     // 핀 토글 함수
     const togglePin = (msgId) => {
@@ -183,7 +182,7 @@ const VirtualizedMessageList = ({
         } catch (e) {
             alert('이모지 반응 처리 실패');
         }
-    };    
+    };
 
     // 메시지 삭제 API 호출
     const deleteMessage = async (messageId) => {
@@ -284,12 +283,41 @@ const VirtualizedMessageList = ({
         }
     }, [highlightMessageId]);
 
-    // 메시지 렌더링 함수
-    const renderMessage = useCallback(({ index, style }) => {
+    // highlightMessageId로 스크롤 이동
+    useEffect(() => {
+        if (highlightMessageId && messages.length > 0) {
+            const idx = messages.findIndex(m => m.id === highlightMessageId);
+            if (idx !== -1 && virtuosoRef.current) {
+                virtuosoRef.current.scrollToIndex({ index: idx, align: 'center', behavior: 'smooth' });
+            }
+        }
+    }, [highlightMessageId, messages]);
+
+    // [입장] 버튼 등에서 scrollToMessageId prop이 바뀔 때 해당 메시지로 이동
+    useEffect(() => {
+        if (scrollToMessageId && messages.length > 0) {
+          const idx = messages.findIndex(m => String(m.id) === String(scrollToMessageId));
+          if (idx !== -1 && virtuosoRef.current) {
+            setTimeout(() => {
+              virtuosoRef.current.scrollToIndex({ index: idx, align: 'center', behavior: 'smooth' });
+            }, 0);
+          }
+        }
+      }, [scrollToMessageId, messages]);
+      
+    // 무한 스크롤: 맨 위 도달 시 onLoadMore 호출
+    const handleStartReached = useCallback(() => {
+        if (hasMore && onLoadMore) {
+            onLoadMore();
+        }
+    }, [hasMore, onLoadMore]);
+
+    // 메시지 렌더링 함수 (Virtuoso의 itemContent)
+    const renderMessage = useCallback((index) => {
         const msg = messages[index];
         if (!msg) {
             return (
-                <div style={style} className="message-loading">
+                <div className="message-loading">
                     <div className="loading-skeleton">
                         <div className="skeleton-avatar"></div>
                         <div className="skeleton-content">
@@ -300,7 +328,7 @@ const VirtualizedMessageList = ({
                 </div>
             );
         }
-        console.log('[msg]', msg);
+        // console.log('[msg]', msg);
 
         const isMyMessage = msg.type === 'send' ||
             (loginUser && (msg.username === loginUser.username || msg.user_id === loginUser.id));
@@ -309,20 +337,19 @@ const VirtualizedMessageList = ({
 
         return (
             <div
-                style={style}
                 className={`message-item ${isMyMessage ? 'my-message' : 'other-message'} ${tempHighlightedId === msg.id ? 'temp-highlight' : ''}`}
-                // onClick={() => onMessageClick && onMessageClick(msg)}
-                // onMouseLeave={() => setEmojiPickerMsgId(null)}
+            // onClick={() => onMessageClick && onMessageClick(msg)}
+            // onMouseLeave={() => setEmojiPickerMsgId(null)}
             >
                 <div className="message-content">
                     {/* 메시지 헤더: 위쪽에 username(흰색, 굵게) + 답장/핀/즐겨찾기 버튼 */}
-                    <div className="message-header" 
-                        style={{ 
-                        display: 'flex',                         
-                        // alignItems: 'center', 
-                        // marginBottom: 2,                                                        
-                        // justifyContent: 'space-between',                        
-                    }}
+                    <div className="message-header"
+                        style={{
+                            display: 'flex',
+                            // alignItems: 'center', 
+                            // marginBottom: 2,                                                        
+                            // justifyContent: 'space-between',                        
+                        }}
                     >
                         <span style={{ color: '#fff', fontWeight: 700, fontSize: 13, marginRight: 8 }}>
                             {msg.sender || msg.username || 'Unknown'}
@@ -340,15 +367,15 @@ const VirtualizedMessageList = ({
                             onClick={e => { e.stopPropagation(); togglePin(msg.id); }}
                             title={pinnedIds.includes(msg.id) ? '핀 해제' : '상단 고정'}
                         >📌</button>
-                        {/* 즐겨찾기(▽/▼) 버튼 */}                        
-                        {/* <button
+                        {/* 즐겨찾기(▽/▼) 버튼 */}
+                        <button
                             className="favorite-btn"
                             style={{ marginLeft: 8, fontSize: 18, color: favoriteMessages.includes(msg.id) ? '#1976d2' : '#bbb', background: 'none', border: 'none', cursor: 'pointer' }}
                             title={favoriteMessages.includes(msg.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
                             onClick={e => { e.stopPropagation(); onToggleFavorite(msg); }}
                         >
                             {favoriteMessages.includes(msg.id) ? '▼' : '▽'}
-                        </button> */}
+                        </button>
                     </div>
                     {/* 답장 인용 표시 */}
                     {msg.reply && (
@@ -382,10 +409,10 @@ const VirtualizedMessageList = ({
                     )}
                     <div className="message-bubble-row" style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
                         {/* 메시지 버블 */}
-                        <div className="message-bubble" 
-                            style={{ 
-                                backgroundColor: isMyMessage ? undefined : getSenderColor(msg.sender), 
-                                color: isMyMessage ? undefined : (getSenderColor(msg.sender) ? '#fff' : undefined), 
+                        <div className="message-bubble"
+                            style={{
+                                backgroundColor: isMyMessage ? undefined : getSenderColor(msg.sender),
+                                color: isMyMessage ? undefined : (getSenderColor(msg.sender) ? '#fff' : undefined),
                                 position: 'relative',
                                 width: '100%',
                                 maxWidth: '100%',
@@ -499,7 +526,6 @@ const VirtualizedMessageList = ({
                                     boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
                                     zIndex: 1000,
                                     minWidth: 120,
-                                    top: '60%',
                                 }}
                             >
                                 {/* 이모지 선택 영역 */}
@@ -570,12 +596,12 @@ const VirtualizedMessageList = ({
                                         </div>
                                         답장
                                     </button>
-                                    
+
                                     {/* 고정핀 버튼 */}
                                     <button
                                         className={`pin-btn${pinnedIds.includes(msg.id) ? ' pinned' : ''}`}
                                         onClick={e => { e.stopPropagation(); togglePin(msg.id); }}
-                                        title={pinnedIds.includes(msg.id) ? '핀 해제' : '상단 고정'}                                    
+                                        title={pinnedIds.includes(msg.id) ? '핀 해제' : '상단 고정'}
                                         style={{
                                             width: '100%',
                                             background: 'none',
@@ -596,9 +622,9 @@ const VirtualizedMessageList = ({
                                         고정핀
                                     </button>
 
-                                    {/* 즐겨찾기(▽/▼) 버튼 */}                        
+                                    {/* 즐겨찾기(▽/▼) 버튼 */}
                                     <button
-                                        className="favorite-btn"                                        
+                                        className="favorite-btn"
                                         title={favoriteMessages.includes(msg.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
                                         onClick={e => { e.stopPropagation(); onToggleFavorite(msg); }}
                                         style={{
@@ -617,7 +643,7 @@ const VirtualizedMessageList = ({
                                         onMouseEnter={e => e.currentTarget.style.background = 'rgba(0, 68, 255, 0.1)'}
                                         onMouseLeave={e => e.currentTarget.style.background = 'none'}
                                     >
-                                        <div style={{ fontSize: 16 }}>{favoriteMessages.includes(msg.id) ? '▼' : '▽'}</div> 
+                                        <div style={{ fontSize: 16 }}>{favoriteMessages.includes(msg.id) ? '▼' : '▽'}</div>
                                         즐겨찾기
                                     </button>
 
@@ -724,8 +750,10 @@ const VirtualizedMessageList = ({
         };
     }, [emojiPickerMsgId]);
 
+    const virtuosoRef = useRef(null);
+    // Virtuoso 렌더링
     return (
-        <div className="virtualized-message-list" ref={scrollContainerRef} style={{ position: 'relative' }}>
+        <div className="virtualized-message-list" style={{ position: 'relative', height: '100%' }}>
             {/* 상단 고정 메시지 영역 */}
             {pinnedMessages.length > 0 && (
                 <div style={{ marginBottom: 8 }}>
@@ -767,34 +795,16 @@ const VirtualizedMessageList = ({
                     🔥 새 메시지 도착! (클릭 시 최신으로)
                 </div>
             )}
-            <AutoSizer>
-                {({ height, width }) => (
-                    <InfiniteLoader
-                        isItemLoaded={isItemLoaded}
-                        itemCount={itemCount}
-                        loadMoreItems={loadMoreItems}
-                        threshold={5}
-                    >
-                        {({ onItemsRendered, ref }) => (
-                            <List
-                                ref={(list) => {
-                                    setListRef(list);
-                                    ref(list);
-                                }}
-                                height={height}
-                                width={width}
-                                itemCount={itemCount}
-                                itemSize={getItemSize}
-                                onItemsRendered={onItemsRendered}
-                                overscanCount={5}
-                                className="message-list"
-                            >
-                                {renderMessage}
-                            </List>
-                        )}
-                    </InfiniteLoader>
-                )}
-            </AutoSizer>
+            <Virtuoso
+                ref={virtuosoRef}
+                style={{ height: '100%' }}
+                data={messages}
+                firstItemIndex={0}
+                initialTopMostItemIndex={messages.length - 1}
+                itemContent={renderMessage}
+                startReached={handleStartReached}
+                followOutput={true}
+            />
         </div>
     );
 };

@@ -119,8 +119,7 @@ class SpeechRecognitionService {
             this.recognition.maxAlternatives = 1; // 최대 대안 수
 
             // 모바일 브라우저 최적화 설정
-            if (this.isMobileBrowser()) {
-                console.log('모바일 브라우저 감지 - 음성인식 설정 최적화');
+            if (this.isMobileBrowser()) {                
                 // 모바일에서는 더 관대한 설정 사용
                 this.recognitionQuality.minConfidence = 0.1; // 더 낮은 신뢰도 임계값
                 this.recognitionQuality.minWords = 1; // 최소 1단어
@@ -131,7 +130,7 @@ class SpeechRecognitionService {
 
             // 이벤트 리스너 설정
             this.recognition.onstart = () => {
-                console.log('음성인식 시작');
+                
                 this.isListening = true;
 
                 // 3단계: 통계 초기화
@@ -219,7 +218,7 @@ class SpeechRecognitionService {
             };
 
             this.recognition.onend = () => {
-                console.log('음성인식 종료');
+                
                 this.isListening = false;
 
                 // 3단계: 통계 업데이트
@@ -233,7 +232,7 @@ class SpeechRecognitionService {
                 if (this.continuousMode && this.advancedSettings.autoRestart) {
                     setTimeout(() => {
                         if (!this.isListening) {
-                            console.log('연속 모드: 음성인식 자동 재시작');
+                            
                             this.start();
                         }
                     }, 100);
@@ -297,7 +296,7 @@ class SpeechRecognitionService {
                 }
             };
 
-            console.log('음성인식 서비스 초기화 완료');
+            
         } catch (error) {
             console.error('음성인식 초기화 실패:', error);
             this.isSupported = false;

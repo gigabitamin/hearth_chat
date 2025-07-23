@@ -7,7 +7,8 @@ import { getApiBase } from '../app';
 
 export default function SearchModal({
     open, onClose, rooms = [], messages = [], users = [],
-    fetchPreviewMessages // ★ props로 받음
+    fetchPreviewMessages, // ★ props로 받음
+    setScrollToMessageId // (1) 컴포넌트 최상단에 setScrollToMessageId를 props로 받도록 추가
 }) {
     // previewMessages 상태를 tempHighlightId보다 먼저 선언
     const [previewMessages, setPreviewMessages] = useState([]);
@@ -429,6 +430,8 @@ export default function SearchModal({
                                         e.stopPropagation();
                                         if (onClose) onClose();
                                         navigate(`/room/${m.room_id}?messageId=${m.id}`);
+                                        // (2) [입장] 버튼 클릭, handleEnterRoom, onResultClick 등에서 navigate 호출 전 setScrollToMessageId(message_id) 호출 추가
+                                        setScrollToMessageId(m.id);
                                     }}
                                 >입장</button>
                             </li>
@@ -639,6 +642,7 @@ export default function SearchModal({
                                         }
                                         if (onClose) onClose();
                                         navigate(`/room/${r.room_id}?messageId=${r.id}`);
+                                        setScrollToMessageId(r.id); // (2) [입장] 버튼 클릭, handleEnterRoom, onResultClick 등에서 navigate 호출 전 setScrollToMessageId(message_id) 호출 추가
                                     } catch {
                                         alert('방 정보 확인 중 오류가 발생했습니다');
                                     }
@@ -715,10 +719,10 @@ export default function SearchModal({
                     <button className="search-modal-close" onClick={onClose} aria-label="닫기" style={{ fontSize: 22, background: 'none', border: 'none', color: '#fff', cursor: 'pointer', marginLeft: 8 }}>✕</button>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
-                <input
-                    type="text"
-                    value={query}
-                    onChange={e => setQuery(e.target.value)}
+                    <input
+                        type="text"
+                        value={query}
+                        onChange={e => setQuery(e.target.value)}
                         placeholder="검색어를 입력하세요"
                         style={{ flex: 1, fontSize: 16, padding: '8px 12px', borderRadius: 8, border: '1px solid #333', background: '#222', color: '#fff' }}
                         onKeyDown={e => { if (e.key === 'Enter') setDebouncedQuery(query); }}

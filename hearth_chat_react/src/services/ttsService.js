@@ -86,12 +86,6 @@ class TTSService {
             // 기본 음성 설정
             this.voiceSettings.voice = koreanVoice || englishVoice || voices[0];
 
-            console.log('TTS 음성 설정:', {
-                selectedVoice: this.voiceSettings.voice?.name,
-                availableVoices: voices.length,
-                koreanVoice: !!koreanVoice,
-                englishVoice: !!englishVoice
-            });
         } catch (error) {
             console.error('TTS 음성 설정 중 오류 발생:', error);
         }
@@ -377,8 +371,7 @@ class TTSService {
             });
         });
 
-        console.log('립싱크 시퀀스 생성 완료:', sequence.length, '개 음소, 총 시간:', duration, 'ms');
-        console.log('립싱크 시퀀스 샘플 (처음 5개):', sequence.slice(0, 5));
+
         return sequence;
     }
 
@@ -392,8 +385,7 @@ class TTSService {
     }
 
     // 텍스트를 음성으로 변환
-    async speak(text, options = {}) {
-        console.log('[TTS] speak 호출됨', text, options);
+    async speak(text, options = {}) {        
         if (!this.isSupported() || !this.synthesis) {
             console.warn('[TTS] 지원 안함');
             return Promise.reject(new Error('TTS가 지원되지 않는 브라우저입니다.'));
@@ -412,28 +404,33 @@ class TTSService {
             try {
                 this.stop();
                 this.utterance = new SpeechSynthesisUtterance(cleanedText);
-                console.log('[TTS] utterance 생성', this.utterance);
+                
                 // 음성 객체 할당
                 if (options.voice) {
                     const voices = this.synthesis.getVoices();
                     if (typeof options.voice === 'string') {
                         this.utterance.voice = voices.find(v => v.name === options.voice) || null;
-                        console.log('[TTS] voice 할당', this.utterance.voice);
+                        
                     } else {
                         this.utterance.voice = options.voice;
-                        console.log('[TTS] voice 객체 직접 할당', this.utterance.voice);
+                        
                     }
                 }
                 this.utterance.rate = options.rate || this.voiceSettings.rate;
                 this.utterance.pitch = options.pitch || this.voiceSettings.pitch;
                 this.utterance.volume = options.volume || this.voiceSettings.volume;
                 // 이벤트 리스너
-                this.utterance.onstart = () => { console.log('[TTS] onstart'); this.isSpeaking = true; if (this.onSpeakStart) this.onSpeakStart(text); };
-                this.utterance.onend = () => { console.log('[TTS] onend'); this.isSpeaking = false; if (this.onSpeakEnd) this.onSpeakEnd(); resolve(); };
-                this.utterance.onerror = (e) => { console.error('[TTS] onerror', e); this.isSpeaking = false; if (this.onSpeakError) this.onSpeakError(e.error); reject(new Error(`TTS 오류: ${e.error}`)); };
-                console.log('[TTS] speak 호출 직전', this.utterance);
+                this.utterance.onstart = () => {                     
+                    this.isSpeaking = true; if (this.onSpeakStart) this.onSpeakStart(text); };
+                this.utterance.onend = () => { 
+                    
+                    this.isSpeaking = false; if (this.onSpeakEnd) this.onSpeakEnd(); resolve(); };
+                this.utterance.onerror = (e) => { 
+                    
+                    this.isSpeaking = false; if (this.onSpeakError) this.onSpeakError(e.error); reject(new Error(`TTS 오류: ${e.error}`)); };
+                
                 this.synthesis.speak(this.utterance);
-                console.log('[TTS] speak 호출 완료');
+                
             } catch (error) {
                 console.error('[TTS] 예외 발생', error);
                 reject(error);
@@ -447,7 +444,7 @@ class TTSService {
             this.synthesis.cancel();
             this.isSpeaking = false;
             this.utterance = null;
-            console.log('TTS 중지됨');
+            
         }
     }
 
@@ -480,13 +477,13 @@ class TTSService {
         if (typeof window === 'undefined') return;
 
         const handleBeforeUnload = () => {
-            console.log('TTS 서비스: 페이지 언로드 시 TTS 중지');
+            
             this.stop();
         };
 
         const handleVisibilityChange = () => {
             if (document.hidden) {
-                console.log('TTS 서비스: 페이지 숨김 시 TTS 중지');
+            
                 this.stop();
             }
         };

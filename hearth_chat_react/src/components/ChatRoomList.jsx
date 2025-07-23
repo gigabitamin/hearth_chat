@@ -39,6 +39,7 @@ const API_BASE = isProd
 
 // ChatRoomList 컴포넌트에 onClose prop 추가
 const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, checkLoginStatus, onUserMenuOpen, activeTab, setActiveTab, showCreateModal, setShowCreateModal, onClose, onCreateRoomSuccess, overlayKey, wsConnected, setWsConnected, sidebarTab, setSidebarTab, onPreviewMessage }) => {
+    const [scrollToMessageId, setScrollToMessageId] = useState(null);
     const navigate = useNavigate();
     // 사이드바 전용 탭 상태 분리
     // const [sidebarTab, setSidebarTab] = useState('personal'); // 이 줄 제거
@@ -70,8 +71,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
 
 
     // useEffect에서 fetchRooms, fetchPublicRooms, connectWebSocket 중복 호출 최소화
-    useEffect(() => {
-        console.log('ChatRoomList useEffect 실행됨 (마운트/언마운트)', { selectedRoomId, overlayKey });
+    useEffect(() => {        
         fetchRooms();
         fetchPublicRooms();
         connectWebSocket();
@@ -82,9 +82,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             }
         };
     }, []);
-
-    console.log('ChatRoomList 렌더링', { selectedRoomId, overlayKey });
-
+    
 
     const openSocialLoginPopup = (url) => {
         const popup = window.open(url, 'social_login', 'width=500,height=600');
@@ -109,14 +107,12 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             const ws = new WebSocket(wsUrl);
             wsRef.current = ws;
 
-            ws.onopen = () => {
-                console.log('WebSocket 연결됨');
+            ws.onopen = () => {                
                 setWsConnected && setWsConnected(true);
             };
 
             ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                console.log('WebSocket 메시지 수신:', data);
+                const data = JSON.parse(event.data);                
 
                 // 대화방 목록 업데이트 메시지 처리
                 if (data.type === 'room_list_update') {
@@ -124,8 +120,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                 }
             };
 
-            ws.onclose = () => {
-                console.log('WebSocket 연결 끊어짐');
+            ws.onclose = () => {                
                 setWsConnected && setWsConnected(false);
                 // 재연결 시도
                 setTimeout(() => {
@@ -493,9 +488,9 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                     <button className="login-btn" onClick={() => setIsLoginModalOpen(true)} style={{ fontSize: 18, padding: '12px 32px', borderRadius: 8, background: '#2196f3', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer' }}>로그인</button>
                 </div>
             ) : (
-                <>                
+                <>
                     {sidebarTab === 'favorite' ? (
-                    // 즐겨찾기 탭 관리 영역
+                        // 즐겨찾기 탭 관리 영역
                         <div className="favorite-list-container">
                             {/* 방 목록 50% */}
                             <div>★ 즐겨찾기 채팅방</div>
@@ -571,7 +566,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                                         🗑️
                                                     </button>
                                                 )}
-                                                {sidebarTab === 'open' && !rooms.find(r => r.id === room.id) && (
+                                                {/* {sidebarTab === 'open' && !rooms.find(r => r.id === room.id) && (
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
@@ -583,16 +578,16 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                                     >
                                                         ➕
                                                     </button>
-                                                )}
+                                                )} */}
+                                                {/* 즐겨찾기 방 입장 버튼 - 최신 글로 이동 */}
                                                 <button
                                                     onClick={e => {
-                                                        e.stopPropagation();
-                                                        console.log('입장하기 버튼 클릭', room);
+                                                        e.stopPropagation();                                                    
+                                                        console.log('즐겨찾기 방 입장', e);
                                                         if (onClose) {
-                                                            onClose();
-                                                            console.log('오버레이 닫힘');
+                                                            onClose();                                                            
                                                         }
-                                                        setTimeout(() => navigate(`/room/${room.id}`), 0);
+                                                        setTimeout(() => navigate(`/room/${room.id}`), 0);                                                        
                                                     }}
                                                     className="enter-room-btn"
                                                     title="이 방으로 바로 입장"
@@ -607,7 +602,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                             </div>
                             {/* 메시지 목록 50% */}
                             <div>★ 즐겨찾기 메시지</div>
-                            <div className="favorite-messages-section">                                                                
+                            <div className="favorite-messages-section">
                                 {favoriteMessagesLoading ? (
                                     <div style={{ color: '#888' }}>불러오는 중...</div>
                                 ) : favoriteMessages.length === 0 ? (
@@ -630,12 +625,18 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                                 >
                                                     {favoriteMessages.find(fm => fm.id === msg.id) ? '▼' : '▽'}
                                                 </button>
-                                                {/* [입장] 버튼 */}
+                                                {/* 즐겨찾기 메시지 입장 버튼 */}
                                                 <button
                                                     className="enter-room-btn"
                                                     style={{ fontSize: 14, color: '#1976d2', background: 'none', border: '1px solid #1976d2', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', marginLeft: 4 }}
                                                     title="입장"
-                                                    onClick={e => { e.stopPropagation(); if (onClose) onClose(); navigate(`/room/${msg.room_id}?messageId=${msg.id}`); }}
+                                                    onClick={e => { 
+                                                        console.log('즐겨찾기 메시지 입장', msg);
+                                                        e.stopPropagation(); 
+                                                        if (onClose) onClose(); 
+                                                        navigate(`/room/${msg.room_id}?messageId=${msg.id}`); 
+                                                        setScrollToMessageId(msg.id);
+                                                    }}
                                                 >
                                                     입장
                                                 </button>
@@ -646,7 +647,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                             </div>
                         </div>
                     ) : (
-                    // 개인/오픈 탭 관리 영역
+                        // 개인/오픈 탭 관리 영역
                         <>
                             <div className="room-items" ref={listRef}>
                                 {filteredRooms.map((room) => (
@@ -719,7 +720,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                                     🗑️
                                                 </button>
                                             )}
-                                            {sidebarTab === 'open' && !rooms.find(r => r.id === room.id) && (
+                                            {/* {sidebarTab === 'open' && !rooms.find(r => r.id === room.id) && (
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
@@ -731,16 +732,16 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                                 >
                                                     ➕
                                                 </button>
-                                            )}
+                                            )} */}
+                                            {/* 개인/오픈 방 입장 버튼 - 최신 글로 이동 */}
                                             <button
                                                 onClick={e => {
                                                     e.stopPropagation();
-                                                    console.log('입장하기 버튼 클릭', room);
+                                                    console.log('개인/오픈 방 입장', room);
                                                     if (onClose) {
-                                                        onClose();
-                                                        console.log('오버레이 닫힘');
-                                                    }
-                                                    setTimeout(() => navigate(`/room/${room.id}`), 0);
+                                                        onClose();                                                        
+                                                    }                                                    
+                                                    setTimeout(() => navigate(`/room/${room.id}`), 0);                                                    
                                                 }}
                                                 className="enter-room-btn"
                                                 title="이 방으로 바로 입장"

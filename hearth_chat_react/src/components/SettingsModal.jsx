@@ -72,7 +72,7 @@ const SettingsModal = ({
   requestMicrophonePermission,
   loginUser
 }) => {
-  console.log('SettingsModal 렌더링:', { isOpen, tab, loginUser });
+  
   const [saving, setSaving] = useState(false);
 
   // voiceList가 undefined일 경우 빈 배열로 초기화
@@ -210,7 +210,7 @@ const SettingsModal = ({
   // 유저 정보 로드
   useEffect(() => {
     if (isOpen && tab === 'user') {
-      console.log('SettingsModal user tab opened, loginUser:', loginUser);
+      
       setLoading(true);
       if (loginUser) {
         setUser(loginUser);

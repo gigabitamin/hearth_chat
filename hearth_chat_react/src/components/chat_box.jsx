@@ -21,7 +21,7 @@ import InsertChartIcon from '@mui/icons-material/InsertChart';
 import CodeIcon from '@mui/icons-material/Code';
 import RoomSettingsModal from './RoomSettingsModal';
 
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 
 import VirtualizedMessageList from './VirtualizedMessageList';
 // Chart.js core 등록 필수!
@@ -361,7 +361,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     // 배포 환경에서는 포트 없이 wss://도메인/ws/chat/로 연결
     const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}/ws/chat/`;
 
-    // console.log('[WebSocket] 연결 시도:', wsUrl);
+    
     try {
       ws.current = new window.WebSocket(wsUrl);
     } catch (error) {
@@ -376,14 +376,14 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         const joinMessage = { type: 'join_room', roomId: selectedRoom.id };
         if (safeWebSocketSend(joinMessage)) {
           joinSent = true;
-          // console.log('[WebSocket] join_room 메시지 전송:', selectedRoom.id);
+          
           clearInterval(joinInterval);
         }
       }
     }, 500); // 500ms 간격으로 안전하게 처리
 
     ws.current.onopen = () => {
-      // console.log('[WebSocket] 연결 성공');
+      
 
       // 연결 후 약간의 지연을 두고 join_room 메시지 전송
       setTimeout(() => {
@@ -391,22 +391,19 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           const joinMessage = { type: 'join_room', roomId: selectedRoom.id };
           if (safeWebSocketSend(joinMessage)) {
             joinSent = true;
-            // console.log('[WebSocket] onopen에서 join_room 전송:', selectedRoom.id);
+            
           }
         }
       }, 200); // 100ms에서 200ms로 증가하여 더 안전하게 처리
     };
     ws.current.onmessage = (e) => {
-      // console.log('[WebSocket] onmessage 수신:', e.data);
+      
       try {
-        const data = JSON.parse(e.data);
-        console.log('[DEBUG] WebSocket 메시지 수신:', data);
-        console.log('[DEBUG] data.type:', data.type);
+        const data = JSON.parse(e.data);        
 
         if (data.type === 'user_message' && data.message) {
           const isMyMessage = (data.sender === loginUserRef.current?.username) || (data.user_id === loginUserRef.current?.id);
-          console.log('[DEBUG] WebSocket user_message 수신:', data);
-          console.log('[DEBUG] imageUrl 값:', data.imageUrl);
+          
           const newMessage = {
             id: Date.now(),
             type: isMyMessage ? 'send' : 'recv',
@@ -418,7 +415,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
             emotion: data.emotion,
             imageUrl: data.imageUrl || null  // data.imageUrl 사용
           };
-          // console.log('[DEBUG] 생성된 메시지 객체:', newMessage);
+          
           setMessages((prev) => {
             let next;
             if (isMyMessage) {
@@ -427,10 +424,10 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                 ...prev.filter(msg => !(msg.pending && msg.text === data.message)),
                 newMessage
               ];
-              // console.log('[setMessages][onmessage][echo] pending 제거 후:', next);
+              
             } else {
               next = [...prev, newMessage];
-              // console.log('[setMessages][onmessage][상대] 추가 후:', next);
+              
             }
             return next;
           });
@@ -447,7 +444,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
             emotion: null,
             imageUrl: null
           };
-          console.log('[DEBUG] newMessage', newMessage);
+          
           setMessages((prev) => {
             // 중복 메시지 방지: 동일 timestamp/text/questioner_username/ai_name이 이미 있으면 추가하지 않음
             if (prev.some(m => m.type === 'ai' && m.date === data.timestamp && m.text === data.message && m.questioner_username === data.questioner_username && m.ai_name === data.ai_name)) {
@@ -464,7 +461,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
               pending: false,
             };
             const arr = [...prev, newMsg];
-            console.log('[setMessages][ai_message 수신] 전체:', arr);
+            
             return arr;
           });
           setCurrentAiMessage(data.message);
@@ -490,12 +487,12 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       }
     };
     ws.current.onclose = () => {
-      // console.log('[WebSocket] 연결 종료');
+      
 
       // 연결이 끊어지면 3초 후 재연결 시도 (단, 컴포넌트가 마운트된 상태일 때만)
       setTimeout(() => {
         if (selectedRoomRef.current?.id && ws.current) {
-          // console.log('[WebSocket] 재연결 시도...');
+          
         }
       }, 3000);
     };
@@ -526,13 +523,13 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   // WebRTC 로컬 스트림 초기화
   const initializeLocalStream = async () => {
     try {
-      console.log('로컬 스트림 초기화 시작...');
+      
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: true
       });
       setLocalStream(stream);
-      console.log('로컬 스트림 초기화 완료:', stream);
+      
 
       // 로컬 비디오 요소에 스트림 연결
       if (localVideoRef) {
@@ -550,7 +547,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       if (videoTrack) {
         videoTrack.enabled = !videoTrack.enabled;
         setIsLocalVideoEnabled(videoTrack.enabled);
-        console.log('로컬 비디오 토글:', videoTrack.enabled ? 'ON' : 'OFF');
+        
       }
     }
   };
@@ -562,7 +559,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       if (audioTrack) {
         audioTrack.enabled = !audioTrack.enabled;
         setIsLocalAudioEnabled(audioTrack.enabled);
-        console.log('로컬 오디오 토글:', audioTrack.enabled ? 'ON' : 'OFF');
+        
       }
     }
   };
@@ -590,7 +587,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     if (selectedRoom?.room_type === 'group' && localStream && loginUser && groupParticipants.length > 0) {
       groupParticipants.forEach(participant => {
         if (participant.id !== loginUser.id && !peerConnections[participant.id]) {
-          console.log(`새로운 참가자 ${participant.id}에게 Offer 전송`);
+          
           createAndSendOffer(participant.id);
         }
       });
@@ -796,7 +793,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
   // 컴포넌트 마운트 시 실행
   useEffect(() => {
-    console.log('ChatBox 컴포넌트 마운트됨');
+    
 
     // WebSocket 연결
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -804,19 +801,19 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     const isLocalhost = host === 'localhost' || host === '127.0.0.1';
     const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}/ws/chat/`;
 
-    // console.log('WebSocket 연결 시도:', wsUrl);
+    
     ws.current = new WebSocket(wsUrl);
 
     ws.current.onopen = () => {
-      // console.log('WebSocket 연결 성공');
+    
     };
 
     ws.current.onclose = () => {
-      // console.log('WebSocket 연결 종료');
+    
     };
 
     ws.current.onerror = (error) => {
-      // console.error('WebSocket 연결 오류:', error);
+      console.error('WebSocket 연결 오류:', error);
     };
 
     // WebSocket 메시지 수신 처리 (재연결 시에도 동일하게)
@@ -858,7 +855,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
               pending: false,
             };
             const result = [...arr, newMsg];
-            console.log('[setMessages][user_message 수신] 전체:', result);
+            
             return result;
           });
         } else if (data.type === 'ai_message' && data.message) {
@@ -878,7 +875,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
               pending: false,
             };
             const arr = [...prev, newMsg];
-            console.log('[setMessages][ai_message 수신] 전체:', arr);
+            
             return arr;
           });
         }
@@ -900,7 +897,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           const permission = await navigator.permissions.query({ name: 'microphone' });
           setPermissionStatus(permission.state);
         } catch (error) {
-          console.log('권한 상태 확인 실패:', error);
+          
         }
       }
     };
@@ -931,15 +928,15 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     const isLocalhost = host === 'localhost' || host === '127.0.0.1';
     const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}/ws/chat/`;
 
-    console.log('WebSocket 재연결 시도:', wsUrl);
+    
     ws.current = new WebSocket(wsUrl);
 
     ws.current.onopen = () => {
-      console.log('WebSocket 재연결 성공');
+    
     };
 
     ws.current.onclose = () => {
-      console.log('WebSocket 연결 종료');
+    
     };
 
     ws.current.onerror = (error) => {
@@ -950,15 +947,12 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     ws.current.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
-        console.log('[DEBUG] WebSocket 메시지 수신 (재연결):', data);
-        console.log('[DEBUG] data.type (재연결):', data.type);
-
+        
         const username = loginUserRef.current?.username;
         const userId = loginUserRef.current?.id;
         if (data.type === 'user_message' && data.message) {
           const isMyMessage = (data.sender === username) || (data.user_id === userId);
-          console.log('[DEBUG] user_message 처리 (재연결):', data);
-          console.log('[DEBUG] imageUrl 값 (재연결):', data.imageUrl);
+          
           const newMessage = {
             id: Date.now(),
             type: isMyMessage ? 'send' : 'recv',
@@ -970,7 +964,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
             emotion: data.emotion,
             imageUrl: data.imageUrl || null  // data.imageUrl 사용
           };
-          console.log('[DEBUG] 생성된 메시지 객체:', newMessage);
+          
           setMessages((prev) => {
             let next;
             if (isMyMessage) {
@@ -979,10 +973,10 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                 ...prev.filter(msg => !(msg.pending && msg.text === data.message)),
                 newMessage
               ];
-              console.log('[setMessages][onmessage][echo] pending 제거 후:', next);
+              
             } else {
               next = [...prev, newMessage];
-              console.log('[setMessages][onmessage][상대] 추가 후:', next);
+              
             }
             return next;
           });
@@ -1012,10 +1006,10 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
               sender: data.ai_name, // sender는 항상 ai_name
               ai_name: data.ai_name,
               questioner_username: data.questioner_username,
-              pending: false,              
-            };            
+              pending: false,
+            };
             const arr = [...prev, newMsg];
-            console.log('[setMessages][ai_message 수신] 전체:', arr);
+            
             return arr;
           });
           setCurrentAiMessage(data.message);
@@ -1083,7 +1077,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   useEffect(() => {
     if (!ttsService.isSupported()) return;
     const handleStart = (text, lipSyncSequence) => {
-      console.log('TTS 시작(이벤트):', text.substring(0, 50) + '...');
+      // 
       setIsAiTalking(true);
       setTtsSpeaking(true);
 
@@ -1091,12 +1085,10 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       if (lipSyncSequence && lipSyncSequence.length > 0) {
         setLipSyncSequence(lipSyncSequence);
         setCurrentLipSyncIndex(0);
-        console.log('립싱크 시퀀스 받음:', lipSyncSequence.length, '개 음소');
-        console.log('립싱크 시퀀스 샘플:', lipSyncSequence.slice(0, 5)); // 처음 5개 음소 확인
+        
       } else {
         setLipSyncSequence([]);
-        setCurrentLipSyncIndex(0);
-        console.log('립싱크 시퀀스가 없음');
+        setCurrentLipSyncIndex(0);        
       }
 
       // 타이핑 효과 시작
@@ -1117,7 +1109,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       setDisplayedAiText(text);
     };
     const handleEnd = (text) => {
-      console.log('TTS 종료(이벤트)');
+      
       setIsAiTalking(false);
       setTtsSpeaking(false);
       // 립싱크 애니메이션: 1초간 랜덤 입모양 반복 후 닫기 (일시 비활성화)
@@ -1143,7 +1135,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       setDisplayedAiText(text); // 전체 메시지 한 번에 표시
     };
     const handleError = (error) => {
-      console.error('TTS 오류(이벤트):', error);
+      
       setIsAiTalking(false);
       setTtsSpeaking(false);
       setMouthTrigger(0);
@@ -1168,27 +1160,27 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
   // 2. speakAIMessage에서 TTS 재생 직후 립싱크 강제 시작
   const speakAIMessage = async (message) => {
-    console.log('[TTS] speakAIMessage 진입', message);
+    
     try {
       ttsService.stop(); // 항상 먼저 중단
       if (!isTTSEnabled || !message) return;
       // 음성 목록이 준비되지 않았으면 대기
       if (!voiceList || voiceList.length === 0) {
-        console.warn('TTS 음성 목록이 준비되지 않았습니다.');
+        
         return;
       }
       // TTS용 텍스트 정리 (이모티콘, 특수문자 제거)
       const cleanedMessage = ttsService.cleanTextForTTS(message);
       if (!cleanedMessage) {
-        console.log('TTS로 읽을 수 있는 텍스트가 없습니다:', message);
+        
         return;
       }
-      console.log('TTS 원본 텍스트:', message);
-      console.log('TTS 정리된 텍스트:', cleanedMessage);
+      
+      
       setTtsSpeaking(true); // 립싱크 강제 시작
-      console.log('[TTS] speak 조건', isTTSEnabled, ttsVoice, message);
+      
       if (isTTSEnabled && ttsVoice && message) {
-        console.log('[TTS] speak 실행!');
+        
         await ttsService.speak(message, { voice: ttsVoice, rate: ttsRate, pitch: ttsPitch });
       }
     } catch (error) {
@@ -1198,16 +1190,16 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
   // 3. 고급 립싱크 시스템 (음소 기반)
   useEffect(() => {
-    console.log('[LIP SYNC DEBUG] ttsSpeaking:', ttsSpeaking, 'lipSyncSequence.length:', lipSyncSequence.length);
+    
 
     if (ttsSpeaking && lipSyncSequence.length > 0) {
-      console.log('[LIP SYNC] 고급 립싱크 시작, 시퀀스 길이:', lipSyncSequence.length);
+
 
       // 음소 기반 립싱크
       const totalDuration = lipSyncSequence[lipSyncSequence.length - 1]?.endTime || 5000; // 기본 5초
       const startTime = Date.now();
 
-      console.log('[LIP SYNC] 총 재생 시간:', totalDuration, 'ms');
+
 
       const interval = setInterval(() => {
         const elapsedTime = Date.now() - startTime;
@@ -1228,7 +1220,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           const triggerValue = mouthShapeValues[currentPhoneme.mouthShape] || 0;
           setMouthTrigger(triggerValue);
           setLastLipSyncValue(triggerValue); // 마지막 립싱크 값 저장
-          // console.log('립싱크:', currentPhoneme.phoneme, currentPhoneme.mouthShape, triggerValue, '시간:', elapsedTime);
+          
         } else {
           // 현재 시간에 해당하는 음소가 없으면 마지막 립싱크 값 유지
           setMouthTrigger(lastLipSyncValue);
@@ -1240,7 +1232,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           setLipSyncInterval(null);
           // 립싱크가 먼저 끝나도 TTS가 끝날 때까지 마지막 입모양 유지
           setMouthTrigger(lastLipSyncValue);
-          console.log('[LIP SYNC] 립싱크 종료, 마지막 프레임 유지');
+
         }
       }, 50); // 50ms 간격으로 더 빠르게 업데이트
 
@@ -1249,11 +1241,11 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         if (interval) clearInterval(interval);
       };
     } else if (ttsSpeaking) {
-      console.log('[LIP SYNC] 기본 립싱크 시작 (fallback)');
+    
       const baseInterval = 200;
       const rateMultiplier = ttsRate || 1.0;
       const lipSyncInterval = Math.max(100, Math.min(400, baseInterval / rateMultiplier));
-      console.log('기본 립싱크 간격 설정:', lipSyncInterval, 'ms (TTS 속도:', rateMultiplier, ')');
+    
 
       const interval = setInterval(() => {
         setMouthTrigger(prev => {
@@ -1298,7 +1290,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   // TTS 서비스 초기화
   const initializeTTSService = () => {
     try {
-      console.log('TTS 서비스 초기화 시작...');
+      
 
       // TTS 지원 여부 확인
       if (!ttsService.isSupported()) {
@@ -1313,7 +1305,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         setTtsVoice(voices[0]);
       }
 
-      console.log('TTS 서비스 초기화 완료');
+      
     } catch (error) {
       console.error('TTS 서비스 초기화 실패:', error);
     }
@@ -1322,7 +1314,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   // 음성 설정 상태 확인을 위한 useEffect
   useEffect(() => {
     if (ttsVoice) {
-      console.log('TTS 음성 상태 업데이트됨:', ttsVoice.name, '(', ttsVoice.lang, ')');
+      
     }
   }, [ttsVoice]);
 
@@ -1349,7 +1341,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   // 파일 존재 여부 확인
   const checkFileExists = async (relPath) => {
     try {
-      const apiBase = getApiBase(); 
+      const apiBase = getApiBase();
       const res = await fetch(`${apiBase}/api/chat/file_exists/?path=${relPath}`);
       const data = await res.json();
       return data.exists;
@@ -1358,29 +1350,29 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       return false;
     }
   };
-  
+
   // 아바타 초기화
   const initializeAvatars = async () => {
     try {
       const userAvatarUrl = '/avatar_vrm/gb_m_v1.vrm';
       let aiAvatarUrl = '/avatar_vrm/gb_f_v1.vrm';
-  
+
       const testPath = 'avatar_vrm_test/test.vrm';  // 슬래시 없이
       const exists = await checkFileExists(testPath);
-      console.log('파일 존재 여부:', exists);
-  
+      
+
       if (exists) {
         aiAvatarUrl = `/media/${testPath}`;
       }
-  
-      console.log('AI 아바타 URL:', aiAvatarUrl);
+
+      
       setUserAvatar(userAvatarUrl);
       setAiAvatar(aiAvatarUrl);
     } catch (error) {
       console.error('아바타 초기화 실패:', error);
     }
   };
-  
+
 
   // 감정 분석 (더 정교한 키워드 기반)
   const analyzeEmotion = (text) => {
@@ -1561,22 +1553,17 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     setIsCameraActive(newCameraState);
 
     // 카메라가 켜질 때 자동으로 카메라 시작
-    if (newCameraState) {
-      console.log('카메라 활성화됨');
-    } else {
-      console.log('카메라 비활성화됨');
-    }
+    
   };
 
   // 실시간 모드 토글 핸들러
   const toggleRealTimeMode = () => {
     setIsRealTimeMode(!isRealTimeMode);
-    console.log(`모드 변경: ${!isRealTimeMode ? '실시간' : '안정화'} 모드`);
   };
 
   // 음성인식 결과 처리
   const handleVoiceResult = (finalText) => {
-    console.log('음성인식 최종 결과:', finalText);
+  
 
     // 자동전송 직후에는 interim/final 반영을 막음
     if (blockInterim) return;
@@ -1596,7 +1583,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       // 2초 후 자동 전송 타이머 설정
       const timer = setTimeout(() => {
         if (newAccumulatedText.trim()) {
-          console.log('묵음 2초 경과, 자동 전송:', newAccumulatedText);
+          
           setBlockInterim(true); // interim 반영 막기
           setInput(newAccumulatedText);
           sendMessage(newAccumulatedText);
@@ -1614,7 +1601,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   const handleVoiceInterimResult = (interimText) => {
     // 사용자가 말하기 시작하면 TTS 중단
     ttsService.stop();
-    console.log('음성인식 중간 결과:', interimText);
+    
 
     // 자동전송 직후에는 interim 반영을 막음
     if (blockInterim) return;
@@ -1643,7 +1630,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       try {
         // 모바일 브라우저에서 권한 요청을 위한 사용자 상호작용 확인
         if (navigator.userAgent.match(/android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i)) {
-          console.log('모바일 브라우저 감지됨 - 권한 요청 준비');
+          
 
           // 권한이 거부된 상태라면 먼저 권한 요청
           if (permissionStatus === 'denied') {
@@ -1715,11 +1702,11 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         setIsTrackingEnabled(false);
         setTrackingStatus('stopped');
         setFaceDetected(false);
-        console.log('트래킹 중지됨');
+        
       } else {
         // MediaPipe 준비 상태 확인
         if (!faceTrackingService.isReady) {
-          console.log('MediaPipe가 준비되지 않음, 초기화 시도...');
+          
           await faceTrackingService.initializeMediaPipe();
 
           // 초기화 후 다시 확인
@@ -1746,7 +1733,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
             setFaceDetected(false);
           });
 
-          console.log('트래킹 시작됨');
+          
         } else {
           setTrackingStatus('error');
           alert('트래킹을 시작할 수 없습니다. 웹캠 권한을 확인해주세요.');
@@ -1762,27 +1749,23 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   // 마이크 권한 요청 함수
   const requestMicrophonePermission = async () => {
     try {
-      console.log('마이크 권한 요청 시작...');
+      
 
       // 모바일 브라우저 감지
       const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
-      console.log('모바일 브라우저 감지:', isMobile);
+      
 
       // navigator.permissions API 지원 확인
       if (navigator.permissions && navigator.permissions.query) {
         try {
           const permission = await navigator.permissions.query({ name: 'microphone' });
           setPermissionStatus(permission.state);
-          console.log('현재 권한 상태:', permission.state);
+          
 
-          if (permission.state === 'granted') {
-            console.log('마이크 권한이 이미 허용되어 있습니다.');
-            return true;
-          }
+          
 
           if (permission.state === 'denied') {
-            console.log('마이크 권한이 거부되어 있습니다.');
-            // 모바일에서는 권한 재설정을 위해 브라우저 설정 안내
+
             if (isMobile) {
               alert('마이크 권한이 거부되었습니다.\n\n브라우저 설정에서 마이크 권한을 허용해주세요:\n\nChrome: 설정 > 개인정보 보호 및 보안 > 사이트 설정 > 마이크\nSafari: 설정 > Safari > 마이크');
             }
@@ -1794,7 +1777,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       }
 
       // getUserMedia를 사용하여 권한 요청 (더 구체적인 옵션)
-      console.log('getUserMedia 권한 요청 시도...');
+      
       const constraints = {
         audio: {
           echoCancellation: true,
@@ -1804,15 +1787,14 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       };
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log('getUserMedia 성공, 스트림 획득:', stream);
+      // 
 
       // 스트림 즉시 중지
       stream.getTracks().forEach(track => {
         track.stop();
-        console.log('오디오 트랙 중지:', track.label);
+        
       });
-
-      console.log('마이크 권한이 허용되었습니다.');
+      
       setPermissionStatus('granted');
       return true;
 
@@ -1823,20 +1805,17 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
       setPermissionStatus('denied');
 
-      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-        console.log('사용자가 마이크 권한을 거부했습니다.');
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {        
         alert('마이크 권한이 거부되었습니다.\n\n브라우저 설정에서 마이크 권한을 허용해주세요.');
         return false;
       }
 
-      if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
-        console.log('마이크 장치를 찾을 수 없습니다.');
+      if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {        
         alert('마이크 장치를 찾을 수 없습니다.\n\n마이크가 연결되어 있는지 확인해주세요.');
         return false;
       }
 
-      if (error.name === 'NotSupportedError' || error.name === 'ConstraintNotSatisfiedError') {
-        console.log('지원되지 않는 오디오 제약 조건입니다.');
+      if (error.name === 'NotSupportedError' || error.name === 'ConstraintNotSatisfiedError') {        
         alert('지원되지 않는 오디오 설정입니다.\n\n다른 브라우저를 시도해보세요.');
         return false;
       }
@@ -1890,9 +1869,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
   // 이미지 업로드 후 전송 (파일 직접 전달)
   const handleImageUploadAndSendWithFile = async (imageFile, messageText) => {
-    if (!imageFile || !ws.current || ws.current.readyState !== 1) return;
-    console.log('[DEBUG] handleImageUploadAndSendWithFile 시작:', imageFile);
-    console.log('[DEBUG] 전달받은 텍스트:', messageText);
+    if (!imageFile || !ws.current || ws.current.readyState !== 1) return;        
     // input에는 절대 의존하지 않고, 오직 messageText만 사용
     const finalMessageText = messageText || '이미지 첨부';
     try {
@@ -1916,7 +1893,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           imageUrl: res.data.file_url,
           roomId: selectedRoom?.id || null
         };
-        console.log('[DEBUG] WebSocket으로 이미지 메시지 전송 (파일 직접 전달):', messageData);
+        
         ws.current.send(JSON.stringify(messageData));
         setInput('');
         setAttachedImage(null);
@@ -1936,9 +1913,6 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   // 이미지 업로드 후 전송 (기존 함수 - attachedImage 사용)
   const handleImageUploadAndSend = async () => {
     if (!attachedImage || !ws.current || ws.current.readyState !== 1) return;
-
-    // console.log('[DEBUG] handleImageUploadAndSend 시작');
-    // console.log('[DEBUG] 현재 입력된 텍스트:', input);
 
     // 입력된 텍스트를 미리 저장 (초기화 전에)
     const messageText = input || '이미지 첨부';
@@ -1970,7 +1944,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           roomId: selectedRoom?.id || null
         };
 
-        console.log('[DEBUG] WebSocket으로 이미지 메시지 전송:', messageData);
+        
         ws.current.send(JSON.stringify(messageData));
 
         // 입력 상태 초기화 (WebSocket 전송 후)
@@ -2008,7 +1982,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       client_id: clientId, // 클라이언트 고유 식별자
     };
 
-    console.log('[sendMessage] 전송:', messageData);
+    
     if (!safeWebSocketSend(messageData)) {
       console.error('[sendMessage] 메시지 전송 실패');
       return;
@@ -2026,7 +2000,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         client_id: clientId,
       };
       const arr = [...prev, newMsg];
-      console.log('[setMessages][pending 추가] 전체:', arr);
+      
       return arr;
     });
     setInput('');
@@ -2087,7 +2061,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   // 페이지 언로드 시 TTS 강제 중지
   useEffect(() => {
     const handleBeforeUnload = () => {
-      console.log('페이지 언로드 시 TTS 중지');
+      
       ttsService.stop();
       // 브라우저의 speechSynthesis도 직접 중지
       if (window.speechSynthesis) {
@@ -2097,7 +2071,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        console.log('페이지 숨김 시 TTS 중지');
+        
         ttsService.stop();
         if (window.speechSynthesis) {
           window.speechSynthesis.cancel();
@@ -2298,16 +2272,14 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       if ((parsed.labels && parsed.datasets) || (Array.isArray(parsed) && parsed[0]?.name)) {
         isJson = true;
         chartData = convertToChartData(parsed);
-        console.log('Chart detection:', { isChartCandidate, isJson, chartData, parsed });
+        
       }
     } catch (e) {
       console.log('JSON parse error:', e);
     }
 
     // JSON 파싱이 성공하고 차트 데이터가 있으면 차트 후보로 인식
-    if (isJson && chartData) {
-      console.log('Chart candidate detected!');
-    }
+
 
     // 차트 옵션: 어두운 배경에서 잘 보이도록 색상 지정
     const chartOptions = {
@@ -2496,28 +2468,24 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       const apiUrl = isLocalhost
         ? 'http://localhost:8000'
         : `${window.location.protocol}//${window.location.hostname}`;
-
-      // console.log('메시지 조회 API 호출:', `${apiUrl}/api/chat/messages/messages/?room=${roomId}&limit=${limit}&offset=${offset}`);
+      
 
       const res = await fetch(`${apiUrl}/api/chat/messages/messages/?room=${roomId}&limit=${limit}&offset=${offset}`, {
         credentials: 'include',
       });
 
-      // console.log('메시지 조회 응답 상태:', res.status);
+      
 
       if (res.ok) {
         const data = await res.json();
-        console.log('메시지 조회 결과:', data);
+
         const username = loginUserRef.current?.username;
         const userId = loginUserRef.current?.id;
-        console.log('내 username:', username, '내 userId:', userId);
+
         if (!userId) {
           console.warn('userId가 undefined입니다! 로그인 상태/응답을 확인하세요.');
         }
         const mappedMessages = (data.results || []).map(msg => {
-          console.log('[DEBUG] 원본 msg 객체:', msg);
-          console.log('[DEBUG] msg.attach_image:', msg.attach_image);
-          console.log('[DEBUG] msg.imageUrl:', msg.imageUrl);
 
           // 방향 판별 통일
           let isMine = false;
@@ -2526,10 +2494,10 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           if (msg.sender_type === 'user') {
             if (userId !== undefined && userId !== null) {
               isMine = Number(msg.user_id) === Number(userId);
-              console.log('내 userId:', userId, 'msg.user_id:', msg.user_id, 'isMine:', isMine);
+              
             } else {
               isMine = msg.username === username;
-              console.log('userId 없음, username 비교:', msg.username, username, 'isMine:', isMine);
+              
             }
             messageType = isMine ? 'send' : 'recv';
           } else if (msg.sender_type === 'ai') {
@@ -2550,7 +2518,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           // imageUrl 처리: attach_image 또는 imageUrl 중에서 찾기
           // const imageUrl = getImageUrl(msg.attach_image);
           const imageUrl = getImageUrl(msg.imageUrl);
-          // console.log('[DEBUG] 최종 imageUrl:', imageUrl);
+          
 
           return {
             ...msg,
@@ -2560,7 +2528,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           };
         });
 
-        console.log('[DEBUG] 최종 매핑된 메시지들:', mappedMessages);
+        
         if (append) {
           setMessages(prev => [...mappedMessages.reverse(), ...prev]);
         } else {
@@ -2687,10 +2655,10 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
   // useEffect로 AI 메시지 수신 시 TTS 실행
   useEffect(() => {
-    console.log('[TTS] useEffect 진입', messages);
+    
     const lastMsg = messages[messages.length - 1];
     if (lastMsg && lastMsg.type === 'ai') {
-      console.log('[TTS] AI 메시지 수신', lastMsg);
+    
       speakAIMessage(lastMsg.text);
     }
   }, [messages]);
@@ -2698,7 +2666,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   // pendingImageFile이 변경될 때 이미지 업로드 처리
   useEffect(() => {
     if (pendingImageFile && selectedRoom) {
-      console.log('[DEBUG] pendingImageFile 감지됨:', pendingImageFile);
+    
       setAttachedImage(pendingImageFile);
       setAttachedImagePreview(URL.createObjectURL(pendingImageFile));
       setPendingImageFile(null);
@@ -2746,8 +2714,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
   useEffect(() => {
     if (isMenuOpen) {
-      console.log('selectedRoom.participants:', selectedRoom?.participants);
-      console.log('loginUser:', loginUser);
+      
     }
   }, [isMenuOpen, selectedRoom, loginUser]);
 
@@ -2837,6 +2804,43 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       alert('메시지 삭제 중 오류: ' + e.message);
     }
   };
+
+  // 메시지 클릭 시 해당 메시지로 이동
+  const [scrollToMessageId, setScrollToMessageId] = useState(null);
+
+  // useEffect(() => {
+  //   const params = new URLSearchParams(location.search);
+  //   const messageId = params.get('messageId');
+  //   if (!messageId) return;
+  //   // messages에 해당 메시지가 없으면 추가 fetch
+  //   if (!messages.some(m => String(m.id) === String(messageId))) {
+  //     // 예시: 해당 메시지 id로 단일 메시지 fetch 후, messages에 추가
+  //     fetch(`${getApiBase()}/api/chat/messages/${messageId}/`, { credentials: 'include' })
+  //       .then(res => res.json())
+  //       .then(msg => {
+  //         if (msg && msg.id) {
+  //           setMessages(prev => {
+  //             // 이미 있으면 추가하지 않음
+  //             if (prev.some(m => String(m.id) === String(msg.id))) return prev;
+  //             return [...prev, msg].sort((a, b) => new Date(a.date) - new Date(b.date));
+  //           });
+  //         }
+  //       });
+  //   } else {
+  //     setScrollToMessageId(messageId);
+  //   }
+  // }, [location, messages]);  
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const messageId = params.get('messageId');
+    if (!messageId) return;
+
+    if (!hasScrolledToMessage && messages.length > 0 && messages.some(m => String(m.id) === String(messageId))) {
+      setScrollToMessageId(messageId);
+      setHasScrolledToMessage(true);
+    }
+  }, [location, messages, hasScrolledToMessage]);
 
   return (
     <>
@@ -2958,8 +2962,8 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                   onImageClick={setViewerImage}
                   favoriteMessages={favoriteMessages}
                   onToggleFavorite={handleToggleFavorite}
-                  onMessageDelete={() => {
-                    // console.log('[onMessageDelete]');
+                  scrollToMessageId={scrollToMessageId}
+                  onMessageDelete={() => {                    
                     if (selectedRoom && selectedRoom.id) {
                       fetchMessages(selectedRoom.id, 0, 20, false);
                     }
