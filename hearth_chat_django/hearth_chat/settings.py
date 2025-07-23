@@ -517,8 +517,10 @@ else:
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # 미디어 파일(업로드 이미지 등) 설정
-MEDIA_ROOT = os.path.join(BASE_DIR, '..', 'hearth_chat_media')
+# MEDIA_ROOT = os.path.join(BASE_DIR, '..', 'hearth_chat_media')
+MEDIA_ROOT = os.path.abspath(os.path.join(BASE_DIR, '..', 'hearth_chat_media'))
 # MEDIA_ROOT = os.path.abspath(MEDIA_ROOT)  # 절대경로로 변환 (권장)
+print('MEDIA_ROOT:', MEDIA_ROOT)
 MEDIA_URL = '/media/'
 
 # 로깅 설정 추가

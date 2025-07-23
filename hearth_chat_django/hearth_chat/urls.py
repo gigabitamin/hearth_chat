@@ -26,6 +26,9 @@ import os
 
 from django.views.generic import TemplateView
 
+
+
+
 urlpatterns = [
     path("favicon.ico", lambda r: HttpResponse(b"", content_type="image/x-icon")),
     path("admin/", admin.site.urls),
@@ -43,17 +46,24 @@ urlpatterns = [
     path("social-redirect/", social_login_redirect_view, name='social_login_redirect'),
     path("api/csrf/", get_csrf_token, name="get_csrf_token"),
     path("accounts/popup-close/", lambda r: render(r, 'socialaccount/popup_close.html'), name="popup_close"),
-    path("gb_m_v2.vrm", lambda r: static_serve(r, 'gb_m_v2.vrm', os.path.dirname(os.path.join(settings.BASE_DIR, '..', 'hearth_chat_django', 'staticfiles', 'avatar_vrm', 'gb_m_v2.vrm')))),
-    path("gb_f_v2.vrm", lambda r: static_serve(r, 'gb_f_v2.vrm', os.path.dirname(os.path.join(settings.BASE_DIR, '..', 'hearth_chat_django', 'staticfiles', 'avatar_vrm', 'gb_f_v2.vrm')))),
+    # path("gb_m_v2.vrm", lambda r: static_serve(r, 'gb_m_v2.vrm', os.path.dirname(os.path.join(settings.BASE_DIR, '..', 'hearth_chat_django', 'staticfiles', 'avatar_vrm', 'gb_m_v2.vrm')))),
+    # path("gb_f_v2.vrm", lambda r: static_serve(r, 'gb_f_v2.vrm', os.path.dirname(os.path.join(settings.BASE_DIR, '..', 'hearth_chat_django', 'staticfiles', 'avatar_vrm', 'gb_f_v2.vrm')))),
     path("", ReactAppView.as_view(), name="root"),
-    re_path(r"^(?!api/|admin/|static/|media/).*$", ReactAppView.as_view()),  # SPA fallback
+    
 ]
 
-# static, media 등 추가
+# static, media 등 추가 SPA fallback 전에 추가
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 urlpatterns += static('/avatar_vrm/', document_root=settings.STATIC_ROOT + '/avatar_vrm')    
-urlpatterns += static('/gb_m_v2.vrm', document_root=settings.STATIC_ROOT)
-urlpatterns += static('/gb_f_v2.vrm', document_root=settings.STATIC_ROOT)
+# urlpatterns += static('/gb_m_v2.vrm', document_root=settings.STATIC_ROOT)
+# urlpatterns += static('/gb_f_v2.vrm', document_root=settings.STATIC_ROOT)
 urlpatterns += static('/logo192.png', document_root=settings.STATIC_ROOT)
 urlpatterns += static('/oauth_logo/', document_root=settings.STATIC_ROOT + '/oauth_logo')
-urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# SPA fallback
+urlpatterns += [re_path(r"^(?!api/|admin/|static/|media/).*$", ReactAppView.as_view())]
+urlpatterns += [
+    re_path(r'^media/(?P<path>.*)$', static_serve, {'document_root': settings.MEDIA_ROOT}),
+]
+

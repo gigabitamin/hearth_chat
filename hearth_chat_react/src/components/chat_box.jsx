@@ -1361,6 +1361,12 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       const exists_ai = await checkFileExists(aiAvatarUrl_ex);
       console.log('exists_ai_exists', exists_ai);
 
+      fetch('/media/avatar_vrm_test/test.vrm', { credentials: 'include' })
+      .then(res => {        
+        return res.text();
+      })
+      // .then(text => console.log('body', text));
+
       const testPath = 'avatar_vrm_test/test.vrm';  // 슬래시 없이
       const exists = await checkFileExists(testPath);
       console.log('exists_test_model', exists);

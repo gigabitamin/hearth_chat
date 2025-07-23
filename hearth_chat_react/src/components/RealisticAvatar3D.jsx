@@ -26,8 +26,7 @@ const getApiBase = () => {
 // VRM 아바타 컴포넌트
 function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess, onLoadError, position, enableTracking = false }) {
 
-    console.log('avatarUrl real 2', avatarUrl);
-    // console.log('=== [TEST 1] ===');    
+    console.log('avatarUrl real jsx VMAvatar 1 URL', avatarUrl);    
     const testUrl = `/media/avatar_vrm_test/test.vrm`
     const [vrm, setVrm] = useState(null);
     const [error, setError] = useState(null);
@@ -218,14 +217,13 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
     // VRM 모델 로딩
     useEffect(() => {
         if (!avatarUrl) return;
-        console.log('avatarUrl real 0', avatarUrl);
+        console.log('avatarUrl real jsx VMAvatar 2 URL', avatarUrl);
         setVrm(null);
         setError(null);
         setIdleLoaded(false);
         const loader = new GLTFLoader();
         loader.register((parser) => new VRMLoaderPlugin(parser));
-        loader.load(
-            console.log('avatarUrl check real3d jsx', avatarUrl),
+        loader.load(            
             avatarUrl,
             (gltf) => {
                 const vrmInstance = gltf.userData.vrm;
@@ -333,9 +331,8 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
                     return vrmInstance.humanoid.getNormalizedBoneNode ?
                         vrmInstance.humanoid.getNormalizedBoneNode(boneName) :
                         vrmInstance.humanoid.getBoneNode(boneName);
-                };
-                // console.log('vrmInstance.humanoid', vrmInstance.humanoid);                
-                console.log('avatarUrl real', avatarUrl);
+                };                
+                
                 // 기본 포즈 설정 (T-pose에서 자연스러운 자세로) - 안전한 방식 : vroid 1.0 f
                 if (avatarUrl === !testUrl) {                
                     if (vrmInstance.humanoid) {
@@ -505,8 +502,7 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
 
     // === 프로그래밍적 Idle 애니메이션 활성화 ===
     useEffect(() => {
-        if (programmaticIdle && vrm) {
-            // console.log('프로그래밍적 idle 애니메이션 시작');
+        if (programmaticIdle && vrm) {            
             const cleanup = createProgrammaticIdleAnimation(vrm);
 
             return () => {
@@ -544,8 +540,7 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
     // 트래킹 서비스 연동
     useEffect(() => {
         if (!enableTracking) return;
-
-        // console.log('트래킹 활성화됨 - VRMAvatar');
+        
 
         const handleTrackingUpdate = (data) => {
             // 트래킹이 처음 감지될 때 오프셋 저장
@@ -779,7 +774,7 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
                     vrm.expressionManager.setValue('blink', lerpedBlink * BLINK_SHAPE_MAX + BLINK_OFFSET);
                     vrm.expressionManager.setValue('blinkLeft', lerpedBlinkLeft * BLINK_SHAPE_MAX + BLINK_OFFSET);
                     vrm.expressionManager.setValue('blinkRight', lerpedBlinkRight * BLINK_SHAPE_MAX + BLINK_OFFSET);
-                    // console.log('[EYE BLINK] blink:', blinkValue, 'offset:', blinkOffset, 'adjusted:', adjustedBlink, 'normalized:', normalizedBlink, 'lerped:', lerpedBlink, 'blinkLeft:', blinkLeft, 'blinkRight:', blinkRight);
+                    
                 }
 
                 // 립싱크 (트래킹 데이터 우선)
