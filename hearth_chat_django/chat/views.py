@@ -1015,13 +1015,13 @@ class NotificationReadViewSet(viewsets.ModelViewSet):
                 })
         return Response(unread)
 
-# 파일 존재 여부 확인
+# 파일 존재 여부 확인 (로컬/서버버)
+from django.core.files.storage import default_storage
+from django.http import JsonResponse
 
 def file_exists(request):
     rel_path = request.GET.get("path", "").lstrip("/")
-    abs_path = os.path.join(settings.MEDIA_ROOT, rel_path)
-    exists = os.path.exists(abs_path)
-    print('abs_path:', abs_path, 'exists:', exists)
+    exists = default_storage.exists(rel_path)
     return JsonResponse({ "exists": exists })
 
 # def file_exists(request):
