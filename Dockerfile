@@ -61,7 +61,7 @@ COPY --from=frontend /app/build/ /app/hearth_chat_react/build/
 # collectstatic은 런타임에 실행하도록 제거 (빌드 시점에는 불필요)
 # ENV DATABASE_URL=sqlite:///tmp/db.sqlite3
 # WORKDIR /app/hearth_chat_django
-# RUN python manage.py collectstatic --noinput || echo "collectstatic failed, continuing..."
+RUN python manage.py collectstatic --noinput || echo "collectstatic failed, continuing..."
 
 # 반드시 장고 앱 복사 이후에 슈퍼유저 자동 생성 (빌드 타임에 실행)
 # RUN python manage.py createinitialsuperuser || echo "Superuser creation skipped during build"
