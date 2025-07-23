@@ -225,6 +225,7 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
         const loader = new GLTFLoader();
         loader.register((parser) => new VRMLoaderPlugin(parser));
         loader.load(
+            console.log('avatarUrl check real3d jsx', avatarUrl),
             avatarUrl,
             (gltf) => {
                 const vrmInstance = gltf.userData.vrm;
