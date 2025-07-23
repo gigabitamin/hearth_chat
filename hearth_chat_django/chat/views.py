@@ -1029,7 +1029,7 @@ def file_exists(request):
     abs_path_media = os.path.join(settings.MEDIA_ROOT, rel_path)
     abs_path_static = os.path.join(settings.STATIC_ROOT, rel_path)
     exists = os.path.exists(abs_path_media) or os.path.exists(abs_path_static)
-    # print('abs_path_media:', abs_path_media, 'abs_path_static:', abs_path_static, 'exists:', exists)
+    print('abs_path_media:', abs_path_media, 'abs_path_static:', abs_path_static, 'exists:', exists)
     return JsonResponse({ "exists": exists })
 
 
