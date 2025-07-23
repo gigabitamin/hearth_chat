@@ -71,7 +71,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
 
 
     // useEffect에서 fetchRooms, fetchPublicRooms, connectWebSocket 중복 호출 최소화
-    useEffect(() => {        
+    useEffect(() => {
         fetchRooms();
         fetchPublicRooms();
         connectWebSocket();
@@ -82,7 +82,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             }
         };
     }, []);
-    
+
 
     const openSocialLoginPopup = (url) => {
         const popup = window.open(url, 'social_login', 'width=500,height=600');
@@ -107,12 +107,12 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             const ws = new WebSocket(wsUrl);
             wsRef.current = ws;
 
-            ws.onopen = () => {                
+            ws.onopen = () => {
                 setWsConnected && setWsConnected(true);
             };
 
             ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);                
+                const data = JSON.parse(event.data);
 
                 // 대화방 목록 업데이트 메시지 처리
                 if (data.type === 'room_list_update') {
@@ -120,7 +120,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                 }
             };
 
-            ws.onclose = () => {                
+            ws.onclose = () => {
                 setWsConnected && setWsConnected(false);
                 // 재연결 시도
                 setTimeout(() => {
@@ -519,10 +519,10 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                             {/* 중앙: 제목/최신 메시지 */}
                                             <div className="room-item-center" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                                                 <div className="room-name" style={{ fontSize: 14, fontWeight: 600, color: '#222', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', borderBottom: '1px solid #f0f0f0', paddingBottom: 2 }}>
-                                                    {room.name}
                                                     <span style={{ fontSize: 11, color: '#888', marginLeft: 8 }}>
-                                                        💬 {room.message_count ?? 0} / 👥 {room.participant_count ?? 0}/{room.max_members ?? '-'}
+                                                        [👥{room.participant_count ?? 0}/{room.max_members ?? '-'} 💬{room.message_count ?? 0}]
                                                     </span>
+                                                    <span>({room.id}){room.name}</span>
                                                 </div>
                                                 <div className="room-latest-message" style={{ fontSize: 12, color: '#666', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginTop: 2 }}>
                                                     {/* 메시지 내용: 오른쪽 정보와 겹치지 않게 flex-grow, overflow 처리 */}
@@ -582,12 +582,12 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                                 {/* 즐겨찾기 방 입장 버튼 - 최신 글로 이동 */}
                                                 <button
                                                     onClick={e => {
-                                                        e.stopPropagation();                                                    
+                                                        e.stopPropagation();
                                                         console.log('즐겨찾기 방 입장', e);
                                                         if (onClose) {
-                                                            onClose();                                                            
+                                                            onClose();
                                                         }
-                                                        setTimeout(() => navigate(`/room/${room.id}`), 0);                                                        
+                                                        setTimeout(() => navigate(`/room/${room.id}`), 0);
                                                     }}
                                                     className="enter-room-btn"
                                                     title="이 방으로 바로 입장"
@@ -630,11 +630,11 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                                     className="enter-room-btn"
                                                     style={{ fontSize: 14, color: '#1976d2', background: 'none', border: '1px solid #1976d2', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', marginLeft: 4 }}
                                                     title="입장"
-                                                    onClick={e => { 
+                                                    onClick={e => {
                                                         console.log('즐겨찾기 메시지 입장', msg);
-                                                        e.stopPropagation(); 
-                                                        if (onClose) onClose(); 
-                                                        navigate(`/room/${msg.room_id}?messageId=${msg.id}`); 
+                                                        e.stopPropagation();
+                                                        if (onClose) onClose();
+                                                        navigate(`/room/${msg.room_id}?messageId=${msg.id}`);
                                                         setScrollToMessageId(msg.id);
                                                     }}
                                                 >
@@ -673,10 +673,10 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                         {/* 중앙: 제목/최신 메시지 */}
                                         <div className="room-item-center" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                                             <div className="room-name" style={{ fontSize: 14, fontWeight: 600, color: '#222', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', borderBottom: '1px solid #f0f0f0', paddingBottom: 2 }}>
-                                                {room.name}
                                                 <span style={{ fontSize: 11, color: '#888', marginLeft: 8 }}>
-                                                    💬 {room.message_count ?? 0} / 👥 {room.participant_count ?? 0}/{room.max_members ?? '-'}
+                                                    [👥 {room.participant_count ?? 0}/{room.max_members ?? '-'} 💬 {room.message_count ?? 0}]
                                                 </span>
+                                                <span> ({room.id}){room.name}</span>
                                             </div>
                                             <div className="room-latest-message" style={{ fontSize: 12, color: '#666', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginTop: 2 }}>
                                                 {/* 메시지 내용: 오른쪽 정보와 겹치지 않게 flex-grow, overflow 처리 */}
@@ -739,9 +739,9 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                                     e.stopPropagation();
                                                     console.log('개인/오픈 방 입장', room);
                                                     if (onClose) {
-                                                        onClose();                                                        
-                                                    }                                                    
-                                                    setTimeout(() => navigate(`/room/${room.id}`), 0);                                                    
+                                                        onClose();
+                                                    }
+                                                    setTimeout(() => navigate(`/room/${room.id}`), 0);
                                                 }}
                                                 className="enter-room-btn"
                                                 title="이 방으로 바로 입장"

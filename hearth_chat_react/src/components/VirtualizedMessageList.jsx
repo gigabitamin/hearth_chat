@@ -81,110 +81,17 @@ const VirtualizedMessageList = ({
     onMessageDelete, // 메시지 삭제 콜백    
     scrollToMessageId, // [입장] 버튼 클릭 시 전달받는 메시지 id
 }) => {
-    const [listRef, setListRef] = useState(null);
-    const [loading, setLoading] = useState(false);
-    // 이모지 피커 상태 관리
+    // 상태 선언은 최상단에 모두 위치시킴 (ReferenceError 방지)
+    const virtuosoRef = useRef(null);
+    const [showNewMsgAlert, setShowNewMsgAlert] = useState(false);
+    const [atBottom, setAtBottom] = useState(true);
+    const prevMessagesLength = useRef(messages.length);
     const [emojiPickerMsgId, setEmojiPickerMsgId] = useState(null);
     const [localReactions, setLocalReactions] = useState({}); // {messageId: [reactions]}
-    // 핀 상태 관리 (프론트 임시)
     const [pinnedIds, setPinnedIds] = useState([]);
-    const prevMessagesLength = useRef(0);
-    const [showNewMsgAlert, setShowNewMsgAlert] = useState(false);
-    const [alertBlink, setAlertBlink] = useState(0);
-    const scrollContainerRef = useRef(null);
+    const [tempHighlightedId, setTempHighlightedId] = useState(null);
 
-
-    const [messages_chat, setMessages_chat] = useState([]);
-
-    // 메시지 삭제 함수
-    const handleDeleteMessage = async (msg) => {
-        if (!msg.id) return;
-        if (!(loginUser && (msg.username === loginUser.username || msg.user_id === loginUser.id))) {
-            alert('본인 메시지만 삭제할 수 있습니다.');
-            return;
-        }
-        if (!window.confirm('정말 이 메시지를 삭제하시겠습니까?')) return;
-        try {
-            const res = await csrfFetch(`${getApiBase()}/api/chat/messages/${msg.id}/`, {
-                method: 'DELETE',
-                credentials: 'include',
-            });
-            if (res.ok) {
-                // 삭제 성공 후 부모 콜백 호출!
-                if (onMessageDelete) onMessageDelete(msg.id);
-            } else {
-                alert('메시지 삭제에 실패했습니다.');
-            }
-        } catch (e) {
-            alert('메시지 삭제 중 오류: ' + e.message);
-        }
-    };
-
-    // 핀 토글 함수
-    const togglePin = (msgId) => {
-        setPinnedIds(prev => prev.includes(msgId) ? prev.filter(id => id !== msgId) : [...prev, msgId]);
-    };
-
-    // 핀된 메시지 추출 (최신순, 최대 3개)
-    const pinnedMessages = messages.filter(m => pinnedIds.includes(m.id)).slice(-3).reverse();
-
-    // 메시지 목록이 바뀌면 localReactions 동기화
-    useEffect(() => {
-        const map = {};
-        messages.forEach(msg => {
-            map[msg.id] = msg.reactions || [];
-        });
-        setLocalReactions(map);
-    }, [messages]);
-
-    // 이모지 토글 API 호출
-    const toggleReaction = async (messageId, emoji) => {
-        try {
-            const res = await fetch(`/api/reactions/${messageId}/toggle/`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ emoji })
-            });
-            const data = await res.json();
-            // optimistic update: 바로 반영
-            setLocalReactions(prev => {
-                const prevList = prev[messageId] || [];
-                const user = loginUser?.username;
-                let updated;
-                if (data.status === 'added') {
-                    // 이미 해당 이모지+유저가 있으면 중복 방지
-                    if (prevList.some(r => r.emoji === emoji && r.users?.includes(user))) return prev;
-                    // 기존 이모지 있으면 count+1, users 추가
-                    let found = false;
-                    updated = prevList.map(r => {
-                        if (r.emoji === emoji) {
-                            found = true;
-                            return { ...r, count: r.count + 1, users: [...(r.users || []), user] };
-                        }
-                        return r;
-                    });
-                    if (!found) updated = [...updated, { emoji, count: 1, users: [user] }];
-                } else if (data.status === 'removed') {
-                    // count-1, users에서 제거, count=0이면 삭제
-                    updated = prevList.map(r => {
-                        if (r.emoji === emoji) {
-                            const users = (r.users || []).filter(u => u !== user);
-                            return { ...r, count: r.count - 1, users };
-                        }
-                        return r;
-                    }).filter(r => r.count > 0);
-                } else {
-                    updated = prevList;
-                }
-                return { ...prev, [messageId]: updated };
-            });
-        } catch (e) {
-            alert('이모지 반응 처리 실패');
-        }
-    };
-
-    // 메시지 삭제 API 호출
+    // deleteMessage 함수도 반드시 위에서 선언
     const deleteMessage = async (messageId) => {
         try {
             const res = await fetch(`/api/chat/messages/${messageId}/delete/`, {
@@ -193,10 +100,7 @@ const VirtualizedMessageList = ({
                 credentials: 'include',
             });
             if (res.ok) {
-                // 메시지 목록에서 삭제된 메시지 제거
-                // 부모 컴포넌트에서 메시지 목록을 다시 불러오도록 콜백 호출
                 if (onMessageDelete) {
-                    console.log('[onMessageDelete_vml]');
                     onMessageDelete(messageId);
                 }
             } else {
@@ -208,111 +112,63 @@ const VirtualizedMessageList = ({
         }
     };
 
-    // 무한 스크롤 로딩 처리
-    const loadMoreItems = useCallback(async (startIndex, stopIndex) => {
-        if (loading || !hasMore) return;
-
-        setLoading(true);
-        try {
-            await onLoadMore(startIndex, stopIndex);
-        } catch (error) {
-            console.error('Failed to load more messages:', error);
-        } finally {
-            setLoading(false);
-        }
-    }, [loading, hasMore, onLoadMore]);
-
-    // 메시지 높이 계산 보정: 폰트 크기, 패딩, 마진, 이미지 등 모두 반영
-    const getItemSize = useCallback((index) => {
-        const msg = messages[index];
-        if (!msg) return 80;
-
-        // 모바일 환경에서 vw 단위로 보정
-        const isMobile = typeof window !== 'undefined' && window.innerWidth <= 600;
-        const fontSize = 15;
-        const lineHeight = 1.4;
-        const maxWidth = isMobile ? window.innerWidth * 0.8 : 480; // 버블 최대 너비와 일치시킴
-        const content = msg.text || msg.content || '';
-        // 실제 줄 수 계산: 한 줄이 너무 길면 maxWidth 기준으로 줄 수 증가
-        const approxCharPerLine = Math.floor(maxWidth / (fontSize * 0.6)); // 한글/영문 혼합 기준
-        const lines = content.split('\n').reduce((acc, line) => acc + Math.ceil(line.length / approxCharPerLine), 0);
-        const textHeight = Math.max(lines * fontSize * lineHeight, fontSize * lineHeight);
-        const bubblePadding = 7 * 2;
-        const bubbleMargin = 6 * 2;
-        // 메시지 아이템 자체의 패딩과 마진(여백) 보정
-        const itemPadding = 8 * 2; // .message-item { padding: 8px 16px; }
-        const itemMargin = 12; // .message-item { margin-bottom: 12px; }
-        const extraMargin = 32; // 기본 여유 여백(겹침 방지, 기존 24px에서 32px로 증가)
-        // 타입 경계에서 추가 여백
-        let typeBoundaryMargin = 0;
-        if (index > 0) {
-            const prev = messages[index - 1];
-            if (prev && prev.type !== msg.type) {
-                typeBoundaryMargin = 32; // my-message/other-message 경계에서 추가 여백
-            }
-        }
-        // 이미지 높이: 실제 이미지 비율을 알 수 있으면 반영, 없으면 고정값
-        let imageHeight = 0;
-        if (msg.imageUrl) {
-            imageHeight = (msg.imageHeight && msg.imageWidth)
-                ? Math.min(200, (msg.imageHeight / msg.imageWidth) * maxWidth) + 8
-                : 200 + 8;
-        }
-        let extra = 0;
-        if (msg.reply) extra += 28; // 답장 인용 바 높이
-        if (msg.reactions && msg.reactions.length > 0) extra += 28; // 리액션 바 높이
-        const mobileExtra = isMobile ? 12 : 0;
-        return textHeight + bubblePadding + bubbleMargin + itemPadding + itemMargin + extraMargin + typeBoundaryMargin + imageHeight + extra + mobileExtra;
-    }, [messages]);
-
-    // VariableSizeList 높이 캐시 강제 리셋: 메시지/창 크기/폰트 등 변화 시
+    // 1. [입장] 등 특정 메시지로 이동
     useEffect(() => {
-        if (listRef && typeof listRef.resetAfterIndex === 'function') {
-            listRef.resetAfterIndex(0, true);
-        }
-    }, [messages, window.innerWidth, window.innerHeight]);
-
-
-    // 1. highlightMessageId prop이 바뀔 때마다 내부 tempHighlightedId 상태를 1초간 유지하는 useEffect 추가
-    const [tempHighlightedId, setTempHighlightedId] = useState(null);
-    useEffect(() => {
-        if (highlightMessageId) {
-            setTempHighlightedId(highlightMessageId);
-            const timeout = setTimeout(() => setTempHighlightedId(null), 1000);
-            return () => clearTimeout(timeout);
-        }
-    }, [highlightMessageId]);
-
-    // highlightMessageId로 스크롤 이동
-    useEffect(() => {
-        if (highlightMessageId && messages.length > 0) {
-            const idx = messages.findIndex(m => m.id === highlightMessageId);
+        if (scrollToMessageId && messages.length > 0) {
+            const idx = messages.findIndex(m => String(m.id) === String(scrollToMessageId));
             if (idx !== -1 && virtuosoRef.current) {
                 virtuosoRef.current.scrollToIndex({ index: idx, align: 'center', behavior: 'smooth' });
             }
         }
+    }, [scrollToMessageId, messages]);
+
+    // 2. highlightMessageId로 스크롤 및 임시 강조
+    useEffect(() => {
+        if (highlightMessageId && messages.length > 0) {
+            setTempHighlightedId(highlightMessageId);
+            const idx = messages.findIndex(m => String(m.id) === String(highlightMessageId));
+            if (idx !== -1 && virtuosoRef.current) {
+                virtuosoRef.current.scrollToIndex({ index: idx, align: 'center', behavior: 'smooth' });
+            }
+            const timeout = setTimeout(() => setTempHighlightedId(null), 1000);
+            return () => clearTimeout(timeout);
+        }
     }, [highlightMessageId, messages]);
 
-    // [입장] 버튼 등에서 scrollToMessageId prop이 바뀔 때 해당 메시지로 이동
+    // 3. 새 메시지 도착 시 자동 최신 스크롤/알림
     useEffect(() => {
-        if (scrollToMessageId && messages.length > 0) {
-          const idx = messages.findIndex(m => String(m.id) === String(scrollToMessageId));
-          if (idx !== -1 && virtuosoRef.current) {
-            setTimeout(() => {
-              virtuosoRef.current.scrollToIndex({ index: idx, align: 'center', behavior: 'smooth' });
-            }, 0);
-          }
+        if (messages.length > prevMessagesLength.current) {
+            if (atBottom && virtuosoRef.current) {
+                virtuosoRef.current.scrollToIndex({ index: messages.length - 1, align: 'end', behavior: 'auto' });
+            } else {
+                setShowNewMsgAlert(true);
+            }
         }
-      }, [scrollToMessageId, messages]);
-      
-    // 무한 스크롤: 맨 위 도달 시 onLoadMore 호출
+        prevMessagesLength.current = messages.length;
+    }, [messages, atBottom]);
+
+    // 4. 새 메시지 알림 클릭 시 최신으로 이동
+    const handleNewMsgAlertClick = () => {
+        if (virtuosoRef.current) {
+            virtuosoRef.current.scrollToIndex({ index: messages.length - 1, align: 'end', behavior: 'smooth' });
+        }
+        setShowNewMsgAlert(false);
+    };
+
+    // 5. 무한 스크롤: 맨 위 도달 시 onLoadMore 호출
     const handleStartReached = useCallback(() => {
         if (hasMore && onLoadMore) {
             onLoadMore();
         }
     }, [hasMore, onLoadMore]);
 
-    // 메시지 렌더링 함수 (Virtuoso의 itemContent)
+    // 6. atBottomStateChange: 하단 여부 추적
+    const handleAtBottomStateChange = useCallback((isBottom) => {
+        setAtBottom(isBottom);
+        if (isBottom) setShowNewMsgAlert(false);
+    }, []);
+
+    // 7. 메시지 렌더링 함수
     const renderMessage = useCallback((index) => {
         const msg = messages[index];
         if (!msg) {
@@ -338,8 +194,7 @@ const VirtualizedMessageList = ({
         return (
             <div
                 className={`message-item ${isMyMessage ? 'my-message' : 'other-message'} ${tempHighlightedId === msg.id ? 'temp-highlight' : ''}`}
-            // onClick={() => onMessageClick && onMessageClick(msg)}
-            // onMouseLeave={() => setEmojiPickerMsgId(null)}
+                id={`message-${msg.id}`}
             >
                 <div className="message-content">
                     {/* 메시지 헤더: 위쪽에 username(흰색, 굵게) + 답장/핀/즐겨찾기 버튼 */}
@@ -694,42 +549,143 @@ const VirtualizedMessageList = ({
     // 아이템 개수 (로딩 중인 경우 +1)
     const itemCount = hasMore ? messages.length + 1 : messages.length;
 
-    // 방이 바뀔 때마다 최신 위치로 이동
+    // 메시지 목록이 바뀌면 localReactions 동기화
     useEffect(() => {
-        if (listRef && messages.length > 0) {
-            listRef.scrollToItem(messages.length - 1, 'end');
+        const map = {};
+        messages.forEach(msg => {
+            map[msg.id] = msg.reactions || [];
+        });
+        setLocalReactions(map);
+    }, [messages]);
+
+    // 이모지 토글 API 호출
+    const toggleReaction = async (messageId, emoji) => {
+        try {
+            const res = await fetch(`/api/reactions/${messageId}/toggle/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ emoji })
+            });
+            const data = await res.json();
+            // optimistic update: 바로 반영
+            setLocalReactions(prev => {
+                const prevList = prev[messageId] || [];
+                const user = loginUser?.username;
+                let updated;
+                if (data.status === 'added') {
+                    // 이미 해당 이모지+유저가 있으면 중복 방지
+                    if (prevList.some(r => r.emoji === emoji && r.users?.includes(user))) return prev;
+                    // 기존 이모지 있으면 count+1, users 추가
+                    let found = false;
+                    updated = prevList.map(r => {
+                        if (r.emoji === emoji) {
+                            found = true;
+                            return { ...r, count: r.count + 1, users: [...(r.users || []), user] };
+                        }
+                        return r;
+                    });
+                    if (!found) updated = [...updated, { emoji, count: 1, users: [user] }];
+                } else if (data.status === 'removed') {
+                    // count-1, users에서 제거, count=0이면 삭제
+                    updated = prevList.map(r => {
+                        if (r.emoji === emoji) {
+                            const users = (r.users || []).filter(u => u !== user);
+                            return { ...r, count: r.count - 1, users };
+                        }
+                        return r;
+                    }).filter(r => r.count > 0);
+                } else {
+                    updated = prevList;
+                }
+                return { ...prev, [messageId]: updated };
+            });
+        } catch (e) {
+            alert('이모지 반응 처리 실패');
         }
-        prevMessagesLength.current = messages.length;
-    }, [selectedRoomId, listRef, messages.length]);
-    // 새 메시지 도착 시 스크롤이 하단이 아니면 알림 표시
-    useEffect(() => {
-        if (!listRef || messages.length === 0) return;
-        // 스크롤이 하단(최신) 근처인지 확인
-        const isAtBottom = () => {
-            if (!scrollContainerRef.current) return true;
-            const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
-            return scrollHeight - scrollTop - clientHeight < 40; // 40px 이내면 하단
-        };
-        if (prevMessagesLength.current > 0 && messages.length > prevMessagesLength.current) {
-            if (isAtBottom()) {
-                listRef.scrollToItem(messages.length - 1, 'end');
+    };
+
+    // 메시지 삭제 함수
+    const handleDeleteMessage = async (msg) => {
+        if (!msg.id) return;
+        if (!(loginUser && (msg.username === loginUser.username || msg.user_id === loginUser.id))) {
+            alert('본인 메시지만 삭제할 수 있습니다.');
+            return;
+        }
+        if (!window.confirm('정말 이 메시지를 삭제하시겠습니까?')) return;
+        try {
+            const res = await csrfFetch(`${getApiBase()}/api/chat/messages/${msg.id}/`, {
+                method: 'DELETE',
+                credentials: 'include',
+            });
+            if (res.ok) {
+                // 삭제 성공 후 부모 콜백 호출!
+                if (onMessageDelete) onMessageDelete(msg.id);
             } else {
-                // 알림 3번 반짝임
-                setShowNewMsgAlert(true);
-                setAlertBlink(1);
-                let count = 0;
-                const interval = setInterval(() => {
-                    setAlertBlink(v => v + 1);
-                    count++;
-                    if (count >= 3) {
-                        clearInterval(interval);
-                        setTimeout(() => setShowNewMsgAlert(false), 1000);
-                    }
-                }, 1000);
+                alert('메시지 삭제에 실패했습니다.');
+            }
+        } catch (e) {
+            alert('메시지 삭제 중 오류: ' + e.message);
+        }
+    };
+
+    // 핀 토글 함수
+    const togglePin = (msgId) => {
+        setPinnedIds(prev => prev.includes(msgId) ? prev.filter(id => id !== msgId) : [...prev, msgId]);
+    };
+
+    // 핀된 메시지 추출 (최신순, 최대 3개)
+    const pinnedMessages = messages.filter(m => pinnedIds.includes(m.id)).slice(-3).reverse();
+
+    // 메시지 높이 계산 보정: 폰트 크기, 패딩, 마진, 이미지 등 모두 반영
+    const getItemSize = useCallback((index) => {
+        const msg = messages[index];
+        if (!msg) return 80;
+
+        // 모바일 환경에서 vw 단위로 보정
+        const isMobile = typeof window !== 'undefined' && window.innerWidth <= 600;
+        const fontSize = 15;
+        const lineHeight = 1.4;
+        const maxWidth = isMobile ? window.innerWidth * 0.8 : 480; // 버블 최대 너비와 일치시킴
+        const content = msg.text || msg.content || '';
+        // 실제 줄 수 계산: 한 줄이 너무 길면 maxWidth 기준으로 줄 수 증가
+        const approxCharPerLine = Math.floor(maxWidth / (fontSize * 0.6)); // 한글/영문 혼합 기준
+        const lines = content.split('\n').reduce((acc, line) => acc + Math.ceil(line.length / approxCharPerLine), 0);
+        const textHeight = Math.max(lines * fontSize * lineHeight, fontSize * lineHeight);
+        const bubblePadding = 7 * 2;
+        const bubbleMargin = 6 * 2;
+        // 메시지 아이템 자체의 패딩과 마진(여백) 보정
+        const itemPadding = 8 * 2; // .message-item { padding: 8px 16px; }
+        const itemMargin = 12; // .message-item { margin-bottom: 12px; }
+        const extraMargin = 32; // 기본 여유 여백(겹침 방지, 기존 24px에서 32px로 증가)
+        // 타입 경계에서 추가 여백
+        let typeBoundaryMargin = 0;
+        if (index > 0) {
+            const prev = messages[index - 1];
+            if (prev && prev.type !== msg.type) {
+                typeBoundaryMargin = 32; // my-message/other-message 경계에서 추가 여백
             }
         }
-        prevMessagesLength.current = messages.length;
-    }, [messages, listRef]);
+        // 이미지 높이: 실제 이미지 비율을 알 수 있으면 반영, 없으면 고정값
+        let imageHeight = 0;
+        if (msg.imageUrl) {
+            imageHeight = (msg.imageHeight && msg.imageWidth)
+                ? Math.min(200, (msg.imageHeight / msg.imageWidth) * maxWidth) + 8
+                : 200 + 8;
+        }
+        let extra = 0;
+        if (msg.reply) extra += 28; // 답장 인용 바 높이
+        if (msg.reactions && msg.reactions.length > 0) extra += 28; // 리액션 바 높이
+        const mobileExtra = isMobile ? 12 : 0;
+        return textHeight + bubblePadding + bubbleMargin + itemPadding + itemMargin + extraMargin + typeBoundaryMargin + imageHeight + extra + mobileExtra;
+    }, [messages]);
+
+    // VariableSizeList 높이 캐시 강제 리셋: 메시지/창 크기/폰트 등 변화 시
+    useEffect(() => {
+        if (virtuosoRef && typeof virtuosoRef.current.resetAfterIndex === 'function') {
+            virtuosoRef.current.resetAfterIndex(0, true);
+        }
+    }, [messages, window.innerWidth, window.innerHeight]);
 
     // 메뉴가 열린 후 아무 곳이나 클릭하면 닫히도록 처리
     useEffect(() => {
@@ -750,8 +706,6 @@ const VirtualizedMessageList = ({
         };
     }, [emojiPickerMsgId]);
 
-    const virtuosoRef = useRef(null);
-    // Virtuoso 렌더링
     return (
         <div className="virtualized-message-list" style={{ position: 'relative', height: '100%' }}>
             {/* 상단 고정 메시지 영역 */}
@@ -774,8 +728,8 @@ const VirtualizedMessageList = ({
                         bottom: 24,
                         left: '50%',
                         transform: 'translateX(-50%)',
-                        background: alertBlink % 2 === 1 ? '#FFD600' : '#222',
-                        color: alertBlink % 2 === 1 ? '#222' : '#FFD600',
+                        background: '#FFD600',
+                        color: '#222',
                         borderRadius: 16,
                         padding: '8px 24px',
                         fontWeight: 700,
@@ -785,12 +739,7 @@ const VirtualizedMessageList = ({
                         cursor: 'pointer',
                         transition: 'background 0.2s, color 0.2s',
                     }}
-                    onClick={() => {
-                        if (listRef && messages.length > 0) {
-                            listRef.scrollToItem(messages.length - 1, 'end');
-                        }
-                        setShowNewMsgAlert(false);
-                    }}
+                    onClick={handleNewMsgAlertClick}
                 >
                     🔥 새 메시지 도착! (클릭 시 최신으로)
                 </div>
@@ -799,11 +748,13 @@ const VirtualizedMessageList = ({
                 ref={virtuosoRef}
                 style={{ height: '100%' }}
                 data={messages}
-                firstItemIndex={0}
-                initialTopMostItemIndex={messages.length - 1}
                 itemContent={renderMessage}
                 startReached={handleStartReached}
-                followOutput={true}
+                followOutput="auto" // 자동 스크롤
+                // followOutput="true" // 하단 여부 추적
+                // followOutput={atBottom} // 하단 여부 추적
+                atBottomStateChange={handleAtBottomStateChange}
+                initialTopMostItemIndex={messages.length - 1} // 최초 렌더링에만 사용
             />
         </div>
     );
