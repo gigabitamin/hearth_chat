@@ -1355,7 +1355,8 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   const initializeAvatars = async () => {
     try {
       const userAvatarUrl = `/avatar_vrm/gb_m_v2.vrm`;
-      let aiAvatarUrl = `/avatar_vrm/gb_f_v2.vrm`;
+      // let aiAvatarUrl = `/avatar_vrm/gb_f_v2.vrm`;
+      let aiAvatarUrl = `/media/avatar_vrm_test/test.vrm`;
 
       let aiAvatarUrl_ex = `avatar_vrm/gb_f_v2.vrm`;
       const exists_ai = await checkFileExists(aiAvatarUrl_ex);
