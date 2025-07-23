@@ -1355,16 +1355,17 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   const initializeAvatars = async () => {
     try {
       // const userAvatarUrl = `/avatar_vrm/gb_m_v2.vrm`;      
-      let userAvatarUrl = `/avatar_vrm_test/test.vrm`;
-      const userAvatarUrl_ex = `avatar_vrm_test/test.vrm`;      
+      let userAvatarUrl = `/media/avatar_vrm_test/test.vrm`;
+      const userAvatarUrl_ex = `media/avatar_vrm_test/test.vrm`;      
 
       const exists_user = await checkFileExists(userAvatarUrl_ex);
       console.log('userAvatarUrl_exists', exists_user);
             
       if (exists_user) {
-        userAvatarUrl = `/media/${userAvatarUrl_ex}`;
+        console.log('userAvatarUrl', userAvatarUrl);
+        // userAvatarUrl = `/media/${userAvatarUrl_ex}`;
       }
-      console.log('userAvatarUrl', userAvatarUrl);
+      // console.log('userAvatarUrl', userAvatarUrl);
 
       let aiAvatarUrl = `/avatar_vrm/gb_f_v2.vrm`;      
       let aiAvatarUrl_ex = `avatar_vrm/gb_f_v2.vrm`;

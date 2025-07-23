@@ -1024,18 +1024,18 @@ from django.http import JsonResponse
 #     exists = default_storage.exists(rel_path)
 #     return JsonResponse({ "exists": exists })
 
-# def file_exists(request):
-#     rel_path = request.GET.get("path", "").lstrip("/")
-#     abs_path_media = os.path.join(settings.MEDIA_ROOT, rel_path)
-#     abs_path_static = os.path.join(settings.STATIC_ROOT, rel_path)
-#     exists = os.path.exists(abs_path_media) or os.path.exists(abs_path_static)
-#     # print('abs_path_media:', abs_path_media, 'abs_path_static:', abs_path_static, 'exists:', exists)
-#     return JsonResponse({ "exists": exists })
-
-
 def file_exists(request):
     rel_path = request.GET.get("path", "").lstrip("/")
-    abs_path = os.path.join(settings.MEDIA_ROOT, rel_path)
-    exists = os.path.exists(abs_path)
-    # print('file_exists abs_path:', abs_path, 'exists:', exists)
+    abs_path_media = os.path.join(settings.MEDIA_ROOT, rel_path)
+    abs_path_static = os.path.join(settings.STATIC_ROOT, rel_path)
+    exists = os.path.exists(abs_path_media) or os.path.exists(abs_path_static)
+    # print('abs_path_media:', abs_path_media, 'abs_path_static:', abs_path_static, 'exists:', exists)
     return JsonResponse({ "exists": exists })
+
+
+# def file_exists(request):
+#     rel_path = request.GET.get("path", "").lstrip("/")
+#     abs_path = os.path.join(settings.MEDIA_ROOT, rel_path)
+#     exists = os.path.exists(abs_path)
+#     # print('file_exists abs_path:', abs_path, 'exists:', exists)
+#     return JsonResponse({ "exists": exists })
