@@ -1362,6 +1362,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
       const testPath = 'avatar_vrm_test/test.vrm';  // 슬래시 없이
       const exists = await checkFileExists(testPath);
+      console.log('exists_test_model', exists);
       
 
       if (exists) {
