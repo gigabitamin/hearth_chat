@@ -1357,17 +1357,17 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       const userAvatarUrl = '/avatar_vrm/gb_m_v1.vrm';
       let aiAvatarUrl = '/avatar_vrm/gb_f_v1.vrm';
 
-      const exists_ai = await checkFileExists(aiAvatarUrl);
-      console.log('exists_ai_exists', exists_ai);
+      // const exists_ai = await checkFileExists(aiAvatarUrl);
+      // console.log('exists_ai_exists', exists_ai);
 
-      const testPath = 'avatar_vrm_test/test.vrm';  // 슬래시 없이
-      const exists = await checkFileExists(testPath);
-      console.log('exists_test_model', exists);
+      // const testPath = 'avatar_vrm_test/test.vrm';  // 슬래시 없이
+      // const exists = await checkFileExists(testPath);
+      // console.log('exists_test_model', exists);
       
 
-      if (exists) {
-        aiAvatarUrl = `/media/${testPath}`;
-      }
+      // if (exists) {
+      //   aiAvatarUrl = `/media/${testPath}`;
+      // }
 
       
       setUserAvatar(userAvatarUrl);
