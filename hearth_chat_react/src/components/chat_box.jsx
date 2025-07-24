@@ -1350,6 +1350,18 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       return false;
     }
   };
+
+  const listMediaFiles = async () => {
+    try {
+      const apiBase = getApiBase();
+      const res = await fetch(`${apiBase}/api/chat/list_media_files/`);
+      const data = await res.json();
+      return data.files;
+    } catch (e) {
+      console.warn('미디어 파일 목록 조회 중 오류:', e);
+      return [];
+    }
+  };
   
   // 아바타 초기화
   const initializeAvatars = async () => {
@@ -1385,6 +1397,10 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       
       setUserAvatar(userAvatarUrl);
       setAiAvatar(aiAvatarUrl);
+
+      const mediaFiles = await listMediaFiles();
+      console.log('mediaFiles', mediaFiles);
+
     } catch (error) {
       console.error('아바타 초기화 실패:', error);
     }

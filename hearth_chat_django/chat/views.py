@@ -1026,3 +1026,12 @@ def file_exists(request):
     exists = os.path.exists(abs_path_media) or os.path.exists(abs_path_static)
     print('abs_path_media:', abs_path_media, 'abs_path_static:', abs_path_static, 'exists:', exists)
     return JsonResponse({ "exists": exists })
+
+# 미디어 파일 목록 조회
+def list_media_files(request):
+    file_list = []
+    for root, dirs, files in os.walk(settings.MEDIA_ROOT):
+        for name in files:
+            rel_path = os.path.relpath(os.path.join(root, name), settings.MEDIA_ROOT)
+            file_list.append(rel_path)
+    return JsonResponse({"files": file_list})
