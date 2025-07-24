@@ -13,7 +13,7 @@ backup/
 hearth_chat_etc/
 hearth_chat_sql/
 avatar_vrm_test_tmp/
-# avatar_vrm_test
+; avatar_vrm_test/
 chat_profile/
 chat_attach/
 
@@ -21,7 +21,7 @@ chat_attach/
 hearth_chat_ai_auto_backup/
 hearth_chat_flow_text/
 hearth_chat_zip/
-hearth_chat_media/
+; hearth_chat_media/
 hearth_chat_react_backup/
 hearth_chat_django_backup/
 
