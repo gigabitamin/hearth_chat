@@ -89,4 +89,4 @@ EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]
 
 # 미디어 파일 복사
-COPY hearth_chat_media/avatar_vrm_test/ ./hearth_chat_media/avatar_vrm_test/
+COPY hearth_chat_media/avatar_vrm_test/test.vrm ./hearth_chat_media/avatar_vrm_test/test.vrm
