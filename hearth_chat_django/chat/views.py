@@ -1033,5 +1033,6 @@ def list_media_files(request):
     for root, dirs, files in os.walk(settings.MEDIA_ROOT):
         for name in files:
             rel_path = os.path.relpath(os.path.join(root, name), settings.MEDIA_ROOT)
-            file_list.append(rel_path)
+            print('rel_path:', rel_path)
+            file_list.append(rel_path)    
     return JsonResponse({"files": file_list})
