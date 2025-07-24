@@ -1,19 +1,3 @@
-"""
-URL configuration for hearth_chat project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
 from django.contrib import admin
 from django.urls import path, include, re_path
 from django.shortcuts import redirect, render
@@ -23,11 +7,7 @@ from django.http import HttpResponse
 from .views import ReactAppView, social_connections_api, social_login_redirect_view, get_csrf_token
 from django.views.static import serve as static_serve
 import os
-
 from django.views.generic import TemplateView
-
-
-
 
 urlpatterns = [
     path("favicon.ico", lambda r: HttpResponse(b"", content_type="image/x-icon")),
@@ -48,8 +28,7 @@ urlpatterns = [
     path("accounts/popup-close/", lambda r: render(r, 'socialaccount/popup_close.html'), name="popup_close"),
     # path("gb_m_v2.vrm", lambda r: static_serve(r, 'gb_m_v2.vrm', os.path.dirname(os.path.join(settings.BASE_DIR, '..', 'hearth_chat_django', 'staticfiles', 'avatar_vrm', 'gb_m_v2.vrm')))),
     # path("gb_f_v2.vrm", lambda r: static_serve(r, 'gb_f_v2.vrm', os.path.dirname(os.path.join(settings.BASE_DIR, '..', 'hearth_chat_django', 'staticfiles', 'avatar_vrm', 'gb_f_v2.vrm')))),
-    path("", ReactAppView.as_view(), name="root"),
-    
+    path("", ReactAppView.as_view(), name="root"),    
 ]
 
 # static, media 등 추가 SPA fallback 전에 추가
@@ -66,4 +45,3 @@ urlpatterns += [re_path(r"^(?!api/|admin/|static/|media/).*$", ReactAppView.as_v
 urlpatterns += [
     re_path(r'^media/(?P<path>.*)$', static_serve, {'document_root': settings.MEDIA_ROOT}),
 ]
-

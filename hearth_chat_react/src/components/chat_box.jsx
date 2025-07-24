@@ -1354,39 +1354,34 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   // 아바타 초기화
   const initializeAvatars = async () => {
     try {
-      // const userAvatarUrl = `/avatar_vrm/gb_m_v2.vrm`;      
-      let userAvatarUrl = `/media/avatar_vrm_test/test.vrm`;
-      const userAvatarUrl_ex = `media/avatar_vrm_test/test.vrm`;      
+      const userAvatarUrl = `/avatar_vrm/gb_m_v2.vrm`;      
+      // let userAvatarUrl = `/avatar_vrm_test/test.vrm`;
+      // const userAvatarUrl_ex = `avatar_vrm_test/test.vrm`;      
 
-      const exists_user = await checkFileExists(userAvatarUrl_ex);
-      console.log('userAvatarUrl_exists', exists_user);
+      // const exists_user = await checkFileExists(userAvatarUrl_ex);
+      // console.log('userAvatarUrl_exists', exists_user);
             
-      if (exists_user) {
-        console.log('userAvatarUrl', userAvatarUrl);
-        // userAvatarUrl = `/media/${userAvatarUrl_ex}`;
-      }
-      // console.log('userAvatarUrl', userAvatarUrl);
-
+      // if (exists_user) {
+      //   console.log('userAvatarUrl', userAvatarUrl);
+;
       let aiAvatarUrl = `/avatar_vrm/gb_f_v2.vrm`;      
-      let aiAvatarUrl_ex = `avatar_vrm/gb_f_v2.vrm`;
-      const exists_ai = await checkFileExists(aiAvatarUrl_ex);
+      // let aiAvatarUrl_ex = `avatar_vrm/gb_f_v2.vrm`;
+      const exists_ai = await checkFileExists(aiAvatarUrl);
       console.log('exists_ai_exists', exists_ai);
 
-      fetch('/media/avatar_vrm_test/test.vrm', { credentials: 'include' })
-      .then(res => {        
-        return res.text();
-      })
+      // fetch('/media/avatar_vrm_test/test.vrm', { credentials: 'include' })
+      // .then(res => {        
+      //   return res.text();
+      // })
       // .then(text => console.log('body', text));
 
-      const testPath = 'avatar_vrm_test/test.vrm';  // 슬래시 없이
+      const testPath = '/avatar_vrm_test/test.vrm';  // 슬래시 없이
       const exists = await checkFileExists(testPath);
       console.log('exists_test_model', exists);
       
-
       if (exists) {
-        aiAvatarUrl = `/media/${testPath}`;
+        aiAvatarUrl = `/media${testPath}`;        
       }
-
       
       setUserAvatar(userAvatarUrl);
       setAiAvatar(aiAvatarUrl);
@@ -1394,7 +1389,6 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       console.error('아바타 초기화 실패:', error);
     }
   };
-
 
   // 감정 분석 (더 정교한 키워드 기반)
   const analyzeEmotion = (text) => {
