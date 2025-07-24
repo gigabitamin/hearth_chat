@@ -87,3 +87,6 @@ EXPOSE 8080
 
 # Railway에서 entrypoint.sh가 실행되도록 명시적으로 지정
 ENTRYPOINT ["/entrypoint.sh"]
+
+# 미디어 파일 복사
+COPY hearth_chat_media/avatar_vrm_test/ ./hearth_chat_media/avatar_vrm_test/
