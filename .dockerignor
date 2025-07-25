@@ -13,7 +13,9 @@ backup/
 hearth_chat_etc/
 hearth_chat_sql/
 avatar_vrm_test_tmp/
-
+hearth_chat_media/image/
+hearth_chat_media/uploads/
+uploads/
 chat_profile/
 chat_attach/
 

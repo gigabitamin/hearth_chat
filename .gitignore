@@ -14,9 +14,11 @@ hearth-chat.tar
 settings_local.py
 avatar_vrm_test_tmp/
 # avatar_vrm_test
-chat_attach/
+hearth_chat_media/image/
+hearth_chat_media/uploads/
 chat_profile/
-
+chat_attach/
+uploads/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
