@@ -412,3 +412,9 @@ class MediaFile(models.Model):
 
     def __str__(self):
         return self.name
+
+    def delete(self, *args, **kwargs):
+        # 먼저 파일을 삭제
+        self.file.delete(save=False)
+        # 그 다음 DB 레코드 삭제
+        super().delete(*args, **kwargs)

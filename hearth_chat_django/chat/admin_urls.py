@@ -7,6 +7,7 @@ from .admin_views import (
     AdminBulkActionView,
     AdminMediaUploadView,
     AdminMediaListView,
+    AdminMediaDeleteView,
 )
 from django.urls import path
 
@@ -20,8 +21,9 @@ router.register(r'messages', AdminMessageViewSet, basename='admin-message')
 urlpatterns = [
     path('stats/', AdminStatsView.as_view(), name='admin-stats'),
     path('bulk-action/', AdminBulkActionView.as_view(), name='admin-bulk-action'),
-    path('upload_media/', AdminMediaUploadView.as_view(), name='admin-upload-media'),
-    path('list_media_files/', AdminMediaListView.as_view(), name='admin-list-media-files'),
+    path('admin_upload_media/', AdminMediaUploadView.as_view(), name='admin-upload-media'),
+    path('admin_list_media_files/', AdminMediaListView.as_view(), name='admin-list-media-files'),
+    path('admin_delete_media_file/<int:pk>/', AdminMediaDeleteView.as_view(), name='admin-delete-media-file'),
 ]
 
 # 라우터 URL 추가

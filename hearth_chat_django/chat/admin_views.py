@@ -12,6 +12,11 @@ from .models import ChatRoom, Chat, ChatRoomParticipant, MessageReaction, Messag
 from .models import MediaFile
 from .serializers import UserSerializer, ChatRoomSerializer, ChatSerializer
 from .serializers import MediaFileSerializer
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import AllowAny
+
 
 class IsAdminOrReadOnly(permissions.BasePermission):
     """관리자만 접근 가능한 권한 클래스"""
@@ -400,13 +405,10 @@ class AdminBulkActionView(APIView):
             }, status=500) 
 
 
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
-from rest_framework.permissions import AllowAny
-@method_decorator(csrf_exempt, name="dispatch")
+# @method_decorator(csrf_exempt, name="dispatch")
 class AdminMediaUploadView(APIView):    
-    # permission_classes = [IsAdminUser]
-    permission_classes = [AllowAny]
+    permission_classes = [IsAdminUser]
+    # permission_classes = [AllowAny]
     
     def post(self, request):
         file = request.FILES.get('file')
@@ -422,10 +424,27 @@ class AdminMediaUploadView(APIView):
         })
 
 
+# @method_decorator(csrf_exempt, name="dispatch")
 class AdminMediaListView(APIView):
     permission_classes = [permissions.IsAdminUser]
+    # permission_classes = [AllowAny]
 
     def get(self, request):
         qs = MediaFile.objects.all().order_by('-uploaded_at')[:100]
         return Response(MediaFileSerializer(qs, many=True).data)
+
+
+# @method_decorator(csrf_exempt, name="dispatch")
+class AdminMediaDeleteView(APIView):
+    permission_classes = [IsAdminUser]
+    # permission_classes = [AllowAny]
+    
+    def delete(self, request, pk):
+        print(f"AdminMediaDeleteView del pk: delete {pk}")
+        try:
+            obj = MediaFile.objects.get(pk=pk)
+            obj.delete()
+            return Response({"success": True})
+        except MediaFile.DoesNotExist:
+            return Response({"success": False, "error": "File not found"}, status=404)
             
