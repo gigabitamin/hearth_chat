@@ -27,7 +27,7 @@ const getApiBase = () => {
 function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess, onLoadError, position, enableTracking = false }) {
 
     console.log('avatarUrl real jsx VMAvatar 1 URL', avatarUrl);    
-    const testUrl = '/media/avatar_vrm_test/test.vrm'
+    const testUrl = '/media/uploads/test.vrm'
     const [vrm, setVrm] = useState(null);
     const [error, setError] = useState(null);
     const avatarRef = useRef();

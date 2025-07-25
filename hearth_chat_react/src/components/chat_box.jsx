@@ -1386,8 +1386,8 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       //   return res.text();
       // })
       // .then(text => console.log('body', text));
-
-      const testPath = '/avatar_vrm_test/test.vrm';  // 슬래시 없이
+      
+      const testPath = '/uploads/test.vrm';  // 슬래시 없이
       const exists = await checkFileExists(testPath);
       console.log('exists_test_model', exists);
       
@@ -1398,8 +1398,9 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       setUserAvatar(userAvatarUrl);
       setAiAvatar(aiAvatarUrl);
 
-      const mediaFiles = await listMediaFiles();
-      console.log('mediaFiles', mediaFiles);
+      // 미디어 파일 목록 조회
+      // const mediaFiles = await listMediaFiles();
+      // console.log('mediaFiles', mediaFiles);
 
     } catch (error) {
       console.error('아바타 초기화 실패:', error);
