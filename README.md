@@ -7,6 +7,7 @@
 ## 250725
 - media 파일 추가 시 Cloudflare R2 등 별도 정적 파일 서버/스토리지 사용
 - urls.py에서 serve로 media 서빙은 임시 개발용으로만 사용
+- 관리자 페이지 미디어 파일 업로드, 미디어 파일 목록 관리 탭 추가
 
 ## 250724 v0.94
 - 가상화 메시지 react-virtuoso 로 리팩토링 : react-virtual 에서 DOM 에서 estimate 요소를 찾지 못하는 문제

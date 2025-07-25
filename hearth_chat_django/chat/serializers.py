@@ -1,5 +1,8 @@
 from rest_framework import serializers
-from .models import ChatRoom, Chat, ChatRoomParticipant, UserSettings, VoiceCall, MessageReaction, MessageReply, PinnedMessage, NotificationRead, MessageFavorite
+from .models import (ChatRoom, Chat, ChatRoomParticipant, 
+                     UserSettings, VoiceCall, MessageReaction, 
+                     MessageReply, PinnedMessage, NotificationRead, 
+                     MessageFavorite, MediaFile,)
 from django.contrib.auth.models import User
 
 class UserSerializer(serializers.ModelSerializer):
@@ -130,3 +133,9 @@ class MessageFavoriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = MessageFavorite
         fields = ['id', 'user', 'message', 'created_at'] 
+
+class MediaFileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MediaFile
+        fields = ['id', 'name', 'file', 'uploaded_at']
+        

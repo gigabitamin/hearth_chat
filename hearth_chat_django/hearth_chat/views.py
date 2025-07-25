@@ -1,7 +1,6 @@
 from django.views.generic import View
 from django.http import HttpResponse
 import os
-
 from django.shortcuts import redirect
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from allauth.socialaccount.providers.kakao.views import KakaoOAuth2Adapter

@@ -31,11 +31,11 @@ python manage.py migrate --noinput 2>&1 | tee /tmp/migrate.log || {
     cat /tmp/migrate.log
 }
 
-echo "Ensuring Site object exists for production..."
-python manage.py createsiteobject 2>&1 | tee /tmp/createsiteobject.log || {
-    echo "[ERROR] Site object creation failed. See /tmp/createsiteobject.log below:"
-    cat /tmp/createsiteobject.log
-}
+# echo "Ensuring Site object exists for production..."
+# python manage.py createsiteobject 2>&1 | tee /tmp/createsiteobject.log || {
+#     echo "[ERROR] Site object creation failed. See /tmp/createsiteobject.log below:"
+#     cat /tmp/createsiteobject.log
+# }
 
 # echo "Ensuring superuser exists..."
 # python manage.py createinitialsuperuser 2>&1 | tee /tmp/createinitialsuperuser.log || {

@@ -155,3 +155,39 @@
     gap: 12px;
     justify-content: flex-end;
 }
+
+/* 미디어 파일 목록 */
+/* .media-file-list {
+    margin-top: 16px;
+    background: #f5faff;
+    border-radius: 8px;
+    padding: 16px 22px;
+    max-width: 520px;
+    box-shadow: 0 1px 5px rgba(33, 150, 243, 0.06);
+    border: 1px solid #e3f0fd;
+  }
+  .media-file-list h3 {
+    font-size: 1.07rem;
+    color: #1976d2;
+    margin-bottom: 9px;
+    font-weight: 700;
+  }
+  .media-file-list ul {
+    padding-left: 18px;
+    margin: 0;
+  }
+  .media-file-list li {
+    margin-bottom: 5px;
+    font-size: 1rem;
+    color: #1976d2;
+  }
+  .media-file-list a {
+    color: #1976d2;
+    text-decoration: underline;
+    font-weight: 600;
+    transition: color 0.18s;
+  }
+  .media-file-list a:hover {
+    color: #125ea9;
+  }
+   */

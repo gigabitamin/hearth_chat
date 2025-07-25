@@ -4,6 +4,7 @@ from django.shortcuts import redirect, render
 from django.conf import settings
 from django.conf.urls.static import static
 from django.http import HttpResponse
+
 from .views import ReactAppView, social_connections_api, social_login_redirect_view, get_csrf_token
 from django.views.static import serve as static_serve
 import os

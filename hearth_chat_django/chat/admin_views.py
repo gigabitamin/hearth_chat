@@ -2,14 +2,16 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import IsAdminUser
 from django.contrib.auth.models import User
 from django.db.models import Count, Q
 from django.utils import timezone
 from datetime import timedelta
 from .models import ChatRoom, Chat, ChatRoomParticipant, MessageReaction, MessageReply, PinnedMessage
+from .models import MediaFile
 from .serializers import UserSerializer, ChatRoomSerializer, ChatSerializer
-from rest_framework.pagination import PageNumberPagination
-
+from .serializers import MediaFileSerializer
 
 class IsAdminOrReadOnly(permissions.BasePermission):
     """관리자만 접근 가능한 권한 클래스"""
@@ -396,3 +398,34 @@ class AdminBulkActionView(APIView):
             return Response({
                 'error': f'Failed to execute bulk action: {str(e)}'
             }, status=500) 
+
+
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.permissions import AllowAny
+@method_decorator(csrf_exempt, name="dispatch")
+class AdminMediaUploadView(APIView):    
+    # permission_classes = [IsAdminUser]
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        file = request.FILES.get('file')
+        name = request.POST.get('name') or (file.name if file else None)
+        if not file:
+            return Response({"success": False, "error": "No file received"}, status=400)
+        obj = MediaFile.objects.create(name=name, file=file)
+        return Response({
+            "success": True,
+            "id": obj.id,
+            "name": obj.name,
+            "url": obj.file.url
+        })
+
+
+class AdminMediaListView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        qs = MediaFile.objects.all().order_by('-uploaded_at')[:100]
+        return Response(MediaFileSerializer(qs, many=True).data)
+            

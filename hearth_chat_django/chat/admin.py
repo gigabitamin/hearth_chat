@@ -1,6 +1,10 @@
 from django.contrib import admin
-from .models import Chat, ChatRoom, ChatRoomParticipant, UserSettings, VoiceCall, MessageReaction, MessageReply, PinnedMessage
 from django.contrib.sessions.models import Session
+from .models import (
+    Chat, ChatRoom, ChatRoomParticipant, UserSettings, 
+    VoiceCall, MessageReaction, MessageReply, PinnedMessage, 
+    MediaFile,
+)
 
 @admin.register(Chat)
 class ChatAdmin(admin.ModelAdmin):
@@ -72,3 +76,8 @@ class SessionAdmin(admin.ModelAdmin):
     list_display = ['session_key', 'expire_date']
     search_fields = ['session_key']
     ordering = ['-expire_date']
+
+# 관리자 미디어 파일 업로드
+@admin.register(MediaFile)
+class MediaFileAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'file')

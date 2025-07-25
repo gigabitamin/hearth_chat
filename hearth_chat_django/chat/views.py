@@ -35,6 +35,7 @@ from django.db import models
 from django.core.cache import cache
 from django.conf import settings
 from .models import MessageFavorite
+from .models import MediaFile
 
 
 # Create your views here.

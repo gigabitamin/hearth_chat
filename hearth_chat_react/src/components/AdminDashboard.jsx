@@ -1,13 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import './AdminDashboard.css';
 import CreateRoomModal from './CreateRoomModal';
+// import React, { useEffect, useState } from "react";
+import MediaFileList from "./MediaFileList";
+
+const getApiBase = () => {
+    const hostname = window.location.hostname;
+    const isProd = process.env.NODE_ENV === 'production';
+  
+    if (isProd) return 'https://hearthchat-production.up.railway.app';
+    if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:8000';
+    if (hostname === '192.168.44.9') return 'http://192.168.44.9:8000';
+  
+    return `http://${hostname}:8000`;
+};
 
 const AdminDashboard = () => {
     const [activeTab, setActiveTab] = useState('overview');
     const [stats, setStats] = useState(null);
     const [users, setUsers] = useState([]);
     const [rooms, setRooms] = useState([]);
-    const [messages, setMessages] = useState([]);
+    const [messages, setMessages] = useState([]);    
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [selectedItems, setSelectedItems] = useState([]);
@@ -17,8 +30,11 @@ const AdminDashboard = () => {
     const [defaultMaxMembers, setDefaultMaxMembers] = useState(4);
     const [showCreateRoomModal, setShowCreateRoomModal] = useState(false);
 
+
+
     // API 기본 URL
-    const API_BASE = '/api/admin';
+    const API_BASE = `${getApiBase()}/api/admin`;
+    // const API_BASE = `/api/admin`
 
     // API 호출 함수
     const fetchData = async (endpoint, params = {}) => {
@@ -45,7 +61,7 @@ const AdminDashboard = () => {
             console.error('API 호출 오류:', error);
             throw error;
         }
-    };
+    };   
 
     // 통계 데이터 로드
     const loadStats = async () => {
@@ -204,6 +220,85 @@ const AdminDashboard = () => {
             prev.length === currentItems.length ? [] : currentItems.map(item => item.id)
         );
     };
+
+    function getCookie(name) {
+        const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return match ? match.pop() : '';
+    }
+
+    // ① 파일 업로드용 컴포넌트 추가
+    function MediaUploader({ onUploaded }) {
+        const [uploading, setUploading] = useState(false);
+        const [file, setFile] = useState(null);
+        const [name, setName] = useState('');
+        const [error, setError] = useState(null);
+        const [result, setResult] = useState(null);
+    
+        // 기존 fetchData와 같은 베이스를 씀. (단, 파일업로드만 특별 케이스)
+        const handleUpload = async (e) => {
+        e.preventDefault();
+        if (!file) return setError('파일을 선택하세요!');
+        setUploading(true);
+        setError(null);
+    
+        try {
+            const data = await uploadMediaFile(file, name);
+            setResult(data);
+            setFile(null);
+            setName('');
+            onUploaded?.(data);
+        } catch (err) {
+            setError(err.message);
+            setResult(null);
+        } finally {
+            setUploading(false);
+        }
+        };
+    
+        return (
+        <div className="media-uploader">
+            <form onSubmit={handleUpload}>
+            <input
+                type="text"
+                placeholder="파일 이름(생략 시 원본 파일명)"
+                value={name}
+                onChange={e => setName(e.target.value)}
+            />
+            <input
+                type="file"
+                onChange={e => setFile(e.target.files[0])}
+            />
+            <button type="submit" disabled={uploading}>업로드</button>
+            </form>
+            {error && <div className="error">{error}</div>}
+            {result && <div className="success">{result.name} 업로드 완료!</div>}
+        </div>
+        );
+    }         
+
+
+    // 업로드 함수
+    const uploadMediaFile = async (file, name) => {
+        const form = new FormData();
+        form.append('file', file);
+        form.append('name', name || file.name);
+    
+        const resp = await fetch(`${API_BASE}/upload_media/`, {
+        method: 'POST',
+        credentials: 'include',
+        body: form,
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')    // 이 한 줄이 핵심!
+        }
+        });
+    
+        if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        throw new Error(errData.error || `업로드 오류: ${resp.status}`);
+        }
+        return resp.json();
+    };
+      
 
     // 오버뷰 탭 렌더링
     const renderOverview = () => {
@@ -616,6 +711,17 @@ const AdminDashboard = () => {
         );
     };
 
+    // 미디어 업로더 추가
+    const renderMediaUploader = () => {
+        return (
+            <div className="admin-messages">
+                <MediaUploader onUploaded={() => {/* 필요시 업로드 후 목록 새로고침 등 */}} />
+                <MediaFileList API_BASE={API_BASE} />
+            </div>
+        );
+    };
+
+
     if (loading) {
         return <div className="admin-dashboard loading">로딩 중...</div>;
     }
@@ -664,6 +770,12 @@ const AdminDashboard = () => {
                 >
                     메시지 관리
                 </button>
+                <button
+                    className={activeTab === 'uploadmedia' ? 'active' : ''}
+                    onClick={() => setActiveTab('uploadmedia')}
+                >
+                    미디어 관리
+                </button>
             </div>
 
             <div className="admin-content">
@@ -671,9 +783,11 @@ const AdminDashboard = () => {
                 {activeTab === 'users' && renderUsers()}
                 {activeTab === 'rooms' && renderRooms()}
                 {activeTab === 'messages' && renderMessages()}
+                {activeTab === 'uploadmedia' && renderMediaUploader()}
             </div>
         </div>
     );
 };
+
 
 export default AdminDashboard; 

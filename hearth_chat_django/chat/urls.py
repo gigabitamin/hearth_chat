@@ -2,6 +2,7 @@ from rest_framework.routers import DefaultRouter
 from .views import ChatRoomViewSet, ChatViewSet, UserSettingsView, UserDeleteView, user_info, chat_home, get_chat_history, get_all_sessions, upload_chat_image, logout_api, UserListView, MessageReactionViewSet, MessageReplyViewSet, PinnedMessageViewSet, UserChatCreateAPIView, NotificationReadViewSet, file_exists
 from django.urls import path, include
 from . import views  # 상대경로로 변경
+
 router = DefaultRouter()
 router.register(r'rooms', ChatRoomViewSet, basename='room')
 router.register(r'messages', ChatViewSet, basename='message')
@@ -26,5 +27,6 @@ urlpatterns = [
     path('file_exists/', views.file_exists, name='file_exists'),
     path('list_media_files/', views.list_media_files, name='list_media_files'),
 ]
+
 
 urlpatterns += router.urls

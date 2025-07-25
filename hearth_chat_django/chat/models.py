@@ -403,3 +403,12 @@ class MessageFavorite(models.Model):
     class Meta:
         unique_together = ('user', 'message')
         db_table = 'chat_messagefavorite'
+
+# 관리자 미디어 파일 업로드
+class MediaFile(models.Model):
+    name = models.CharField(max_length=100)
+    file = models.FileField(upload_to='uploads/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
