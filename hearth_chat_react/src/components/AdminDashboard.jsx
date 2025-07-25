@@ -12,11 +12,11 @@ function getCookie(name) {
 const getApiBase = () => {
     const hostname = window.location.hostname;
     const isProd = process.env.NODE_ENV === 'production';
-  
+
     if (isProd) return 'https://hearthchat-production.up.railway.app';
     if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:8000';
     if (hostname === '192.168.44.9') return 'http://192.168.44.9:8000';
-  
+
     return `http://${hostname}:8000`;
 };
 
@@ -25,7 +25,7 @@ const AdminDashboard = () => {
     const [stats, setStats] = useState(null);
     const [users, setUsers] = useState([]);
     const [rooms, setRooms] = useState([]);
-    const [messages, setMessages] = useState([]);    
+    const [messages, setMessages] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [selectedItems, setSelectedItems] = useState([]);
@@ -33,7 +33,7 @@ const AdminDashboard = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [defaultMaxMembers, setDefaultMaxMembers] = useState(4);
-    const [showCreateRoomModal, setShowCreateRoomModal] = useState(false);    
+    const [showCreateRoomModal, setShowCreateRoomModal] = useState(false);
     const [filterValue, setFilterValue] = useState('');
     const [mediaFiles, setMediaFiles] = useState([]);
 
@@ -68,7 +68,7 @@ const AdminDashboard = () => {
             console.error('API 호출 오류:', error);
             throw error;
         }
-    };   
+    };
 
     // 통계 데이터 로드
     const loadStats = async () => {
@@ -193,7 +193,7 @@ const AdminDashboard = () => {
 
     // 초기 데이터 로드
     useEffect(() => {
-        refreshData();        
+        refreshData();
     }, []);
 
     // 검색 처리
@@ -227,7 +227,7 @@ const AdminDashboard = () => {
             prev.length === currentItems.length ? [] : currentItems.map(item => item.id)
         );
     };
-      
+
     // 오버뷰 탭 렌더링
     const renderOverview = () => {
         if (!stats) return <div>로딩 중...</div>;
@@ -644,19 +644,19 @@ const AdminDashboard = () => {
         setLoading(true);
         setError(null);
         try {
-          // 목록 API에서 데이터 받아오기
-          const resp = await fetch(`${API_BASE}/admin_list_media_files/`, {
-            credentials: "include"
-          });
-          if (!resp.ok) throw new Error(`오류: ${resp.status}`);
-          const data = await resp.json();
-          setMediaFiles(data);
+            // 목록 API에서 데이터 받아오기
+            const resp = await fetch(`${API_BASE}/admin_list_media_files/`, {
+                credentials: "include"
+            });
+            if (!resp.ok) throw new Error(`오류: ${resp.status}`);
+            const data = await resp.json();
+            setMediaFiles(data);
         } catch (err) {
-          setError(err.message || '파일 목록 로딩 실패');
+            setError(err.message || '파일 목록 로딩 실패');
         } finally {
-          setLoading(false);
+            setLoading(false);
         }
-    }    
+    }
 
     // 파일 업로드용 컴포넌트 추가
     function MediaUploader({ onUploaded }) {
@@ -665,14 +665,14 @@ const AdminDashboard = () => {
         const [name, setName] = useState('');
         const [error, setError] = useState(null);
         const [result, setResult] = useState(null);
-    
+
         // 기존 fetchData와 같은 베이스를 씀. (단, 파일업로드만 특별 케이스)
         const handleUpload = async (e) => {
             e.preventDefault();
             if (!file) return setError('파일을 선택하세요!');
             setUploading(true);
             setError(null);
-        
+
             try {
                 const data = await uploadMediaFile(file, name);
                 setResult(data);
@@ -687,51 +687,51 @@ const AdminDashboard = () => {
                 setUploading(false);
             }
         };
-    
+
         return (
             <div className="media-uploader">
                 <form onSubmit={handleUpload}>
-                <input
-                    type="text"
-                    placeholder="파일 이름(생략 시 원본 파일명)"
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                />
-                <input
-                    type="file"
-                    onChange={e => setFile(e.target.files[0])}
-                />
-                <button type="submit" disabled={uploading}>업로드</button>
+                    <input
+                        type="text"
+                        placeholder="파일 이름(생략 시 원본 파일명)"
+                        value={name}
+                        onChange={e => setName(e.target.value)}
+                    />
+                    <input
+                        type="file"
+                        onChange={e => setFile(e.target.files[0])}
+                    />
+                    <button type="submit" disabled={uploading}>업로드</button>
                 </form>
                 {error && <div className="error">{error}</div>}
                 {result && <div className="success">{result.name} 업로드 완료!</div>}
             </div>
         );
-    }         
+    }
 
     // 업로드 함수
     const uploadMediaFile = async (file, name) => {
         const form = new FormData();
         form.append('file', file);
         form.append('name', name || file.name);
-    
+
         const resp = await fetch(`${API_BASE}/admin_upload_media/`, {
             method: 'POST',
             credentials: 'include',
             body: form,
             headers: {
-                 // 이 한 줄이 핵심, cookie 포함 여부 확인
+                // 이 한 줄이 핵심, cookie 포함 여부 확인
                 'X-CSRFToken': getCookie('csrftoken')
             }
         });
-    
+
         if (!resp.ok) {
-        const errData = await resp.json().catch(() => ({}));
-        throw new Error(errData.error || `업로드 오류: ${resp.status}`);
+            const errData = await resp.json().catch(() => ({}));
+            throw new Error(errData.error || `업로드 오류: ${resp.status}`);
         }
         return resp.json();
-    };    
-        
+    };
+
     // 미디어 파일 다운로드
     function handleDownload(url, name) {
         const a = document.createElement("a");
@@ -744,27 +744,44 @@ const AdminDashboard = () => {
     // 미디어 파일 삭제
     async function handleDelete(id) {
         if (window.confirm("정말 삭제할까요?")) {
-            await fetch(`${API_BASE}/admin_delete_media_file/${id}/`, { 
-                method: "DELETE", 
+            await fetch(`${API_BASE}/admin_delete_media_file/${id}/`, {
+                method: "DELETE",
                 credentials: "include",
                 headers: {
                     'X-CSRFToken': getCookie('csrftoken')
-            } });
+                }
+            });
             refreshFiles();
         }
+    }
+
+    // 멀티 삭제 함수
+    async function handleDeleteMulti(ids) {
+        if (!ids.length) return;
+        await fetch(`${API_BASE}/admin_delete_media_files/`, {
+            method: "POST",
+            credentials: "include",
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ ids })
+        });
+        refreshFiles();
     }
 
     // 미디어 관리 탭
     const renderMediaUploader = () => {
         return (
             <div className="admin-messages">
-                <MediaUploader onUploaded={() => {/* 필요시 업로드 후 목록 새로고침 등 */}} />
-                <MediaFileList 
-                    API_BASE={API_BASE}                    
+                <MediaUploader onUploaded={() => {/* 필요시 업로드 후 목록 새로고침 등 */ }} />
+                <MediaFileList
+                    API_BASE={API_BASE}
                     onDelete={handleDelete}
                     onDownload={handleDownload}
                     filterValue={filterValue}
                     onFilterChange={setFilterValue}
+                    onDeleteMulti={handleDeleteMulti}
                 />
             </div>
         );

@@ -447,4 +447,20 @@ class AdminMediaDeleteView(APIView):
             return Response({"success": True})
         except MediaFile.DoesNotExist:
             return Response({"success": False, "error": "File not found"}, status=404)
+
+
+class AdminMediaMultiDeleteView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        ids = request.data.get('ids', [])
+        deleted = 0
+        for pk in ids:
+            try:
+                obj = MediaFile.objects.get(pk=pk)
+                obj.delete()
+                deleted += 1
+            except MediaFile.DoesNotExist:
+                continue
+        return Response({'success': True, 'deleted': deleted}) 
             

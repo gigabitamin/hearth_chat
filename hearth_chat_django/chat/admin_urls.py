@@ -8,6 +8,7 @@ from .admin_views import (
     AdminMediaUploadView,
     AdminMediaListView,
     AdminMediaDeleteView,
+    AdminMediaMultiDeleteView,
 )
 from django.urls import path
 
@@ -24,6 +25,7 @@ urlpatterns = [
     path('admin_upload_media/', AdminMediaUploadView.as_view(), name='admin-upload-media'),
     path('admin_list_media_files/', AdminMediaListView.as_view(), name='admin-list-media-files'),
     path('admin_delete_media_file/<int:pk>/', AdminMediaDeleteView.as_view(), name='admin-delete-media-file'),
+    path('admin_delete_media_files/', AdminMediaMultiDeleteView.as_view()),
 ]
 
 # 라우터 URL 추가
