@@ -4,6 +4,9 @@
 
 ==========================================
 
+## 250727 
+- 메시지 코드 Virtuoso 방식으로 전체 리팩토링 (백엔드 API 포함)
+
 ## 250726 v0.95
 - 멀티 삭제, 썸네일 모달창, 페이지네이션 추가
 - VirtualizedMessageList.jsx virtuoso 무한스크롤 오류 해결(hearth_chat_project/hearth_chat_flow_text/error_solution_log/250726_1437_무한스크롤_스크롤위치보정_해결.md)

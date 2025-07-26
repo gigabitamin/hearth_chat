@@ -1,10 +1,6 @@
-.virtualized-message-list {
+.virtualized-message-list {}
 
-}
-
-.message-content{
-
-}
+.message-content {}
 
 .message-bubble {
     /* width: 100%; */
@@ -41,7 +37,7 @@
 .message-item {
     background: transparent !important;
     padding: 8px 16px;
-    transition: background-color 0.2s ease;    
+    transition: background-color 0.2s ease;
     /* 메시지 간 간격 */
 }
 
@@ -308,17 +304,7 @@
     background: #e3f2fd;
 }
 
-.message-item.temp-highlight {
-    background-color: rgba(255, 255, 255, 0.05) !important;
-
-    /* 연한 노란색 */
-    transition: background-color 0.5s;
-}
-
-.search-preview-box .temp-highlight {
-    background-color: #fff9c4 !important;
-    transition: background-color 0.5s;
-}
+/* 메시지 강조 기능 제거됨 */
 
 /* 컨텍스트 메뉴 스타일 */
 .context-menu-popup {

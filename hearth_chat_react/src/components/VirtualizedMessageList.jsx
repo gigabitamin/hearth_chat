@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Virtuoso } from 'react-virtuoso';
 import './VirtualizedMessageList.css';
 
 // CSRF 토큰 쿠키 가져오기
@@ -78,21 +79,17 @@ const VirtualizedMessageList = ({
     onMessageDelete, // 메시지 삭제 콜백    
     scrollToMessageId, // [입장] 버튼 클릭 시 전달받는 메시지 id
     loadingMessages = false, // 메시지 로딩 상태
+    firstItemIndex = 0, // 전체 메시지 중 현재 배열의 시작 인덱스
+    totalCount = 0, // 전체 메시지 개수
 }) => {
-    // 상태 선언은 최상단에 모두 위치시킴 (ReferenceError 방지)
-    const scrollRef = useRef(null);
-    const [showNewMsgAlert, setShowNewMsgAlert] = useState(false);
-    const [atBottom, setAtBottom] = useState(true);
-    // prepend 후 스크롤 위치 보정
-    const prevMessagesLength = useRef(messages.length);
-    const prevScrollTop = useRef(0);
-    const isPrepending = useRef(false);
+    const virtuosoRef = useRef(null);
     const [emojiPickerMsgId, setEmojiPickerMsgId] = useState(null);
     const [localReactions, setLocalReactions] = useState({}); // {messageId: [reactions]}
     const [pinnedIds, setPinnedIds] = useState([]);
-    const [tempHighlightedId, setTempHighlightedId] = useState(null);
+    const [isScrollingUp, setIsScrollingUp] = useState(false); // 위로 스크롤 중인지 상태
+    // 메시지 강조 기능 제거됨
 
-    // deleteMessage 함수도 반드시 위에서 선언
+    // deleteMessage 함수
     const deleteMessage = async (messageId) => {
         try {
             const res = await fetch(`/api/chat/messages/${messageId}/delete/`, {
@@ -116,122 +113,63 @@ const VirtualizedMessageList = ({
     // 1. [입장] 등 특정 메시지로 이동
     useEffect(() => {
         if (scrollToMessageId && messages.length > 0) {
-            const messageElement = document.getElementById(`message-${scrollToMessageId}`);
-            if (messageElement && scrollRef.current) {
-                messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const messageIndex = messages.findIndex(msg => msg.id === scrollToMessageId);
+            if (messageIndex !== -1 && virtuosoRef.current) {
+                virtuosoRef.current.scrollToIndex({
+                    index: messageIndex,
+                    align: 'center',
+                    behavior: 'smooth'
+                });
             }
         }
     }, [scrollToMessageId, messages]);
 
-    // 2. highlightMessageId로 스크롤 및 임시 강조
+    // 2. highlightMessageId로 스크롤 (강조 기능 제거)
     useEffect(() => {
         if (highlightMessageId && messages.length > 0) {
-            setTempHighlightedId(highlightMessageId);
-            const messageElement = document.getElementById(`message-${highlightMessageId}`);
-            if (messageElement && scrollRef.current) {
-                messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-            const timeout = setTimeout(() => setTempHighlightedId(null), 1000);
-            return () => clearTimeout(timeout);
-        }
-    }, [highlightMessageId, messages]);
-
-    // 초기 로딩 시 스크롤을 최하단으로 이동
-    useEffect(() => {
-        if (messages.length > 0 && scrollRef.current && !isPrepending.current) {
-            // 초기 로딩이거나 새 메시지가 추가된 경우 최하단으로 스크롤
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
-    }, [messages.length]);
-
-    // 스크롤 위치 보정을 위한 useEffect
-    useEffect(() => {
-        if (messages.length > prevMessagesLength.current) {
-            // prepend가 일어났을 때 (메시지가 앞에 추가됨)
-            const addedCount = messages.length - prevMessagesLength.current;
-
-            if (addedCount > 0 && scrollRef.current && isPrepending.current) {
-                // DOM 업데이트 후 스크롤 위치 조정
-                requestAnimationFrame(() => {
-                    if (scrollRef.current) {
-                        // 새로 추가된 메시지들의 실제 높이를 계산
-                        const scrollContainer = scrollRef.current;
-                        const messageElements = scrollContainer.querySelectorAll('[id^="message-"]');
-
-                        if (messageElements.length >= addedCount) {
-                            // 새로 추가된 메시지들의 총 높이 계산
-                            let newMessagesHeight = 0;
-                            for (let i = 0; i < addedCount; i++) {
-                                if (messageElements[i]) {
-                                    newMessagesHeight += messageElements[i].offsetHeight;
-                                }
-                            }
-
-                            // 이전 스크롤 위치 + 새 메시지들의 높이로 조정
-                            scrollContainer.scrollTop = prevScrollTop.current + newMessagesHeight;
-                        }
-                    }
-                    isPrepending.current = false;
+            const messageIndex = messages.findIndex(msg => msg.id === highlightMessageId);
+            if (messageIndex !== -1 && virtuosoRef.current) {
+                virtuosoRef.current.scrollToIndex({
+                    index: messageIndex,
+                    align: 'center',
+                    behavior: 'smooth'
                 });
             }
         }
-        prevMessagesLength.current = messages.length;
-    }, [messages]);
+    }, [highlightMessageId, messages]);
 
-    // 3. 새 메시지 도착 시 자동 최신 스크롤/알림
+    // 3. 방이 바뀔 때 스크롤 상태 리셋
     useEffect(() => {
-        if (messages.length > prevMessagesLength.current) {
-            if (atBottom && scrollRef.current) {
-                scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-            } else {
-                setShowNewMsgAlert(true);
-            }
+        setIsScrollingUp(false);
+    }, [selectedRoomId]);
+
+    // 4. Virtuoso에서 위로 스크롤 시(이전 메시지 fetch)
+    const handleStartReached = useCallback(() => {
+        console.log('[Virtuoso startReached] hasMore:', hasMore, 'onLoadMore:', !!onLoadMore, 'loadingMessages:', loadingMessages);
+        if (hasMore && onLoadMore && !loadingMessages) {
+            console.log('Virtuoso startReached - 이전 메시지 로딩');
+            onLoadMore(true); // true = 위로 스크롤 (prepend)
+            setIsScrollingUp(true); // 위로 스크롤 시 상태 업데이트
+        } else {
+            console.log('[Virtuoso startReached] 조건 불만족 - hasMore:', hasMore, 'onLoadMore:', !!onLoadMore, 'loadingMessages:', loadingMessages);
         }
-    }, [messages, atBottom]);
+    }, [hasMore, onLoadMore, loadingMessages]);
 
-    // 4. 새 메시지 알림 클릭 시 최신으로 이동
-    const handleNewMsgAlertClick = () => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    // 5. Virtuoso에서 아래로 스크롤 시(최신 메시지 fetch, 필요시)
+    const handleEndReached = useCallback(() => {
+        console.log('[Virtuoso endReached] hasMore:', hasMore, 'onLoadMore:', !!onLoadMore, 'loadingMessages:', loadingMessages);
+        if (hasMore && onLoadMore && !loadingMessages) {
+            console.log('Virtuoso endReached - 최신 메시지 로딩');
+            onLoadMore(false); // false = 아래로 스크롤 (append)
+            setIsScrollingUp(false); // 아래로 스크롤 시 상태 리셋
+        } else {
+            console.log('[Virtuoso endReached] 조건 불만족 - hasMore:', hasMore, 'onLoadMore:', !!onLoadMore, 'loadingMessages:', loadingMessages);
         }
-        setShowNewMsgAlert(false);
-    };
+    }, [hasMore, onLoadMore, loadingMessages]);
 
-    // 5. 무한 스크롤: 맨 위 도달 시 onLoadMore 호출 (일반 스크롤 이벤트)
-    const handleScroll = useCallback(() => {
-        if (!scrollRef.current || loadingMessages || !hasMore) return;
-
-        const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-
-        // 맨 위에 가까우면 (50px 이내) 추가 로딩
-        if (scrollTop < 50) {
-            console.log('맨 위 도달, hasMore:', hasMore, 'messages.length:', messages.length);
-            if (hasMore && onLoadMore) {
-                // prepend 전 현재 스크롤 위치 저장
-                prevScrollTop.current = scrollTop;
-                isPrepending.current = true;
-                onLoadMore();
-            }
-        }
-
-        // 하단 여부 체크
-        const isBottom = scrollTop + clientHeight >= scrollHeight - 10;
-        setAtBottom(isBottom);
-        if (isBottom) setShowNewMsgAlert(false);
-    }, [hasMore, onLoadMore, loadingMessages, messages.length]);
-
-    // 스크롤 이벤트 리스너 등록
-    useEffect(() => {
-        const scrollElement = scrollRef.current;
-        if (scrollElement) {
-            scrollElement.addEventListener('scroll', handleScroll);
-            return () => scrollElement.removeEventListener('scroll', handleScroll);
-        }
-    }, [handleScroll]);
-
-    // 7. 메시지 렌더링 함수
-    const renderMessage = useCallback((msg, index) => {
-        if (!msg) {
+    // 5. 메시지 렌더링 함수
+    const renderMessage = useCallback((index, message) => {
+        if (!message) {
             return (
                 <div key={`loading-${index}`} className="message-loading">
                     <div className="loading-skeleton">
@@ -245,16 +183,16 @@ const VirtualizedMessageList = ({
             );
         }
 
-        const isMyMessage = msg.type === 'send' ||
-            (loginUser && (msg.username === loginUser.username || msg.user_id === loginUser.id));
-        const reactions = localReactions[msg.id] || [];
+        const isMyMessage = message.type === 'send' ||
+            (loginUser && (message.username === loginUser.username || message.user_id === loginUser.id));
+        const reactions = localReactions[message.id] || [];
         const user = loginUser?.username;
 
         return (
             <div
-                key={msg.id}
-                className={`message-item ${isMyMessage ? 'my-message' : 'other-message'} ${tempHighlightedId === msg.id ? 'temp-highlight' : ''}`}
-                id={`message-${msg.id}`}
+                key={message.id}
+                className={`message-item ${isMyMessage ? 'my-message' : 'other-message'}`}
+                id={`message-${message.id}`}
             >
                 <div className="message-content">
                     {/* 메시지 헤더: 위쪽에 username(흰색, 굵게) + 답장/핀/즐겨찾기 버튼 */}
@@ -264,26 +202,26 @@ const VirtualizedMessageList = ({
                         }}
                     >
                         <span style={{ color: '#fff', fontWeight: 700, fontSize: 13, marginRight: 8 }}>
-                            {msg.sender || msg.username || 'Unknown'}
+                            {message.sender || message.username || 'Unknown'}
                         </span>
                         {/* 핀(고정) 버튼 */}
                         <button
-                            className={`pin-btn${pinnedIds.includes(msg.id) ? ' pinned' : ''}`}
-                            onClick={e => { e.stopPropagation(); togglePin(msg.id); }}
-                            title={pinnedIds.includes(msg.id) ? '핀 해제' : '상단 고정'}
+                            className={`pin-btn${pinnedIds.includes(message.id) ? ' pinned' : ''}`}
+                            onClick={e => { e.stopPropagation(); togglePin(message.id); }}
+                            title={pinnedIds.includes(message.id) ? '핀 해제' : '상단 고정'}
                         >📌</button>
                         {/* 즐겨찾기(▽/▼) 버튼 */}
                         <button
                             className="favorite-btn"
-                            style={{ marginLeft: 8, fontSize: 18, color: favoriteMessages.includes(msg.id) ? '#1976d2' : '#bbb', background: 'none', border: 'none', cursor: 'pointer' }}
-                            title={favoriteMessages.includes(msg.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-                            onClick={e => { e.stopPropagation(); onToggleFavorite(msg); }}
+                            style={{ marginLeft: 8, fontSize: 18, color: favoriteMessages.includes(message.id) ? '#1976d2' : '#bbb', background: 'none', border: 'none', cursor: 'pointer' }}
+                            title={favoriteMessages.includes(message.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+                            onClick={e => { e.stopPropagation(); onToggleFavorite(message); }}
                         >
-                            {favoriteMessages.includes(msg.id) ? '▼' : '▽'}
+                            {favoriteMessages.includes(message.id) ? '▼' : '▽'}
                         </button>
                     </div>
                     {/* 답장 인용 표시 */}
-                    {msg.reply && (
+                    {message.reply && (
                         <div
                             className="reply-quote"
                             style={{
@@ -304,11 +242,11 @@ const VirtualizedMessageList = ({
                             title="원본 메시지로 이동"
                             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(33,150,243,0.18)'; e.currentTarget.style.boxShadow = '0 0 8px #2196f3'; }}
                             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(33,150,243,0.08)'; e.currentTarget.style.boxShadow = 'none'; }}
-                            onClick={e => { e.stopPropagation(); onReplyQuoteClick && onReplyQuoteClick(msg.reply.id); }}
+                            onClick={e => { e.stopPropagation(); onReplyQuoteClick && onReplyQuoteClick(message.reply.id); }}
                         >
-                            <span style={{ fontWeight: 600, marginRight: 4, fontSize: 12 }}>↩️ {msg.reply.sender || '익명'}</span>
+                            <span style={{ fontWeight: 600, marginRight: 4, fontSize: 12 }}>↩️ {message.reply.sender || '익명'}</span>
                             <span style={{ fontStyle: 'italic', color: '#1976d2' }}>
-                                {msg.reply.text ? (msg.reply.text.split('\n')[0].slice(0, 40) + (msg.reply.text.length > 40 ? '...' : '')) : '[첨부/삭제됨]'}
+                                {message.reply.text ? (message.reply.text.split('\n')[0].slice(0, 40) + (message.reply.text.length > 40 ? '...' : '')) : '[첨부/삭제됨]'}
                             </span>
                         </div>
                     )}
@@ -316,42 +254,42 @@ const VirtualizedMessageList = ({
                         {/* 메시지 버블 */}
                         <div className="message-bubble"
                             style={{
-                                backgroundColor: isMyMessage ? undefined : getSenderColor(msg.sender),
-                                color: isMyMessage ? undefined : (getSenderColor(msg.sender) ? '#fff' : undefined),
+                                backgroundColor: isMyMessage ? undefined : getSenderColor(message.sender),
+                                color: isMyMessage ? undefined : (getSenderColor(message.sender) ? '#fff' : undefined),
                                 position: 'relative',
                                 width: '100%',
                                 maxWidth: '100%',
                             }}>
                             {/* AI 메시지일 때만 질문자 username을 왼쪽 상단에 표시 */}
                             <div className="message-questioner-username">
-                                {(msg.questioner_username && (msg.type === 'ai' || msg.sender_type === 'ai')) && (
+                                {(message.questioner_username && (message.type === 'ai' || message.sender_type === 'ai')) && (
                                     <>
                                         To.
-                                        <span className="questioner-username-highlight">{msg.questioner_username}</span>{' '}
-                                        {new Date(msg.date || msg.timestamp).toLocaleString('ko-KR', {
+                                        <span className="questioner-username-highlight">{message.questioner_username}</span>{' '}
+                                        {new Date(message.date || message.timestamp).toLocaleString('ko-KR', {
                                             year: '2-digit', month: '2-digit', day: '2-digit',
                                             hour: '2-digit', minute: '2-digit', hour12: false
                                         })}
                                     </>
                                 )}
                             </div>
-                            {msg.imageUrl && (
+                            {message.imageUrl && (
                                 <img
-                                    src={getImageUrl(msg.imageUrl)}
+                                    src={getImageUrl(message.imageUrl)}
                                     alt="첨부 이미지"
                                     className="message-image"
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        if (onImageClick) onImageClick(getImageUrl(msg.imageUrl));
+                                        if (onImageClick) onImageClick(getImageUrl(message.imageUrl));
                                     }}
                                 />
                             )}
-                            <div className="message-text">{msg.text || msg.content}</div>
+                            <div className="message-text">{message.text || message.content}</div>
                         </div>
                     </div>
                     {/* 아래쪽에 날짜/시간(회색, 24시간) */}
                     <div style={{ color: '#bbb', fontSize: 11, marginTop: 2, textAlign: 'left' }}>
-                        {new Date(msg.date || msg.timestamp).toLocaleString('ko-KR', {
+                        {new Date(message.date || message.timestamp).toLocaleString('ko-KR', {
                             year: '2-digit', month: '2-digit', day: '2-digit',
                             hour: '2-digit', minute: '2-digit', hour12: false
                         })}
@@ -364,7 +302,7 @@ const VirtualizedMessageList = ({
                                     <span
                                         key={i}
                                         className={`reaction-emoji${reaction.users && reaction.users.includes(user) ? ' my-reaction' : ''}`}
-                                        onClick={() => toggleReaction(msg.id, reaction.emoji)}
+                                        onClick={() => toggleReaction(message.id, reaction.emoji)}
                                         style={{
                                             cursor: 'pointer',
                                             fontWeight: reaction.users && reaction.users.includes(user) ? 700 : 400,
@@ -390,33 +328,33 @@ const VirtualizedMessageList = ({
                             style={{
                                 marginLeft: 2,
                                 fontSize: 16,
-                                background: emojiPickerMsgId === msg.id ? 'rgba(33,150,243,0.15)' : 'none',
+                                background: emojiPickerMsgId === message.id ? 'rgba(33,150,243,0.15)' : 'none',
                                 border: 'none',
                                 cursor: 'pointer',
-                                color: emojiPickerMsgId === msg.id ? '#2196f3' : '#888',
+                                color: emojiPickerMsgId === message.id ? '#2196f3' : '#888',
                                 borderRadius: 8,
                                 padding: '0 6px',
                                 transition: 'background 0.15s',
                             }}
                             onMouseEnter={e => {
-                                if (emojiPickerMsgId !== msg.id) {
+                                if (emojiPickerMsgId !== message.id) {
                                     e.currentTarget.style.background = 'rgba(33,150,243,0.08)';
                                     e.currentTarget.style.color = '#2196f3';
                                 }
                             }}
                             onMouseLeave={e => {
-                                if (emojiPickerMsgId !== msg.id) {
+                                if (emojiPickerMsgId !== message.id) {
                                     e.currentTarget.style.background = 'none';
                                     e.currentTarget.style.color = '#888';
                                 }
                             }}
-                            onClick={() => setEmojiPickerMsgId(emojiPickerMsgId === msg.id ? null : msg.id)}
+                            onClick={() => setEmojiPickerMsgId(emojiPickerMsgId === message.id ? null : message.id)}
                         >
-                            {emojiPickerMsgId === msg.id ? '−' : '+'}
+                            {emojiPickerMsgId === message.id ? '−' : '+'}
                         </button>
 
                         {/* 컨텍스트 메뉴 */}
-                        {emojiPickerMsgId === msg.id && (
+                        {emojiPickerMsgId === message.id && (
                             <div
                                 className="context-menu-popup"
                                 style={{
@@ -439,7 +377,7 @@ const VirtualizedMessageList = ({
                                             <button
                                                 key={emoji}
                                                 onClick={() => {
-                                                    toggleReaction(msg.id, emoji);
+                                                    toggleReaction(message.id, emoji);
                                                     setEmojiPickerMsgId(null);
                                                 }}
                                                 style={{
@@ -465,7 +403,7 @@ const VirtualizedMessageList = ({
                                     {/* 답장 버튼 */}
                                     <button
                                         onClick={() => {
-                                            onReply(msg);
+                                            onReply(message);
                                             setEmojiPickerMsgId(null);
                                         }}
                                         style={{
@@ -502,9 +440,9 @@ const VirtualizedMessageList = ({
 
                                     {/* 고정핀 버튼 */}
                                     <button
-                                        className={`pin-btn${pinnedIds.includes(msg.id) ? ' pinned' : ''}`}
-                                        onClick={e => { e.stopPropagation(); togglePin(msg.id); }}
-                                        title={pinnedIds.includes(msg.id) ? '핀 해제' : '상단 고정'}
+                                        className={`pin-btn${pinnedIds.includes(message.id) ? ' pinned' : ''}`}
+                                        onClick={e => { e.stopPropagation(); togglePin(message.id); }}
+                                        title={pinnedIds.includes(message.id) ? '핀 해제' : '상단 고정'}
                                         style={{
                                             width: '100%',
                                             background: 'none',
@@ -528,8 +466,8 @@ const VirtualizedMessageList = ({
                                     {/* 즐겨찾기(▽/▼) 버튼 */}
                                     <button
                                         className="favorite-btn"
-                                        title={favoriteMessages.includes(msg.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-                                        onClick={e => { e.stopPropagation(); onToggleFavorite(msg); }}
+                                        title={favoriteMessages.includes(message.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+                                        onClick={e => { e.stopPropagation(); onToggleFavorite(message); }}
                                         style={{
                                             width: '100%',
                                             background: 'none',
@@ -546,7 +484,7 @@ const VirtualizedMessageList = ({
                                         onMouseEnter={e => e.currentTarget.style.background = 'rgba(0, 68, 255, 0.1)'}
                                         onMouseLeave={e => e.currentTarget.style.background = 'none'}
                                     >
-                                        <div style={{ fontSize: 16 }}>{favoriteMessages.includes(msg.id) ? '▼' : '▽'}</div>
+                                        <div style={{ fontSize: 16 }}>{favoriteMessages.includes(message.id) ? '▼' : '▽'}</div>
                                         즐겨찾기
                                     </button>
 
@@ -555,7 +493,7 @@ const VirtualizedMessageList = ({
                                         <button
                                             onClick={() => {
                                                 if (window.confirm('이 메시지를 삭제하시겠습니까?')) {
-                                                    handleDeleteMessage(msg);
+                                                    handleDeleteMessage(message);
                                                     setEmojiPickerMsgId(null);
                                                 }
                                             }}
@@ -586,7 +524,7 @@ const VirtualizedMessageList = ({
                 </div>
             </div>
         );
-    }, [messages, loginUser, onMessageClick, getSenderColor, localReactions, emojiPickerMsgId, onReply, onReplyQuoteClick, pinnedIds, onImageClick, favoriteMessages, onToggleFavorite, tempHighlightedId, deleteMessage]);
+    }, [messages, loginUser, onMessageClick, getSenderColor, localReactions, emojiPickerMsgId, onReply, onReplyQuoteClick, pinnedIds, onImageClick, favoriteMessages, onToggleFavorite, deleteMessage, isScrollingUp]);
 
     // 메시지 목록이 바뀌면 localReactions 동기화
     useEffect(() => {
@@ -709,43 +647,24 @@ const VirtualizedMessageList = ({
                     ))}
                 </div>
             )}
-            {/* 새 메시지 도착 알림 */}
-            {showNewMsgAlert && (
-                <div
-                    style={{
-                        position: 'absolute',
-                        bottom: 24,
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        background: '#FFD600',
-                        color: '#222',
-                        borderRadius: 16,
-                        padding: '8px 24px',
-                        fontWeight: 700,
-                        fontSize: 15,
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
-                        zIndex: 1000,
-                        cursor: 'pointer',
-                        transition: 'background 0.2s, color 0.2s',
-                    }}
-                    onClick={handleNewMsgAlertClick}
-                >
-                    🔥 새 메시지 도착! (클릭 시 최신으로)
-                </div>
-            )}
-            {/* 일반 스크롤 기반 메시지 리스트 */}
-            <div
-                ref={scrollRef}
-                style={{
-                    height: '100%',
-                    overflowY: 'auto',
-                    overflowX: 'hidden',
-                    scrollbarWidth: 'thin',
-                    scrollbarColor: '#888 #f1f1f1',
+
+            {/* Virtuoso 기반 메시지 리스트 */}
+            <Virtuoso
+                ref={virtuosoRef}
+                data={messages}
+                firstItemIndex={firstItemIndex}
+                totalCount={totalCount}
+                itemContent={renderMessage}
+                startReached={handleStartReached}
+                endReached={handleEndReached}
+                followOutput={!scrollToMessageId && !isScrollingUp} // 특정 메시지 입장 시에는 false, 일반 입장 시에는 true
+                overscan={200}
+                increaseViewportBy={{ top: 100, bottom: 100 }}
+                style={{ height: '100%' }}
+                onMount={() => {
+                    console.log('[Virtuoso onMount] firstItemIndex:', firstItemIndex, 'messages.length:', messages.length, 'totalCount:', totalCount, 'followOutput:', !scrollToMessageId && !isScrollingUp);
                 }}
-            >
-                {messages.map((msg, index) => renderMessage(msg, index))}
-            </div>
+            />
         </div>
     );
 };

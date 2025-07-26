@@ -495,8 +495,39 @@ class ChatViewSet(viewsets.ModelViewSet):
         )
         
     @action(detail=False, methods=['get'])
+    def offset(self, request):
+        """messageId로 해당 메시지가 포함된 페이지의 offset 계산"""
+        room_id = request.query_params.get('room')
+        message_id = request.query_params.get('messageId')
+        page_size = int(request.query_params.get('page_size', 20))
+
+        if not room_id or not message_id:
+            return Response({'error': 'room and messageId parameters are required'}, status=400)
+
+        try:
+            # 해당 메시지의 인덱스 계산 (오래된순 정렬 기준)
+            message_index = Chat.objects.filter(
+                room_id=room_id,
+                timestamp__lte=Chat.objects.get(id=message_id).timestamp
+            ).count() - 1  # 0-based index
+
+            # offset 계산 (페이지 단위로 맞춤)
+            offset = (message_index // page_size) * page_size
+
+            return Response({
+                'offset': offset,
+                'message_index': message_index,
+                'page_size': page_size
+            })
+
+        except Chat.DoesNotExist:
+            return Response({'error': 'Message not found'}, status=404)
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+
+    @action(detail=False, methods=['get'])
     def messages(self, request):
-        """특정 방의 메시지 목록 반환 (페이지네이션 + 캐싱)"""
+        """특정 방의 메시지 목록 반환 (페이지네이션 + 캐싱)"""        
         room_id = request.query_params.get('room')
         offset = int(request.query_params.get('offset', 0))
         limit = int(request.query_params.get('limit', 20))
@@ -510,10 +541,12 @@ class ChatViewSet(viewsets.ModelViewSet):
             return Response(cached_data)
 
         try:
+            total_count = Chat.objects.filter(room_id=room_id).count()
+            print('total_count:', total_count)
             messages = Chat.objects.filter(room_id=room_id)\
                 .select_related('room', 'question_message')\
                 .prefetch_related('reactions', 'reactions__user')\
-                .order_by('-timestamp')[offset:offset + limit]
+                .order_by('timestamp')[offset:offset + limit]
 
             message_list = []
             for msg in messages:
@@ -562,7 +595,7 @@ class ChatViewSet(viewsets.ModelViewSet):
 
             response_data = {
                 'results': message_list,
-                'count': len(message_list),
+                'count': total_count,
                 'has_more': len(message_list) == limit
             }        
             

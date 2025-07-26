@@ -265,9 +265,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   const [trackingStatus, setTrackingStatus] = useState('stopped'); // 'stopped', 'starting', 'running', 'error'
   const [faceDetected, setFaceDetected] = useState(false);
 
-  // 메시지 강조 관련 상태 (제거 예정)
-  const [highlightedMessageId, setHighlightedMessageId] = useState(null);
-  const [hasScrolledToMessage, setHasScrolledToMessage] = useState(false);
+  // 메시지 강조 관련 상태 (제거됨)
 
   // MediaPipe 준비 상태
   const [isTrackingReady, setIsTrackingReady] = useState(false);
@@ -280,6 +278,8 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   const [hasMore, setHasMore] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [messageOffset, setMessageOffset] = useState(0);
+  const [firstItemIndex, setFirstItemIndex] = useState(0); // 전체 메시지 중 현재 배열의 시작 인덱스
+  const [totalCount, setTotalCount] = useState(0); // 전체 메시지 개수
 
   // 그룹 채팅방 참가자 목록 상태 (실시간 갱신)
   const [groupParticipants, setGroupParticipants] = useState([]);
@@ -2491,199 +2491,175 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   };
 
   // 메시지 불러오기 함수
-  const fetchMessages = async (roomId, offset = 0, limit = 20, append = false) => {
-    if (!roomId) return;
+  const fetchMessages = async (roomId, offset = 0, limit = 20, isPrepending = false, isInit = false, scrollToId = null) => {
+    if (loadingMessages) {
+      console.log('[fetchMessages] 이미 로딩 중이므로 스킵');
+      return;
+    }
+
     setLoadingMessages(true);
     try {
-      // 환경에 따라 API URL 설정
-      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      const apiUrl = isLocalhost
+      const apiUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
         ? 'http://localhost:8000'
         : `${window.location.protocol}//${window.location.hostname}`;
-
       const res = await fetch(`${apiUrl}/api/chat/messages/messages/?room=${roomId}&limit=${limit}&offset=${offset}`, {
         credentials: 'include',
       });
-
       if (res.ok) {
         const data = await res.json();
+        setTotalCount(data.count || 0);
+        // setHasMore(data.has_more); // 제거: hasMore는 동적으로 계산됨
+        console.log('[fetchMessages] API 응답:', data.results.map(msg => [msg.id, msg.date]), 'offset:', offset, 'limit:', limit, 'isPrepending:', isPrepending, 'isInit:', isInit);
 
-        console.log('API 응답:', data);
+        // 중복 제거 로직
+        const existingIds = new Set(messages.map(m => m.id));
+        const uniqueNewMessages = data.results.filter(msg => !existingIds.has(msg.id));
 
-        const username = loginUserRef.current?.username;
-        const userId = loginUserRef.current?.id;
-
-        if (!userId) {
-          console.warn('userId가 undefined입니다! 로그인 상태/응답을 확인하세요.');
+        if (uniqueNewMessages.length === 0) {
+          console.log('[fetchMessages] 새로운 메시지가 없으므로 스킵');
+          return;
         }
-        const mappedMessages = (data.results || []).map(msg => {
 
-          // 방향 판별 통일
-          let isMine = false;
-          let messageType = 'recv';
-
-          if (msg.sender_type === 'user') {
-            if (userId !== undefined && userId !== null) {
-              isMine = Number(msg.user_id) === Number(userId);
-
-            } else {
-              isMine = msg.username === username;
-
-            }
-            messageType = isMine ? 'send' : 'recv';
-          } else if (msg.sender_type === 'ai') {
-            messageType = 'ai';
-          }
-
-          let sender = '';
-          if (msg.sender_type === 'user') {
-            sender = msg.username || '사용자';
-          } else if (msg.sender_type === 'ai') {
-            sender = msg.ai_name || 'AI';
-          } else if (msg.sender_type === 'system') {
-            sender = 'System';
-          } else {
-            sender = msg.sender || '알 수 없음';
-          }
-
-          // imageUrl 처리: attach_image 또는 imageUrl 중에서 찾기
-          // const imageUrl = getImageUrl(msg.attach_image);
-          const imageUrl = getImageUrl(msg.imageUrl);
-
-
-          return {
-            ...msg,
-            sender: sender,
-            type: messageType,
-            imageUrl: imageUrl
-          };
-        });
-
-
-        if (append) {
+        if (isPrepending) {
           setMessages(prev => {
-            // 중복 제거: 새로 받은 메시지 중에서 이미 존재하는 id는 제외
-            const existingIds = new Set(prev.map(m => m.id));
-            const uniqueNewMessages = mappedMessages.reverse().filter(msg => !existingIds.has(msg.id));
-
-            if (uniqueNewMessages.length === 0) {
-              console.log('중복된 메시지만 있어서 추가하지 않음');
-              return prev;
-            }
-
             const newArr = [...uniqueNewMessages, ...prev];
-            console.log('prepend: id순서', newArr.map(m => m.id), '추가된 개수:', uniqueNewMessages.length);
-
-            return newArr;
+            const sliced = newArr.slice(0, 40);
+            console.log('[슬라이딩윈도우:prepend] 새로 추가:', uniqueNewMessages.map(m => m.id), '최종:', sliced.map(m => m.id));
+            console.log('[슬라이딩윈도우:prepend-계산값] offset:', offset, 'sliced.length:', sliced.length, 'totalCount:', totalCount);
+            // 상태 업데이트를 동기화
+            setFirstItemIndex(offset);
+            setMessageOffset(offset);
+            return sliced;
           });
+          console.log('[슬라이딩윈도우:상태] firstItemIndex:', firstItemIndex, 'messages.length:', messages.length, 'totalCount:', totalCount);
         } else {
-          const newArr = mappedMessages.reverse();
-          console.log('replace: id순서', newArr.map(m => m.id));
-          setMessages(() => newArr);
+          setMessages(prev => {
+            const newArr = [...prev, ...uniqueNewMessages];
+            const sliced = newArr.slice(-40);
+            console.log('[슬라이딩윈도우:append/init] 새로 추가:', uniqueNewMessages.map(m => m.id), '최종:', sliced.map(m => m.id));
+            console.log('[슬라이딩윈도우:append-계산값] offset:', offset, 'sliced.length:', sliced.length, 'totalCount:', totalCount);
+            // 상태 업데이트를 동기화
+            setFirstItemIndex(offset);
+            setMessageOffset(offset);
+            return sliced;
+          });
+          console.log('[슬라이딩윈도우:상태] firstItemIndex:', firstItemIndex, 'messages.length:', messages.length, 'totalCount:', totalCount);
         }
-        setHasMore(data.has_more);
-        setMessageOffset(offset + data.results.length);
-      } else {
-        console.error('메시지 조회 실패:', res.status, res.statusText);
+        if (scrollToId) {
+          setScrollToMessageId(scrollToId);
+          console.log('[Virtuoso scrollToMessageId]', scrollToId);
+        }
       }
     } catch (error) {
-      console.error('메시지 조회 중 오류:', error);
+      console.error('[fetchMessages] 오류:', error);
     } finally {
       setLoadingMessages(false);
     }
   };
 
-  // 대화방이 바뀔 때마다 메시지 초기화 및 불러오기 + join_room 메시지 전송 보장
+  // 대화방이 바뀔 때마다 메시지 초기화 및 불러오기
   useEffect(() => {
     if (selectedRoom && selectedRoom.id) {
       setMessages([]);
       setMessageOffset(0);
       setHasMore(true);
-      setHighlightedMessageId(null);
-      setHasScrolledToMessage(false);
-      fetchMessages(selectedRoom.id, 0, 20, false);
-      // 방에 입장 메시지 전송 (WebSocket 연결이 이미 되어 있으면 바로 전송)
-      if (ws.current && ws.current.readyState === 1) {
-        ws.current.send(JSON.stringify({
-          type: 'join_room',
-          roomId: selectedRoom.id
-        }));
+      setFirstItemIndex(0);
+      setTotalCount(0);
+      setScrollToMessageId(null);
+      // (1) messageId가 있으면 해당 메시지가 포함된 페이지로 fetch
+      if (messageIdFromUrl) {
+        fetchOffsetForMessageId(selectedRoom.id, messageIdFromUrl);
+      } else {
+        // (2) 일반 입장: 전체 개수 fetch 후 최신 20개 fetch
+        fetchTotalCountAndFetchLatest(selectedRoom.id);
+      }
+      // ... WebSocket join_room 등 기존 코드 유지 ...
+    }
+  }, [selectedRoom, messageIdFromUrl]);
 
-        // localStorage에 저장된 이미지 URL이 있는지 확인
-        const pendingImageUrl = localStorage.getItem('pending_image_url');
-        const pendingMessage = localStorage.getItem('pending_auto_message');
-        const pendingRoomId = localStorage.getItem('pending_room_id');
+  // messages가 바뀔 때마다 firstItemIndex와 messages.length의 관계 확인 및 동기화
+  useEffect(() => {
+    if (messages.length > 0) {
+      console.log('[상태 동기화] messages.length:', messages.length, 'firstItemIndex:', firstItemIndex, 'totalCount:', totalCount);
+      console.log('[상태 동기화] messages[0].id:', messages[0]?.id, 'messages[-1].id:', messages[messages.length - 1]?.id);
 
-        if (pendingImageUrl && pendingMessage && String(selectedRoom.id) === String(pendingRoomId)) {
-          // localStorage 정리 (중복 전송 방지)
-          localStorage.removeItem('pending_image_url');
-          localStorage.removeItem('pending_auto_message');
-          localStorage.removeItem('pending_room_id');
+      // Virtuoso의 startReached 조건 확인
+      const canScrollUp = firstItemIndex > 0;
+      const canScrollDown = firstItemIndex + messages.length < totalCount;
+      const newHasMore = canScrollUp || canScrollDown;
+      console.log('[Virtuoso 조건] canScrollUp:', canScrollUp, 'canScrollDown:', canScrollDown, 'hasMore:', hasMore, 'newHasMore:', newHasMore);
 
-          // WebSocket으로 이미지 메시지 전송 (백엔드 저장용)
-          const messageData = {
-            message: pendingMessage,
-            imageUrl: pendingImageUrl,
-            roomId: selectedRoom.id
-          };
-          ws.current.send(JSON.stringify(messageData));
+      // hasMore 상태를 동적으로 업데이트
+      if (newHasMore !== hasMore) {
+        console.log('[hasMore 업데이트]', hasMore, '->', newHasMore);
+        setHasMore(newHasMore);
+      }
 
-          // 즉시 로컬 상태에 이미지 메시지 추가 (WebSocket 응답 기다리지 않음)
-          const immediateMessage = {
-            id: Date.now(),
-            type: 'send',
-            text: pendingMessage,
-            date: new Date().toISOString(),
-            sender: loginUserRef.current?.username || '나',
-            sender_type: 'user',
-            user_id: loginUserRef.current?.id,
-            emotion: 'neutral',
-            imageUrl: getImageUrl(pendingImageUrl)
-          };
-          setMessages(prev => [...prev, immediateMessage]);
-        }
+      // messages 배열의 첫 번째 메시지가 실제로 firstItemIndex 위치에 있는지 확인
+      const expectedFirstId = firstItemIndex + 1; // 0-based index이므로 +1
+      const actualFirstId = messages[0]?.id;
+      if (actualFirstId !== expectedFirstId) {
+        console.warn('[상태 불일치] expectedFirstId:', expectedFirstId, 'actualFirstId:', actualFirstId);
       }
     }
-  }, [selectedRoom]);
+  }, [messages, firstItemIndex, totalCount, hasMore]);
 
-
-  // 메시지 강조 처리
-  useEffect(() => {
-    if (messageIdFromUrl && messages.length > 0 && !hasScrolledToMessage) {
-      setHighlightedMessageId(messageIdFromUrl);
-      setHasScrolledToMessage(true);
-
-      // 메시지를 찾아서 스크롤
-      setTimeout(() => {
-        const messageElement = document.getElementById(`message-${messageIdFromUrl}`);
-        if (messageElement) {
-          messageElement.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center'
-          });
-
-          // 3초 후 강조 제거
-          setTimeout(() => {
-            setHighlightedMessageId(null);
-          }, 3000);
-        }
-      }, 500);
-    }
-  }, [messageIdFromUrl, messages, hasScrolledToMessage]);
-
-  // 스크롤 상단 도달 시 이전 메시지 추가 로드
-  useEffect(() => {
-    const handleScroll = () => {
-      if (!chatScrollRef.current || loadingMessages || !hasMore) return;
-      if (chatScrollRef.current.scrollTop < 50) {
-        // 이전 메시지 추가 로드
-        fetchMessages(selectedRoom.id, messageOffset, 20, true);
+  // (2) 전체 메시지 개수 fetch 후 최신 20개 fetch
+  const fetchTotalCountAndFetchLatest = async (roomId) => {
+    try {
+      const apiUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? 'http://localhost:8000'
+        : `${window.location.protocol}//${window.location.hostname}`;
+      const res = await fetch(`${apiUrl}/api/chat/messages/messages/?room=${roomId}&limit=1&offset=0`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        const total = data.count || 0;
+        setTotalCount(total);
+        console.log('[fetchTotalCountAndFetchLatest] total:', total);
+        const offset = Math.max(0, total - 20);
+        console.log('[입장] 전체 메시지 개수:', total, '최신 20개 offset:', offset);
+        fetchMessages(roomId, offset, 20, false, true);
+        setFirstItemIndex(offset);
+        setMessageOffset(offset);
       }
-    };
-    const ref = chatScrollRef.current;
-    if (ref) ref.addEventListener('scroll', handleScroll);
-    return () => { if (ref) ref.removeEventListener('scroll', handleScroll); };
-  }, [selectedRoom, messageOffset, hasMore, loadingMessages]);
+    } catch (e) {
+      fetchMessages(roomId, 0, 20, false, true);
+      setFirstItemIndex(0);
+      setMessageOffset(0);
+    }
+  };
+
+  // (3) messageId로 offset을 계산해서 fetch하는 함수 (슬라이딩 윈도우 40개 유지)
+  const fetchOffsetForMessageId = async (roomId, messageId) => {
+    try {
+      const apiUrl = process.env.NODE_ENV === 'development'
+        ? 'http://localhost:8000'
+        : `${window.location.protocol}//${window.location.hostname}`;
+      const res = await fetch(`${apiUrl}/api/chat/messages/offset/?room=${roomId}&messageId=${messageId}&page_size=20`, {
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const offset = Math.max(0, data.offset - 20);
+        console.log('[특정 메시지 이동] offset:', data.offset, 'fetch offset:', offset, 'limit: 40');
+        fetchMessages(roomId, offset, 40, false, true, messageId);
+        setFirstItemIndex(offset);
+        setMessageOffset(offset);
+      } else {
+        fetchMessages(roomId, 0, 40, false, true, messageId);
+        setFirstItemIndex(0);
+        setMessageOffset(0);
+      }
+    } catch (error) {
+      fetchMessages(roomId, 0, 40, false, true, messageId);
+      setFirstItemIndex(0);
+      setMessageOffset(0);
+    }
+  };
+
+  // 메시지 강조 처리 (제거됨)
+
+  // 기존 스크롤 이벤트 리스너 제거 (Virtuoso가 처리함)
 
   // userSettings가 바뀔 때마다 각 상태에 자동 반영
   useEffect(() => {
@@ -2883,11 +2859,10 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     const messageId = params.get('messageId');
     if (!messageId) return;
 
-    if (!hasScrolledToMessage && messages.length > 0 && messages.some(m => String(m.id) === String(messageId))) {
+    if (messages.length > 0 && messages.some(m => String(m.id) === String(messageId))) {
       setScrollToMessageId(messageId);
-      setHasScrolledToMessage(true);
     }
-  }, [location, messages, hasScrolledToMessage]);
+  }, [location, messages]);
 
   return (
     <>
@@ -3003,9 +2978,8 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                   highlightMessageId={highlightMessageId}
                   getSenderColor={getSenderColor}
                   onReply={msg => setReplyTo(msg)}
-                  onMessageClick={msg => setHighlightedMessageId(msg.id)}
-                  onReplyQuoteClick={id => setHighlightedMessageId(id)}
-                  itemHeight={80}
+                  onMessageClick={msg => { }} // 메시지 강조 기능 제거
+                  onReplyQuoteClick={id => { }} // 메시지 강조 기능 제거
                   onImageClick={setViewerImage}
                   favoriteMessages={favoriteMessages}
                   onToggleFavorite={handleToggleFavorite}
@@ -3015,14 +2989,29 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                       fetchMessages(selectedRoom.id, 0, 20, false);
                     }
                   }}
-                  onLoadMore={() => {
+                  onLoadMore={(isPrepending) => {
                     if (!loadingMessages && hasMore && selectedRoom && selectedRoom.id) {
-                      fetchMessages(selectedRoom.id, messageOffset, 20, true);
+                      console.log('[onLoadMore] isPrepending:', isPrepending, '현재 messages.length:', messages.length, 'firstItemIndex:', firstItemIndex);
+                      console.log('[Virtuoso 상태] firstItemIndex:', firstItemIndex, 'messages.length:', messages.length, 'messages[0].id:', messages[0]?.id, 'messages[-1].id:', messages[messages.length - 1]?.id);
+                      console.log('[Virtuoso 렌더] firstItemIndex:', firstItemIndex, 'messages.length:', messages.length, 'totalCount:', totalCount);
+                      if (isPrepending) {
+                        // 위로 스크롤: 현재 첫 번째 메시지 기준으로 이전 20개 fetch
+                        const newOffset = Math.max(0, firstItemIndex - 20);
+                        console.log('[onLoadMore:prepend] newOffset:', newOffset, 'firstItemIndex:', firstItemIndex);
+                        fetchMessages(selectedRoom.id, newOffset, 20, true);
+                      } else {
+                        // 아래로 스크롤: 현재 마지막 메시지 기준으로 다음 20개 fetch
+                        const newOffset = firstItemIndex + messages.length;
+                        console.log('[onLoadMore:append] newOffset:', newOffset, 'firstItemIndex:', firstItemIndex, 'messages.length:', messages.length);
+                        fetchMessages(selectedRoom.id, newOffset, 20, false);
+                      }
                     }
                   }}
                   hasMore={hasMore}
                   selectedRoomId={selectedRoom?.id}
                   loadingMessages={loadingMessages}
+                  firstItemIndex={firstItemIndex}
+                  totalCount={totalCount}
                 />
               </div>
 
@@ -3054,7 +3043,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
-        }} onClick={() => setHighlightedMessageId(replyTo.id)}>
+        }} onClick={() => { }}>
           <b>{replyTo.sender || replyTo.username || '익명'}</b>: {replyTo.text ? replyTo.text.slice(0, 60) : '[첨부/삭제됨]'}
           <button style={{ marginLeft: 8, color: '#2196f3', background: 'none', border: 'none', cursor: 'pointer', fontSize: 15 }} onClick={() => setReplyTo(null)}>취소</button>
         </div>
