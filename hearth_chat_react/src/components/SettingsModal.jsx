@@ -72,7 +72,7 @@ const SettingsModal = ({
   requestMicrophonePermission,
   loginUser
 }) => {
-  
+
   const [saving, setSaving] = useState(false);
 
   // voiceList가 undefined일 경우 빈 배열로 초기화
@@ -200,17 +200,32 @@ const SettingsModal = ({
     const left = window.screenX + (window.outerWidth - popupWidth) / 2;
     const top = window.screenY + (window.outerHeight - popupHeight) / 2;
 
-    window.open(
-      `${API_BASE}/accounts/${provider}/login/?process=connect`,
+    const popup = window.open(
+      `${API_BASE}/oauth/${provider}/connect/`,
       'social_connect',
       `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes`
     );
+
+    if (!popup) {
+      alert('팝업창이 차단되었습니다. 브라우저 설정에서 팝업을 허용해주세요.');
+      return;
+    }
+
+    // 팝업창이 닫혔는지 모니터링
+    const checkPopupClosed = setInterval(() => {
+      if (popup.closed) {
+        console.log('[SettingsModal] 팝업창이 닫힘 - 모달 닫기');
+        clearInterval(checkPopupClosed);
+        // 팝업이 닫히면 모달도 닫기
+        onClose();
+      }
+    }, 1000);
   };
 
   // 유저 정보 로드
   useEffect(() => {
     if (isOpen && tab === 'user') {
-      
+
       setLoading(true);
       if (loginUser) {
         setUser(loginUser);
@@ -231,8 +246,13 @@ const SettingsModal = ({
           .catch(() => setError('서버 오류'))
           .finally(() => setLoading(false));
       }
+
+      // 연결된 계정 목록 갱신
+      fetchConnections();
     }
   }, [isOpen, tab, loginUser]);
+
+
 
   const handleLogout = async () => {
     setLogoutLoading(true);
@@ -408,222 +428,222 @@ const SettingsModal = ({
                 </button>
               )}
               {/* 기존 유저 정보/버튼 영역 */}
-            <div>
-              {loading ? (
-                <div>로딩 중...</div>
-              ) : error ? (
-                <div style={{ color: 'red', textAlign: 'center' }}>{error}</div>
-              ) : user ? (
-                <>
-                  <div style={{ textAlign: 'center', marginBottom: 16 }}>
-                    <div style={{ fontWeight: 600, fontSize: 20 }}>{user.username}</div>
-                    <div style={{ color: '#888', fontSize: 15 }}>{user.email}</div>
-                    <div style={{ marginTop: 8, fontSize: 13, color: '#888' }}>
-                      로그인 방식: {user.social_accounts && user.social_accounts.length > 0 ? (
-                        <>
-                          {user.social_accounts.map(p => getProviderLabel(p)).join(', ')}
-                          {user.has_password ? ' + 이메일/비밀번호' : ''}
-                        </>
-                      ) : '이메일/비밀번호'}
-                    </div>
-                    {user.email && (
-                      <div style={{ marginTop: 4, fontSize: 12, color: user.email_verified ? '#4caf50' : '#ff9800' }}>
-                        이메일: {user.email} {user.email_verified ? '✅' : '⚠️ 미인증'}
+              <div>
+                {loading ? (
+                  <div>로딩 중...</div>
+                ) : error ? (
+                  <div style={{ color: 'red', textAlign: 'center' }}>{error}</div>
+                ) : user ? (
+                  <>
+                    <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                      <div style={{ fontWeight: 600, fontSize: 20 }}>{user.username}</div>
+                      <div style={{ color: '#888', fontSize: 15 }}>{user.email}</div>
+                      <div style={{ marginTop: 8, fontSize: 13, color: '#888' }}>
+                        로그인 방식: {user.social_accounts && user.social_accounts.length > 0 ? (
+                          <>
+                            {user.social_accounts.map(p => getProviderLabel(p)).join(', ')}
+                            {user.has_password ? ' + 이메일/비밀번호' : ''}
+                          </>
+                        ) : '이메일/비밀번호'}
                       </div>
-                    )}
-                  </div>
-                  <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                    <li>
-                      <button
-                        className="settings-modal-button"
-                        style={{ width: '100%', marginBottom: 8 }}
-                        onClick={() => setShowEmailModal(true)}
-                      >
-                        이메일 변경
-                      </button>
-                    </li>
-                    <li>
-                      {user.is_social_only ? (
-                        <div style={{ color: '#888', fontSize: 14, marginBottom: 8, textAlign: 'center' }}>
-                          소셜 계정만 연결된 사용자는 비밀번호를 변경할 수 없습니다.
+                      {user.email && (
+                        <div style={{ marginTop: 4, fontSize: 12, color: user.email_verified ? '#4caf50' : '#ff9800' }}>
+                          이메일: {user.email} {user.email_verified ? '✅' : '⚠️ 미인증'}
                         </div>
-                      ) : (
+                      )}
+                    </div>
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                      <li>
                         <button
                           className="settings-modal-button"
                           style={{ width: '100%', marginBottom: 8 }}
-                          onClick={() => setShowPasswordModal(true)}
+                          onClick={() => setShowEmailModal(true)}
                         >
-                          비밀번호 변경
+                          이메일 변경
                         </button>
-                      )}
-                    </li>
-                    <li>
-                      <button
-                        className="settings-modal-button"
-                        style={{ width: '100%', marginBottom: 8 }}
-                        onClick={() => setShowConnectionsModal(true)}
-                      >
-                        계정 연결
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        className="settings-modal-button"
-                        style={{ width: '100%', background: '#eee', color: '#333' }}
-                        onClick={handleLogout}
-                        disabled={logoutLoading}
-                      >
-                        {logoutLoading ? '로그아웃 중...' : '로그아웃'}
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        className="settings-modal-button"
-                        style={{ width: '100%', background: '#f44336', color: '#fff' }}
-                        onClick={() => setShowDeleteConfirmModal(true)}
-                      >
-                        회원탈퇴
-                      </button>
-                    </li>
-                  </ul>
-                  {/* 이메일 변경 모달 */}
-                  {showEmailModal && (
-                    <div className="settings-modal-overlay" onClick={() => { setShowEmailModal(false); setEmailMsg(null); }}>
-                      <div className="settings-modal" onClick={e => e.stopPropagation()}>
-                        <div className="settings-modal-header">
-                          <h2>이메일 변경</h2>
-                          <button className="settings-modal-close" onClick={() => { setShowEmailModal(false); setEmailMsg(null); }} aria-label="닫기">✕</button>
-                        </div>
-                        <div className="settings-modal-content">
-                          <form className="settings-modal-form" onSubmit={handleEmailChange}>
-                            <input type="email" className="settings-modal-input" placeholder="새 이메일 주소" value={emailForm} onChange={e => setEmailForm(e.target.value)} required />
-                            <button className="settings-modal-button" style={{ width: '100%' }} type="submit">변경</button>
-                          </form>
-                          {emailMsg && <div style={{ color: emailMsg.startsWith('실패') ? 'red' : 'green', marginTop: 8, textAlign: 'center' }}>{emailMsg}</div>}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  {/* 비밀번호 변경 모달 */}
-                  {showPasswordModal && (
-                    <div className="settings-modal-overlay" onClick={() => { setShowPasswordModal(false); setPwMsg(null); }}>
-                      <div className="settings-modal" onClick={e => e.stopPropagation()}>
-                        <div className="settings-modal-header">
-                          <h2>비밀번호 변경</h2>
-                          <button className="settings-modal-close" onClick={() => { setShowPasswordModal(false); setPwMsg(null); }} aria-label="닫기">✕</button>
-                        </div>
-                        <div className="settings-modal-content">
-                          <form className="settings-modal-form" onSubmit={handlePwChange}>
-                            <input type="password" className="settings-modal-input" placeholder="현재 비밀번호" value={pwForm.old} onChange={e => setPwForm(f => ({ ...f, old: e.target.value }))} required />
-                            <input type="password" className="settings-modal-input" placeholder="새 비밀번호" value={pwForm.pw1} onChange={e => setPwForm(f => ({ ...f, pw1: e.target.value }))} required />
-                            <input type="password" className="settings-modal-input" placeholder="새 비밀번호 확인" value={pwForm.pw2} onChange={e => setPwForm(f => ({ ...f, pw2: e.target.value }))} required />
-                            <button className="settings-modal-button" style={{ width: '100%' }} type="submit">변경</button>
-                          </form>
-                          {pwMsg && <div style={{ color: pwMsg.startsWith('실패') ? 'red' : 'green', marginTop: 8, textAlign: 'center' }}>{pwMsg}</div>}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  {/* 계정 연결 모달 */}
-                  {showConnectionsModal && (
-                    <div className="settings-modal-overlay" onClick={() => { setShowConnectionsModal(false); setConnMsg(null); }}>
-                      <div className="settings-modal" onClick={e => e.stopPropagation()}>
-                        <div className="settings-modal-header">
-                          <h2>계정 연결</h2>
-                          <button className="settings-modal-close" onClick={() => { setShowConnectionsModal(false); setConnMsg(null); }} aria-label="닫기">✕</button>
-                        </div>
-                        <div className="settings-modal-content">
-                          <div style={{ marginBottom: 12 }}>
-                            <b>연결된 소셜 계정:</b><br />
-                            {connections.length > 0 ? (
-                              connections.map(acc => (
-                                <span key={acc.provider} style={{ marginRight: 8 }}>
-                                  {getProviderLabel(acc.provider)}
-                                  <button style={{ marginLeft: 6, fontSize: 13 }} onClick={() => handleDisconnect(acc.provider)}>해제</button>
-                                </span>
-                              ))
-                            ) : '없음'}
+                      </li>
+                      <li>
+                        {user.is_social_only ? (
+                          <div style={{ color: '#888', fontSize: 14, marginBottom: 8, textAlign: 'center' }}>
+                            소셜 계정만 연결된 사용자는 비밀번호를 변경할 수 없습니다.
                           </div>
-                          <div style={{ marginBottom: 12 }}>
-                            <b>연결 가능한 소셜 계정:</b><br />
-                            {SOCIAL_PROVIDERS.filter(p => !connections.find(c => c.provider === p.provider)).map(p => (
-                              <button key={p.provider} className="settings-modal-button" style={{ marginRight: 8, marginBottom: 8, fontSize: 15, padding: '6px 12px' }} onClick={() => handleConnect(p.provider)}>
-                                {p.label} 연결
+                        ) : (
+                          <button
+                            className="settings-modal-button"
+                            style={{ width: '100%', marginBottom: 8 }}
+                            onClick={() => setShowPasswordModal(true)}
+                          >
+                            비밀번호 변경
+                          </button>
+                        )}
+                      </li>
+                      <li>
+                        <button
+                          className="settings-modal-button"
+                          style={{ width: '100%', marginBottom: 8 }}
+                          onClick={() => setShowConnectionsModal(true)}
+                        >
+                          계정 연결
+                        </button>
+                      </li>
+                      <li>
+                        <button
+                          className="settings-modal-button"
+                          style={{ width: '100%', background: '#eee', color: '#333' }}
+                          onClick={handleLogout}
+                          disabled={logoutLoading}
+                        >
+                          {logoutLoading ? '로그아웃 중...' : '로그아웃'}
+                        </button>
+                      </li>
+                      <li>
+                        <button
+                          className="settings-modal-button"
+                          style={{ width: '100%', background: '#f44336', color: '#fff' }}
+                          onClick={() => setShowDeleteConfirmModal(true)}
+                        >
+                          회원탈퇴
+                        </button>
+                      </li>
+                    </ul>
+                    {/* 이메일 변경 모달 */}
+                    {showEmailModal && (
+                      <div className="settings-modal-overlay" onClick={() => { setShowEmailModal(false); setEmailMsg(null); }}>
+                        <div className="settings-modal" onClick={e => e.stopPropagation()}>
+                          <div className="settings-modal-header">
+                            <h2>이메일 변경</h2>
+                            <button className="settings-modal-close" onClick={() => { setShowEmailModal(false); setEmailMsg(null); }} aria-label="닫기">✕</button>
+                          </div>
+                          <div className="settings-modal-content">
+                            <form className="settings-modal-form" onSubmit={handleEmailChange}>
+                              <input type="email" className="settings-modal-input" placeholder="새 이메일 주소" value={emailForm} onChange={e => setEmailForm(e.target.value)} required />
+                              <button className="settings-modal-button" style={{ width: '100%' }} type="submit">변경</button>
+                            </form>
+                            {emailMsg && <div style={{ color: emailMsg.startsWith('실패') ? 'red' : 'green', marginTop: 8, textAlign: 'center' }}>{emailMsg}</div>}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {/* 비밀번호 변경 모달 */}
+                    {showPasswordModal && (
+                      <div className="settings-modal-overlay" onClick={() => { setShowPasswordModal(false); setPwMsg(null); }}>
+                        <div className="settings-modal" onClick={e => e.stopPropagation()}>
+                          <div className="settings-modal-header">
+                            <h2>비밀번호 변경</h2>
+                            <button className="settings-modal-close" onClick={() => { setShowPasswordModal(false); setPwMsg(null); }} aria-label="닫기">✕</button>
+                          </div>
+                          <div className="settings-modal-content">
+                            <form className="settings-modal-form" onSubmit={handlePwChange}>
+                              <input type="password" className="settings-modal-input" placeholder="현재 비밀번호" value={pwForm.old} onChange={e => setPwForm(f => ({ ...f, old: e.target.value }))} required />
+                              <input type="password" className="settings-modal-input" placeholder="새 비밀번호" value={pwForm.pw1} onChange={e => setPwForm(f => ({ ...f, pw1: e.target.value }))} required />
+                              <input type="password" className="settings-modal-input" placeholder="새 비밀번호 확인" value={pwForm.pw2} onChange={e => setPwForm(f => ({ ...f, pw2: e.target.value }))} required />
+                              <button className="settings-modal-button" style={{ width: '100%' }} type="submit">변경</button>
+                            </form>
+                            {pwMsg && <div style={{ color: pwMsg.startsWith('실패') ? 'red' : 'green', marginTop: 8, textAlign: 'center' }}>{pwMsg}</div>}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {/* 계정 연결 모달 */}
+                    {showConnectionsModal && (
+                      <div className="settings-modal-overlay" onClick={() => { setShowConnectionsModal(false); setConnMsg(null); }}>
+                        <div className="settings-modal" onClick={e => e.stopPropagation()}>
+                          <div className="settings-modal-header">
+                            <h2>계정 연결</h2>
+                            <button className="settings-modal-close" onClick={() => { setShowConnectionsModal(false); setConnMsg(null); }} aria-label="닫기">✕</button>
+                          </div>
+                          <div className="settings-modal-content">
+                            <div style={{ marginBottom: 12 }}>
+                              <b>연결된 소셜 계정:</b><br />
+                              {connections.length > 0 ? (
+                                connections.map(acc => (
+                                  <span key={acc.provider} style={{ marginRight: 8 }}>
+                                    {getProviderLabel(acc.provider)}
+                                    <button style={{ marginLeft: 6, fontSize: 13 }} onClick={() => handleDisconnect(acc.provider)}>해제</button>
+                                  </span>
+                                ))
+                              ) : '없음'}
+                            </div>
+                            <div style={{ marginBottom: 12 }}>
+                              <b>연결 가능한 소셜 계정:</b><br />
+                              {SOCIAL_PROVIDERS.filter(p => !connections.find(c => c.provider === p.provider)).map(p => (
+                                <button key={p.provider} className="settings-modal-button" style={{ marginRight: 8, marginBottom: 8, fontSize: 15, padding: '6px 12px' }} onClick={() => handleConnect(p.provider)}>
+                                  {p.label} 연결
+                                </button>
+                              ))}
+                            </div>
+                            {connMsg && <div style={{ color: connMsg.includes('성공') ? 'green' : 'red', marginTop: 8, textAlign: 'center' }}>{connMsg}</div>}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {/* 회원탈퇴 확인 모달 */}
+                    {showDeleteConfirmModal && (
+                      <div className="settings-modal-overlay" onClick={() => { setShowDeleteConfirmModal(false); setDeleteConfirmation(''); setDeleteError(null); }}>
+                        <div className="settings-modal" onClick={e => e.stopPropagation()}>
+                          <div className="settings-modal-header">
+                            <h2>회원탈퇴</h2>
+                            <button className="settings-modal-close" onClick={() => { setShowDeleteConfirmModal(false); setDeleteConfirmation(''); setDeleteError(null); }} aria-label="닫기">✕</button>
+                          </div>
+                          <div className="settings-modal-content">
+                            <div style={{ marginBottom: 16, textAlign: 'center' }}>
+                              <div style={{ fontSize: 18, fontWeight: 'bold', color: '#f44336', marginBottom: 8 }}>
+                                ⚠️ 회원탈퇴 주의사항
+                              </div>
+                              <div style={{ fontSize: 14, color: '#666', lineHeight: 1.5, marginBottom: 16 }}>
+                                회원탈퇴 시 다음 데이터가 <strong>영구적으로 삭제</strong>됩니다:
+                                <br />• 계정 정보 및 개인정보
+                                <br />• 작성한 모든 채팅 메시지
+                                <br />• 생성한 채팅방
+                                <br />• 연결된 소셜 계정
+                                <br />• 사용자 설정
+                              </div>
+                              <div style={{ fontSize: 14, color: '#f44336', fontWeight: 'bold' }}>
+                                이 작업은 되돌릴 수 없습니다!
+                              </div>
+                            </div>
+                            <div style={{ marginBottom: 16 }}>
+                              <label style={{ display: 'block', marginBottom: 8, fontSize: 14 }}>
+                                회원탈퇴를 진행하려면 아래에 <strong>"DELETE_ACCOUNT"</strong>를 입력하세요:
+                              </label>
+                              <input
+                                type="text"
+                                className="settings-modal-input"
+                                placeholder="DELETE_ACCOUNT"
+                                value={deleteConfirmation}
+                                onChange={e => setDeleteConfirmation(e.target.value)}
+                                style={{ borderColor: deleteConfirmation === 'DELETE_ACCOUNT' ? '#4caf50' : '#f44336' }}
+                              />
+                            </div>
+                            {deleteError && (
+                              <div style={{ color: 'red', marginBottom: 16, textAlign: 'center' }}>
+                                {deleteError}
+                              </div>
+                            )}
+                            <div style={{ display: 'flex', gap: 12 }}>
+                              <button
+                                className="settings-modal-button"
+                                style={{ flex: 1, background: '#666' }}
+                                onClick={() => { setShowDeleteConfirmModal(false); setDeleteConfirmation(''); setDeleteError(null); }}
+                                disabled={deleteLoading}
+                              >
+                                취소
                               </button>
-                            ))}
-                          </div>
-                          {connMsg && <div style={{ color: connMsg.includes('성공') ? 'green' : 'red', marginTop: 8, textAlign: 'center' }}>{connMsg}</div>}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  {/* 회원탈퇴 확인 모달 */}
-                  {showDeleteConfirmModal && (
-                    <div className="settings-modal-overlay" onClick={() => { setShowDeleteConfirmModal(false); setDeleteConfirmation(''); setDeleteError(null); }}>
-                      <div className="settings-modal" onClick={e => e.stopPropagation()}>
-                        <div className="settings-modal-header">
-                          <h2>회원탈퇴</h2>
-                          <button className="settings-modal-close" onClick={() => { setShowDeleteConfirmModal(false); setDeleteConfirmation(''); setDeleteError(null); }} aria-label="닫기">✕</button>
-                        </div>
-                        <div className="settings-modal-content">
-                          <div style={{ marginBottom: 16, textAlign: 'center' }}>
-                            <div style={{ fontSize: 18, fontWeight: 'bold', color: '#f44336', marginBottom: 8 }}>
-                              ⚠️ 회원탈퇴 주의사항
+                              <button
+                                className="settings-modal-button"
+                                style={{ flex: 1, background: '#f44336' }}
+                                onClick={handleDeleteAccount}
+                                disabled={deleteLoading || deleteConfirmation !== 'DELETE_ACCOUNT'}
+                              >
+                                {deleteLoading ? '처리 중...' : '회원탈퇴'}
+                              </button>
                             </div>
-                            <div style={{ fontSize: 14, color: '#666', lineHeight: 1.5, marginBottom: 16 }}>
-                              회원탈퇴 시 다음 데이터가 <strong>영구적으로 삭제</strong>됩니다:
-                              <br />• 계정 정보 및 개인정보
-                              <br />• 작성한 모든 채팅 메시지
-                              <br />• 생성한 채팅방
-                              <br />• 연결된 소셜 계정
-                              <br />• 사용자 설정
-                            </div>
-                            <div style={{ fontSize: 14, color: '#f44336', fontWeight: 'bold' }}>
-                              이 작업은 되돌릴 수 없습니다!
-                            </div>
-                          </div>
-                          <div style={{ marginBottom: 16 }}>
-                            <label style={{ display: 'block', marginBottom: 8, fontSize: 14 }}>
-                              회원탈퇴를 진행하려면 아래에 <strong>"DELETE_ACCOUNT"</strong>를 입력하세요:
-                            </label>
-                            <input
-                              type="text"
-                              className="settings-modal-input"
-                              placeholder="DELETE_ACCOUNT"
-                              value={deleteConfirmation}
-                              onChange={e => setDeleteConfirmation(e.target.value)}
-                              style={{ borderColor: deleteConfirmation === 'DELETE_ACCOUNT' ? '#4caf50' : '#f44336' }}
-                            />
-                          </div>
-                          {deleteError && (
-                            <div style={{ color: 'red', marginBottom: 16, textAlign: 'center' }}>
-                              {deleteError}
-                            </div>
-                          )}
-                          <div style={{ display: 'flex', gap: 12 }}>
-                            <button
-                              className="settings-modal-button"
-                              style={{ flex: 1, background: '#666' }}
-                              onClick={() => { setShowDeleteConfirmModal(false); setDeleteConfirmation(''); setDeleteError(null); }}
-                              disabled={deleteLoading}
-                            >
-                              취소
-                            </button>
-                            <button
-                              className="settings-modal-button"
-                              style={{ flex: 1, background: '#f44336' }}
-                              onClick={handleDeleteAccount}
-                              disabled={deleteLoading || deleteConfirmation !== 'DELETE_ACCOUNT'}
-                            >
-                              {deleteLoading ? '처리 중...' : '회원탈퇴'}
-                            </button>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                </>
-              ) : null}
+                    )}
+                  </>
+                ) : null}
               </div>
             </div>
           )}

@@ -22,19 +22,22 @@ const SOCIALS = [
     },
     {
         name: 'Kakao',
-        url: `${BACKEND_URL}/accounts/kakao/login/?process=login`,
+        // Django Allauth 중간창 우회를 위해 직접 OAuth URL 사용
+        url: `${BACKEND_URL}/oauth/kakao/`,
         className: 'kakao',
         logo: process.env.PUBLIC_URL + '/oauth_logo/KakaoTalk.svg',
     },
     {
         name: 'Naver',
-        url: `${BACKEND_URL}/accounts/naver/login/?process=login`,
+        // Django Allauth 중간창 우회를 위해 직접 OAuth URL 사용
+        url: `${BACKEND_URL}/oauth/naver/`,
         className: 'naver',
         logo: process.env.PUBLIC_URL + '/oauth_logo/Naver.svg',
     },
     {
         name: 'GitHub',
-        url: `${BACKEND_URL}/accounts/github/login/?process=login`,
+        // Django Allauth 중간창 우회를 위해 직접 OAuth URL 사용
+        url: `${BACKEND_URL}/oauth/github/`,
         className: 'github',
         logo: process.env.PUBLIC_URL + '/oauth_logo/Github.svg',
     },

@@ -37,7 +37,7 @@ sys.path.append(os.path.join(BASE_DIR, 'chat'))
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "your-default-secret-key")
-DEBUG = False # 임시로 True로 설정하여 에러 메시지 확인
+DEBUG = True # 디버깅을 위해 True로 설정
 
 # Railway 배포 시 디버깅을 위해 임시로 DEBUG 활성화
 if os.environ.get("RAILWAY_ENVIRONMENT"):
@@ -422,6 +422,7 @@ ACCOUNT_RATE_LIMITS = {
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
         'SCOPE': [
+            'openid',
             'profile',
             'email',
         ],
@@ -539,7 +540,7 @@ LOGGING = {
     'loggers': {
         'django': {
             'handlers': ['console'],
-            'level': 'INFO',
+            'level': 'DEBUG',
             'propagate': False,
         },
         'allauth': {
@@ -553,6 +554,21 @@ LOGGING = {
             'propagate': False,
         },
         'allauth.socialaccount': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'allauth.socialaccount.providers.google': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'allauth.socialaccount.providers.oauth2': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'allauth.socialaccount.providers.oauth2.client': {
             'handlers': ['console'],
             'level': 'DEBUG',
             'propagate': False,

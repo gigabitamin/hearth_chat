@@ -245,7 +245,7 @@ function AppContent(props) {
   } = props;
 
   const [isFavoriteRoom, setIsFavoriteRoom] = useState(false);
-    // 즐겨찾기 토글 함수
+  // 즐겨찾기 토글 함수
   const handleToggleFavoriteRoom = () => {
     setIsFavoriteRoom(prev => !prev);
   };
@@ -502,11 +502,42 @@ function AppContent(props) {
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
         onSocialLogin={(url) => {
+          console.log('[App] 소셜 로그인 팝업창 열기 시도:', url);
           const popupWidth = 480;
           const popupHeight = 600;
           const left = window.screenX + (window.outerWidth - popupWidth) / 2;
           const top = window.screenY + (window.outerHeight - popupHeight) / 2;
-          window.open(url, 'social_login', `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes`);
+          const popupFeatures = `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes,menubar=no,toolbar=no,location=no`;
+
+          const popup = window.open(url, 'social_login', popupFeatures);
+
+          if (popup) {
+            console.log('[App] 팝업창 열기 성공:', popup);
+            console.log('[App] 팝업창 window.opener:', popup.opener);
+
+            // 팝업창이 닫혔는지 확인하는 인터벌
+            const checkClosed = setInterval(() => {
+              if (popup.closed) {
+                console.log('[App] 팝업창이 닫힘');
+                clearInterval(checkClosed);
+
+                // 로그인 모달 닫기
+                setIsLoginModalOpen(false);
+                console.log('[App] 로그인 모달 닫기 완료');
+
+                // 로그인 상태 확인
+                checkLoginStatus();
+                console.log('[App] 로그인 상태 확인 완료');
+
+                // 페이지 새로고침
+                console.log('[App] 페이지 새로고침 실행');
+                window.location.reload();
+              }
+            }, 1000);
+          } else {
+            console.error('[App] 팝업창 열기 실패 - 브라우저가 팝업을 차단했을 수 있습니다');
+            alert('팝업창이 차단되었습니다. 브라우저 설정에서 팝업을 허용해주세요.');
+          }
         }}
       />
       {/* 설정 모달 */}
@@ -733,7 +764,7 @@ function AppContent(props) {
   );
 }
 
-function App() {      
+function App() {
   const location = useLocation();
   const [loginUser, setLoginUser] = useState(null);
   const [loginLoading, setLoginLoading] = useState(true);
@@ -864,6 +895,34 @@ function App() {
     setShowRoomListOverlay(false); // 방 생성 후 오버레이도 닫기
     window.location.href = `/room/${newRoom.id}`;
   };
+
+  // 팝업창으로부터 메시지 수신 처리 (백업용)
+  useEffect(() => {
+    const handleMessage = (event) => {
+      console.log('[App] 메시지 수신:', event.data, 'from:', event.origin);
+      console.log('[App] 현재 설정 모달 상태:', isSettingsModalOpen);
+      
+      if (event.data === 'login_success') {
+        console.log('[App] 로그인 성공 메시지 수신 (postMessage)');
+        // 로그인 모달 닫기
+        setIsLoginModalOpen(false);
+        console.log('[App] 로그인 모달 닫기 완료 (postMessage)');
+        // 로그인 상태 다시 확인
+        checkLoginStatus();
+        console.log('[App] 로그인 상태 확인 완료 (postMessage)');
+        // 페이지 새로고침
+        console.log('[App] 페이지 새로고침 실행 (postMessage)');
+        window.location.reload();
+      }
+    };
+
+    console.log('[App] 메시지 리스너 등록');
+    window.addEventListener('message', handleMessage);
+    return () => {
+      console.log('[App] 메시지 리스너 제거');
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [isSettingsModalOpen]);
 
   // 앱 시작 시 CSRF 토큰 및 로그인 상태/설정값 가져오기
   useEffect(() => {
