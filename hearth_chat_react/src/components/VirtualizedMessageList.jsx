@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Virtuoso } from 'react-virtuoso';
 import './VirtualizedMessageList.css';
-
 
 // CSRF 토큰 쿠키 가져오기
 function getCookie(name) {
@@ -30,7 +28,6 @@ const csrfFetch = async (url, options = {}) => {
 
     return fetch(url, mergedOptions);
 };
-
 
 // 환경에 따라 API_BASE 자동 설정 함수
 const getApiBase = () => {
@@ -75,7 +72,7 @@ const VirtualizedMessageList = ({
     onReply, // 답장 콜백
     onReplyQuoteClick, // 인용 클릭 콜백
     onImageClick, // 이미지 클릭 콜백(모달)
-    selectedRoomId, // 방이 바뀔 때마다 Virtuoso key로 사용
+    selectedRoomId, // 방이 바뀔 때마다 최신 위치로 이동
     favoriteMessages = [],
     onToggleFavorite = () => { },
     onMessageDelete, // 메시지 삭제 콜백    
@@ -83,7 +80,7 @@ const VirtualizedMessageList = ({
     loadingMessages = false, // 메시지 로딩 상태
 }) => {
     // 상태 선언은 최상단에 모두 위치시킴 (ReferenceError 방지)
-    const virtuosoRef = useRef(null);
+    const scrollRef = useRef(null);
     const [showNewMsgAlert, setShowNewMsgAlert] = useState(false);
     const [atBottom, setAtBottom] = useState(true);
     const prevMessagesLength = useRef(messages.length);
@@ -92,21 +89,6 @@ const VirtualizedMessageList = ({
     const [pinnedIds, setPinnedIds] = useState([]);
     const [tempHighlightedId, setTempHighlightedId] = useState(null);
 
-    // prepend 스크롤 위치 보정용 상태
-    const prevFirstMsgId = useRef(null);
-    const isPrepending = useRef(false);
-
-    // messages가 prepend될 때(앞에 추가) 스크롤 위치 보정
-    useEffect(() => {
-        if (isPrepending.current && prevFirstMsgId.current && virtuosoRef.current) {
-            const idx = messages.findIndex(m => m.id === prevFirstMsgId.current);
-            if (idx !== -1) {
-                virtuosoRef.current.scrollToIndex({ index: idx, align: 'start' });
-            }
-            isPrepending.current = false;
-            prevFirstMsgId.current = null;
-        }
-    }, [messages]);
     // deleteMessage 함수도 반드시 위에서 선언
     const deleteMessage = async (messageId) => {
         try {
@@ -131,9 +113,9 @@ const VirtualizedMessageList = ({
     // 1. [입장] 등 특정 메시지로 이동
     useEffect(() => {
         if (scrollToMessageId && messages.length > 0) {
-            const idx = messages.findIndex(m => String(m.id) === String(scrollToMessageId));
-            if (idx !== -1 && virtuosoRef.current) {
-                virtuosoRef.current.scrollToIndex({ index: idx, align: 'center', behavior: 'smooth' });
+            const messageElement = document.getElementById(`message-${scrollToMessageId}`);
+            if (messageElement && scrollRef.current) {
+                messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         }
     }, [scrollToMessageId, messages]);
@@ -142,9 +124,9 @@ const VirtualizedMessageList = ({
     useEffect(() => {
         if (highlightMessageId && messages.length > 0) {
             setTempHighlightedId(highlightMessageId);
-            const idx = messages.findIndex(m => String(m.id) === String(highlightMessageId));
-            if (idx !== -1 && virtuosoRef.current) {
-                virtuosoRef.current.scrollToIndex({ index: idx, align: 'center', behavior: 'smooth' });
+            const messageElement = document.getElementById(`message-${highlightMessageId}`);
+            if (messageElement && scrollRef.current) {
+                messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
             const timeout = setTimeout(() => setTempHighlightedId(null), 1000);
             return () => clearTimeout(timeout);
@@ -154,10 +136,9 @@ const VirtualizedMessageList = ({
     // 3. 새 메시지 도착 시 자동 최신 스크롤/알림
     useEffect(() => {
         if (messages.length > prevMessagesLength.current) {
-            // prepend 중에는 자동 스크롤 방지
-            if (!isPrepending.current && atBottom && virtuosoRef.current) {
-                virtuosoRef.current.scrollToIndex({ index: messages.length - 1, align: 'end', behavior: 'auto' });
-            } else if (!isPrepending.current) {
+            if (atBottom && scrollRef.current) {
+                scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+            } else {
                 setShowNewMsgAlert(true);
             }
         }
@@ -166,34 +147,46 @@ const VirtualizedMessageList = ({
 
     // 4. 새 메시지 알림 클릭 시 최신으로 이동
     const handleNewMsgAlertClick = () => {
-        if (virtuosoRef.current) {
-            virtuosoRef.current.scrollToIndex({ index: messages.length - 1, align: 'end', behavior: 'smooth' });
+        if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
         setShowNewMsgAlert(false);
     };
 
     // 5. 무한 스크롤: 맨 위 도달 시 onLoadMore 호출
-    const handleStartReached = useCallback(() => {
-        console.log('맨 위 도달, hasMore:', hasMore, 'messages.length:', messages.length);
-        if (hasMore && onLoadMore && !loadingMessages) { // loadingMessages 체크 추가
-            prevFirstMsgId.current = messages[0]?.id;
-            isPrepending.current = true;
-            onLoadMore();
-        }
-    }, [hasMore, onLoadMore, messages, loadingMessages]); // loadingMessages 의존성 추가
+    const handleScroll = useCallback(() => {
+        if (!scrollRef.current || loadingMessages || !hasMore) return;
 
-    // 6. atBottomStateChange: 하단 여부 추적
-    const handleAtBottomStateChange = useCallback((isBottom) => {
+        const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+
+        // 맨 위에 가까우면 (50px 이내) 추가 로딩
+        if (scrollTop < 50) {
+            console.log('맨 위 도달, hasMore:', hasMore, 'messages.length:', messages.length);
+            if (hasMore && onLoadMore) {
+                onLoadMore();
+            }
+        }
+
+        // 하단 여부 체크
+        const isBottom = scrollTop + clientHeight >= scrollHeight - 10;
         setAtBottom(isBottom);
         if (isBottom) setShowNewMsgAlert(false);
-    }, []);
+    }, [hasMore, onLoadMore, loadingMessages, messages.length]);
+
+    // 스크롤 이벤트 리스너 등록
+    useEffect(() => {
+        const scrollElement = scrollRef.current;
+        if (scrollElement) {
+            scrollElement.addEventListener('scroll', handleScroll);
+            return () => scrollElement.removeEventListener('scroll', handleScroll);
+        }
+    }, [handleScroll]);
 
     // 7. 메시지 렌더링 함수
-    const renderMessage = useCallback((index) => {
-        const msg = messages[index];
+    const renderMessage = useCallback((msg, index) => {
         if (!msg) {
             return (
-                <div className="message-loading">
+                <div key={`loading-${index}`} className="message-loading">
                     <div className="loading-skeleton">
                         <div className="skeleton-avatar"></div>
                         <div className="skeleton-content">
@@ -204,7 +197,6 @@ const VirtualizedMessageList = ({
                 </div>
             );
         }
-        // console.log('[msg]', msg);
 
         const isMyMessage = msg.type === 'send' ||
             (loginUser && (msg.username === loginUser.username || msg.user_id === loginUser.id));
@@ -213,6 +205,7 @@ const VirtualizedMessageList = ({
 
         return (
             <div
+                key={msg.id}
                 className={`message-item ${isMyMessage ? 'my-message' : 'other-message'} ${tempHighlightedId === msg.id ? 'temp-highlight' : ''}`}
                 id={`message-${msg.id}`}
             >
@@ -221,21 +214,11 @@ const VirtualizedMessageList = ({
                     <div className="message-header"
                         style={{
                             display: 'flex',
-                            // alignItems: 'center', 
-                            // marginBottom: 2,                                                        
-                            // justifyContent: 'space-between',                        
                         }}
                     >
                         <span style={{ color: '#fff', fontWeight: 700, fontSize: 13, marginRight: 8 }}>
                             {msg.sender || msg.username || 'Unknown'}
                         </span>
-                        {/* 답장 버튼 (hover 시 노출) */}
-                        {/* <button
-                            className="reply-btn"
-                            style={{ marginLeft: 8, fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', color: '#2196f3', display: 'inline-block' }}
-                            onClick={e => { e.stopPropagation(); onReply && onReply(msg); }}
-                            title="답장"
-                        >↩️ 답장</button> */}
                         {/* 핀(고정) 버튼 */}
                         <button
                             className={`pin-btn${pinnedIds.includes(msg.id) ? ' pinned' : ''}`}
@@ -305,7 +288,6 @@ const VirtualizedMessageList = ({
                                     </>
                                 )}
                             </div>
-                            {/* {console.log('[msg.imageUrl]', msg.imageUrl)} */}
                             {msg.imageUrl && (
                                 <img
                                     src={getImageUrl(msg.imageUrl)}
@@ -405,7 +387,6 @@ const VirtualizedMessageList = ({
                             >
                                 {/* 이모지 선택 영역 */}
                                 <div style={{ padding: '8px 12px', borderBottom: '1px solid #444' }}>
-                                    {/* <div style={{ fontSize: 12, color: '#888', marginBottom: 6 }}>이모지</div> */}
                                     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                                         {['👍', '❤️', '😂', '😮', '😢', '😡'].map(emoji => (
                                             <button
@@ -528,7 +509,6 @@ const VirtualizedMessageList = ({
                                             onClick={() => {
                                                 if (window.confirm('이 메시지를 삭제하시겠습니까?')) {
                                                     handleDeleteMessage(msg);
-                                                    // deleteMessage(msg.id);
                                                     setEmojiPickerMsgId(null);
                                                 }
                                             }}
@@ -560,14 +540,6 @@ const VirtualizedMessageList = ({
             </div>
         );
     }, [messages, loginUser, onMessageClick, getSenderColor, localReactions, emojiPickerMsgId, onReply, onReplyQuoteClick, pinnedIds, onImageClick, favoriteMessages, onToggleFavorite, tempHighlightedId, deleteMessage]);
-
-    // 아이템이 로드되었는지 확인
-    const isItemLoaded = useCallback((index) => {
-        return index < messages.length;
-    }, [messages.length]);
-
-    // 아이템 개수 (로딩 중인 경우 +1)
-    const itemCount = hasMore ? messages.length + 1 : messages.length;
 
     // 메시지 목록이 바뀌면 localReactions 동기화
     useEffect(() => {
@@ -657,56 +629,6 @@ const VirtualizedMessageList = ({
     // 핀된 메시지 추출 (최신순, 최대 3개)
     const pinnedMessages = messages.filter(m => pinnedIds.includes(m.id)).slice(-3).reverse();
 
-    // 메시지 높이 계산 보정: 폰트 크기, 패딩, 마진, 이미지 등 모두 반영
-    const getItemSize = useCallback((index) => {
-        const msg = messages[index];
-        if (!msg) return 80;
-
-        // 모바일 환경에서 vw 단위로 보정
-        const isMobile = typeof window !== 'undefined' && window.innerWidth <= 600;
-        const fontSize = 15;
-        const lineHeight = 1.4;
-        const maxWidth = isMobile ? window.innerWidth * 0.8 : 480; // 버블 최대 너비와 일치시킴
-        const content = msg.text || msg.content || '';
-        // 실제 줄 수 계산: 한 줄이 너무 길면 maxWidth 기준으로 줄 수 증가
-        const approxCharPerLine = Math.floor(maxWidth / (fontSize * 0.6)); // 한글/영문 혼합 기준
-        const lines = content.split('\n').reduce((acc, line) => acc + Math.ceil(line.length / approxCharPerLine), 0);
-        const textHeight = Math.max(lines * fontSize * lineHeight, fontSize * lineHeight);
-        const bubblePadding = 7 * 2;
-        const bubbleMargin = 6 * 2;
-        // 메시지 아이템 자체의 패딩과 마진(여백) 보정
-        const itemPadding = 8 * 2; // .message-item { padding: 8px 16px; }
-        const itemMargin = 12; // .message-item { margin-bottom: 12px; }
-        const extraMargin = 32; // 기본 여유 여백(겹침 방지, 기존 24px에서 32px로 증가)
-        // 타입 경계에서 추가 여백
-        let typeBoundaryMargin = 0;
-        if (index > 0) {
-            const prev = messages[index - 1];
-            if (prev && prev.type !== msg.type) {
-                typeBoundaryMargin = 32; // my-message/other-message 경계에서 추가 여백
-            }
-        }
-        // 이미지 높이: 실제 이미지 비율을 알 수 있으면 반영, 없으면 고정값
-        let imageHeight = 0;
-        if (msg.imageUrl) {
-            imageHeight = (msg.imageHeight && msg.imageWidth)
-                ? Math.min(200, (msg.imageHeight / msg.imageWidth) * maxWidth) + 8
-                : 200 + 8;
-        }
-        let extra = 0;
-        if (msg.reply) extra += 28; // 답장 인용 바 높이
-        if (msg.reactions && msg.reactions.length > 0) extra += 28; // 리액션 바 높이
-        const mobileExtra = isMobile ? 12 : 0;
-        return textHeight + bubblePadding + bubbleMargin + itemPadding + itemMargin + extraMargin + typeBoundaryMargin + imageHeight + extra + mobileExtra;
-    }, [messages]);
-
-    // VariableSizeList 높이 캐시 강제 리셋: 메시지/창 크기/폰트 등 변화 시
-    useEffect(() => {
-        if (virtuosoRef && typeof virtuosoRef.current.resetAfterIndex === 'function') {
-            virtuosoRef.current.resetAfterIndex(0, true);
-        }
-    }, [messages, window.innerWidth, window.innerHeight]);
-
     // 메뉴가 열린 후 아무 곳이나 클릭하면 닫히도록 처리
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -764,18 +686,19 @@ const VirtualizedMessageList = ({
                     🔥 새 메시지 도착! (클릭 시 최신으로)
                 </div>
             )}
-            <Virtuoso
-                key={selectedRoomId}
-                ref={virtuosoRef}
-                style={{ height: '100%' }}
-                data={messages}
-                itemContent={(index) => renderMessage(index)} // 명시적으로 index 전달
-                startReached={handleStartReached}
-                followOutput={false}
-                atBottomStateChange={isPrepending.current ? undefined : handleAtBottomStateChange}
-                overscan={200} // 더 많은 아이템을 미리 렌더링
-                increaseViewportBy={{ top: 100, bottom: 100 }} // 뷰포트 확장
-            />
+            {/* 일반 스크롤 기반 메시지 리스트 */}
+            <div
+                ref={scrollRef}
+                style={{
+                    height: '100%',
+                    overflowY: 'auto',
+                    overflowX: 'hidden',
+                    scrollbarWidth: 'thin',
+                    scrollbarColor: '#888 #f1f1f1',
+                }}
+            >
+                {messages.map((msg, index) => renderMessage(msg, index))}
+            </div>
         </div>
     );
 };

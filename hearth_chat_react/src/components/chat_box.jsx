@@ -2563,8 +2563,28 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
         if (append) {
           setMessages(prev => {
-            const newArr = [...mappedMessages.reverse(), ...prev];
-            console.log('prepend: id순서', newArr.map(m => m.id));
+            // 중복 제거: 새로 받은 메시지 중에서 이미 존재하는 id는 제외
+            const existingIds = new Set(prev.map(m => m.id));
+            const uniqueNewMessages = mappedMessages.reverse().filter(msg => !existingIds.has(msg.id));
+
+            if (uniqueNewMessages.length === 0) {
+              console.log('중복된 메시지만 있어서 추가하지 않음');
+              return prev;
+            }
+
+            const newArr = [...uniqueNewMessages, ...prev];
+            console.log('prepend: id순서', newArr.map(m => m.id), '추가된 개수:', uniqueNewMessages.length);
+
+            // prepend 후 스크롤 위치 보정을 위한 setTimeout
+            setTimeout(() => {
+              const scrollContainer = document.querySelector('.virtualized-message-list div[style*="overflowY: auto"]');
+              if (scrollContainer) {
+                // 새로 추가된 메시지들의 높이만큼 스크롤 위치 조정
+                const newMessagesHeight = uniqueNewMessages.length * 100; // 대략적인 메시지 높이
+                scrollContainer.scrollTop += newMessagesHeight;
+              }
+            }, 0);
+
             return newArr;
           });
         } else {
