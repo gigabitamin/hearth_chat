@@ -2530,6 +2530,13 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         // setHasMore(data.has_more); // 제거: hasMore는 동적으로 계산됨
         console.log('[fetchMessages] API 응답:', data.results.map(msg => msg.id), 'offset:', offset, 'limit:', limit, 'isPrepending:', isPrepending, 'isInit:', isInit);
 
+        // 특정 메시지 찾아가기 디버깅
+        if (scrollToId) {
+          console.log('[특정 메시지 찾아가기] 로딩된 메시지들:', data.results.map(m => m.id));
+          console.log('[특정 메시지 찾아가기] 찾을 메시지 ID:', scrollToId);
+          console.log('[특정 메시지 찾아가기] 찾을 메시지가 로딩된 목록에 포함됨:', data.results.some(m => m.id == scrollToId));
+        }
+
         // 중복 제거 로직을 실제 메시지 ID 기반으로 변경
         let uniqueNewMessages = data.results;
 
@@ -2573,16 +2580,18 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           // 연속성 체크: 기존 첫 메시지 date와 새 메시지 마지막 date가 연속되는지
           const prevFirstDate = messages[0]?.timestamp || messages[0]?.date;
           const newLastDate = uniqueNewMessages[uniqueNewMessages.length - 1]?.timestamp || uniqueNewMessages[uniqueNewMessages.length - 1]?.date;
-          if (prevFirstDate && newLastDate && prevFirstDate !== newLastDate) {
-            console.warn('[슬라이딩윈도우:prepend] 연속성 오류! prevFirstDate:', prevFirstDate, 'newLastDate:', newLastDate, '→ 전체 reload');
-            reloadWindow(offset, 40);
-            return;
+          if (prevFirstDate && newLastDate && prevFirstDate !== newLastDate && !scrollToMessageId && messages.length > 0) {
+            // 더 관대한 연속성 체크: timestamp가 완전히 동일하지 않아도 허용
+            const timeDiff = Math.abs(new Date(prevFirstDate) - new Date(newLastDate));
+            if (timeDiff > 60000) { // 1분 이상 차이나는 경우에만 연속성 오류로 판단
+              console.warn('[슬라이딩윈도우:prepend] 연속성 오류! prevFirstDate:', prevFirstDate, 'newLastDate:', newLastDate, '→ 전체 reload');
+              reloadWindow(offset, 40);
+              return;
+            }
           }
           setMessages(prev => {
             const newArr = [...uniqueNewMessages, ...prev];
             const sliced = newArr.slice(0, 40); // 앞쪽 40개만 유지
-            console.log('[슬라이딩윈도우:prepend] 새로 추가:', uniqueNewMessages.map(m => m.id), '최종:', sliced.map(m => m.id));
-            console.log('[슬라이딩윈도우:prepend-계산값] offset:', offset, 'sliced.length:', sliced.length, 'totalCount:', totalCount);
             setFirstItemIndex(offset);
             setMessageOffset(offset);
             return sliced;
@@ -2591,24 +2600,26 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           // 연속성 체크: 기존 마지막 메시지 date와 새 메시지 첫 date가 연속되는지
           const prevLastDate = messages[messages.length - 1]?.timestamp || messages[messages.length - 1]?.date;
           const newFirstDate = uniqueNewMessages[0]?.timestamp || uniqueNewMessages[0]?.date;
-          if (prevLastDate && newFirstDate && prevLastDate !== newFirstDate) {
-            console.warn('[슬라이딩윈도우:append] 연속성 오류! prevLastDate:', prevLastDate, 'newFirstDate:', newFirstDate, '→ 전체 reload');
-            reloadWindow(offset, 40);
-            return;
+          if (prevLastDate && newFirstDate && prevLastDate !== newFirstDate && !scrollToMessageId && messages.length > 0) {
+            // 더 관대한 연속성 체크: timestamp가 완전히 동일하지 않아도 허용
+            const timeDiff = Math.abs(new Date(prevLastDate) - new Date(newFirstDate));
+            if (timeDiff > 60000) { // 1분 이상 차이나는 경우에만 연속성 오류로 판단
+              console.warn('[슬라이딩윈도우:append] 연속성 오류! prevLastDate:', prevLastDate, 'newFirstDate:', newFirstDate, '→ 전체 reload');
+              reloadWindow(offset, 40);
+              return;
+            }
           }
           setMessages(prev => {
             const newArr = [...prev, ...uniqueNewMessages];
             const sliced = newArr.slice(-40); // 뒤쪽 40개만 유지
-            console.log('[슬라이딩윈도우:append/init] 새로 추가:', uniqueNewMessages.map(m => m.id), '최종:', sliced.map(m => m.id));
-            console.log('[슬라이딩윈도우:append-계산값] offset:', offset, 'sliced.length:', sliced.length, 'totalCount:', totalCount);
             setFirstItemIndex(offset);
             setMessageOffset(offset);
             return sliced;
           });
         }
         if (scrollToId) {
-          setScrollToMessageId(scrollToId);
-          console.log('[Virtuoso scrollToMessageId]', scrollToId);
+          // setScrollToMessageId(scrollToId); // 제거
+          console.log('[특정 메시지 이동] scrollToMessageId 설정:', scrollToId);
         }
       }
     } catch (error) {
@@ -2641,26 +2652,14 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   // messages가 바뀔 때마다 firstItemIndex와 messages.length의 관계 확인 및 동기화
   useEffect(() => {
     if (messages.length > 0) {
-      console.log('[상태 동기화] messages.length:', messages.length, 'firstItemIndex:', firstItemIndex, 'totalCount:', totalCount);
-      console.log('[상태 동기화] messages[0].id:', messages[0]?.id, 'messages[-1].id:', messages[messages.length - 1]?.id);
-
       // Virtuoso의 startReached 조건 확인
       const canScrollUp = firstItemIndex > 0;
       const canScrollDown = firstItemIndex + messages.length < totalCount;
       const newHasMore = canScrollUp || canScrollDown;
-      console.log('[Virtuoso 조건] canScrollUp:', canScrollUp, 'canScrollDown:', canScrollDown, 'hasMore:', hasMore, 'newHasMore:', newHasMore);
 
       // hasMore 상태를 동적으로 업데이트
       if (newHasMore !== hasMore) {
-        console.log('[hasMore 업데이트]', hasMore, '->', newHasMore);
         setHasMore(newHasMore);
-      }
-
-      // messages 배열의 첫 번째 메시지가 실제로 firstItemIndex 위치에 있는지 확인
-      const expectedFirstId = firstItemIndex + 1; // 0-based index이므로 +1
-      const actualFirstId = messages[0]?.id;
-      if (actualFirstId !== expectedFirstId) {
-        console.warn('[상태 불일치] expectedFirstId:', expectedFirstId, 'actualFirstId:', actualFirstId);
       }
     }
   }, [messages, firstItemIndex, totalCount, hasMore]);
@@ -2676,9 +2675,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         const data = await res.json();
         const total = data.count || 0;
         setTotalCount(total);
-        console.log('[fetchTotalCountAndFetchLatest] total:', total);
         const offset = Math.max(0, total - 20);
-        console.log('[입장] 전체 메시지 개수:', total, '최신 20개 offset:', offset);
         fetchMessages(roomId, offset, 20, false, true);
         setFirstItemIndex(offset);
         setMessageOffset(offset);
@@ -2696,22 +2693,34 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       const apiUrl = process.env.NODE_ENV === 'development'
         ? 'http://localhost:8000'
         : `${window.location.protocol}//${window.location.hostname}`;
-      const res = await fetch(`${apiUrl}/api/chat/messages/offset/?room=${roomId}&messageId=${messageId}&page_size=20`, {
+
+      console.log('[특정 메시지 이동] API 요청 - roomId:', roomId, 'messageId:', messageId, 'window_size: 40');
+
+      const res = await fetch(`${apiUrl}/api/chat/messages/offset/?room=${roomId}&messageId=${messageId}&page_size=40`, {
         credentials: 'include',
       });
+
       if (res.ok) {
         const data = await res.json();
-        const offset = Math.max(0, data.offset - 20);
-        console.log('[특정 메시지 이동] offset:', data.offset, 'fetch offset:', offset, 'limit: 40');
+        console.log('[특정 메시지 이동] API 응답:', data);
+
+        // 백엔드에서 이미 윈도우 중앙에 위치하도록 offset을 계산해줬으므로 그대로 사용
+        const offset = data.offset;
+        console.log('[특정 메시지 이동] 최종 offset:', offset, 'limit: 40');
+        setIsJumpingToMessage(true); // 특정 메시지 찾아가기 모드 진입
         fetchMessages(roomId, offset, 40, false, true, messageId);
         setFirstItemIndex(offset);
         setMessageOffset(offset);
       } else {
+        console.error('[특정 메시지 이동] API 오류:', res.status);
+        setIsJumpingToMessage(true);
         fetchMessages(roomId, 0, 40, false, true, messageId);
         setFirstItemIndex(0);
         setMessageOffset(0);
       }
     } catch (error) {
+      console.error('[특정 메시지 이동] 네트워크 오류:', error);
+      setIsJumpingToMessage(true);
       fetchMessages(roomId, 0, 40, false, true, messageId);
       setFirstItemIndex(0);
       setMessageOffset(0);
@@ -2925,6 +2934,26 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     }
   }, [location, messages]);
 
+  // messages와 scrollToMessageId를 감시하여 스크롤 트리거
+  useEffect(() => {
+    if (scrollToMessageId && messages.some(m => m.id == scrollToMessageId)) {
+      console.log('[특정 메시지 이동] scrollToMessageId 설정 완료:', scrollToMessageId);
+      // VirtualizedMessageList에서 직접 처리하므로 여기서는 아무것도 하지 않음
+    }
+  }, [messages, scrollToMessageId]);
+
+  // 메시지 클릭 핸들러
+  const handleMessageClick = (message, action) => {
+    if (action === 'resetScrollToMessageId') {
+      console.log('[특정 메시지 이동] scrollToMessageId 리셋');
+      setScrollToMessageId(null);
+      setIsJumpingToMessage(false); // 스크롤 완료 후 모드 해제
+      console.log('[특정 메시지 이동] 윈도우 안정화 완료');
+    }
+  };
+
+  const [isJumpingToMessage, setIsJumpingToMessage] = useState(false);
+
   return (
     <>
       {/* 이미지 뷰어 모달 */}
@@ -3052,18 +3081,13 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                   }}
                   onLoadMore={(isPrepending) => {
                     if (!loadingMessages && hasMore && selectedRoom && selectedRoom.id) {
-                      console.log('[onLoadMore] isPrepending:', isPrepending, '현재 messages.length:', messages.length, 'firstItemIndex:', firstItemIndex);
-                      console.log('[Virtuoso 상태] firstItemIndex:', firstItemIndex, 'messages.length:', messages.length, 'messages[0].id:', messages[0]?.id, 'messages[-1].id:', messages[messages.length - 1]?.id);
-                      console.log('[Virtuoso 렌더] firstItemIndex:', firstItemIndex, 'messages.length:', messages.length, 'totalCount:', totalCount);
                       if (isPrepending) {
                         // 위로 스크롤: 현재 첫 번째 메시지 기준으로 이전 20개 fetch
                         const newOffset = Math.max(0, firstItemIndex - 20);
-                        console.log('[onLoadMore:prepend] newOffset:', newOffset, 'firstItemIndex:', firstItemIndex);
                         fetchMessages(selectedRoom.id, newOffset, 20, true);
                       } else {
                         // 아래로 스크롤: 현재 마지막 메시지 기준으로 다음 20개 fetch
                         const newOffset = firstItemIndex + messages.length;
-                        console.log('[onLoadMore:append] newOffset:', newOffset, 'firstItemIndex:', firstItemIndex, 'messages.length:', messages.length);
                         fetchMessages(selectedRoom.id, newOffset, 20, false);
                       }
                     }
@@ -3073,6 +3097,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                   loadingMessages={loadingMessages}
                   firstItemIndex={firstItemIndex}
                   totalCount={totalCount}
+                  onMessageClick={handleMessageClick}
                 />
               </div>
 

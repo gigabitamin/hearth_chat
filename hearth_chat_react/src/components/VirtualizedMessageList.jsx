@@ -145,25 +145,17 @@ const VirtualizedMessageList = ({
 
     // 4. Virtuoso에서 위로 스크롤 시(이전 메시지 fetch)
     const handleStartReached = useCallback(() => {
-        console.log('[Virtuoso startReached] hasMore:', hasMore, 'onLoadMore:', !!onLoadMore, 'loadingMessages:', loadingMessages);
         if (hasMore && onLoadMore && !loadingMessages) {
-            console.log('Virtuoso startReached - 이전 메시지 로딩');
             onLoadMore(true); // true = 위로 스크롤 (prepend)
             setIsScrollingUp(true); // 위로 스크롤 시 상태 업데이트
-        } else {
-            console.log('[Virtuoso startReached] 조건 불만족 - hasMore:', hasMore, 'onLoadMore:', !!onLoadMore, 'loadingMessages:', loadingMessages);
         }
     }, [hasMore, onLoadMore, loadingMessages]);
 
     // 5. Virtuoso에서 아래로 스크롤 시(최신 메시지 fetch, 필요시)
     const handleEndReached = useCallback(() => {
-        console.log('[Virtuoso endReached] hasMore:', hasMore, 'onLoadMore:', !!onLoadMore, 'loadingMessages:', loadingMessages);
         if (hasMore && onLoadMore && !loadingMessages) {
-            console.log('Virtuoso endReached - 최신 메시지 로딩');
             onLoadMore(false); // false = 아래로 스크롤 (append)
             setIsScrollingUp(false); // 아래로 스크롤 시 상태 리셋
-        } else {
-            console.log('[Virtuoso endReached] 조건 불만족 - hasMore:', hasMore, 'onLoadMore:', !!onLoadMore, 'loadingMessages:', loadingMessages);
         }
     }, [hasMore, onLoadMore, loadingMessages]);
 
@@ -614,6 +606,24 @@ const VirtualizedMessageList = ({
     // 핀된 메시지 추출 (최신순, 최대 3개)
     const pinnedMessages = messages.filter(m => pinnedIds.includes(m.id)).slice(-3).reverse();
 
+    // scrollToMessageId 처리
+    useEffect(() => {
+        if (scrollToMessageId && messages.length > 0) {
+            const targetIndex = messages.findIndex(m => m.id == scrollToMessageId);
+            if (targetIndex !== -1 && virtuosoRef.current) {
+                console.log('[Virtuoso] scrollToIndex 호출:', targetIndex, '메시지 ID:', scrollToMessageId);
+                virtuosoRef.current.scrollToIndex({ index: targetIndex, align: 'start' });
+                // 스크롤 실행 후 즉시 scrollToMessageId를 null로 리셋하여 반복 스크롤 방지
+                setTimeout(() => {
+                    // 부모 컴포넌트에 scrollToMessageId를 null로 리셋하도록 알림
+                    if (onMessageClick) {
+                        onMessageClick(null, 'resetScrollToMessageId');
+                    }
+                }, 100);
+            }
+        }
+    }, [scrollToMessageId, messages]);
+
     // 메뉴가 열린 후 아무 곳이나 클릭하면 닫히도록 처리
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -657,7 +667,7 @@ const VirtualizedMessageList = ({
                 itemContent={renderMessage}
                 startReached={handleStartReached}
                 endReached={handleEndReached}
-                followOutput={!scrollToMessageId && !isScrollingUp} // 특정 메시지 입장 시에는 false, 일반 입장 시에는 true
+                followOutput={!scrollToMessageId && !isScrollingUp} // scrollToMessageId가 있으면 false로 고정
                 overscan={200}
                 increaseViewportBy={{ top: 100, bottom: 100 }}
                 style={{ height: '100%' }}

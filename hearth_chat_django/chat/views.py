@@ -496,28 +496,33 @@ class ChatViewSet(viewsets.ModelViewSet):
         
     @action(detail=False, methods=['get'])
     def offset(self, request):
-        """messageId로 해당 메시지가 포함된 페이지의 offset 계산"""
+        """messageId로 해당 메시지가 윈도우 중앙에 위치하도록 offset 계산"""
         room_id = request.query_params.get('room')
         message_id = request.query_params.get('messageId')
-        page_size = int(request.query_params.get('page_size', 20))
+        window_size = int(request.query_params.get('page_size', 40))  # 슬라이딩 윈도우 크기
 
         if not room_id or not message_id:
             return Response({'error': 'room and messageId parameters are required'}, status=400)
 
         try:
             # 해당 메시지의 인덱스 계산 (오래된순 정렬 기준)
+            target_message = Chat.objects.get(id=message_id)
             message_index = Chat.objects.filter(
                 room_id=room_id,
-                timestamp__lte=Chat.objects.get(id=message_id).timestamp
-            ).count() - 1  # 0-based index
+                timestamp__lt=target_message.timestamp
+            ).order_by('timestamp').count()  # 0-based index
 
-            # offset 계산 (페이지 단위로 맞춤)
-            offset = (message_index // page_size) * page_size
+            print(f'[offset API] messageId: {message_id}, message_index: {message_index}, window_size: {window_size}')
+            
+            # offset 계산 (윈도우 중앙에 위치하도록)
+            offset = max(0, message_index - window_size // 2)
+            
+            print(f'[offset API] 계산된 offset: {offset} (message_index: {message_index} - window_size/2: {window_size//2})')
 
             return Response({
                 'offset': offset,
                 'message_index': message_index,
-                'page_size': page_size
+                'window_size': window_size
             })
 
         except Chat.DoesNotExist:

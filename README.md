@@ -6,10 +6,14 @@
 
 ## 250727 
 - 메시지 코드 Virtuoso 방식으로 전체 리팩토링 (백엔드 API 포함)
+- 무한 스크롤 문제 해결
+- 1. Timestamp 기반 연속성 체크**: ID가 아닌 timestamp/date 기반으로 메시지 연속성 판단
+- 2. Fallback Reload: 연속성이 깨지면 해당 구간을 전체 새로 로딩하여 윈도우 재구성
+- 3. 슬라이딩 윈도우 관리 : 40개 메시지 제한을 유지하면서 연속성 보장
 
 ## 250726 v0.95
 - 멀티 삭제, 썸네일 모달창, 페이지네이션 추가
-- VirtualizedMessageList.jsx virtuoso 무한스크롤 오류 해결(hearth_chat_project/hearth_chat_flow_text/error_solution_log/250726_1437_무한스크롤_스크롤위치보정_해결.md)
+- VirtualizedMessageList.jsx virtuoso 무한스크롤 오류 해결(hearth_chat_project/hearth_chat_flow_text/error_solution_log/250726_1437_무한스크롤_스크롤위치보정_해결.md) -> 다른 기능 수정 작업 중에 다시 error 
 
 ## 250725
 - media 파일 추가 시 Cloudflare R2 등 별도 정적 파일 서버/스토리지 사용
