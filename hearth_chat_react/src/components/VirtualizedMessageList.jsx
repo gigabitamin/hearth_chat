@@ -75,11 +75,12 @@ const VirtualizedMessageList = ({
     onReply, // 답장 콜백
     onReplyQuoteClick, // 인용 클릭 콜백
     onImageClick, // 이미지 클릭 콜백(모달)
-    selectedRoomId, // 방이 바뀔 때마다 최신 위치로 이동
+    selectedRoomId, // 방이 바뀔 때마다 Virtuoso key로 사용
     favoriteMessages = [],
     onToggleFavorite = () => { },
     onMessageDelete, // 메시지 삭제 콜백    
     scrollToMessageId, // [입장] 버튼 클릭 시 전달받는 메시지 id
+    loadingMessages = false, // 메시지 로딩 상태
 }) => {
     // 상태 선언은 최상단에 모두 위치시킴 (ReferenceError 방지)
     const virtuosoRef = useRef(null);
@@ -91,6 +92,21 @@ const VirtualizedMessageList = ({
     const [pinnedIds, setPinnedIds] = useState([]);
     const [tempHighlightedId, setTempHighlightedId] = useState(null);
 
+    // prepend 스크롤 위치 보정용 상태
+    const prevFirstMsgId = useRef(null);
+    const isPrepending = useRef(false);
+
+    // messages가 prepend될 때(앞에 추가) 스크롤 위치 보정
+    useEffect(() => {
+        if (isPrepending.current && prevFirstMsgId.current && virtuosoRef.current) {
+            const idx = messages.findIndex(m => m.id === prevFirstMsgId.current);
+            if (idx !== -1) {
+                virtuosoRef.current.scrollToIndex({ index: idx, align: 'start' });
+            }
+            isPrepending.current = false;
+            prevFirstMsgId.current = null;
+        }
+    }, [messages]);
     // deleteMessage 함수도 반드시 위에서 선언
     const deleteMessage = async (messageId) => {
         try {
@@ -138,9 +154,10 @@ const VirtualizedMessageList = ({
     // 3. 새 메시지 도착 시 자동 최신 스크롤/알림
     useEffect(() => {
         if (messages.length > prevMessagesLength.current) {
-            if (atBottom && virtuosoRef.current) {
+            // prepend 중에는 자동 스크롤 방지
+            if (!isPrepending.current && atBottom && virtuosoRef.current) {
                 virtuosoRef.current.scrollToIndex({ index: messages.length - 1, align: 'end', behavior: 'auto' });
-            } else {
+            } else if (!isPrepending.current) {
                 setShowNewMsgAlert(true);
             }
         }
@@ -157,10 +174,13 @@ const VirtualizedMessageList = ({
 
     // 5. 무한 스크롤: 맨 위 도달 시 onLoadMore 호출
     const handleStartReached = useCallback(() => {
-        if (hasMore && onLoadMore) {
+        console.log('맨 위 도달, hasMore:', hasMore, 'messages.length:', messages.length);
+        if (hasMore && onLoadMore && !loadingMessages) { // loadingMessages 체크 추가
+            prevFirstMsgId.current = messages[0]?.id;
+            isPrepending.current = true;
             onLoadMore();
         }
-    }, [hasMore, onLoadMore]);
+    }, [hasMore, onLoadMore, messages, loadingMessages]); // loadingMessages 의존성 추가
 
     // 6. atBottomStateChange: 하단 여부 추적
     const handleAtBottomStateChange = useCallback((isBottom) => {
@@ -745,16 +765,16 @@ const VirtualizedMessageList = ({
                 </div>
             )}
             <Virtuoso
+                key={selectedRoomId}
                 ref={virtuosoRef}
                 style={{ height: '100%' }}
                 data={messages}
-                itemContent={renderMessage}
+                itemContent={(index) => renderMessage(index)} // 명시적으로 index 전달
                 startReached={handleStartReached}
-                followOutput="auto" // 자동 스크롤
-                // followOutput="true" // 하단 여부 추적
-                // followOutput={atBottom} // 하단 여부 추적
-                atBottomStateChange={handleAtBottomStateChange}
-                initialTopMostItemIndex={messages.length - 1} // 최초 렌더링에만 사용
+                followOutput={false}
+                atBottomStateChange={isPrepending.current ? undefined : handleAtBottomStateChange}
+                overscan={200} // 더 많은 아이템을 미리 렌더링
+                increaseViewportBy={{ top: 100, bottom: 100 }} // 뷰포트 확장
             />
         </div>
     );

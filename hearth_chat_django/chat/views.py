@@ -105,15 +105,13 @@ def upload_chat_image(request):
     """채팅 이미지 업로드 API (확장자, 용량, MIME 타입 검사)"""
     file = request.FILES.get('file')
     session_id = request.POST.get('session_id', None)
-    content = request.POST.get('content', '')  # 메시지 내용도 받음
-    print('file, session_id, content', file, session_id, content)
+    content = request.POST.get('content', '')  # 메시지 내용도 받음    
     if not file:
         print('파일이 첨부되지 않았습니다.')
         return JsonResponse({'status': 'error', 'message': '파일이 첨부되지 않았습니다.'}, status=400)
 
     # 확장자 검사
-    ext = file.name.split('.')[-1].lower()
-    print('ext', ext)
+    ext = file.name.split('.')[-1].lower()    
     if ext not in ALLOWED_EXTENSIONS:
         print('허용되지 않는 확장자입니다.')
         return JsonResponse({'status': 'error', 'message': f'허용되지 않는 확장자입니다: {ext}'}, status=400)
@@ -144,8 +142,6 @@ def upload_chat_image(request):
         file_url = f"/media/{file_path}"
     
     # 메시지 저장 제거 - WebSocket을 통해 받은 메시지만 저장
-    print(f'[DEBUG] 이미지 업로드 성공: {file_url}')
-    print(f'[DEBUG] 메시지 저장 제거됨 - WebSocket을 통해 저장됨')
     
     return JsonResponse({
         'status': 'success',
@@ -396,10 +392,6 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     # @csrf_exempt  # CSRF 테스트 용 코드
     def user_chat(self, request):
-        print("CSRF DEBUG HEADERS")
-        print("ORIGIN:", request.META.get("HTTP_ORIGIN"))
-        print("REFERER:", request.META.get("HTTP_REFERER"))
-        print("COOKIES:", request.COOKIES)
         """1:1 채팅방 생성/조회 API (상대 user_id)"""
         user1 = request.user
         user2_id = request.data.get('user_id')
@@ -468,8 +460,7 @@ class ChatViewSet(viewsets.ModelViewSet):
         return Response({'favorited': False, 'message_id': message.id})
 
     @action(detail=True, methods=['delete'])
-    def delete_message(self, request, pk=None):
-        print('delete_message', request.user, request.data)
+    def delete_message(self, request, pk=None):        
         """메시지 삭제 (본인만 가능)"""
         message = self.get_object()
         user = request.user
@@ -573,9 +564,11 @@ class ChatViewSet(viewsets.ModelViewSet):
                 'results': message_list,
                 'count': len(message_list),
                 'has_more': len(message_list) == limit
-            }
-
+            }        
+            
             cache.set(cache_key, response_data, 0) # 즉시 캐시 삭제
+            print('response_data has_more:', response_data.get('has_more'))
+
             return Response(response_data)
 
         except Exception as e:
@@ -709,14 +702,12 @@ class ChatViewSet(viewsets.ModelViewSet):
             return Response({'error': str(e)}, status=500)
 
     def update(self, request, *args, **kwargs):
-        room = self.get_object()
-        print('request.user:', request.user, 'id:', getattr(request.user, 'id', None))
+        room = self.get_object()        
         is_owner = ChatRoomParticipant.objects.filter(
             room=room,
             user_id=int(request.user.id),  # ← int로 강제 변환
             is_owner=True
-        ).exists()
-        print('is_owner:', is_owner)
+        ).exists()        
         # 방장 권한 체크
         is_admin = request.user.is_superuser or request.user.is_staff
         if not (is_owner or is_admin):
@@ -724,8 +715,7 @@ class ChatViewSet(viewsets.ModelViewSet):
         return super().update(request, *args, **kwargs)
 
     def partial_update(self, request, *args, **kwargs):
-        room = self.get_object()
-        print('request.user:', request.user, 'id:', getattr(request.user, 'id', None))
+        room = self.get_object()        
         is_owner = ChatRoomParticipant.objects.filter(
             room=room,
             user_id=int(request.user.id),  # ← int로 강제 변환
@@ -739,8 +729,7 @@ class ChatViewSet(viewsets.ModelViewSet):
         return super().partial_update(request, *args, **kwargs)
 
 # @method_decorator(csrf_exempt, name='dispatch')
-class UserSettingsView(APIView):
-    # print('UserSettingsView')
+class UserSettingsView(APIView):    
     # authentication_classes = [CsrfExemptSessionAuthentication]    
     permission_classes = [IsAuthenticated]
     # permission_classes = [AllowAny]
@@ -961,8 +950,7 @@ class PinnedMessageViewSet(viewsets.ModelViewSet):
 class UserChatCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
-        print("user_chat view 진입")
+    def post(self, request):        
         user1 = request.user
         user2_id = request.data.get('user_id')
 
@@ -1024,8 +1012,7 @@ def file_exists(request):
     rel_path = request.GET.get("path", "").lstrip("/")
     abs_path_media = os.path.join(settings.MEDIA_ROOT, rel_path)
     abs_path_static = os.path.join(settings.STATIC_ROOT, rel_path)
-    exists = os.path.exists(abs_path_media) or os.path.exists(abs_path_static)
-    print('abs_path_media:', abs_path_media, 'abs_path_static:', abs_path_static, 'exists:', exists)
+    exists = os.path.exists(abs_path_media) or os.path.exists(abs_path_static)    
     return JsonResponse({ "exists": exists })
 
 # 미디어 파일 목록 조회
@@ -1033,7 +1020,6 @@ def list_media_files(request):
     file_list = []
     for root, dirs, files in os.walk(settings.MEDIA_ROOT):
         for name in files:
-            rel_path = os.path.relpath(os.path.join(root, name), settings.MEDIA_ROOT)
-            print('rel_path:', rel_path)
+            rel_path = os.path.relpath(os.path.join(root, name), settings.MEDIA_ROOT)            
             file_list.append(rel_path)    
     return JsonResponse({"files": file_list})

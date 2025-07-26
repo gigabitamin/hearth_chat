@@ -361,7 +361,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     // 배포 환경에서는 포트 없이 wss://도메인/ws/chat/로 연결
     const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}/ws/chat/`;
 
-    
+
     try {
       ws.current = new window.WebSocket(wsUrl);
     } catch (error) {
@@ -376,14 +376,14 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         const joinMessage = { type: 'join_room', roomId: selectedRoom.id };
         if (safeWebSocketSend(joinMessage)) {
           joinSent = true;
-          
+
           clearInterval(joinInterval);
         }
       }
     }, 500); // 500ms 간격으로 안전하게 처리
 
     ws.current.onopen = () => {
-      
+
 
       // 연결 후 약간의 지연을 두고 join_room 메시지 전송
       setTimeout(() => {
@@ -391,19 +391,19 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           const joinMessage = { type: 'join_room', roomId: selectedRoom.id };
           if (safeWebSocketSend(joinMessage)) {
             joinSent = true;
-            
+
           }
         }
       }, 200); // 100ms에서 200ms로 증가하여 더 안전하게 처리
     };
     ws.current.onmessage = (e) => {
-      
+
       try {
-        const data = JSON.parse(e.data);        
+        const data = JSON.parse(e.data);
 
         if (data.type === 'user_message' && data.message) {
           const isMyMessage = (data.sender === loginUserRef.current?.username) || (data.user_id === loginUserRef.current?.id);
-          
+
           const newMessage = {
             id: Date.now(),
             type: isMyMessage ? 'send' : 'recv',
@@ -415,7 +415,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
             emotion: data.emotion,
             imageUrl: data.imageUrl || null  // data.imageUrl 사용
           };
-          
+
           setMessages((prev) => {
             let next;
             if (isMyMessage) {
@@ -424,10 +424,10 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                 ...prev.filter(msg => !(msg.pending && msg.text === data.message)),
                 newMessage
               ];
-              
+
             } else {
               next = [...prev, newMessage];
-              
+
             }
             return next;
           });
@@ -444,7 +444,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
             emotion: null,
             imageUrl: null
           };
-          
+
           setMessages((prev) => {
             // 중복 메시지 방지: 동일 timestamp/text/questioner_username/ai_name이 이미 있으면 추가하지 않음
             if (prev.some(m => m.type === 'ai' && m.date === data.timestamp && m.text === data.message && m.questioner_username === data.questioner_username && m.ai_name === data.ai_name)) {
@@ -461,7 +461,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
               pending: false,
             };
             const arr = [...prev, newMsg];
-            
+
             return arr;
           });
           setCurrentAiMessage(data.message);
@@ -487,12 +487,12 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       }
     };
     ws.current.onclose = () => {
-      
+
 
       // 연결이 끊어지면 3초 후 재연결 시도 (단, 컴포넌트가 마운트된 상태일 때만)
       setTimeout(() => {
         if (selectedRoomRef.current?.id && ws.current) {
-          
+
         }
       }, 3000);
     };
@@ -523,13 +523,13 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   // WebRTC 로컬 스트림 초기화
   const initializeLocalStream = async () => {
     try {
-      
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: true
       });
       setLocalStream(stream);
-      
+
 
       // 로컬 비디오 요소에 스트림 연결
       if (localVideoRef) {
@@ -547,7 +547,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       if (videoTrack) {
         videoTrack.enabled = !videoTrack.enabled;
         setIsLocalVideoEnabled(videoTrack.enabled);
-        
+
       }
     }
   };
@@ -559,7 +559,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       if (audioTrack) {
         audioTrack.enabled = !audioTrack.enabled;
         setIsLocalAudioEnabled(audioTrack.enabled);
-        
+
       }
     }
   };
@@ -587,7 +587,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     if (selectedRoom?.room_type === 'group' && localStream && loginUser && groupParticipants.length > 0) {
       groupParticipants.forEach(participant => {
         if (participant.id !== loginUser.id && !peerConnections[participant.id]) {
-          
+
           createAndSendOffer(participant.id);
         }
       });
@@ -793,7 +793,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
   // 컴포넌트 마운트 시 실행
   useEffect(() => {
-    
+
 
     // WebSocket 연결
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -801,15 +801,15 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     const isLocalhost = host === 'localhost' || host === '127.0.0.1';
     const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}/ws/chat/`;
 
-    
+
     ws.current = new WebSocket(wsUrl);
 
     ws.current.onopen = () => {
-    
+
     };
 
     ws.current.onclose = () => {
-    
+
     };
 
     ws.current.onerror = (error) => {
@@ -855,7 +855,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
               pending: false,
             };
             const result = [...arr, newMsg];
-            
+
             return result;
           });
         } else if (data.type === 'ai_message' && data.message) {
@@ -875,7 +875,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
               pending: false,
             };
             const arr = [...prev, newMsg];
-            
+
             return arr;
           });
         }
@@ -897,7 +897,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           const permission = await navigator.permissions.query({ name: 'microphone' });
           setPermissionStatus(permission.state);
         } catch (error) {
-          
+
         }
       }
     };
@@ -928,15 +928,15 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     const isLocalhost = host === 'localhost' || host === '127.0.0.1';
     const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}/ws/chat/`;
 
-    
+
     ws.current = new WebSocket(wsUrl);
 
     ws.current.onopen = () => {
-    
+
     };
 
     ws.current.onclose = () => {
-    
+
     };
 
     ws.current.onerror = (error) => {
@@ -947,12 +947,12 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     ws.current.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
-        
+
         const username = loginUserRef.current?.username;
         const userId = loginUserRef.current?.id;
         if (data.type === 'user_message' && data.message) {
           const isMyMessage = (data.sender === username) || (data.user_id === userId);
-          
+
           const newMessage = {
             id: Date.now(),
             type: isMyMessage ? 'send' : 'recv',
@@ -964,7 +964,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
             emotion: data.emotion,
             imageUrl: data.imageUrl || null  // data.imageUrl 사용
           };
-          
+
           setMessages((prev) => {
             let next;
             if (isMyMessage) {
@@ -973,10 +973,10 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                 ...prev.filter(msg => !(msg.pending && msg.text === data.message)),
                 newMessage
               ];
-              
+
             } else {
               next = [...prev, newMessage];
-              
+
             }
             return next;
           });
@@ -1009,7 +1009,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
               pending: false,
             };
             const arr = [...prev, newMsg];
-            
+
             return arr;
           });
           setCurrentAiMessage(data.message);
@@ -1085,10 +1085,10 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       if (lipSyncSequence && lipSyncSequence.length > 0) {
         setLipSyncSequence(lipSyncSequence);
         setCurrentLipSyncIndex(0);
-        
+
       } else {
         setLipSyncSequence([]);
-        setCurrentLipSyncIndex(0);        
+        setCurrentLipSyncIndex(0);
       }
 
       // 타이핑 효과 시작
@@ -1109,7 +1109,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       setDisplayedAiText(text);
     };
     const handleEnd = (text) => {
-      
+
       setIsAiTalking(false);
       setTtsSpeaking(false);
       // 립싱크 애니메이션: 1초간 랜덤 입모양 반복 후 닫기 (일시 비활성화)
@@ -1135,7 +1135,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       setDisplayedAiText(text); // 전체 메시지 한 번에 표시
     };
     const handleError = (error) => {
-      
+
       setIsAiTalking(false);
       setTtsSpeaking(false);
       setMouthTrigger(0);
@@ -1160,27 +1160,27 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
   // 2. speakAIMessage에서 TTS 재생 직후 립싱크 강제 시작
   const speakAIMessage = async (message) => {
-    
+
     try {
       ttsService.stop(); // 항상 먼저 중단
       if (!isTTSEnabled || !message) return;
       // 음성 목록이 준비되지 않았으면 대기
       if (!voiceList || voiceList.length === 0) {
-        
+
         return;
       }
       // TTS용 텍스트 정리 (이모티콘, 특수문자 제거)
       const cleanedMessage = ttsService.cleanTextForTTS(message);
       if (!cleanedMessage) {
-        
+
         return;
       }
-      
-      
+
+
       setTtsSpeaking(true); // 립싱크 강제 시작
-      
+
       if (isTTSEnabled && ttsVoice && message) {
-        
+
         await ttsService.speak(message, { voice: ttsVoice, rate: ttsRate, pitch: ttsPitch });
       }
     } catch (error) {
@@ -1190,7 +1190,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
   // 3. 고급 립싱크 시스템 (음소 기반)
   useEffect(() => {
-    
+
 
     if (ttsSpeaking && lipSyncSequence.length > 0) {
 
@@ -1220,7 +1220,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           const triggerValue = mouthShapeValues[currentPhoneme.mouthShape] || 0;
           setMouthTrigger(triggerValue);
           setLastLipSyncValue(triggerValue); // 마지막 립싱크 값 저장
-          
+
         } else {
           // 현재 시간에 해당하는 음소가 없으면 마지막 립싱크 값 유지
           setMouthTrigger(lastLipSyncValue);
@@ -1241,11 +1241,11 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         if (interval) clearInterval(interval);
       };
     } else if (ttsSpeaking) {
-    
+
       const baseInterval = 200;
       const rateMultiplier = ttsRate || 1.0;
       const lipSyncInterval = Math.max(100, Math.min(400, baseInterval / rateMultiplier));
-    
+
 
       const interval = setInterval(() => {
         setMouthTrigger(prev => {
@@ -1290,7 +1290,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   // TTS 서비스 초기화
   const initializeTTSService = () => {
     try {
-      
+
 
       // TTS 지원 여부 확인
       if (!ttsService.isSupported()) {
@@ -1305,7 +1305,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         setTtsVoice(voices[0]);
       }
 
-      
+
     } catch (error) {
       console.error('TTS 서비스 초기화 실패:', error);
     }
@@ -1314,7 +1314,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   // 음성 설정 상태 확인을 위한 useEffect
   useEffect(() => {
     if (ttsVoice) {
-      
+
     }
   }, [ttsVoice]);
 
@@ -1362,39 +1362,39 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       return [];
     }
   };
-  
+
   // 아바타 초기화
   const initializeAvatars = async () => {
     try {
-      const userAvatarUrl = `/avatar_vrm/gb_m_v2.vrm`;      
+      const userAvatarUrl = `/avatar_vrm/gb_m_v2.vrm`;
       // let userAvatarUrl = `/avatar_vrm_test/test.vrm`;
       // const userAvatarUrl_ex = `avatar_vrm_test/test.vrm`;      
 
       // const exists_user = await checkFileExists(userAvatarUrl_ex);
       // console.log('userAvatarUrl_exists', exists_user);
-            
+
       // if (exists_user) {
       //   console.log('userAvatarUrl', userAvatarUrl);
-;
-      let aiAvatarUrl = `/avatar_vrm/gb_f_v2.vrm`;      
+      ;
+      let aiAvatarUrl = `/avatar_vrm/gb_f_v2.vrm`;
       // let aiAvatarUrl_ex = `avatar_vrm/gb_f_v2.vrm`;
       const exists_ai = await checkFileExists(aiAvatarUrl);
-      console.log('exists_ai_exists', exists_ai);
+      // console.log('exists_ai_exists', exists_ai);
 
       // fetch('/media/avatar_vrm_test/test.vrm', { credentials: 'include' })
       // .then(res => {        
       //   return res.text();
       // })
       // .then(text => console.log('body', text));
-      
+
       const testPath = '/uploads/test.vrm';  // 슬래시 없이
       const exists = await checkFileExists(testPath);
-      console.log('exists_test_model', exists);
-      
+      // console.log('exists_test_model', exists);
+
       if (exists) {
-        aiAvatarUrl = `/media${testPath}`;        
+        aiAvatarUrl = `/media${testPath}`;
       }
-      
+
       setUserAvatar(userAvatarUrl);
       setAiAvatar(aiAvatarUrl);
 
@@ -1586,7 +1586,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     setIsCameraActive(newCameraState);
 
     // 카메라가 켜질 때 자동으로 카메라 시작
-    
+
   };
 
   // 실시간 모드 토글 핸들러
@@ -1596,7 +1596,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
   // 음성인식 결과 처리
   const handleVoiceResult = (finalText) => {
-  
+
 
     // 자동전송 직후에는 interim/final 반영을 막음
     if (blockInterim) return;
@@ -1616,7 +1616,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       // 2초 후 자동 전송 타이머 설정
       const timer = setTimeout(() => {
         if (newAccumulatedText.trim()) {
-          
+
           setBlockInterim(true); // interim 반영 막기
           setInput(newAccumulatedText);
           sendMessage(newAccumulatedText);
@@ -1634,7 +1634,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   const handleVoiceInterimResult = (interimText) => {
     // 사용자가 말하기 시작하면 TTS 중단
     ttsService.stop();
-    
+
 
     // 자동전송 직후에는 interim 반영을 막음
     if (blockInterim) return;
@@ -1663,7 +1663,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       try {
         // 모바일 브라우저에서 권한 요청을 위한 사용자 상호작용 확인
         if (navigator.userAgent.match(/android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i)) {
-          
+
 
           // 권한이 거부된 상태라면 먼저 권한 요청
           if (permissionStatus === 'denied') {
@@ -1735,11 +1735,11 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         setIsTrackingEnabled(false);
         setTrackingStatus('stopped');
         setFaceDetected(false);
-        
+
       } else {
         // MediaPipe 준비 상태 확인
         if (!faceTrackingService.isReady) {
-          
+
           await faceTrackingService.initializeMediaPipe();
 
           // 초기화 후 다시 확인
@@ -1766,7 +1766,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
             setFaceDetected(false);
           });
 
-          
+
         } else {
           setTrackingStatus('error');
           alert('트래킹을 시작할 수 없습니다. 웹캠 권한을 확인해주세요.');
@@ -1782,20 +1782,20 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   // 마이크 권한 요청 함수
   const requestMicrophonePermission = async () => {
     try {
-      
+
 
       // 모바일 브라우저 감지
       const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
-      
+
 
       // navigator.permissions API 지원 확인
       if (navigator.permissions && navigator.permissions.query) {
         try {
           const permission = await navigator.permissions.query({ name: 'microphone' });
           setPermissionStatus(permission.state);
-          
 
-          
+
+
 
           if (permission.state === 'denied') {
 
@@ -1810,7 +1810,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       }
 
       // getUserMedia를 사용하여 권한 요청 (더 구체적인 옵션)
-      
+
       const constraints = {
         audio: {
           echoCancellation: true,
@@ -1825,9 +1825,9 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       // 스트림 즉시 중지
       stream.getTracks().forEach(track => {
         track.stop();
-        
+
       });
-      
+
       setPermissionStatus('granted');
       return true;
 
@@ -1838,17 +1838,17 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
       setPermissionStatus('denied');
 
-      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {        
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
         alert('마이크 권한이 거부되었습니다.\n\n브라우저 설정에서 마이크 권한을 허용해주세요.');
         return false;
       }
 
-      if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {        
+      if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
         alert('마이크 장치를 찾을 수 없습니다.\n\n마이크가 연결되어 있는지 확인해주세요.');
         return false;
       }
 
-      if (error.name === 'NotSupportedError' || error.name === 'ConstraintNotSatisfiedError') {        
+      if (error.name === 'NotSupportedError' || error.name === 'ConstraintNotSatisfiedError') {
         alert('지원되지 않는 오디오 설정입니다.\n\n다른 브라우저를 시도해보세요.');
         return false;
       }
@@ -1902,7 +1902,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
   // 이미지 업로드 후 전송 (파일 직접 전달)
   const handleImageUploadAndSendWithFile = async (imageFile, messageText) => {
-    if (!imageFile || !ws.current || ws.current.readyState !== 1) return;        
+    if (!imageFile || !ws.current || ws.current.readyState !== 1) return;
     // input에는 절대 의존하지 않고, 오직 messageText만 사용
     const finalMessageText = messageText || '이미지 첨부';
     try {
@@ -1926,7 +1926,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           imageUrl: res.data.file_url,
           roomId: selectedRoom?.id || null
         };
-        
+
         ws.current.send(JSON.stringify(messageData));
         setInput('');
         setAttachedImage(null);
@@ -1977,7 +1977,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           roomId: selectedRoom?.id || null
         };
 
-        
+
         ws.current.send(JSON.stringify(messageData));
 
         // 입력 상태 초기화 (WebSocket 전송 후)
@@ -2015,7 +2015,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       client_id: clientId, // 클라이언트 고유 식별자
     };
 
-    
+
     if (!safeWebSocketSend(messageData)) {
       console.error('[sendMessage] 메시지 전송 실패');
       return;
@@ -2033,7 +2033,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         client_id: clientId,
       };
       const arr = [...prev, newMsg];
-      
+
       return arr;
     });
     setInput('');
@@ -2094,7 +2094,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   // 페이지 언로드 시 TTS 강제 중지
   useEffect(() => {
     const handleBeforeUnload = () => {
-      
+
       ttsService.stop();
       // 브라우저의 speechSynthesis도 직접 중지
       if (window.speechSynthesis) {
@@ -2104,7 +2104,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        
+
         ttsService.stop();
         if (window.speechSynthesis) {
           window.speechSynthesis.cancel();
@@ -2305,7 +2305,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       if ((parsed.labels && parsed.datasets) || (Array.isArray(parsed) && parsed[0]?.name)) {
         isJson = true;
         chartData = convertToChartData(parsed);
-        
+
       }
     } catch (e) {
       console.log('JSON parse error:', e);
@@ -2501,16 +2501,15 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       const apiUrl = isLocalhost
         ? 'http://localhost:8000'
         : `${window.location.protocol}//${window.location.hostname}`;
-      
 
       const res = await fetch(`${apiUrl}/api/chat/messages/messages/?room=${roomId}&limit=${limit}&offset=${offset}`, {
         credentials: 'include',
       });
 
-      
-
       if (res.ok) {
         const data = await res.json();
+
+        console.log('API 응답:', data);
 
         const username = loginUserRef.current?.username;
         const userId = loginUserRef.current?.id;
@@ -2527,10 +2526,10 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           if (msg.sender_type === 'user') {
             if (userId !== undefined && userId !== null) {
               isMine = Number(msg.user_id) === Number(userId);
-              
+
             } else {
               isMine = msg.username === username;
-              
+
             }
             messageType = isMine ? 'send' : 'recv';
           } else if (msg.sender_type === 'ai') {
@@ -2551,7 +2550,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           // imageUrl 처리: attach_image 또는 imageUrl 중에서 찾기
           // const imageUrl = getImageUrl(msg.attach_image);
           const imageUrl = getImageUrl(msg.imageUrl);
-          
+
 
           return {
             ...msg,
@@ -2561,11 +2560,17 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           };
         });
 
-        
+
         if (append) {
-          setMessages(prev => [...mappedMessages.reverse(), ...prev]);
+          setMessages(prev => {
+            const newArr = [...mappedMessages.reverse(), ...prev];
+            console.log('prepend: id순서', newArr.map(m => m.id));
+            return newArr;
+          });
         } else {
-          setMessages(mappedMessages.reverse());
+          const newArr = mappedMessages.reverse();
+          console.log('replace: id순서', newArr.map(m => m.id));
+          setMessages(() => newArr);
         }
         setHasMore(data.has_more);
         setMessageOffset(offset + data.results.length);
@@ -2688,10 +2693,10 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
   // useEffect로 AI 메시지 수신 시 TTS 실행
   useEffect(() => {
-    
+
     const lastMsg = messages[messages.length - 1];
     if (lastMsg && lastMsg.type === 'ai') {
-    
+
       speakAIMessage(lastMsg.text);
     }
   }, [messages]);
@@ -2699,7 +2704,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   // pendingImageFile이 변경될 때 이미지 업로드 처리
   useEffect(() => {
     if (pendingImageFile && selectedRoom) {
-    
+
       setAttachedImage(pendingImageFile);
       setAttachedImagePreview(URL.createObjectURL(pendingImageFile));
       setPendingImageFile(null);
@@ -2747,7 +2752,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
   useEffect(() => {
     if (isMenuOpen) {
-      
+
     }
   }, [isMenuOpen, selectedRoom, loginUser]);
 
@@ -2996,11 +3001,19 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                   favoriteMessages={favoriteMessages}
                   onToggleFavorite={handleToggleFavorite}
                   scrollToMessageId={scrollToMessageId}
-                  onMessageDelete={() => {                    
+                  onMessageDelete={() => {
                     if (selectedRoom && selectedRoom.id) {
                       fetchMessages(selectedRoom.id, 0, 20, false);
                     }
                   }}
+                  onLoadMore={() => {
+                    if (!loadingMessages && hasMore && selectedRoom && selectedRoom.id) {
+                      fetchMessages(selectedRoom.id, messageOffset, 20, true);
+                    }
+                  }}
+                  hasMore={hasMore}
+                  selectedRoomId={selectedRoom?.id}
+                  loadingMessages={loadingMessages}
                 />
               </div>
 
