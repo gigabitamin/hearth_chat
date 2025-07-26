@@ -2492,6 +2492,25 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
   // 메시지 불러오기 함수
   const fetchMessages = async (roomId, offset = 0, limit = 20, isPrepending = false, isInit = false, scrollToId = null) => {
+    // 연속성 체크 및 fallback 전체 reload 로직
+    const reloadWindow = async (reloadOffset, reloadLimit) => {
+      console.warn('[슬라이딩윈도우:fallback] 전체 reload 시도 - offset:', reloadOffset, 'limit:', reloadLimit);
+      setLoadingMessages(true);
+      try {
+        const response = await fetch(`/api/chat/messages/messages/?room=${selectedRoom.id}&limit=${reloadLimit}&offset=${reloadOffset}`);
+        const data = await response.json();
+        setMessages(data.results);
+        setFirstItemIndex(reloadOffset);
+        setMessageOffset(reloadOffset);
+        setTotalCount(data.count || 0);
+        setLoadingMessages(false);
+        console.log('[슬라이딩윈도우:fallback] 전체 reload 완료 - messages:', data.results.map(m => m.id));
+      } catch (err) {
+        setLoadingMessages(false);
+        console.error('[슬라이딩윈도우:fallback] 전체 reload 실패', err);
+      }
+    };
+
     if (loadingMessages) {
       console.log('[fetchMessages] 이미 로딩 중이므로 스킵');
       return;
@@ -2532,29 +2551,60 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         }
 
         if (isPrepending) {
+          // 연속성 체크 및 fallback 전체 reload 로직
+          const reloadWindow = async (reloadOffset, reloadLimit) => {
+            console.warn('[슬라이딩윈도우:fallback] 전체 reload 시도 - offset:', reloadOffset, 'limit:', reloadLimit);
+            setLoadingMessages(true);
+            try {
+              const response = await fetch(`/api/chat/messages/messages/?room=${selectedRoom.id}&limit=${reloadLimit}&offset=${reloadOffset}`);
+              const data = await response.json();
+              setMessages(data.results);
+              setFirstItemIndex(reloadOffset);
+              setMessageOffset(reloadOffset);
+              setTotalCount(data.count || 0);
+              setLoadingMessages(false);
+              console.log('[슬라이딩윈도우:fallback] 전체 reload 완료 - messages:', data.results.map(m => m.id));
+            } catch (err) {
+              setLoadingMessages(false);
+              console.error('[슬라이딩윈도우:fallback] 전체 reload 실패', err);
+            }
+          };
+
+          // 연속성 체크: 기존 첫 메시지 date와 새 메시지 마지막 date가 연속되는지
+          const prevFirstDate = messages[0]?.timestamp || messages[0]?.date;
+          const newLastDate = uniqueNewMessages[uniqueNewMessages.length - 1]?.timestamp || uniqueNewMessages[uniqueNewMessages.length - 1]?.date;
+          if (prevFirstDate && newLastDate && prevFirstDate !== newLastDate) {
+            console.warn('[슬라이딩윈도우:prepend] 연속성 오류! prevFirstDate:', prevFirstDate, 'newLastDate:', newLastDate, '→ 전체 reload');
+            reloadWindow(offset, 40);
+            return;
+          }
           setMessages(prev => {
             const newArr = [...uniqueNewMessages, ...prev];
-            const sliced = newArr.slice(0, 40);
+            const sliced = newArr.slice(0, 40); // 앞쪽 40개만 유지
             console.log('[슬라이딩윈도우:prepend] 새로 추가:', uniqueNewMessages.map(m => m.id), '최종:', sliced.map(m => m.id));
             console.log('[슬라이딩윈도우:prepend-계산값] offset:', offset, 'sliced.length:', sliced.length, 'totalCount:', totalCount);
-            // 상태 업데이트를 동기화
             setFirstItemIndex(offset);
             setMessageOffset(offset);
             return sliced;
           });
-          console.log('[슬라이딩윈도우:상태] firstItemIndex:', firstItemIndex, 'messages.length:', messages.length, 'totalCount:', totalCount);
         } else {
+          // 연속성 체크: 기존 마지막 메시지 date와 새 메시지 첫 date가 연속되는지
+          const prevLastDate = messages[messages.length - 1]?.timestamp || messages[messages.length - 1]?.date;
+          const newFirstDate = uniqueNewMessages[0]?.timestamp || uniqueNewMessages[0]?.date;
+          if (prevLastDate && newFirstDate && prevLastDate !== newFirstDate) {
+            console.warn('[슬라이딩윈도우:append] 연속성 오류! prevLastDate:', prevLastDate, 'newFirstDate:', newFirstDate, '→ 전체 reload');
+            reloadWindow(offset, 40);
+            return;
+          }
           setMessages(prev => {
             const newArr = [...prev, ...uniqueNewMessages];
-            const sliced = newArr.slice(-40);
+            const sliced = newArr.slice(-40); // 뒤쪽 40개만 유지
             console.log('[슬라이딩윈도우:append/init] 새로 추가:', uniqueNewMessages.map(m => m.id), '최종:', sliced.map(m => m.id));
             console.log('[슬라이딩윈도우:append-계산값] offset:', offset, 'sliced.length:', sliced.length, 'totalCount:', totalCount);
-            // 상태 업데이트를 동기화
             setFirstItemIndex(offset);
             setMessageOffset(offset);
             return sliced;
           });
-          console.log('[슬라이딩윈도우:상태] firstItemIndex:', firstItemIndex, 'messages.length:', messages.length, 'totalCount:', totalCount);
         }
         if (scrollToId) {
           setScrollToMessageId(scrollToId);
