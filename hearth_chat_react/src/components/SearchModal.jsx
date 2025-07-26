@@ -632,6 +632,7 @@ export default function SearchModal({
                                 title="입장"
                                 onClick={async e => {
                                     e.stopPropagation();
+                                    let navigated = false;
                                     try {
                                         const res = await fetch(`${getApiBase()}/api/chat/rooms/${r.room_id}/`, {
                                             credentials: 'include'
@@ -641,10 +642,13 @@ export default function SearchModal({
                                             return;
                                         }
                                         if (onClose) onClose();
+                                        navigated = true;
                                         navigate(`/room/${r.room_id}?messageId=${r.id}`);
-                                        setScrollToMessageId(r.id); // (2) [입장] 버튼 클릭, handleEnterRoom, onResultClick 등에서 navigate 호출 전 setScrollToMessageId(message_id) 호출 추가
+                                        setScrollToMessageId(r.id);
                                     } catch {
-                                        alert('방 정보 확인 중 오류가 발생했습니다');
+                                        if (!navigated) {
+                                            alert('방 정보 확인 중 오류가 발생했습니다');
+                                        }
                                     }
                                 }}
                             >입장</button>

@@ -3068,8 +3068,8 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                   highlightMessageId={highlightMessageId}
                   getSenderColor={getSenderColor}
                   onReply={msg => setReplyTo(msg)}
-                  onMessageClick={msg => { }} // 메시지 강조 기능 제거
-                  onReplyQuoteClick={id => { }} // 메시지 강조 기능 제거
+                  // onMessageClick={msg => { }} // 메시지 강조 기능 제거
+                  // onReplyQuoteClick={id => { }} // 메시지 강조 기능 제거
                   onImageClick={setViewerImage}
                   favoriteMessages={favoriteMessages}
                   onToggleFavorite={handleToggleFavorite}
