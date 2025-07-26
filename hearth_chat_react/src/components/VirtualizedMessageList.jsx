@@ -83,7 +83,10 @@ const VirtualizedMessageList = ({
     const scrollRef = useRef(null);
     const [showNewMsgAlert, setShowNewMsgAlert] = useState(false);
     const [atBottom, setAtBottom] = useState(true);
+    // prepend 후 스크롤 위치 보정
     const prevMessagesLength = useRef(messages.length);
+    const prevScrollTop = useRef(0);
+    const isPrepending = useRef(false);
     const [emojiPickerMsgId, setEmojiPickerMsgId] = useState(null);
     const [localReactions, setLocalReactions] = useState({}); // {messageId: [reactions]}
     const [pinnedIds, setPinnedIds] = useState([]);
@@ -133,6 +136,48 @@ const VirtualizedMessageList = ({
         }
     }, [highlightMessageId, messages]);
 
+    // 초기 로딩 시 스크롤을 최하단으로 이동
+    useEffect(() => {
+        if (messages.length > 0 && scrollRef.current && !isPrepending.current) {
+            // 초기 로딩이거나 새 메시지가 추가된 경우 최하단으로 스크롤
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+    }, [messages.length]);
+
+    // 스크롤 위치 보정을 위한 useEffect
+    useEffect(() => {
+        if (messages.length > prevMessagesLength.current) {
+            // prepend가 일어났을 때 (메시지가 앞에 추가됨)
+            const addedCount = messages.length - prevMessagesLength.current;
+
+            if (addedCount > 0 && scrollRef.current && isPrepending.current) {
+                // DOM 업데이트 후 스크롤 위치 조정
+                requestAnimationFrame(() => {
+                    if (scrollRef.current) {
+                        // 새로 추가된 메시지들의 실제 높이를 계산
+                        const scrollContainer = scrollRef.current;
+                        const messageElements = scrollContainer.querySelectorAll('[id^="message-"]');
+
+                        if (messageElements.length >= addedCount) {
+                            // 새로 추가된 메시지들의 총 높이 계산
+                            let newMessagesHeight = 0;
+                            for (let i = 0; i < addedCount; i++) {
+                                if (messageElements[i]) {
+                                    newMessagesHeight += messageElements[i].offsetHeight;
+                                }
+                            }
+
+                            // 이전 스크롤 위치 + 새 메시지들의 높이로 조정
+                            scrollContainer.scrollTop = prevScrollTop.current + newMessagesHeight;
+                        }
+                    }
+                    isPrepending.current = false;
+                });
+            }
+        }
+        prevMessagesLength.current = messages.length;
+    }, [messages]);
+
     // 3. 새 메시지 도착 시 자동 최신 스크롤/알림
     useEffect(() => {
         if (messages.length > prevMessagesLength.current) {
@@ -142,7 +187,6 @@ const VirtualizedMessageList = ({
                 setShowNewMsgAlert(true);
             }
         }
-        prevMessagesLength.current = messages.length;
     }, [messages, atBottom]);
 
     // 4. 새 메시지 알림 클릭 시 최신으로 이동
@@ -153,7 +197,7 @@ const VirtualizedMessageList = ({
         setShowNewMsgAlert(false);
     };
 
-    // 5. 무한 스크롤: 맨 위 도달 시 onLoadMore 호출
+    // 5. 무한 스크롤: 맨 위 도달 시 onLoadMore 호출 (일반 스크롤 이벤트)
     const handleScroll = useCallback(() => {
         if (!scrollRef.current || loadingMessages || !hasMore) return;
 
@@ -163,6 +207,9 @@ const VirtualizedMessageList = ({
         if (scrollTop < 50) {
             console.log('맨 위 도달, hasMore:', hasMore, 'messages.length:', messages.length);
             if (hasMore && onLoadMore) {
+                // prepend 전 현재 스크롤 위치 저장
+                prevScrollTop.current = scrollTop;
+                isPrepending.current = true;
                 onLoadMore();
             }
         }
