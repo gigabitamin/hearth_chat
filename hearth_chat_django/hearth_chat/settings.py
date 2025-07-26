@@ -76,6 +76,12 @@ CSRF_HEADER_NAME = "HTTP_X_CSRFTOKEN"
 # CORS 관련 설정 (프론트 주소)
 CORS_ALLOW_CREDENTIALS = True
 
+# Base URL 설정
+if os.environ.get("RAILWAY_ENVIRONMENT"):
+    BASE_URL = "https://hearthchat-production.up.railway.app"
+else:
+    BASE_URL = "http://localhost:8000"
+
 # Railway 환경에서 배포 여부 확인
 if os.environ.get("RAILWAY_ENVIRONMENT"):
     # CSRF / 세션 쿠키 설정
@@ -98,6 +104,8 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
     SECURE_BROWSER_XSS_FILTER = False
     X_FRAME_OPTIONS = 'ALLOWALL'
     print("Railway 배포 환경 설정 완료")
+else:
+    print("로컬 개발 환경 설정 완료")
 else:
     # 로컬 개발 환경 (http)
     SESSION_COOKIE_SAMESITE = "Lax"

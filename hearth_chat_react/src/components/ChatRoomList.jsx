@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import LoginModal from './LoginModal';
 import './ChatRoomList.css';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE, getCookie } from '../utils/apiConfig';
 
 const AI_PROVIDERS = [
     { value: 'GEMINI', label: 'Gemini' },
@@ -10,32 +11,7 @@ const AI_PROVIDERS = [
 ];
 
 // CSRF 토큰 읽기 함수
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-}
 const csrftoken = getCookie('csrftoken');
-
-// 환경에 따라 API_BASE 자동 설정
-const hostname = window.location.hostname;
-const isProd = process.env.NODE_ENV === 'production';
-const API_BASE = isProd
-    ? 'https://hearthchat-production.up.railway.app'
-    : (hostname === 'localhost' || hostname === '127.0.0.1')
-        ? 'http://localhost:8000'
-        : hostname === '192.168.44.9'
-            ? 'http://192.168.44.9:8000'
-            : `http://${hostname}:8000`;
 
 // ChatRoomList 컴포넌트에 onClose prop 추가
 const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, checkLoginStatus, onUserMenuOpen, activeTab, setActiveTab, showCreateModal, setShowCreateModal, onClose, onCreateRoomSuccess, overlayKey, wsConnected, setWsConnected, sidebarTab, setSidebarTab, onPreviewMessage }) => {
@@ -142,9 +118,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
     const fetchRooms = async () => {
         try {
             setLoading(true);
-            // 환경에 따라 API URL 설정            
-            const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            const apiUrl = isLocalhost ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
+            // API_BASE 사용
             const response = await fetch(`${API_BASE}/api/chat/rooms/`, {
                 credentials: 'include',
                 headers: {
@@ -166,9 +140,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
 
     const fetchPublicRooms = async () => {
         try {
-            // 환경에 따라 API URL 설정
-            const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            const apiUrl = isLocalhost ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
+            // API_BASE 사용
 
             const response = await fetch(`${API_BASE}/api/chat/rooms/public/`, {
                 credentials: 'include',
@@ -289,9 +261,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                 is_public: createIsPublic,
             };
             const csrftoken = getCookie('csrftoken');
-            // 환경에 따라 API URL 설정
-            const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            const apiUrl = isLocalhost ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
+            // API_BASE 사용
 
             const response = await fetch(`${API_BASE}/api/chat/rooms/`, {
                 method: 'POST',
@@ -333,9 +303,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
 
         try {
             const csrftoken = getCookie('csrftoken');
-            // 환경에 따라 API URL 설정
-            const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            const apiUrl = isLocalhost ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
+            // API_BASE 사용
 
             const response = await fetch(`${API_BASE}/api/chat/rooms/${roomId}/`, {
                 method: 'DELETE',
@@ -360,9 +328,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
     const handleJoinRoom = async (roomId) => {
         try {
             const csrftoken = getCookie('csrftoken');
-            // 환경에 따라 API URL 설정
-            const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            const apiUrl = isLocalhost ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
+            // API_BASE 사용
 
             const response = await fetch(`${API_BASE}/api/chat/rooms/${roomId}/join/`, {
                 method: 'POST',

@@ -49,7 +49,7 @@ def google_login_redirect(request):
     try:
         app = SocialApp.objects.get(provider='google', sites=settings.SITE_ID)
         # 직접 callback URL 사용 (Google Cloud Console에 등록된 URL)
-        callback_url = 'http://localhost:8000/oauth/google/callback/'
+        callback_url = f'{settings.BASE_URL}/oauth/google/callback/'
         print('[DEBUG][GOOGLE] callback_url:', callback_url)
         params = {
             'client_id': app.client_id,
@@ -74,7 +74,7 @@ def kakao_login_redirect(request):
     try:
         app = SocialApp.objects.get(provider='kakao', sites=settings.SITE_ID)
         # 직접 callback URL 사용
-        callback_url = 'http://localhost:8000/oauth/kakao/callback/'
+        callback_url = f'{settings.BASE_URL}/oauth/kakao/callback/'
         print('[DEBUG][KAKAO] callback_url:', callback_url)
         params = {
             'client_id': app.client_id,
@@ -118,7 +118,7 @@ def kakao_login_callback(request):
             'client_id': app.client_id,
             'client_secret': app.secret,
             'code': code,
-            'redirect_uri': 'http://localhost:8000/oauth/kakao/callback/'
+            'redirect_uri': f'{settings.BASE_URL}/oauth/kakao/callback/'
         }
         
         print('[DEBUG][KAKAO_CALLBACK] token_data:', token_data)
@@ -208,7 +208,7 @@ def naver_login_redirect(request):
     try:
         app = SocialApp.objects.get(provider='naver', sites=settings.SITE_ID)
         # 직접 callback URL 사용
-        callback_url = 'http://localhost:8000/oauth/naver/callback/'
+        callback_url = f'{settings.BASE_URL}/oauth/naver/callback/'
         print('[DEBUG][NAVER] callback_url:', callback_url)
         params = {
             'client_id': app.client_id,
@@ -344,7 +344,7 @@ def github_login_redirect(request):
     try:
         app = SocialApp.objects.get(provider='github', sites=settings.SITE_ID)
         # 직접 callback URL 사용
-        callback_url = 'http://localhost:8000/oauth/github/callback/'
+        callback_url = f'{settings.BASE_URL}/oauth/github/callback/'
         print('[DEBUG][GITHUB] callback_url:', callback_url)
         params = {
             'client_id': app.client_id,
@@ -513,7 +513,7 @@ def google_login_callback(request):
             'client_secret': app.secret,
             'code': code,
             'grant_type': 'authorization_code',
-            'redirect_uri': 'http://localhost:8000/oauth/google/callback/'
+            'redirect_uri': f'{settings.BASE_URL}/oauth/google/callback/'
         }
         
         print('[DEBUG][GOOGLE_CALLBACK] token_data:', token_data)
@@ -666,7 +666,7 @@ def google_connect_redirect(request):
     """Google OAuth 계정 연결 리디렉션"""
     try:
         app = SocialApp.objects.get(provider='google', sites=settings.SITE_ID)
-        callback_url = 'http://localhost:8000/oauth/google/connect/callback/'
+        callback_url = f'{settings.BASE_URL}/oauth/google/connect/callback/'
         print('[DEBUG][GOOGLE_CONNECT] callback_url:', callback_url)
         params = {
             'client_id': app.client_id,
@@ -705,7 +705,7 @@ def google_connect_callback(request):
             'client_secret': app.secret,
             'code': code,
             'grant_type': 'authorization_code',
-            'redirect_uri': 'http://localhost:8000/oauth/google/connect/callback/',
+            'redirect_uri': f'{settings.BASE_URL}/oauth/google/connect/callback/',
         }
         
         token_response = requests.post(token_url, data=token_data)
@@ -758,7 +758,7 @@ def kakao_connect_redirect(request):
     """Kakao OAuth 계정 연결 리디렉션"""
     try:
         app = SocialApp.objects.get(provider='kakao', sites=settings.SITE_ID)
-        callback_url = 'http://localhost:8000/oauth/kakao/connect/callback/'
+        callback_url = f'{settings.BASE_URL}/oauth/kakao/connect/callback/'
         print('[DEBUG][KAKAO_CONNECT] callback_url:', callback_url)
         params = {
             'client_id': app.client_id,
@@ -793,7 +793,7 @@ def kakao_connect_callback(request):
             'client_id': app.client_id,
             'client_secret': app.secret,
             'code': code,
-            'redirect_uri': 'http://localhost:8000/oauth/kakao/connect/callback/',
+            'redirect_uri': f'{settings.BASE_URL}/oauth/kakao/connect/callback/',
         }
         
         token_response = requests.post(token_url, data=token_data)
@@ -846,7 +846,7 @@ def naver_connect_redirect(request):
     """Naver OAuth 계정 연결 리디렉션"""
     try:
         app = SocialApp.objects.get(provider='naver', sites=settings.SITE_ID)
-        callback_url = 'http://localhost:8000/oauth/naver/connect/callback/'
+        callback_url = f'{settings.BASE_URL}/oauth/naver/connect/callback/'
         print('[DEBUG][NAVER_CONNECT] callback_url:', callback_url)
         params = {
             'client_id': app.client_id,
@@ -940,7 +940,7 @@ def github_connect_redirect(request):
     try:
         app = SocialApp.objects.get(provider='github', sites=settings.SITE_ID)
         # 연결 전용 callback URL 사용
-        callback_url = 'http://localhost:8000/oauth/github/connect/callback/'
+        callback_url = f'{settings.BASE_URL}/oauth/github/connect/callback/'
         print('[DEBUG][GITHUB_CONNECT] callback_url:', callback_url)
         params = {
             'client_id': app.client_id,

@@ -24,6 +24,7 @@ import RoomSettingsModal from './RoomSettingsModal';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 
 import VirtualizedMessageList from './VirtualizedMessageList';
+import { getApiBase, getCookie, csrfFetch, API_BASE } from '../utils/apiConfig';
 // Chart.js core 등록 필수!
 import {
   Chart as ChartJS,
@@ -46,19 +47,6 @@ ChartJS.register(
   Legend
 );
 
-
-// 환경에 따라 API_BASE 자동 설정 함수 추가
-const getApiBase = () => {
-  const hostname = window.location.hostname;
-  const isProd = process.env.NODE_ENV === 'production';
-
-  if (isProd) return 'https://hearthchat-production.up.railway.app';
-  if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:8000';
-  if (hostname === '192.168.44.9') return 'http://192.168.44.9:8000';
-
-  return `http://${hostname}:8000`;
-};
-
 // 이미지 URL을 절대 경로로 변환하는 함수
 const getImageUrl = (imageUrl) => {
   if (!imageUrl) return null;
@@ -70,39 +58,11 @@ const getImageUrl = (imageUrl) => {
 
   // 상대 경로인 경우 Django 서버 주소를 앞에 붙임
   if (imageUrl.startsWith('/media/')) {
-    return `${getApiBase()}${imageUrl}`;
+    return `${API_BASE}${imageUrl}`;
   }
 
   // 기타 경우는 그대로 반환
   return imageUrl;
-};
-
-// CSRF 토큰 쿠키 가져오기
-function getCookie(name) {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(';').shift();
-}
-
-// csrfFetch 함수
-const csrfFetch = async (url, options = {}) => {
-  const csrftoken = getCookie('csrftoken');
-
-  const defaultHeaders = {
-    'X-CSRFToken': csrftoken,
-    'Content-Type': 'application/json',
-  };
-
-  const mergedOptions = {
-    credentials: 'include',
-    ...options,
-    headers: {
-      ...defaultHeaders,
-      ...(options.headers || {}),
-    },
-  };
-
-  return fetch(url, mergedOptions);
 };
 
 

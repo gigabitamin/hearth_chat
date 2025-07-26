@@ -1,36 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-
-const getApiBase = () => {
-    const hostname = window.location.hostname;
-    const isProd = process.env.NODE_ENV === 'production';
-    if (isProd) return 'https://hearthchat-production.up.railway.app';
-    if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:8000';
-    if (hostname === '192.168.44.9') return 'http://192.168.44.9:8000';
-    return `http://${hostname}:8000`;
-};
-
-function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop().split(';').shift();
-}
-
-const csrfFetch = async (url, options = {}) => {
-    const csrftoken = getCookie('csrftoken');
-    const defaultHeaders = {
-        'X-CSRFToken': csrftoken,
-        'Content-Type': 'application/json',
-    };
-    const mergedOptions = {
-        credentials: 'include',
-        ...options,
-        headers: {
-            ...defaultHeaders,
-            ...(options.headers || {}),
-        },
-    };
-    return fetch(url, mergedOptions);
-};
+import { getApiBase, getCookie, csrfFetch } from '../utils/apiConfig';
 
 const EMOJI_LIST = ['👍', '😂', '❤️', '😮', '😢', '👏', '🔥', '😡', '🙏', '🎉'];
 
@@ -180,11 +149,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
             const formData = new FormData();
             formData.append('file', imageFile);
             formData.append('content', messageText || '이미지 첨부');
-            const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            const apiUrl = isLocalhost
-                ? 'http://localhost:8000'
-                : `${window.location.protocol}//${window.location.hostname}`;
-            const res = await fetch(`${apiUrl}/api/chat/upload_image/`, {
+            const res = await fetch(`${getApiBase()}/api/chat/upload_image/`, {
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': getCookie('csrftoken'),
@@ -312,11 +277,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                         const formData = new FormData();
                         formData.append('file', attachedImage);
                         formData.append('content', input || '이미지 첨부');
-                        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                        const apiUrl = isLocalhost
-                            ? 'http://localhost:8000'
-                            : `${window.location.protocol}//${window.location.hostname}`;
-                        const imgRes = await fetch(`${apiUrl}/api/chat/upload_image/`, {
+                        const imgRes = await fetch(`${getApiBase()}/api/chat/upload_image/`, {
                             method: 'POST',
                             headers: {
                                 'X-CSRFToken': getCookie('csrftoken'),

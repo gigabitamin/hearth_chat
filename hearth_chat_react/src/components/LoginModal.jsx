@@ -1,32 +1,7 @@
 import React, { useState } from 'react';
 import SocialLoginButtons from './SocialLoginButtons';
 import './LoginModal.css';
-
-// 환경에 따라 API_BASE 자동 설정
-const hostname = window.location.hostname;
-const isProd = process.env.NODE_ENV === 'production';
-const API_BASE = isProd
-    ? 'https://hearthchat-production.up.railway.app'
-    : (hostname === 'localhost' || hostname === '127.0.0.1')
-        ? 'http://localhost:8000'
-        : hostname === '192.168.44.9'
-            ? 'http://192.168.44.9:8000'
-            : `http://${hostname}:8000`;
-
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-}
+import { API_BASE, getCookie } from '../utils/apiConfig';
 
 const LoginModal = ({ isOpen, onClose, onSocialLogin }) => {
     const [tab, setTab] = useState('login'); // 'login' or 'signup'

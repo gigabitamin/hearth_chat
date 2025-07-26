@@ -1,16 +1,9 @@
 import React from 'react';
 import './SocialLoginButtons.css';
+import { API_BASE } from '../utils/apiConfig';
 
-// 환경에 따라 BACKEND_URL 자동 설정
-const hostname = window.location.hostname;
-const isProd = process.env.NODE_ENV === 'production';
-const BACKEND_URL = isProd
-    ? 'https://hearthchat-production.up.railway.app'
-    : (hostname === 'localhost' || hostname === '127.0.0.1')
-        ? 'http://localhost:8000'
-        : hostname === '192.168.44.9'
-            ? 'http://192.168.44.9:8000'
-            : `http://${hostname}:8000`;
+// BACKEND_URL을 API_BASE로 사용
+const BACKEND_URL = API_BASE;
 
 const SOCIALS = [
     {

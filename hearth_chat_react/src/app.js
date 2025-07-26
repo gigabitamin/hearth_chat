@@ -10,47 +10,12 @@ import LoginModal from './components/LoginModal';
 import SettingsModal from './components/SettingsModal';
 import AdminDashboard from './components/AdminDashboard';
 import GlobalChatInput from './components/GlobalChatInput';
+import { getApiBase, csrfFetch, API_BASE, getCookie } from './utils/apiConfig';
 import './App.css';
 
 
 
-// 환경에 따라 API_BASE 자동 설정 함수 추가
-const getApiBase = () => {
-  const hostname = window.location.hostname;
-  const isProd = process.env.NODE_ENV === 'production';
-  if (isProd) return 'https://hearthchat-production.up.railway.app';
-  if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:8000';
-  if (hostname === '192.168.44.9') return 'http://192.168.44.9:8000';
-  return `http://${hostname}:8000`;
-};
-
-// CSRF 토큰 쿠키 가져오기
-function getCookie(name) {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(';').shift();
-}
-
-const csrfFetch = async (url, options = {}) => {
-  const csrftoken = getCookie('csrftoken');
-  const defaultHeaders = {
-    'X-CSRFToken': csrftoken,
-    'Content-Type': 'application/json',
-  };
-
-  const mergedOptions = {
-    credentials: 'include',
-    ...options,
-    headers: {
-      ...defaultHeaders,
-      ...(options.headers || {}),
-    },
-  };
-
-  return fetch(url, mergedOptions);
-};
-
-export { csrfFetch, getApiBase };
+// API_BASE 상수는 utils/apiConfig.js에서 import됨
 
 
 function LobbyPage({ loginUser, loginLoading, checkLoginStatus, userSettings, setUserSettings, onUserMenuOpen }) {

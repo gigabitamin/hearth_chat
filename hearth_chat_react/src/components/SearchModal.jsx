@@ -3,7 +3,7 @@ import './SearchModal.css';
 import { useNavigate } from 'react-router-dom';
 import { FixedSizeList as List } from 'react-window';
 import copy from 'copy-to-clipboard';
-import { getApiBase } from '../app';
+import { getApiBase, getCookie } from '../utils/apiConfig';
 
 export default function SearchModal({
     open, onClose, rooms = [], messages = [], users = [],
@@ -66,11 +66,6 @@ export default function SearchModal({
     useEffect(() => { fetchFavoriteMessages(); }, []);
 
     // (2) 메시지 즐겨찾기 토글 함수
-    function getCookie(name) {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) return parts.pop().split(';').shift();
-    }
     const handleToggleFavoriteMessage = async (msg, index) => {
         const isFav = favoriteMessages.includes(msg.id);
         const url = `${getApiBase()}/api/chat/messages/${msg.id}/favorite/`;
@@ -312,11 +307,6 @@ export default function SearchModal({
             setSelectedUser(r);
             // 1:1 채팅방 생성/이동 로직은 그대로 유지
             try {
-                const getCookie = (name) => {
-                    const value = `; ${document.cookie}`;
-                    const parts = value.split(`; ${name}=`);
-                    if (parts.length === 2) return parts.pop().split(';').shift();
-                };
                 const csrfToken = getCookie('csrftoken');
                 const res = await fetch(`${getApiBase()}/api/chat/rooms/user_chat_alt/`, {
                     method: 'POST',
@@ -464,11 +454,6 @@ export default function SearchModal({
 
     const handleStartChat = async (user) => {
         try {
-            const getCookie = (name) => {
-                const value = `; ${document.cookie}`;
-                const parts = value.split(`; ${name}=`);
-                if (parts.length === 2) return parts.pop().split(';').shift();
-            };
             const csrfToken = getCookie('csrftoken');
             const res = await fetch(`${getApiBase()}/api/chat/rooms/user_chat_alt/`, {
                 method: 'POST',

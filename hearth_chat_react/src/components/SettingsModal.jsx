@@ -1,18 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './SettingsModal.css';
 import VoiceRecognition from './VoiceRecognition';
-
-
-// 환경에 따라 API_BASE 자동 설정
-const hostname = window.location.hostname;
-const isProd = process.env.NODE_ENV === 'production';
-const API_BASE = isProd
-  ? 'https://hearthchat-production.up.railway.app'
-  : (hostname === 'localhost' || hostname === '127.0.0.1')
-    ? 'http://localhost:8000'
-    : hostname === '192.168.44.9'
-      ? 'http://192.168.44.9:8000'
-      : `http://${hostname}:8000`;
+import { API_BASE } from '../utils/apiConfig';
 
 const ALLAUTH_BASE = `${API_BASE}/accounts`;
 
