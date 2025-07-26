@@ -5,7 +5,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.http import HttpResponse
 
-from .views import ReactAppView, social_connections_api, social_login_redirect_view, get_csrf_token
+from .views import ReactAppView, social_connections_api, social_login_redirect_view, get_csrf_token, google_login_redirect, kakao_login_redirect, naver_login_redirect, github_login_redirect
 from django.views.static import serve as static_serve
 import os
 from django.views.generic import TemplateView
@@ -26,6 +26,11 @@ urlpatterns = [
     path("api/social-connections/", social_connections_api, name="social_connections_api"),
     path("social-redirect/", social_login_redirect_view, name='social_login_redirect'),
     path("api/csrf/", get_csrf_token, name="get_csrf_token"),
+    # 직접 OAuth 리디렉션 (allauth 중간창 우회)
+    path("oauth/google/", google_login_redirect, name="google_oauth_direct"),
+    path("oauth/kakao/", kakao_login_redirect, name="kakao_oauth_direct"),
+    path("oauth/naver/", naver_login_redirect, name="naver_oauth_direct"),
+    path("oauth/github/", github_login_redirect, name="github_oauth_direct"),
     path("accounts/popup-close/", lambda r: render(r, 'socialaccount/popup_close.html'), name="popup_close"),
     # path("gb_m_v2.vrm", lambda r: static_serve(r, 'gb_m_v2.vrm', os.path.dirname(os.path.join(settings.BASE_DIR, '..', 'hearth_chat_django', 'staticfiles', 'avatar_vrm', 'gb_m_v2.vrm')))),
     # path("gb_f_v2.vrm", lambda r: static_serve(r, 'gb_f_v2.vrm', os.path.dirname(os.path.join(settings.BASE_DIR, '..', 'hearth_chat_django', 'staticfiles', 'avatar_vrm', 'gb_f_v2.vrm')))),

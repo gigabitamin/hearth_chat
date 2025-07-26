@@ -383,6 +383,7 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
     SOCIALACCOUNT_PROVIDERS = {
         'google': {
             'SCOPE': [
+                'openid',
                 'profile',
                 'email',
             ],
@@ -539,6 +540,21 @@ LOGGING = {
         'django': {
             'handlers': ['console'],
             'level': 'INFO',
+            'propagate': False,
+        },
+        'allauth': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'allauth.account': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'allauth.socialaccount': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
             'propagate': False,
         },
     },

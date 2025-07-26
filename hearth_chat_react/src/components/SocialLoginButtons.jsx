@@ -15,7 +15,8 @@ const BACKEND_URL = isProd
 const SOCIALS = [
     {
         name: 'Google',
-        url: `${BACKEND_URL}/accounts/google/login/?process=login`,
+        // Django Allauth 중간창 우회를 위해 직접 OAuth URL 사용
+        url: `${BACKEND_URL}/oauth/google/`,
         className: 'google',
         logo: process.env.PUBLIC_URL + '/oauth_logo/Google.svg',
     },

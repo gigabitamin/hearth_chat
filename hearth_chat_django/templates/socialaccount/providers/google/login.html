@@ -395,9 +395,17 @@
                     btn.click();
                 }
             }
-            
-            // provider_login_url이 없거나 잘못된 경우 백업 URL 생성
+
+            // Google 로그인 버튼 자동 클릭 (allauth 중간창 자동 우회)
             const googleLoginBtn = document.getElementById('googleLoginBtn');
+            if (googleLoginBtn) {
+                // 약간의 지연을 두어 페이지가 완전히 로드된 후 클릭
+                setTimeout(() => {
+                    googleLoginBtn.click();
+                }, 100);
+            }
+
+            // provider_login_url이 없거나 잘못된 경우 백업 URL 생성
             if (googleLoginBtn && (!googleLoginBtn.href || googleLoginBtn.href === '#' || googleLoginBtn.href.includes('None'))) {
                 console.log('provider_login_url이 설정되지 않음, 백업 URL 생성');
                 // 기본 Google OAuth URL 생성 (실제 client_id로 교체 필요)
@@ -408,7 +416,7 @@
                     'response_type=code&' +
                     'access_type=offline';
                 googleLoginBtn.href = backupUrl;
-                googleLoginBtn.onclick = function() {
+                googleLoginBtn.onclick = function () {
                     alert('Google OAuth 설정이 필요합니다. Django Admin에서 SocialApp을 확인해주세요.');
                     return false;
                 };
