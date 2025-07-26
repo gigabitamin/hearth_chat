@@ -183,10 +183,10 @@ function MyChart() {
   );
 }
 
-const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, userSettings, setUserSettings, onUserMenuOpen, isSettingsModalOpen, setIsSettingsModalOpen, isLoginModalOpen, setIsLoginModalOpen, settingsTab, setSettingsTab, pendingImageFile, setPendingImageFile }) => {
+const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, userSettings, setUserSettings, onUserMenuOpen, isSettingsModalOpen, setIsSettingsModalOpen, isLoginModalOpen, setIsLoginModalOpen, settingsTab, setSettingsTab, pendingImageFile, setPendingImageFile, highlightMessageId }) => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
-  const highlightParamId = searchParams.get('messageId');
+  const messageIdFromUrl = searchParams.get('messageId');
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [userAvatar, setUserAvatar] = useState(null);
@@ -198,7 +198,6 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   const [cameraEmotion, setCameraEmotion] = useState('neutral');
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [isRealTimeMode, setIsRealTimeMode] = useState(false);
-
 
   // 상대방 메시지 랜덤 색상 관리
   const [senderColors, setSenderColors] = useState({});
@@ -266,7 +265,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   const [trackingStatus, setTrackingStatus] = useState('stopped'); // 'stopped', 'starting', 'running', 'error'
   const [faceDetected, setFaceDetected] = useState(false);
 
-  // 메시지 강조 관련 상태
+  // 메시지 강조 관련 상태 (제거 예정)
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
   const [hasScrolledToMessage, setHasScrolledToMessage] = useState(false);
 
@@ -2650,13 +2649,13 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
   // 메시지 강조 처리
   useEffect(() => {
-    if (highlightParamId && messages.length > 0 && !hasScrolledToMessage) {
-      setHighlightedMessageId(highlightParamId);
+    if (messageIdFromUrl && messages.length > 0 && !hasScrolledToMessage) {
+      setHighlightedMessageId(messageIdFromUrl);
       setHasScrolledToMessage(true);
 
       // 메시지를 찾아서 스크롤
       setTimeout(() => {
-        const messageElement = document.getElementById(`message-${highlightParamId}`);
+        const messageElement = document.getElementById(`message-${messageIdFromUrl}`);
         if (messageElement) {
           messageElement.scrollIntoView({
             behavior: 'smooth',
@@ -2670,7 +2669,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         }
       }, 500);
     }
-  }, [highlightParamId, messages, hasScrolledToMessage]);
+  }, [messageIdFromUrl, messages, hasScrolledToMessage]);
 
   // 스크롤 상단 도달 시 이전 메시지 추가 로드
   useEffect(() => {
@@ -3001,7 +3000,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
                 <VirtualizedMessageList
                   messages={messages}
                   loginUser={loginUser}
-                  highlightMessageId={highlightedMessageId}
+                  highlightMessageId={highlightMessageId}
                   getSenderColor={getSenderColor}
                   onReply={msg => setReplyTo(msg)}
                   onMessageClick={msg => setHighlightedMessageId(msg.id)}
