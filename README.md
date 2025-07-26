@@ -6,6 +6,7 @@
 
 ## 250726 v0.95
 - 멀티 삭제, 썸네일 모달창, 페이지네이션 추가
+- VirtualizedMessageList.jsx virtuoso 무한스크롤 오류 해결(hearth_chat_project/hearth_chat_flow_text/error_solution_log/250726_1437_무한스크롤_스크롤위치보정_해결.md)
 
 ## 250725
 - media 파일 추가 시 Cloudflare R2 등 별도 정적 파일 서버/스토리지 사용
