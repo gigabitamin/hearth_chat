@@ -2509,11 +2509,22 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         const data = await res.json();
         setTotalCount(data.count || 0);
         // setHasMore(data.has_more); // 제거: hasMore는 동적으로 계산됨
-        console.log('[fetchMessages] API 응답:', data.results.map(msg => [msg.id, msg.date]), 'offset:', offset, 'limit:', limit, 'isPrepending:', isPrepending, 'isInit:', isInit);
+        console.log('[fetchMessages] API 응답:', data.results.map(msg => msg.id), 'offset:', offset, 'limit:', limit, 'isPrepending:', isPrepending, 'isInit:', isInit);
 
-        // 중복 제거 로직
-        const existingIds = new Set(messages.map(m => m.id));
-        const uniqueNewMessages = data.results.filter(msg => !existingIds.has(msg.id));
+        // 중복 제거 로직을 실제 메시지 ID 기반으로 변경
+        let uniqueNewMessages = data.results;
+
+        // 초기 로딩이 아닐 때만 중복 제거 수행
+        if (!isInit) {
+          const existingIds = new Set(messages.map(m => m.id));
+          uniqueNewMessages = data.results.filter(msg => !existingIds.has(msg.id));
+
+          if (uniqueNewMessages.length === 0) {
+            console.log('[중복 제거] 모든 메시지가 중복 - 기존 ID 개수:', existingIds.size, '새 메시지 개수:', data.results.length);
+          } else {
+            console.log('[중복 제거] 중복 제거 완료 - 기존 ID 개수:', existingIds.size, '새 메시지 개수:', data.results.length, '고유 메시지 개수:', uniqueNewMessages.length);
+          }
+        }
 
         if (uniqueNewMessages.length === 0) {
           console.log('[fetchMessages] 새로운 메시지가 없으므로 스킵');
