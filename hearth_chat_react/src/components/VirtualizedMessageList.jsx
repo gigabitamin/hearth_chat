@@ -3,6 +3,7 @@ import { Virtuoso } from 'react-virtuoso';
 import './VirtualizedMessageList.css';
 import { getApiBase, getCookie, csrfFetch } from '../utils/apiConfig';
 import AiMessageRenderer from './AiMessageRenderer';
+import { CopyToClipboard } from 'copy-to-clipboard';
 
 // 이미지 URL을 절대 경로로 변환하는 함수
 const getImageUrl = (imageUrl) => {
@@ -245,7 +246,11 @@ const VirtualizedMessageList = ({
                                 ) : (
                                     message.text || message.content
                                 )} */}
-                                <AiMessageRenderer message={message.text || message.content} />                                
+                                <AiMessageRenderer message={message.text || message.content} />
+                            </div>
+                            {/* 전체 복사 버튼 */}
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                                <CopyMessageButton message={message.text || message.content} />
                             </div>
                         </div>
                     </div>
@@ -647,5 +652,23 @@ const VirtualizedMessageList = ({
         </div>
     );
 };
+
+function CopyMessageButton({ message }) {
+    const [copied, setCopied] = useState(false);
+    const handleCopy = () => {
+        window.navigator.clipboard.writeText(message);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1200);
+    };
+    return (
+        <button
+            onClick={handleCopy}
+            style={{ fontSize: 13, background: 'none', border: '1px solid #bbb', color: copied ? '#4caf50' : '#888', borderRadius: 6, padding: '2px 10px', cursor: 'pointer', marginRight: 2 }}
+            title="메시지 전체 복사"
+        >
+            {copied ? '복사됨' : '전체 복사'}
+        </button>
+    );
+}
 
 export default VirtualizedMessageList; 
