@@ -100,8 +100,7 @@ function ChatRoomPage({ loginUser, loginLoading, checkLoginStatus, userSettings,
       try {
         const res = await csrfFetch(`${getApiBase()}/api/chat/rooms/${roomId}/`, { credentials: 'include' });
         if (res.ok) {
-          const data = await res.json();
-          console.log('[room data]', data);
+          const data = await res.json();          
           setRoom(data);
         } else {
           setRoom(null);
@@ -240,8 +239,7 @@ function AppContent(props) {
   const [isCreateNewChatOpen, setIsCreateNewChatOpen] = useState(false);
 
   // 새 대화방 만들기 모달 열기
-  const onOpenCreateRoomModal = () => {
-    console.log('onOpenCreateRoomModal 호출됨!');
+  const onOpenCreateRoomModal = () => {    
     setIsCreateNewChatOpen(true);
   };
 
@@ -428,8 +426,7 @@ function AppContent(props) {
 
   return (
     <>
-      {/* 상단바 공통 렌더링 */}
-          // console.log('설정 버튼 클릭됨!');
+      {/* 상단바 공통 렌더링 */}          
           setIsSettingsModalOpen(true);
         }}
       {/* 알림/검색 모달 */}
@@ -811,8 +808,7 @@ function AppContent(props) {
     };
     connect();
     return () => { if (wsInstance) wsInstance.close(); };
-  }, []);
-  // console.log('APP [getApiBase()]', getApiBase())
+  }, []);  
   // 현재 페이지가 /room/:roomId로 시작하면 room 상태를 업데이트하는 useEffect 추가
   useEffect(() => {
     // /room/:roomId 패턴 매칭

@@ -65,8 +65,7 @@ function ChatRoomPage({ loginUser, loginLoading, checkLoginStatus, userSettings,
       try {
         const res = await csrfFetch(`${getApiBase()}/api/chat/rooms/${roomId}/`, { credentials: 'include' });
         if (res.ok) {
-          const data = await res.json();
-          console.log('[room data]', data);
+          const data = await res.json();          
           setRoom(data);
         } else {
           setRoom(null);
@@ -228,8 +227,7 @@ function AppContent(props) {
   const [isCreateNewChatOpen, setIsCreateNewChatOpen] = useState(false);
 
   // 새 대화방 만들기 모달 열기
-  const onOpenCreateRoomModal = () => {
-    console.log('onOpenCreateRoomModal 호출됨!');
+  const onOpenCreateRoomModal = () => {    
     setIsCreateNewChatOpen(true);
   };
 
@@ -435,12 +433,10 @@ function AppContent(props) {
         }}
         onSearchClick={() => setIsSearchModalOpen(true)}
         onNotifyClick={() => setIsNotifyModalOpen(true)}
-        onSettingsClick={() => {
-          // console.log('설정 버튼 클릭됨!');
+        onSettingsClick={() => {          
           setIsSettingsModalOpen(true);
         }}
-        onLoginClick={() => {
-          // console.log('로그인 버튼 클릭됨!');
+        onLoginClick={() => {          
           setIsLoginModalOpen(true);
         }}
         onCreateRoomClick={() => setShowCreateModal(true)}
@@ -452,7 +448,7 @@ function AppContent(props) {
       {/* 알림/검색 모달 */}
       <NotifyModal
         open={isNotifyModalOpen}
-        onClose={() => { console.log('[DEBUG] setIsLoginModalOpen(false) 호출 위치: NotifyModal onClose'); setIsNotifyModalOpen(false); }}
+        onClose={() => { setIsNotifyModalOpen(false); }}
         notifications={notifications.map(n => ({
           ...n,
           read: !unreadNotificationList.some(u => u.message_id === n.messageId)
@@ -461,28 +457,23 @@ function AppContent(props) {
         unreadList={unreadNotificationList}
         onMarkAllAsRead={handleMarkAllAsRead}
       />
-      <SearchModal open={isSearchModalOpen} onClose={() => { console.log('[DEBUG] setIsLoginModalOpen(false) 호출 위치: SearchModal onClose'); setIsSearchModalOpen(false); }} rooms={allRooms} messages={allMessages} users={allUsers} fetchPreviewMessages={fetchPreviewMessages} />
+      <SearchModal open={isSearchModalOpen} onClose={() => { setIsSearchModalOpen(false); }} rooms={allRooms} messages={allMessages} users={allUsers} fetchPreviewMessages={fetchPreviewMessages} />
       {/* 로그인 모달 */}
       <LoginModal
         isOpen={isLoginModalOpen}
-        onClose={() => { console.log('[DEBUG] setIsLoginModalOpen(false) 호출 위치: LoginModal onClose'); setIsLoginModalOpen(false); }}
+        onClose={() => { setIsLoginModalOpen(false); }}
         onSocialLogin={(url) => {
           const popupWidth = 480;
           const popupHeight = 600;
           const left = window.screenX + (window.outerWidth - popupWidth) / 2;
           const top = window.screenY + (window.outerHeight - popupHeight) / 2;
           const popupFeatures = `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes,menubar=no,toolbar=no,location=no`;
+          const popup = window.open(url, 'social_login', popupFeatures);          
 
-          const popup = window.open(url, 'social_login', popupFeatures);
-          console.log('[DEBUG] window.open 결과:', popup);
-
-          if (popup) {
-            console.log('[DEBUG] 팝업 감시 시작');
+          if (popup) {            
             const checkClosed = setInterval(() => {
-              if (popup.closed) {
-                console.log('[DEBUG] 팝업 닫힘 감지됨, 새로고침');
-                clearInterval(checkClosed);
-                console.log('[DEBUG] setIsLoginModalOpen(false) 호출 위치: 팝업 닫힘 감시');
+              if (popup.closed) {                
+                clearInterval(checkClosed);                
                 setIsLoginModalOpen(false); // 팝업이 닫힐 때만 모달 닫기
                 checkLoginStatus();
                 window.location.reload();
@@ -496,7 +487,7 @@ function AppContent(props) {
       {/* 설정 모달 */}
       <SettingsModal
         isOpen={isSettingsModalOpen}
-        onClose={() => { console.log('[DEBUG] setIsLoginModalOpen(false) 호출 위치: SettingsModal onClose'); setIsSettingsModalOpen(false); }}
+        onClose={() => { setIsSettingsModalOpen(false); }}
         tab={settingsTab}
         setTab={setSettingsTab}
         userSettings={userSettings}
@@ -526,7 +517,7 @@ function AppContent(props) {
       {showCreateModal && (
         <CreateRoomModal
           open={showCreateModal}
-          onClose={() => { console.log('[DEBUG] setIsLoginModalOpen(false) 호출 위치: CreateRoomModal onClose'); setShowCreateModal(false); }}
+          onClose={() => { setShowCreateModal(false); }}
           onSuccess={handleCreateRoomSuccess}
         />
       )}
@@ -851,29 +842,21 @@ function App() {
 
   // 팝업창으로부터 메시지 수신 처리 (백업용)
   useEffect(() => {
-    const handleMessage = (event) => {
-      console.log('[App] 메시지 수신:', event.data, 'from:', event.origin);
-      console.log('[App] 현재 설정 모달 상태:', isSettingsModalOpen);
+    const handleMessage = (event) => {      
       if (
         event.data === 'login_success' ||
         (event.data && event.data.type === "SOCIAL_LOGIN_SUCCESS")
-      ) {
-        console.log('[App] 로그인 모달 닫기 완료 (postMessage)');
+      ) {        
         // 로그인 상태 다시 확인
-        setIsLoginModalOpen(false);
-        console.log('[App] 로그인 상태 확인 완료 (postMessage)');
+        setIsLoginModalOpen(false);        
         checkLoginStatus();
-
-        // 페이지 새로고침
-        console.log('[App] 페이지 새로고침 실행 (postMessage)');
+        // 페이지 새로고침        
         window.location.reload();
       }
     };
-
-    console.log('[App] 메시지 리스너 등록');
+    
     window.addEventListener('message', handleMessage);
-    return () => {
-      console.log('[App] 메시지 리스너 제거');
+    return () => { 
       window.removeEventListener('message', handleMessage);
     };
   }, [isSettingsModalOpen]);
@@ -949,7 +932,7 @@ function App() {
         : `${protocol}//${host}/ws/chat/`;
       wsInstance = new window.WebSocket(wsUrl);
       ws.current = wsInstance;
-      wsInstance.onopen = () => { console.log(''); };
+      wsInstance.onopen = () => {};
       wsInstance.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
@@ -963,8 +946,7 @@ function App() {
     };
     connect();
     return () => { if (wsInstance) wsInstance.close(); };
-  }, []);
-  // console.log('APP [getApiBase()]', getApiBase())
+  }, []);  
   // 현재 페이지가 /room/:roomId로 시작하면 room 상태를 업데이트하는 useEffect 추가
   useEffect(() => {
     // /room/:roomId 패턴 매칭

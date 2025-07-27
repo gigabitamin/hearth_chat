@@ -181,8 +181,7 @@ class Chat(models.Model):
     
     @classmethod
     def save_user_message(cls, content, session_id=None, emotion=None, user=None, image_url=None, question_message=None):
-        """사용자 메시지 저장 (감정 정보 포함)"""
-        print('Chat.save_ai_message question_message:', question_message)
+        """사용자 메시지 저장 (감정 정보 포함)"""        
         room_id = session_id
         if room_id and str(room_id).isdigit():
             try:

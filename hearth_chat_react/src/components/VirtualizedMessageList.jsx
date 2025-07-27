@@ -571,8 +571,7 @@ const VirtualizedMessageList = ({
     useEffect(() => {
         if (scrollToMessageId && messages.length > 0) {
             const targetIndex = messages.findIndex(m => m.id == scrollToMessageId);
-            if (targetIndex !== -1 && virtuosoRef.current) {
-                console.log('[Virtuoso] scrollToIndex 호출:', targetIndex, '메시지 ID:', scrollToMessageId);
+            if (targetIndex !== -1 && virtuosoRef.current) {                
                 virtuosoRef.current.scrollToIndex({ index: targetIndex, align: 'start' });
                 // 스크롤 실행 후 즉시 scrollToMessageId를 null로 리셋하여 반복 스크롤 방지
                 setTimeout(() => {

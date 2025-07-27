@@ -106,24 +106,20 @@ def upload_chat_image(request):
     file = request.FILES.get('file')
     session_id = request.POST.get('session_id', None)
     content = request.POST.get('content', '')  # 메시지 내용도 받음    
-    if not file:
-        print('파일이 첨부되지 않았습니다.')
+    if not file:        
         return JsonResponse({'status': 'error', 'message': '파일이 첨부되지 않았습니다.'}, status=400)
 
     # 확장자 검사
     ext = file.name.split('.')[-1].lower()    
-    if ext not in ALLOWED_EXTENSIONS:
-        print('허용되지 않는 확장자입니다.')
+    if ext not in ALLOWED_EXTENSIONS:        
         return JsonResponse({'status': 'error', 'message': f'허용되지 않는 확장자입니다: {ext}'}, status=400)
 
     # 용량 검사
-    if file.size > MAX_FILE_SIZE_MB * 1024 * 1024:
-        print('파일 용량이 너무 큽니다.')
+    if file.size > MAX_FILE_SIZE_MB * 1024 * 1024:        
         return JsonResponse({'status': 'error', 'message': f'파일 용량은 {MAX_FILE_SIZE_MB}MB 이하만 허용됩니다.'}, status=400)
 
     # MIME 타입 검사
-    if file.content_type not in ALLOWED_MIME_TYPES:
-        print('허용되지 않는 MIME 타입입니다.')
+    if file.content_type not in ALLOWED_MIME_TYPES:        
         return JsonResponse({'status': 'error', 'message': f'허용되지 않는 MIME 타입입니다: {file.content_type}'}, status=400)
 
     # 파일 저장
@@ -512,12 +508,12 @@ class ChatViewSet(viewsets.ModelViewSet):
                 timestamp__lt=target_message.timestamp
             ).order_by('timestamp').count()  # 0-based index
 
-            print(f'[offset API] messageId: {message_id}, message_index: {message_index}, window_size: {window_size}')
+            # print(f'[offset API] messageId: {message_id}, message_index: {message_index}, window_size: {window_size}')
             
             # offset 계산 (윈도우 중앙에 위치하도록)
             offset = max(0, message_index - window_size // 2)
             
-            print(f'[offset API] 계산된 offset: {offset} (message_index: {message_index} - window_size/2: {window_size//2})')
+            # print(f'[offset API] 계산된 offset: {offset} (message_index: {message_index} - window_size/2: {window_size//2})')
 
             return Response({
                 'offset': offset,
@@ -546,8 +542,7 @@ class ChatViewSet(viewsets.ModelViewSet):
             return Response(cached_data)
 
         try:
-            total_count = Chat.objects.filter(room_id=room_id).count()
-            print('total_count:', total_count)
+            total_count = Chat.objects.filter(room_id=room_id).count()            
             messages = Chat.objects.filter(room_id=room_id)\
                 .select_related('room', 'question_message')\
                 .prefetch_related('reactions', 'reactions__user')\
@@ -604,8 +599,7 @@ class ChatViewSet(viewsets.ModelViewSet):
                 'has_more': len(message_list) == limit
             }        
             
-            cache.set(cache_key, response_data, 0) # 즉시 캐시 삭제
-            print('response_data has_more:', response_data.get('has_more'))
+            cache.set(cache_key, response_data, 0) # 즉시 캐시 삭제            
 
             return Response(response_data)
 

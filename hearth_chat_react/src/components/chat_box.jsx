@@ -1337,7 +1337,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       ;
       let aiAvatarUrl = `/avatar_vrm/gb_f_v2.vrm`;
       // let aiAvatarUrl_ex = `avatar_vrm/gb_f_v2.vrm`;
-      const exists_ai = await checkFileExists(aiAvatarUrl);
+      // const exists_ai = await checkFileExists(aiAvatarUrl);
       // console.log('exists_ai_exists', exists_ai);
 
       // fetch('/media/avatar_vrm_test/test.vrm', { credentials: 'include' })
@@ -2453,16 +2453,14 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         setFirstItemIndex(reloadOffset);
         setMessageOffset(reloadOffset);
         setTotalCount(data.count || 0);
-        setLoadingMessages(false);
-        console.log('[슬라이딩윈도우:fallback] 전체 reload 완료 - messages:', data.results.map(m => m.id));
+        setLoadingMessages(false);        
       } catch (err) {
         setLoadingMessages(false);
         console.error('[슬라이딩윈도우:fallback] 전체 reload 실패', err);
       }
     };
 
-    if (loadingMessages) {
-      console.log('[fetchMessages] 이미 로딩 중이므로 스킵');
+    if (loadingMessages) {      
       return;
     }
 
@@ -2474,15 +2472,14 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       if (res.ok) {
         const data = await res.json();
         setTotalCount(data.count || 0);
-        // setHasMore(data.has_more); // 제거: hasMore는 동적으로 계산됨
-        console.log('[fetchMessages] API 응답:', data.results.map(msg => msg.id), 'offset:', offset, 'limit:', limit, 'isPrepending:', isPrepending, 'isInit:', isInit);
+        // setHasMore(data.has_more); // 제거: hasMore는 동적으로 계산됨        
 
         // 특정 메시지 찾아가기 디버깅
-        if (scrollToId) {
-          console.log('[특정 메시지 찾아가기] 로딩된 메시지들:', data.results.map(m => m.id));
-          console.log('[특정 메시지 찾아가기] 찾을 메시지 ID:', scrollToId);
-          console.log('[특정 메시지 찾아가기] 찾을 메시지가 로딩된 목록에 포함됨:', data.results.some(m => m.id == scrollToId));
-        }
+        // if (scrollToId) {
+        //   console.log('[특정 메시지 찾아가기] 로딩된 메시지들:', data.results.map(m => m.id));
+        //   console.log('[특정 메시지 찾아가기] 찾을 메시지 ID:', scrollToId);
+        //   console.log('[특정 메시지 찾아가기] 찾을 메시지가 로딩된 목록에 포함됨:', data.results.some(m => m.id == scrollToId));
+        // }
 
         // 중복 제거 로직을 실제 메시지 ID 기반으로 변경
         let uniqueNewMessages = data.results;
@@ -2492,22 +2489,21 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           const existingIds = new Set(messages.map(m => m.id));
           uniqueNewMessages = data.results.filter(msg => !existingIds.has(msg.id));
 
-          if (uniqueNewMessages.length === 0) {
-            console.log('[중복 제거] 모든 메시지가 중복 - 기존 ID 개수:', existingIds.size, '새 메시지 개수:', data.results.length);
-          } else {
-            console.log('[중복 제거] 중복 제거 완료 - 기존 ID 개수:', existingIds.size, '새 메시지 개수:', data.results.length, '고유 메시지 개수:', uniqueNewMessages.length);
-          }
+          // if (uniqueNewMessages.length === 0) {
+          //   console.log('[중복 제거] 모든 메시지가 중복 - 기존 ID 개수:', existingIds.size, '새 메시지 개수:', data.results.length);
+          // } else {
+          //   console.log('[중복 제거] 중복 제거 완료 - 기존 ID 개수:', existingIds.size, '새 메시지 개수:', data.results.length, '고유 메시지 개수:', uniqueNewMessages.length);
+          // }
         }
 
         if (uniqueNewMessages.length === 0) {
-          console.log('[fetchMessages] 새로운 메시지가 없으므로 스킵');
+          // console.log('[fetchMessages] 새로운 메시지가 없으므로 스킵');
           return;
         }
 
         if (isPrepending) {
           // 연속성 체크 및 fallback 전체 reload 로직
-          const reloadWindow = async (reloadOffset, reloadLimit) => {
-            console.warn('[슬라이딩윈도우:fallback] 전체 reload 시도 - offset:', reloadOffset, 'limit:', reloadLimit);
+          const reloadWindow = async (reloadOffset, reloadLimit) => {            
             setLoadingMessages(true);
             try {
               const response = await fetch(`/api/chat/messages/messages/?room=${selectedRoom.id}&limit=${reloadLimit}&offset=${reloadOffset}`);
@@ -2516,11 +2512,9 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
               setFirstItemIndex(reloadOffset);
               setMessageOffset(reloadOffset);
               setTotalCount(data.count || 0);
-              setLoadingMessages(false);
-              console.log('[슬라이딩윈도우:fallback] 전체 reload 완료 - messages:', data.results.map(m => m.id));
+              setLoadingMessages(false);              
             } catch (err) {
-              setLoadingMessages(false);
-              console.error('[슬라이딩윈도우:fallback] 전체 reload 실패', err);
+              setLoadingMessages(false);              
             }
           };
 
@@ -2566,7 +2560,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         }
         if (scrollToId) {
           // setScrollToMessageId(scrollToId); // 제거
-          console.log('[특정 메시지 이동] scrollToMessageId 설정:', scrollToId);
+          // console.log('[특정 메시지 이동] scrollToMessageId 설정:', scrollToId);
         }
       }
     } catch (error) {
@@ -2633,20 +2627,16 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
   // (3) messageId로 offset을 계산해서 fetch하는 함수 (슬라이딩 윈도우 40개 유지)
   const fetchOffsetForMessageId = async (roomId, messageId) => {
-    try {
-      console.log('[특정 메시지 이동] API 요청 - roomId:', roomId, 'messageId:', messageId, 'window_size: 40');
-
+    try {      
       const res = await fetch(`${API_BASE}/api/chat/messages/offset/?room=${roomId}&messageId=${messageId}&page_size=40`, {
         credentials: 'include',
       });
 
       if (res.ok) {
-        const data = await res.json();
-        console.log('[특정 메시지 이동] API 응답:', data);
+        const data = await res.json();        
 
         // 백엔드에서 이미 윈도우 중앙에 위치하도록 offset을 계산해줬으므로 그대로 사용
-        const offset = data.offset;
-        console.log('[특정 메시지 이동] 최종 offset:', offset, 'limit: 40');
+        const offset = data.offset;        
         setIsJumpingToMessage(true); // 특정 메시지 찾아가기 모드 진입
         fetchMessages(roomId, offset, 40, false, true, messageId);
         setFirstItemIndex(offset);
@@ -2876,19 +2866,16 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
   // messages와 scrollToMessageId를 감시하여 스크롤 트리거
   useEffect(() => {
-    if (scrollToMessageId && messages.some(m => m.id == scrollToMessageId)) {
-      console.log('[특정 메시지 이동] scrollToMessageId 설정 완료:', scrollToMessageId);
+    if (scrollToMessageId && messages.some(m => m.id == scrollToMessageId)) {      
       // VirtualizedMessageList에서 직접 처리하므로 여기서는 아무것도 하지 않음
     }
   }, [messages, scrollToMessageId]);
 
   // 메시지 클릭 핸들러
   const handleMessageClick = (message, action) => {
-    if (action === 'resetScrollToMessageId') {
-      console.log('[특정 메시지 이동] scrollToMessageId 리셋');
+    if (action === 'resetScrollToMessageId') {      
       setScrollToMessageId(null);
-      setIsJumpingToMessage(false); // 스크롤 완료 후 모드 해제
-      console.log('[특정 메시지 이동] 윈도우 안정화 완료');
+      setIsJumpingToMessage(false); // 스크롤 완료 후 모드 해제      
     }
   };
 

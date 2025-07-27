@@ -37,7 +37,7 @@ sys.path.append(os.path.join(BASE_DIR, 'chat'))
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "your-default-secret-key")
-DEBUG = True # 디버깅을 위해 True로 설정
+DEBUG = False # 디버깅을 위해서는 True로 설정 (주의: 디버깅 모드에서는 보안 취약점 발생 가능)
 
 # Railway 배포 시 디버깅을 위해 임시로 DEBUG 활성화
 if os.environ.get("RAILWAY_ENVIRONMENT"):

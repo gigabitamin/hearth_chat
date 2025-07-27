@@ -39,8 +39,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             for command in utf8mb4_commands:
                 cursor.execute(command)
             
-            cursor.close()
-            # print("WebSocket 연결 시 MySQL utf8mb4 강제 설정 완료!")
+            cursor.close()            
             
         except Exception as e:
             print(f"MySQL utf8mb4 설정 오류: {e}")
@@ -53,8 +52,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         await self.accept()
         # 세션 ID 생성
-        self.session_id = str(uuid.uuid4())
-        print(f"새로운 WebSocket 연결: {self.session_id}")
+        self.session_id = str(uuid.uuid4())        
         
         # 대화방 목록 업데이트 그룹에 참여
         await self.channel_layer.group_add(
@@ -65,8 +63,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         # MySQL 연결을 강제로 utf8mb4로 설정 (async context에서 안전하게)
         await self._force_utf8mb4_connection_async()
 
-    async def disconnect(self, close_code):
-        print(f"WebSocket 연결 종료: {self.session_id}")
+    async def disconnect(self, close_code):        
         
         # 대화방 목록 업데이트 그룹에서 나가기
         await self.channel_layer.group_discard(
@@ -74,8 +71,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             self.channel_name
         )
 
-    async def receive(self, text_data):
-        print("WebSocket 메시지 수신:", text_data)
+    async def receive(self, text_data):        
         if not text_data:
             await self.send(text_data=json.dumps({'message': "빈 메시지는 처리할 수 없습니다."}))
             return
@@ -99,8 +95,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 await self.channel_layer.group_add(
                     f'chat_room_{room_id}',
                     self.channel_name
-                )
-                print(f"[JOIN] 세션 {self.session_id}가 방 {room_id} 그룹에 입장 (채널: {self.channel_name})")
+                )                
             return
         
         # 기존 채팅 메시지 처리
@@ -116,14 +111,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         # 감정 변화 추적
         self.update_emotion_history(user_emotion)
         
-        # 사용자 메시지를 DB에 저장 (감정 정보 포함)
-        print(f"사용자 메시지 저장 시도: {user_message} (감정: {user_emotion}) 이미지: {image_url} 방ID: {room_id}")
+        # 사용자 메시지를 DB에 저장 (감정 정보 포함)        
         user_obj = self.scope.get('user', None)
-        user_message_obj = await self.save_user_message(user_message or '[이미지 첨부]', room_id, user_emotion, user_obj, image_url)
-        print('user_message_obj:', user_message_obj, type(user_message_obj))
-
-        # 사용자 메시지를 방의 모든 참여자에게 브로드캐스트
-        print(f"[SEND] 사용자 메시지 group_send: chat_room_{room_id} (채널: {self.channel_name})")
+        user_message_obj = await self.save_user_message(user_message or '[이미지 첨부]', room_id, user_emotion, user_obj, image_url)        
         try:
             debug_event = {
                 'type': 'user_message',
@@ -138,8 +128,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'timestamp': user_message_obj.timestamp.isoformat() if user_message_obj and hasattr(user_message_obj, 'timestamp') else None,
                 'emotion': user_emotion,
                 'imageUrl': image_url  # imageUrl 추가
-            }
-            print(f"[DEBUG][group_send][user_message] event: ", json.dumps(debug_event, ensure_ascii=False, indent=2))
+            }            
         except Exception as e:
             print(f"[DEBUG][group_send][user_message] event 출력 오류: {e}")
         await self.channel_layer.group_send(
@@ -176,16 +165,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if user and hasattr(user, 'is_authenticated') and user.is_authenticated:
             ai_response_enabled = await get_ai_response_enabled(user)
         if not ai_response_enabled:
-            print('[AI 응답 OFF] 사용자 설정에 따라 AI 응답을 건너뜁니다.')
+            # print('[AI 응답 OFF] 사용자 설정에 따라 AI 응답을 건너뜁니다.')
             return
 
-        try:
-            print("[DEBUG] get_ai_response 호출 직전 (user_message:", user_message, ", user_emotion:", user_emotion, ", image_url:", image_url, ")")
-            ai_response = await self.get_ai_response(user_message, user_emotion, image_url)
-            print(f"[DEBUG] get_ai_response 호출 후, AI 응답 받음: {ai_response}")
+        try:            
+            ai_response = await self.get_ai_response(user_message, user_emotion, image_url)            
             
-            # AI 응답을 DB에 저장
-            print(f"AI 응답 저장 시도: {ai_response}")
+            # AI 응답을 DB에 저장            
             ai_message_obj = await self.save_ai_message(ai_response, room_id, ai_name='Gemini', ai_type='google', question_message=user_message_obj)
             
             # FK select_related로 새로 불러오기
@@ -203,7 +189,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 self.conversation_context = self.conversation_context[-10:]
             
             # AI 응답을 방의 모든 참여자에게 브로드캐스트
-            print(f"[SEND] AI 메시지 group_send: chat_room_{room_id} (채널: {self.channel_name})")
+            # print(f"[SEND] AI 메시지 group_send: chat_room_{room_id} (채널: {self.channel_name})")
             try:
                 debug_event = {
                     'type': 'ai_message',
@@ -215,8 +201,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     ),
                     'ai_name': ai_message_obj.ai_name if ai_message_obj else 'AI',
                     'sender': ai_message_obj.ai_name if ai_message_obj else 'AI',
-                }
-                print(f"[DEBUG][group_send][ai_message] event: ", json.dumps(debug_event, ensure_ascii=False, indent=2))
+                }                
             except Exception as e:
                 print(f"[DEBUG][group_send][ai_message] event 출력 오류: {e}")
             await self.channel_layer.group_send(
@@ -234,8 +219,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'sender': ai_message_obj.ai_name if ai_message_obj else 'AI',
                 }
             )
-        except Exception as e:
-            print("WebSocket 처리 중 오류 발생:", e)
+        except Exception as e:            
             error_message = f"AI 오류: {str(e)}"
             await self.save_ai_message(error_message, room_id)
             await self.send(text_data=json.dumps({
@@ -252,11 +236,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'data': message
         }))
 
-    async def user_message(self, event):
-        print(f"[RECV] user_message: {event} (채널: {self.channel_name})")
+    async def user_message(self, event):        
         try:
-            debug_event = dict(event) if isinstance(event, dict) else event
-            print(f"[DEBUG][self.send][user_message] event: ", json.dumps(debug_event, ensure_ascii=False, indent=2))
+            debug_event = dict(event) if isinstance(event, dict) else event            
         except Exception as e:
             print(f"[DEBUG][self.send][user_message] event 출력 오류: {e}")
         await self.send(text_data=json.dumps({
@@ -270,11 +252,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'imageUrl': event.get('imageUrl', '')  # imageUrl 추가
         }))
 
-    async def ai_message(self, event):
-        print(f"[RECV] ai_message: {event} (채널: {self.channel_name})")
+    async def ai_message(self, event):        
         try:
-            debug_event = dict(event) if isinstance(event, dict) else event
-            print(f"[DEBUG][self.send][ai_message] event: ", json.dumps(debug_event, ensure_ascii=False, indent=2))
+            debug_event = dict(event) if isinstance(event, dict) else event            
         except Exception as e:
             print(f"[DEBUG][self.send][ai_message] event 출력 오류: {e}")
         await self.send(text_data=json.dumps({
@@ -291,9 +271,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """WebRTC 시그널링 메시지 처리"""
         message_type = data.get("type", "")
         target_user = data.get("targetUser", "")
-        sender_user = data.get("senderUser", "")
-        
-        print(f"WebRTC 시그널링 처리: {message_type} from {sender_user} to {target_user}")
+        sender_user = data.get("senderUser", "")                
         
         # 시그널링 메시지를 해당 사용자에게 전달
         if target_user and target_user != sender_user:
@@ -354,8 +332,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 import unicodedata
                 content = unicodedata.normalize('NFC', content)
             
-            result = Chat.save_user_message(content, room_id, emotion, user, image_url)
-            print(f"사용자 메시지 저장 성공: {result.id} (감정: {emotion}, 이미지: {image_url})")
+            result = Chat.save_user_message(content, room_id, emotion, user, image_url)            
             return result
         except Exception as e:
             print(f"사용자 메시지 저장 실패: {e}")
@@ -392,8 +369,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         from openai import OpenAI
 
         @sync_to_async
-        def call_gemini():
-            print("[Gemini] 호출 시작 (user_emotion:", user_emotion, ", user_message:", user_message[:30], ")")
+        def call_gemini():            
             # 감정 변화 추세 분석
             emotion_trend = self.get_emotion_trend()
             # 감정 전략 등 기존 코드 유지
@@ -433,8 +409,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         file_path = unquote(image_url)
                     
                     # 파일 존재 확인
-                    if not os.path.exists(file_path):
-                        print(f"파일이 존재하지 않음: {file_path}")
+                    if not os.path.exists(file_path):                        
                         # 파일이 없으면 텍스트만으로 처리
                         client = OpenAI(
                             api_key=os.environ.get("GEMINI_API_KEY"),
@@ -446,8 +421,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                 {"role": "system", "content": system_content},
                                 {"role": "user", "content": user_message or "이미지 분석을 요청했지만 파일을 찾을 수 없습니다."}
                             ]
-                        )
-                        print(f"[Gemini] 파일 없음 텍스트 응답: {response.choices[0].message.content[:100]}")
+                        )                        
                         return response.choices[0].message.content
                     
                     # 파일을 base64로 읽어오기
@@ -469,12 +443,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                 {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}}
                             ]}
                         ]
-                    )
-                    print(f"[Gemini] OpenAI 라이브러리 멀티모달 응답: {response.choices[0].message.content[:100]}")
+                    )                    
                     return response.choices[0].message.content
                     
-                except Exception as e:
-                    print(f"[Gemini] OpenAI 라이브러리 멀티모달 실패: {e}")
+                except Exception as e:                    
                     # 백업: REST API 방식 시도
                     try:
                         GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
@@ -503,12 +475,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         )
                         response.raise_for_status()
                         result = response.json()
-                        gemini_text = result["candidates"][0]["content"]["parts"][0]["text"]
-                        print(f"[Gemini] REST API 멀티모달 응답: {gemini_text[:100]}")
+                        gemini_text = result["candidates"][0]["content"]["parts"][0]["text"]                        
                         return gemini_text
                         
-                    except Exception as e2:
-                        print(f"[Gemini] REST API 멀티모달도 실패: {e2}")
+                    except Exception as e2:                        
                         # 최종 백업: 텍스트만으로 처리
                         client = OpenAI(
                             api_key=os.environ.get("GEMINI_API_KEY"),
@@ -520,8 +490,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                 {"role": "system", "content": system_content},
                                 {"role": "user", "content": user_message or "이미지 분석을 시도했지만 실패했습니다. 텍스트로만 응답드립니다."}
                             ]
-                        )
-                        print(f"[Gemini] 최종 백업 텍스트 응답: {response.choices[0].message.content[:100]}")
+                        )                        
                         return response.choices[0].message.content
             # 2. 텍스트-only: 기존 OpenAI 라이브러리 방식
             else:
@@ -536,11 +505,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             {"role": "system", "content": system_content},
                             {"role": "user", "content": user_message}
                         ]
-                    )
-                    print(f"[Gemini] 텍스트 응답: {response.choices[0].message.content[:100]}")
+                    )                    
                     return response.choices[0].message.content
                 except Exception as e:
-                    print(f"[Gemini] 텍스트 응답 실패: {e}")
-                    return "[Gemini] 응답 생성 중 오류가 발생했습니다."
+                    print(f"[Gemini] 텍스트 응답 실패: {e}")                    
 
         return await call_gemini()
