@@ -10,23 +10,13 @@ import { AnimationMixer } from 'three';
 import { Quaternion } from 'three';
 
 
-// 환경에 따라 API_BASE 자동 설정 함수 추가
-const getApiBase = () => {
-    const hostname = window.location.hostname;
-    const isProd = process.env.NODE_ENV === 'production';
-  
-    if (isProd) return 'https://hearthchat-production.up.railway.app';
-    if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:8000';
-    if (hostname === '192.168.44.9') return 'http://192.168.44.9:8000';
-  
-    return `http://${hostname}:8000`;
-  };
-  
+import { getApiBase } from '../utils/apiConfig';
+
 
 // VRM 아바타 컴포넌트
 function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess, onLoadError, position, enableTracking = false }) {
 
-    console.log('avatarUrl real jsx VMAvatar 1 URL', avatarUrl);    
+    console.log('avatarUrl real jsx VMAvatar 1 URL', avatarUrl);
     const testUrl = '/media/uploads/test.vrm'
     const [vrm, setVrm] = useState(null);
     const [error, setError] = useState(null);
@@ -84,7 +74,7 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
     // === 모델 트레이스 출력 ===
     if (vrm && vrm.scene) {
         // 안전하게 접근
-        vrm.scene.traverse(child => { 
+        vrm.scene.traverse(child => {
             if (child.isBone) {
                 // console.log('child.name' , child.name);
                 // console.log('child.rotation', child.rotation);
@@ -92,7 +82,7 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
         });
     } else {
         console.warn('모델이 아직 로드되지 않았습니다.');
-    }    
+    }
 
 
     // === 프로그래밍적 Idle 애니메이션 함수 ===
@@ -223,7 +213,7 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
         setIdleLoaded(false);
         const loader = new GLTFLoader();
         loader.register((parser) => new VRMLoaderPlugin(parser));
-        loader.load(            
+        loader.load(
             avatarUrl,
             (gltf) => {
                 const vrmInstance = gltf.userData.vrm;
@@ -324,17 +314,17 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
                 if (onLoadSuccess) onLoadSuccess(vrmInstance);
 
                 // === Idle 모션 로딩 시작 ===
-                loadIdleMotion(vrmInstance);                
+                loadIdleMotion(vrmInstance);
 
                 // === 정자세(arms down) 포즈 쿼터니언 적용 ===
                 const getBoneNode = (boneName) => {
                     return vrmInstance.humanoid.getNormalizedBoneNode ?
                         vrmInstance.humanoid.getNormalizedBoneNode(boneName) :
                         vrmInstance.humanoid.getBoneNode(boneName);
-                };                
-                
+                };
+
                 // 기본 포즈 설정 (T-pose에서 자연스러운 자세로) - 안전한 방식 : vroid 1.0 f
-                if (avatarUrl === !testUrl) {                
+                if (avatarUrl === !testUrl) {
                     if (vrmInstance.humanoid) {
                         try {
 
@@ -389,7 +379,7 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
                                 rightShoulder.rotation.x = 0;
                                 rightShoulder.rotation.y = 0;
                                 rightShoulder.rotation.z = 0;
-                            }                            
+                            }
                         } catch (e) {
                             console.warn('포즈 설정 실패:', e);
                         }
@@ -397,7 +387,7 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
                 }
 
                 // 테스트 아바타 포즈 설정 shouler 만 조정
-                else {                
+                else {
                     if (vrmInstance.humanoid) {
                         try {
                             const leftShoulder = getBoneNode('leftShoulder');
@@ -409,16 +399,16 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
                             const leftArm = getBoneNode('lefArm');
                             const rightArm = getBoneNode('rightArm');
 
-                            if (leftShoulder) {                                
+                            if (leftShoulder) {
                                 leftShoulder.rotation.X = 0;
                                 leftShoulder.rotation.Y = 0;
                                 leftShoulder.rotation.z = 0;
                             }
-                            if (rightShoulder) {            
+                            if (rightShoulder) {
                                 // rightShoulder.rotation.x = -0.2;
                                 rightShoulder.rotation.y = 0;
                                 rightShoulder.rotation.z = 0;
-                            }        
+                            }
 
                             if (leftUpperArm) {
                                 // leftUpperArm.rotation.x = 0.3;
@@ -455,42 +445,42 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
                                 // rightUpperArm.rotation.y = -0.559;
                                 // rightUpperArm.rotation.z = 0.430;
                             }
-                                                
+
                         } catch (e) {
                             console.warn('포즈 설정 실패:', e);
                         }
                     }
-                }                
+                }
 
                 // === 정자세(arms down) 포즈 쿼터니언 적용 ===
                 // --- vroid 생성 모델, pmx2vrm 모델델
                 const armsDownPose = (avatarUrl !== testUrl) ? {
                     leftUpperArm: { x: 0.4, y: 0.4, z: 0.4, w: 0.8 },
-                    rightUpperArm: { x: 0.4, y: -0.4, z: -0.4, w: 0.8},
+                    rightUpperArm: { x: 0.4, y: -0.4, z: -0.4, w: 0.8 },
 
                     leftLowerArm: { x: 0, y: 0, z: -0.4, w: 0.8 },
                     rightLowerArm: { x: -0, y: 0, z: 0.4, w: 0.8 },
 
-                    leftHand: { x: 0, y: 0, z: -0.2, w: 0.8 },                                        
+                    leftHand: { x: 0, y: 0, z: -0.2, w: 0.8 },
                     rightHand: { x: -0, y: 0, z: 0.2, w: 0.8 },
                 } : {
                     leftUpperArm: { x: 0.495, y: 0.375, z: 0.437, w: 0.8 },
-                    rightUpperArm: { x: 0.495, y: -0.375, z: -0.437, w: 0.8},
+                    rightUpperArm: { x: 0.495, y: -0.375, z: -0.437, w: 0.8 },
 
                     leftLowerArm: { x: -0.4, y: 0, z: 0.1, w: 0.8 },
                     rightLowerArm: { x: -0.4, y: 0, z: -0.1, w: 0.8 },
 
-                    leftHand: { x: -0.4, y: 0, z: 0.2, w: 0.8 },                                        
+                    leftHand: { x: -0.4, y: 0, z: 0.2, w: 0.8 },
                     rightHand: { x: -0.4, y: 0, z: -0.2, w: 0.8 },
                 };
-                
+
                 Object.entries(armsDownPose).forEach(([boneName, quat]) => {
                     const node = getBoneNode(boneName);
                     if (node) {
                         node.quaternion.set(quat.x, quat.y, quat.z, quat.w);
                     }
                 });
-                vrmInstance.scene.updateMatrixWorld(true);                                
+                vrmInstance.scene.updateMatrixWorld(true);
             },
             undefined,
             (e) => {
@@ -498,11 +488,11 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
                 if (onLoadError) onLoadError(e);
             }
         );
-    }, [avatarUrl, onLoadSuccess, onLoadError, position, loadIdleMotion]);    
+    }, [avatarUrl, onLoadSuccess, onLoadError, position, loadIdleMotion]);
 
     // === 프로그래밍적 Idle 애니메이션 활성화 ===
     useEffect(() => {
-        if (programmaticIdle && vrm) {            
+        if (programmaticIdle && vrm) {
             const cleanup = createProgrammaticIdleAnimation(vrm);
 
             return () => {
@@ -540,7 +530,7 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
     // 트래킹 서비스 연동
     useEffect(() => {
         if (!enableTracking) return;
-        
+
 
         const handleTrackingUpdate = (data) => {
             // 트래킹이 처음 감지될 때 오프셋 저장
@@ -774,7 +764,7 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
                     vrm.expressionManager.setValue('blink', lerpedBlink * BLINK_SHAPE_MAX + BLINK_OFFSET);
                     vrm.expressionManager.setValue('blinkLeft', lerpedBlinkLeft * BLINK_SHAPE_MAX + BLINK_OFFSET);
                     vrm.expressionManager.setValue('blinkRight', lerpedBlinkRight * BLINK_SHAPE_MAX + BLINK_OFFSET);
-                    
+
                 }
 
                 // 립싱크 (트래킹 데이터 우선)
@@ -825,12 +815,12 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
         // 포즈 유지 (필요시)
         if (vrm.humanoid) {
             try {
-                const getBoneNode = (boneName) => {                                       
+                const getBoneNode = (boneName) => {
                     return vrm.humanoid.getNormalizedBoneNode ?
                         vrm.humanoid.getNormalizedBoneNode(boneName) :
                         vrm.humanoid.getBoneNode(boneName);
                 };
-                
+
                 const leftArm = getBoneNode('leftUpperArm');
                 const rightArm = getBoneNode('rightUpperArm');
 
@@ -863,10 +853,10 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
     if (!vrm) {
         return null;
     }
-        
+
     return (
         // 초기 위치 포즈 설정
-        <primitive        
+        <primitive
             ref={avatarRef}
             object={vrm.scene}
             scale={avatarUrl === testUrl ? [7, 7, 7] : [9, 9, 9]}

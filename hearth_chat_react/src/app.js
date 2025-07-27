@@ -10,7 +10,7 @@ import LoginModal from './components/LoginModal';
 import SettingsModal from './components/SettingsModal';
 import AdminDashboard from './components/AdminDashboard';
 import GlobalChatInput from './components/GlobalChatInput';
-import { getApiBase, csrfFetch, API_BASE, getCookie } from './utils/apiConfig';
+import { getApiBase, csrfFetch, getCookie } from './utils/apiConfig';
 import './App.css';
 
 

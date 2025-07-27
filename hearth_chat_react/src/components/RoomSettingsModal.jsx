@@ -1,35 +1,11 @@
 import React, { useState } from 'react';
+import { getApiBase, getCookie } from '../utils/apiConfig';
 
 const AI_PROVIDERS = [
     { value: 'GEMINI', label: 'Gemini' },
     { value: 'CHATGPT', label: 'ChatGPT' },
     { value: 'CLUDE', label: 'Clude' },
 ];
-
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-}
-
-// 환경에 따라 API_BASE 자동 설정 함수 추가
-const getApiBase = () => {
-    const hostname = window.location.hostname;
-    const isProd = process.env.NODE_ENV === 'production';
-    if (isProd) return 'https://hearthchat-production.up.railway.app';
-    if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:8000';
-    if (hostname === '192.168.44.9') return 'http://192.168.44.9:8000';
-    return `http://${hostname}:8000`;
-};
 
 const RoomSettingsModal = ({ open, onClose, room, onSuccess }) => {
     const [name, setName] = useState(room?.name || '');

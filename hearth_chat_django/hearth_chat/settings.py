@@ -105,8 +105,6 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
     X_FRAME_OPTIONS = 'ALLOWALL'
     print("Railway 배포 환경 설정 완료")
 else:
-    print("로컬 개발 환경 설정 완료")
-else:
     # 로컬 개발 환경 (http)
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = False
@@ -121,12 +119,6 @@ else:
     ]
 
     print("로컬 개발 환경 설정 완료")
-
-    # 로컬 개발 환경 (http)
-    SESSION_COOKIE_SAMESITE = "Lax"
-    SESSION_COOKIE_SECURE = False
-    CSRF_COOKIE_SAMESITE = "Lax"
-    CSRF_COOKIE_SECURE = False
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
@@ -285,7 +277,7 @@ if not os.environ.get("RAILWAY_ENVIRONMENT"):
                 site, created = Site.objects.get_or_create(
                     id=2,
                     defaults={
-                        'domain': 'localhost:8000',
+                        'domain': BASE_URL.replace('http://', '').replace('https://', ''),
                         'name': 'localhost'
                     }
                 )
@@ -304,7 +296,7 @@ if not os.environ.get("RAILWAY_ENVIRONMENT"):
                 site, created = Site.objects.get_or_create(
                     id=SITE_ID,
                     defaults={
-                        'domain': 'localhost:8000',
+                        'domain': BASE_URL.replace('http://', '').replace('https://', ''),
                         'name': 'localhost'
                     }
                 )
@@ -351,7 +343,7 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
                 site, created = Site.objects.get_or_create(
                     id=1,
                     defaults={
-                        'domain': 'hearthchat-production.up.railway.app',
+                        'domain': BASE_URL.replace('http://', '').replace('https://', ''),
                         'name': 'HearthChat Production'
                     }
                 )
@@ -370,7 +362,7 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
                 site, created = Site.objects.get_or_create(
                     id=SITE_ID,
                     defaults={
-                        'domain': 'hearthchat-production.up.railway.app',
+                        'domain': BASE_URL.replace('http://', '').replace('https://', ''),
                         'name': 'HearthChat Production'
                     }
                 )

@@ -1868,11 +1868,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       const formData = new FormData();
       formData.append('file', imageFile);
       formData.append('content', finalMessageText);
-      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      const apiUrl = isLocalhost
-        ? 'http://localhost:8000'
-        : `${window.location.protocol}//${window.location.hostname}`;
-      const res = await axios.post(`${apiUrl}/api/chat/upload_image/`, formData, {
+      const res = await axios.post(`${API_BASE}/api/chat/upload_image/`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           'X-CSRFToken': getCookie('csrftoken'),
@@ -1915,13 +1911,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       formData.append('file', attachedImage);
       formData.append('content', messageText);
 
-      // 환경에 따라 API URL 설정
-      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      const apiUrl = isLocalhost
-        ? 'http://localhost:8000'
-        : `${window.location.protocol}//${window.location.hostname}`;
-
-      const res = await axios.post(`${apiUrl}/api/chat/upload_image/`, formData, {
+      const res = await axios.post(`${API_BASE}/api/chat/upload_image/`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           'X-CSRFToken': getCookie('csrftoken'),
@@ -2478,10 +2468,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
     setLoadingMessages(true);
     try {
-      const apiUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-        ? 'http://localhost:8000'
-        : `${window.location.protocol}//${window.location.hostname}`;
-      const res = await fetch(`${apiUrl}/api/chat/messages/messages/?room=${roomId}&limit=${limit}&offset=${offset}`, {
+      const res = await fetch(`${API_BASE}/api/chat/messages/messages/?room=${roomId}&limit=${limit}&offset=${offset}`, {
         credentials: 'include',
       });
       if (res.ok) {
@@ -2627,10 +2614,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   // (2) 전체 메시지 개수 fetch 후 최신 20개 fetch
   const fetchTotalCountAndFetchLatest = async (roomId) => {
     try {
-      const apiUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-        ? 'http://localhost:8000'
-        : `${window.location.protocol}//${window.location.hostname}`;
-      const res = await fetch(`${apiUrl}/api/chat/messages/messages/?room=${roomId}&limit=1&offset=0`, { credentials: 'include' });
+      const res = await fetch(`${API_BASE}/api/chat/messages/messages/?room=${roomId}&limit=1&offset=0`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         const total = data.count || 0;
@@ -2650,13 +2634,9 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   // (3) messageId로 offset을 계산해서 fetch하는 함수 (슬라이딩 윈도우 40개 유지)
   const fetchOffsetForMessageId = async (roomId, messageId) => {
     try {
-      const apiUrl = process.env.NODE_ENV === 'development'
-        ? 'http://localhost:8000'
-        : `${window.location.protocol}//${window.location.hostname}`;
-
       console.log('[특정 메시지 이동] API 요청 - roomId:', roomId, 'messageId:', messageId, 'window_size: 40');
 
-      const res = await fetch(`${apiUrl}/api/chat/messages/offset/?room=${roomId}&messageId=${messageId}&page_size=40`, {
+      const res = await fetch(`${API_BASE}/api/chat/messages/offset/?room=${roomId}&messageId=${messageId}&page_size=40`, {
         credentials: 'include',
       });
 

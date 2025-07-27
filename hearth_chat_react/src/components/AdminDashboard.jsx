@@ -3,22 +3,7 @@ import './AdminDashboard.css';
 import CreateRoomModal from './CreateRoomModal';
 // import React, { useEffect, useState } from "react";
 import MediaFileList from "./MediaFileList";
-
-function getCookie(name) {
-    const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-    return match ? match.pop() : '';
-}
-
-const getApiBase = () => {
-    const hostname = window.location.hostname;
-    const isProd = process.env.NODE_ENV === 'production';
-
-    if (isProd) return 'https://hearthchat-production.up.railway.app';
-    if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:8000';
-    if (hostname === '192.168.44.9') return 'http://192.168.44.9:8000';
-
-    return `http://${hostname}:8000`;
-};
+import { getApiBase, getCookie } from '../utils/apiConfig';
 
 const AdminDashboard = () => {
     const [activeTab, setActiveTab] = useState('overview');
