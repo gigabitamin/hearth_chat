@@ -64,10 +64,10 @@ def google_login_redirect(request):
         return redirect(url)
     except SocialApp.DoesNotExist:
         print('[DEBUG][GOOGLE] SocialApp DoesNotExist')
-        return HttpResponse("Google OAuth 설정이 필요합니다. Django Admin에서 SocialApp을 확인해주세요.", status=500)
+        return HttpResponse("Google OAuth 설정이 필요합니다. Django Admin에서 SocialApp을 확인해주세요.", status=500 ,json_dumps_params={'ensure_ascii': False})
     except Exception as e:
         print('[DEBUG][GOOGLE] Exception:', e)
-        return HttpResponse(f"OAuth 리디렉션 오류: {str(e)}", status=500)
+        return HttpResponse(f"OAuth 리디렉션 오류: {str(e)}", status=500 ,json_dumps_params={'ensure_ascii': False})
 
 def kakao_login_redirect(request):
     """Kakao OAuth 직접 리디렉션 (allauth 중간창 우회)"""
@@ -89,10 +89,10 @@ def kakao_login_redirect(request):
         return redirect(url)
     except SocialApp.DoesNotExist:
         print('[DEBUG][KAKAO] SocialApp DoesNotExist')
-        return HttpResponse("Kakao OAuth 설정이 필요합니다. Django Admin에서 SocialApp을 확인해주세요.", status=500)
+        return HttpResponse("Kakao OAuth 설정이 필요합니다. Django Admin에서 SocialApp을 확인해주세요.", status=500 ,json_dumps_params={'ensure_ascii': False})
     except Exception as e:
         print('[DEBUG][KAKAO] Exception:', e)
-        return HttpResponse(f"OAuth 리디렉션 오류: {str(e)}", status=500)
+        return HttpResponse(f"OAuth 리디렉션 오류: {str(e)}", status=500 ,json_dumps_params={'ensure_ascii': False})
 
 def kakao_login_callback(request):
     """Kakao OAuth callback 직접 처리"""
@@ -103,7 +103,7 @@ def kakao_login_callback(request):
         code = request.GET.get('code')
         if not code:
             print('[DEBUG][KAKAO_CALLBACK] code가 없음')
-            return HttpResponse("인증 코드가 없습니다.", status=400)
+            return HttpResponse("인증 코드가 없습니다.", status=400 ,json_dumps_params={'ensure_ascii': False})
         
         # SocialApp 가져오기
         app = SocialApp.objects.get(provider='kakao', sites=settings.SITE_ID)
@@ -201,7 +201,7 @@ def kakao_login_callback(request):
         print('[DEBUG][KAKAO_CALLBACK] Exception:', e)
         import traceback
         traceback.print_exc()
-        return HttpResponse(f"OAuth callback 처리 오류: {str(e)}", status=500)
+        return HttpResponse(f"OAuth callback 처리 오류: {str(e)}", status=500 ,json_dumps_params={'ensure_ascii': False})
 
 def naver_login_redirect(request):
     """Naver OAuth 직접 리디렉션 (allauth 중간창 우회)"""
@@ -223,10 +223,10 @@ def naver_login_redirect(request):
         return redirect(url)
     except SocialApp.DoesNotExist:
         print('[DEBUG][NAVER] SocialApp DoesNotExist')
-        return HttpResponse("Naver OAuth 설정이 필요합니다. Django Admin에서 SocialApp을 확인해주세요.", status=500)
+        return HttpResponse("Naver OAuth 설정이 필요합니다. Django Admin에서 SocialApp을 확인해주세요.", status=500 ,json_dumps_params={'ensure_ascii': False})
     except Exception as e:
         print('[DEBUG][NAVER] Exception:', e)
-        return HttpResponse(f"OAuth 리디렉션 오류: {str(e)}", status=500)
+        return HttpResponse(f"OAuth 리디렉션 오류: {str(e)}", status=500 ,json_dumps_params={'ensure_ascii': False})
 
 def naver_login_callback(request):
     """Naver OAuth callback 직접 처리"""
@@ -239,7 +239,7 @@ def naver_login_callback(request):
         
         if not code:
             print('[DEBUG][NAVER_CALLBACK] code가 없음')
-            return HttpResponse("인증 코드가 없습니다.", status=400)
+            return HttpResponse("인증 코드가 없습니다.", status=400 ,json_dumps_params={'ensure_ascii': False})
         
         # SocialApp 가져오기
         app = SocialApp.objects.get(provider='naver', sites=settings.SITE_ID)
@@ -264,7 +264,7 @@ def naver_login_callback(request):
         
         if token_response.status_code != 200:
             print('[DEBUG][NAVER_CALLBACK] 토큰 교환 실패')
-            return HttpResponse(f"토큰 교환 실패: {token_response.text}", status=400)
+            return HttpResponse(f"토큰 교환 실패: {token_response.text}", status=400 ,json_dumps_params={'ensure_ascii': False})
         
         token_info = token_response.json()
         access_token = token_info.get('access_token')
@@ -277,7 +277,7 @@ def naver_login_callback(request):
         
         if user_response.status_code != 200:
             print('[DEBUG][NAVER_CALLBACK] 사용자 정보 요청 실패')
-            return HttpResponse(f"사용자 정보 요청 실패: {user_response.text}", status=400)
+            return HttpResponse(f"사용자 정보 요청 실패: {user_response.text}", status=400 ,json_dumps_params={'ensure_ascii': False})
         
         user_info = user_response.json()
         print('[DEBUG][NAVER_CALLBACK] user_info:', user_info)
@@ -337,7 +337,7 @@ def naver_login_callback(request):
         print('[DEBUG][NAVER_CALLBACK] Exception:', e)
         import traceback
         traceback.print_exc()
-        return HttpResponse(f"OAuth callback 처리 오류: {str(e)}", status=500)
+        return HttpResponse(f"OAuth callback 처리 오류: {str(e)}", status=500 ,json_dumps_params={'ensure_ascii': False})
 
 def github_login_redirect(request):
     """GitHub OAuth 직접 리디렉션 (allauth 중간창 우회)"""
@@ -360,7 +360,7 @@ def github_login_redirect(request):
         return HttpResponse("Github OAuth 설정이 필요합니다. Django Admin에서 SocialApp을 확인해주세요.", status=500)
     except Exception as e:
         print('[DEBUG][GITHUB] Exception:', e)
-        return HttpResponse(f"OAuth 리디렉션 오류: {str(e)}", status=500)
+        return HttpResponse(f"OAuth 리디렉션 오류: {str(e)}", status=500 ,json_dumps_params={'ensure_ascii': False})
 
 def github_login_callback(request):
     """GitHub OAuth callback 직접 처리 (로그인 전용)"""
@@ -372,7 +372,7 @@ def github_login_callback(request):
         
         if not code:
             print('[DEBUG][GITHUB_CALLBACK] code가 없음')
-            return HttpResponse("인증 코드가 없습니다.", status=400)
+            return HttpResponse("인증 코드가 없습니다.", status=400 ,json_dumps_params={'ensure_ascii': False})
         
         # SocialApp 가져오기
         app = SocialApp.objects.get(provider='github', sites=settings.SITE_ID)
@@ -396,7 +396,7 @@ def github_login_callback(request):
         
         if token_response.status_code != 200:
             print('[DEBUG][GITHUB_CALLBACK] 토큰 교환 실패')
-            return HttpResponse(f"토큰 교환 실패: {token_response.text}", status=400)
+            return HttpResponse(f"토큰 교환 실패: {token_response.text}", status=400 ,json_dumps_params={'ensure_ascii': False})
         
         token_info = token_response.json()
         access_token = token_info.get('access_token')
@@ -412,7 +412,7 @@ def github_login_callback(request):
         
         if user_response.status_code != 200:
             print('[DEBUG][GITHUB_CALLBACK] 사용자 정보 요청 실패')
-            return HttpResponse(f"사용자 정보 요청 실패: {user_response.text}", status=400)
+            return HttpResponse(f"사용자 정보 요청 실패: {user_response.text}", status=400 ,json_dumps_params={'ensure_ascii': False})
         
         user_info = user_response.json()
         print('[DEBUG][GITHUB_CALLBACK] user_info:', user_info)
@@ -423,7 +423,7 @@ def github_login_callback(request):
         
         if email_response.status_code != 200:
             print('[DEBUG][GITHUB_CALLBACK] 이메일 정보 요청 실패')
-            return HttpResponse(f"이메일 정보 요청 실패: {email_response.text}", status=400)
+            return HttpResponse(f"이메일 정보 요청 실패: {email_response.text}", status=400 ,json_dumps_params={'ensure_ascii': False})
         
         emails = email_response.json()
         print('[DEBUG][GITHUB_CALLBACK] emails:', emails)
@@ -487,7 +487,7 @@ def github_login_callback(request):
         print('[DEBUG][GITHUB_CALLBACK] Exception:', e)
         import traceback
         traceback.print_exc()
-        return HttpResponse(f"OAuth callback 처리 오류: {str(e)}", status=500)
+        return HttpResponse(f"OAuth callback 처리 오류: {str(e)}", status=500 ,json_dumps_params={'ensure_ascii': False})
 
 def google_login_callback(request):
     """Google OAuth callback 직접 처리"""
@@ -681,10 +681,10 @@ def google_connect_redirect(request):
         print('[DEBUG][GOOGLE_CONNECT] redirect_url:', url)
         return redirect(url)
     except SocialApp.DoesNotExist:
-        return JsonResponse({'error': 'Google OAuth 앱이 설정되지 않았습니다.'}, status=400)
+        return JsonResponse({'error': 'Google OAuth 앱이 설정되지 않았습니다.'}, status=400 ,json_dumps_params={'ensure_ascii': False})
     except Exception as e:
         print('[ERROR][GOOGLE_CONNECT] 리디렉션 오류:', str(e))
-        return JsonResponse({'error': 'OAuth 리디렉션 중 오류가 발생했습니다.'}, status=500)
+        return JsonResponse({'error': 'OAuth 리디렉션 중 오류가 발생했습니다.'}, status=500 ,json_dumps_params={'ensure_ascii': False})
 
 @login_required
 def google_connect_callback(request):
@@ -693,7 +693,7 @@ def google_connect_callback(request):
     state = request.GET.get('state')
     
     if not code:
-        return JsonResponse({'error': '인증 코드가 없습니다.'}, status=400)
+        return JsonResponse({'error': '인증 코드가 없습니다.'}, status=400 ,json_dumps_params={'ensure_ascii': False})
     
     try:
         app = SocialApp.objects.get(provider='google', sites=settings.SITE_ID)
@@ -730,7 +730,7 @@ def google_connect_callback(request):
         if not created:
             # 이미 다른 사용자에게 연결된 경우
             if social_account.user != request.user:
-                return JsonResponse({'error': '이 Google 계정은 이미 다른 사용자에게 연결되어 있습니다.'}, status=400)
+                return JsonResponse({'error': '이 Google 계정은 이미 다른 사용자에게 연결되어 있습니다.'}, status=400 ,json_dumps_params={'ensure_ascii': False})
         
         # 토큰 저장
         if created:
@@ -745,13 +745,13 @@ def google_connect_callback(request):
         return redirect('/accounts/popup-close/?action=connect')
         
     except SocialApp.DoesNotExist:
-        return JsonResponse({'error': 'Google OAuth 앱이 설정되지 않았습니다.'}, status=400)
+        return JsonResponse({'error': 'Google OAuth 앱이 설정되지 않았습니다.'}, status=400 ,json_dumps_params={'ensure_ascii': False})
     except requests.RequestException as e:
         print('[ERROR][GOOGLE_CONNECT] API 요청 오류:', str(e))
-        return JsonResponse({'error': 'OAuth API 요청 중 오류가 발생했습니다.'}, status=500)
+        return JsonResponse({'error': 'OAuth API 요청 중 오류가 발생했습니다.'}, status=500 ,json_dumps_params={'ensure_ascii': False})
     except Exception as e:
         print('[ERROR][GOOGLE_CONNECT] 콜백 처리 오류:', str(e))
-        return JsonResponse({'error': 'OAuth 콜백 처리 중 오류가 발생했습니다.'}, status=500)
+        return JsonResponse({'error': 'OAuth 콜백 처리 중 오류가 발생했습니다.'}, status=500 ,json_dumps_params={'ensure_ascii': False})
 
 @login_required
 def kakao_connect_redirect(request):
@@ -771,17 +771,17 @@ def kakao_connect_redirect(request):
         print('[DEBUG][KAKAO_CONNECT] redirect_url:', url)
         return redirect(url)
     except SocialApp.DoesNotExist:
-        return JsonResponse({'error': 'Kakao OAuth 앱이 설정되지 않았습니다.'}, status=400)
+        return JsonResponse({'error': 'Kakao OAuth 앱이 설정되지 않았습니다.'}, status=400 ,json_dumps_params={'ensure_ascii': False})
     except Exception as e:
         print('[ERROR][KAKAO_CONNECT] 리디렉션 오류:', str(e))
-        return JsonResponse({'error': 'OAuth 리디렉션 중 오류가 발생했습니다.'}, status=500)
+        return JsonResponse({'error': 'OAuth 리디렉션 중 오류가 발생했습니다.'}, status=500 ,json_dumps_params={'ensure_ascii': False})
 
 @login_required
 def kakao_connect_callback(request):
     """Kakao OAuth 계정 연결 콜백 처리"""
     code = request.GET.get('code')
     if not code:
-        return JsonResponse({'error': '인증 코드가 없습니다.'}, status=400)
+        return JsonResponse({'error': '인증 코드가 없습니다.'}, status=400 ,json_dumps_params={'ensure_ascii': False})
     
     try:
         app = SocialApp.objects.get(provider='kakao', sites=settings.SITE_ID)
@@ -807,39 +807,46 @@ def kakao_connect_callback(request):
         user_response = requests.get(user_info_url, headers=headers)
         user_response.raise_for_status()
         user_info = user_response.json()
-        
-        # 기존 사용자에게 소셜 계정 연결
+        kakao_uid = str(user_info['id'])
+
+        # ⚠️ 먼저 이미 다른 유저와 연결되어 있는지 확인
+        existing_account = SocialAccount.objects.filter(provider='kakao', uid=kakao_uid).first()
+        if existing_account and existing_account.user != request.user:
+            return JsonResponse({'error': '이 Kakao 계정은 이미 다른 사용자에게 연결되어 있습니다.'}, status=400 ,json_dumps_params={'ensure_ascii': False})
+
+        # 소셜 계정 연결 (없으면 생성)
         social_account, created = SocialAccount.objects.get_or_create(
             provider='kakao',
-            uid=str(user_info['id']),
+            uid=kakao_uid,
             defaults={'user': request.user}
         )
-        
-        if not created:
-            # 이미 다른 사용자에게 연결된 경우
-            if social_account.user != request.user:
-                return JsonResponse({'error': '이 Kakao 계정은 이미 다른 사용자에게 연결되어 있습니다.'}, status=400)
-        
-        # 토큰 저장
+
+        # 토큰 저장 또는 갱신
+        expires_in = int(token_info.get('expires_in', 21600))
         if created:
-            # expires_in을 정수로 변환
-            expires_in = int(token_info.get('expires_in', 21600))
             SocialToken.objects.create(
                 account=social_account,
                 token=access_token,
                 expires_at=timezone.now() + timezone.timedelta(seconds=expires_in)
             )
-        
+        else:
+            # 이미 존재할 경우 토큰 갱신
+            token_obj = SocialToken.objects.filter(account=social_account).first()
+            if token_obj:
+                token_obj.token = access_token
+                token_obj.expires_at = timezone.now() + timezone.timedelta(seconds=expires_in)
+                token_obj.save()
+
         return redirect('/accounts/popup-close/?action=connect')
-        
+
     except SocialApp.DoesNotExist:
-        return JsonResponse({'error': 'Kakao OAuth 앱이 설정되지 않았습니다.'}, status=400)
+        return JsonResponse({'error': 'Kakao OAuth 앱이 설정되지 않았습니다.'}, status=400 ,json_dumps_params={'ensure_ascii': False})
     except requests.RequestException as e:
         print('[ERROR][KAKAO_CONNECT] API 요청 오류:', str(e))
-        return JsonResponse({'error': 'OAuth API 요청 중 오류가 발생했습니다.'}, status=500)
+        return JsonResponse({'error': 'OAuth API 요청 중 오류가 발생했습니다.'}, status=500 ,json_dumps_params={'ensure_ascii': False})
     except Exception as e:
         print('[ERROR][KAKAO_CONNECT] 콜백 처리 오류:', str(e))
-        return JsonResponse({'error': 'OAuth 콜백 처리 중 오류가 발생했습니다.'}, status=500)
+        return JsonResponse({'error': 'OAuth 콜백 처리 중 오류가 발생했습니다.'}, status=500 ,json_dumps_params={'ensure_ascii': False})
 
 @login_required
 def naver_connect_redirect(request):
@@ -860,10 +867,10 @@ def naver_connect_redirect(request):
         print('[DEBUG][NAVER_CONNECT] redirect_url:', url)
         return redirect(url)
     except SocialApp.DoesNotExist:
-        return JsonResponse({'error': 'Naver OAuth 앱이 설정되지 않았습니다.'}, status=400)
+        return JsonResponse({'error': 'Naver OAuth 앱이 설정되지 않았습니다.'}, status=400 ,json_dumps_params={'ensure_ascii': False})
     except Exception as e:
         print('[ERROR][NAVER_CONNECT] 리디렉션 오류:', str(e))
-        return JsonResponse({'error': 'OAuth 리디렉션 중 오류가 발생했습니다.'}, status=500)
+        return JsonResponse({'error': 'OAuth 리디렉션 중 오류가 발생했습니다.'}, status=500 ,json_dumps_params={'ensure_ascii': False})
 
 @login_required
 def naver_connect_callback(request):
@@ -872,7 +879,7 @@ def naver_connect_callback(request):
     state = request.GET.get('state')
     
     if not code:
-        return JsonResponse({'error': '인증 코드가 없습니다.'}, status=400)
+        return JsonResponse({'error': '인증 코드가 없습니다.'}, status=400 ,json_dumps_params={'ensure_ascii': False})
     
     try:
         app = SocialApp.objects.get(provider='naver', sites=settings.SITE_ID)
@@ -911,7 +918,7 @@ def naver_connect_callback(request):
         if not created:
             # 이미 다른 사용자에게 연결된 경우
             if social_account.user != request.user:
-                return JsonResponse({'error': '이 Naver 계정은 이미 다른 사용자에게 연결되어 있습니다.'}, status=400)
+                return JsonResponse({'error': '이 Naver 계정은 이미 다른 사용자에게 연결되어 있습니다.'}, status=400 ,json_dumps_params={'ensure_ascii': False})
         
         # 토큰 저장
         if created:
@@ -926,13 +933,13 @@ def naver_connect_callback(request):
         return redirect('/accounts/popup-close/?action=connect')
         
     except SocialApp.DoesNotExist:
-        return JsonResponse({'error': 'Naver OAuth 앱이 설정되지 않았습니다.'}, status=400)
+        return JsonResponse({'error': 'Naver OAuth 앱이 설정되지 않았습니다.'}, status=400 ,json_dumps_params={'ensure_ascii': False})
     except requests.RequestException as e:
         print('[ERROR][NAVER_CONNECT] API 요청 오류:', str(e))
-        return JsonResponse({'error': 'OAuth API 요청 중 오류가 발생했습니다.'}, status=500)
+        return JsonResponse({'error': 'OAuth API 요청 중 오류가 발생했습니다.'}, status=500 ,json_dumps_params={'ensure_ascii': False})
     except Exception as e:
         print('[ERROR][NAVER_CONNECT] 콜백 처리 오류:', str(e))
-        return JsonResponse({'error': 'OAuth 콜백 처리 중 오류가 발생했습니다.'}, status=500)
+        return JsonResponse({'error': 'OAuth 콜백 처리 중 오류가 발생했습니다.'}, status=500 ,json_dumps_params={'ensure_ascii': False})
 
 @login_required
 def github_connect_redirect(request):
@@ -953,10 +960,10 @@ def github_connect_redirect(request):
         print('[DEBUG][GITHUB_CONNECT] redirect_url:', url)
         return redirect(url)
     except SocialApp.DoesNotExist:
-        return JsonResponse({'error': 'GitHub OAuth 앱이 설정되지 않았습니다.'}, status=400)
+        return JsonResponse({'error': 'GitHub OAuth 앱이 설정되지 않았습니다.'}, status=400 ,json_dumps_params={'ensure_ascii': False})
     except Exception as e:
         print('[ERROR][GITHUB_CONNECT] 리디렉션 오류:', str(e))
-        return JsonResponse({'error': 'OAuth 리디렉션 중 오류가 발생했습니다.'}, status=500)
+        return JsonResponse({'error': 'OAuth 리디렉션 중 오류가 발생했습니다.'}, status=500 ,json_dumps_params={'ensure_ascii': False})
 
 @login_required
 def github_connect_callback(request):
@@ -964,7 +971,7 @@ def github_connect_callback(request):
     code = request.GET.get('code')
     
     if not code:
-        return JsonResponse({'error': '인증 코드가 없습니다.'}, status=400)
+        return JsonResponse({'error': '인증 코드가 없습니다.'}, status=400 ,json_dumps_params={'ensure_ascii': False})
     
     try:
         app = SocialApp.objects.get(provider='github', sites=settings.SITE_ID)
@@ -985,7 +992,7 @@ def github_connect_callback(request):
         
         if token_response.status_code != 200:
             print('[DEBUG][GITHUB_CONNECT_CALLBACK] 토큰 교환 실패')
-            return HttpResponse(f"토큰 교환 실패: {token_response.text}", status=400)
+            return HttpResponse(f"토큰 교환 실패: {token_response.text}", status=400 ,json_dumps_params={'ensure_ascii': False})
         
         token_info = token_response.json()
         access_token = token_info.get('access_token')
@@ -1001,7 +1008,7 @@ def github_connect_callback(request):
         
         if user_response.status_code != 200:
             print('[DEBUG][GITHUB_CONNECT_CALLBACK] 사용자 정보 요청 실패')
-            return HttpResponse(f"사용자 정보 요청 실패: {user_response.text}", status=400)
+            return HttpResponse(f"사용자 정보 요청 실패: {user_response.text}", status=400 ,json_dumps_params={'ensure_ascii': False})
         
         user_info = user_response.json()
         print('[DEBUG][GITHUB_CONNECT_CALLBACK] user_info:', user_info)
@@ -1016,7 +1023,7 @@ def github_connect_callback(request):
         if not created:
             # 이미 다른 사용자에게 연결된 경우
             if social_account.user != request.user:
-                return JsonResponse({'error': '이 GitHub 계정은 이미 다른 사용자에게 연결되어 있습니다.'}, status=400)
+                return JsonResponse({'error': '이 GitHub 계정은 이미 다른 사용자에게 연결되어 있습니다.'}, status=400 ,json_dumps_params={'ensure_ascii': False})
         
         # 토큰 저장
         if created:
@@ -1030,12 +1037,12 @@ def github_connect_callback(request):
         return redirect('/accounts/popup-close/?action=connect')
         
     except SocialApp.DoesNotExist:
-        return JsonResponse({'error': 'GitHub OAuth 앱이 설정되지 않았습니다.'}, status=400)
+        return JsonResponse({'error': 'GitHub OAuth 앱이 설정되지 않았습니다.'}, status=400 ,json_dumps_params={'ensure_ascii': False})
     except requests.RequestException as e:
         print('[ERROR][GITHUB_CONNECT_CALLBACK] API 요청 오류:', str(e))
-        return JsonResponse({'error': 'OAuth API 요청 중 오류가 발생했습니다.'}, status=500)
+        return JsonResponse({'error': 'OAuth API 요청 중 오류가 발생했습니다.'}, status=500 ,json_dumps_params={'ensure_ascii': False})
     except Exception as e:
         print('[ERROR][GITHUB_CONNECT_CALLBACK] 콜백 처리 오류:', str(e))
-        return JsonResponse({'error': 'OAuth 콜백 처리 중 오류가 발생했습니다.'}, status=500)
+        return JsonResponse({'error': 'OAuth 콜백 처리 중 오류가 발생했습니다.'}, status=500 ,json_dumps_params={'ensure_ascii': False})
 
 
