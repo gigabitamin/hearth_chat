@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Virtuoso } from 'react-virtuoso';
 import './VirtualizedMessageList.css';
 import { getApiBase, getCookie, csrfFetch } from '../utils/apiConfig';
+import AiMessageRenderer from './AiMessageRenderer';
 
 // 이미지 URL을 절대 경로로 변환하는 함수
 const getImageUrl = (imageUrl) => {
@@ -237,7 +238,14 @@ const VirtualizedMessageList = ({
                                     }}
                                 />
                             )}
-                            <div className="message-text">{message.text || message.content}</div>
+                            <div className="message-text">
+                                {/* AI/특수 메시지 포맷 렌더링: type이 'ai' 또는 sender_type이 'ai'이거나, content가 JSON/특수포맷일 때 AiMessageRenderer 사용 */}
+                                {((message.type === 'ai' || message.sender_type === 'ai') && message.text) ? (
+                                    <AiMessageRenderer message={message.text} />
+                                ) : (
+                                    message.text || message.content
+                                )}
+                            </div>
                         </div>
                     </div>
                     {/* 아래쪽에 날짜/시간(회색, 24시간) */}
@@ -571,7 +579,7 @@ const VirtualizedMessageList = ({
     useEffect(() => {
         if (scrollToMessageId && messages.length > 0) {
             const targetIndex = messages.findIndex(m => m.id == scrollToMessageId);
-            if (targetIndex !== -1 && virtuosoRef.current) {                
+            if (targetIndex !== -1 && virtuosoRef.current) {
                 virtuosoRef.current.scrollToIndex({ index: targetIndex, align: 'start' });
                 // 스크롤 실행 후 즉시 scrollToMessageId를 null로 리셋하여 반복 스크롤 방지
                 setTimeout(() => {
