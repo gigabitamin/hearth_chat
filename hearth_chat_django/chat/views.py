@@ -422,13 +422,14 @@ class ChatViewSet(viewsets.ModelViewSet):
                 'content': fav.message.content,
                 'timestamp': fav.message.timestamp,
                 'room_id': fav.message.room_id,
+                'room_name': fav.message.room.name,
                 'sender': fav.message.username,
             }
             for fav in favorites
         ]
+        print('data', data);
         return Response({'results': data})        
     
-
     @action(detail=True, methods=['post', 'delete'])
     def favorite(self, request, pk=None):
         message = self.get_object()
@@ -470,7 +471,6 @@ class ChatViewSet(viewsets.ModelViewSet):
         message.delete()
         
         return Response({'status': 'deleted', 'message_id': message_id})
-
 
     def get_queryset(self):
         if self.action == 'list':
@@ -602,6 +602,76 @@ class ChatViewSet(viewsets.ModelViewSet):
             cache.set(cache_key, response_data, 0) # 즉시 캐시 삭제            
 
             return Response(response_data)
+
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+
+    @action(detail=False, methods=['get'])
+    def recent(self, request):
+        """특정 방의 최근 메시지 10개를 반환 (시간 내림차순)"""
+        room_id = request.query_params.get('room')
+        if not room_id:
+            return Response({'error': 'room parameter is required'}, status=400)
+
+        # 캐싱을 원한다면 여기에 추가
+        # cache_key = f"room_recent_messages_{room_id}"
+        # cached_data = cache.get(cache_key)
+        # if cached_data:
+        #     return Response(cached_data)
+
+        try:
+            # order_by('-timestamp')로 최신 메시지부터 정렬하고, limit(10)으로 10개만 가져옴옴
+            messages = Chat.objects.filter(room_id=room_id)\
+                .select_related('room', 'question_message')\
+                .prefetch_related('reactions', 'reactions__user')\
+                .order_by('-timestamp')[:10] # 최신순으로 10개만 가져오기
+
+            # messages 함수 내부의 직렬화 로직을 재사용            
+            message_list = []
+            for msg in messages:
+                if msg.sender_type == 'user':
+                    sender_label = msg.username or f"User({msg.user_id})"
+                    is_mine = (request.user.username == msg.username) or (request.user.id == msg.user_id)
+                elif msg.sender_type == 'ai':
+                    sender_label = msg.ai_name or msg.ai_type or 'AI'
+                    is_mine = False
+                else:
+                    sender_label = 'System'
+                    is_mine = False
+
+                # ... (기존 messages 함수의 reactions, message_data 생성 로직과 동일) ...
+                reactions_data = {}
+                for reaction in msg.reactions.all():
+                    emoji = reaction.emoji
+                    if emoji not in reactions_data:
+                        reactions_data[emoji] = {'count': 0, 'users': []}
+                    reactions_data[emoji]['count'] += 1
+                    reactions_data[emoji]['users'].append(reaction.user.username)
+
+                reactions_list = [
+                    {'emoji': emoji, 'count': data['count'], 'users': data['users']}
+                    for emoji, data in reactions_data.items()
+                ]
+
+                message_data = {
+                    'id': msg.id,
+                    'type': 'send' if is_mine else 'recv',
+                    'text': msg.content,
+                    'date': msg.timestamp.isoformat(),
+                    'sender': sender_label,
+                    'sender_type': msg.sender_type,
+                    'username': msg.username,
+                    'user_id': msg.user_id,
+                    'ai_name': msg.ai_name,
+                    'emotion': getattr(msg, 'emotion', None),
+                    'imageUrl': msg.attach_image if msg.attach_image else None,
+                    'reactions': reactions_list,
+                    'questioner_username': (msg.question_message.username if msg.sender_type == 'ai' and msg.question_message else None)
+                }
+                message_list.append(message_data)
+
+            # cache.set(cache_key, message_list, 60) # 필요시 캐싱
+            return Response({'results': message_list})
 
         except Exception as e:
             return Response({'error': str(e)}, status=500)

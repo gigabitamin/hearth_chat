@@ -12,7 +12,7 @@ import AdminDashboard from './components/AdminDashboard';
 import GlobalChatInput from './components/GlobalChatInput';
 import { getApiBase, csrfFetch, getCookie } from './utils/apiConfig';
 import './App.css';
-
+import AiMessageRenderer from './components/AiMessageRenderer';
 
 
 // API_BASE 상수는 utils/apiConfig.js에서 import됨
@@ -266,7 +266,8 @@ function AppContent(props) {
           ) : (
             roomMessages.map(msg => (
               <div key={msg.id} style={{ marginBottom: 8, color: msg.type === 'send' ? '#2196f3' : '#fff' }}>
-                <b>{msg.sender}:</b> {msg.text}
+                <span style={{ fontSize: 18, fontWeight: 600, backgroundColor: '#f0f0f0', padding: '4px 4px', borderRadius: 4 }}>{msg.sender}</span> 
+                <AiMessageRenderer message={msg.text} />
               </div>
             ))
           )}
@@ -569,7 +570,9 @@ function AppContent(props) {
                     setRoom(room);
                     // 메시지 불러오기 (예시: 최신 10개)
                     try {
-                      const res = await csrfFetch(`${getApiBase()}/api/chat/messages/messages/?room=${room.id}&limit=10&offset=0`, { credentials: 'include' });
+                      // 최근 메시지 10개 가져오기 
+                      // 무한 스크롤 기능을 위해 시간 오름차순으로 배열한 일반 messages API 대신 시간 내림차순으로 재배열한 recent API 사용
+                      const res = await csrfFetch(`${getApiBase()}/api/chat/messages/recent/?room=${room.id}&limit=10&offset=0`, { credentials: 'include' });
                       if (res.ok) {
                         const data = await res.json();
                         setRoomMessages(data.results || []); // AppContent에서 관리
@@ -597,10 +600,8 @@ function AppContent(props) {
                 />
               </div>
               {overlayTab !== 'favorite' && (
-                <div className="selected-room-info-title-sidebar">최근 메시지 `{room.name}`</div>
-              )}
-              {overlayTab !== 'favorite' && (
                 <div className="sidebar-room-info-panel">
+                  <span style={{ fontSize: 18, fontWeight: 600 }}>최근 메시지 &nbsp; </span> {room.name}
                   {renderRoomInfoPanel(() => setShowRoomListOverlay(false))}
                 </div>
               )}
@@ -622,9 +623,14 @@ function AppContent(props) {
                     setRoom(room);
                     try {
                       if (overlayTab === 'favorite') return; // 즐겨찾기 탭일 때는 메시지 요청/갱신 중단
-                      const res = await csrfFetch(`${getApiBase()}/api/chat/messages/messages/?room=${room.id}&limit=10&offset=0`, { credentials: 'include' });
+                      // 최근 메시지 10개 가져오기 
+                      // 무한 스크롤 기능을 위해 시간 오름차순으로 배열한 일반 messages API 대신 시간 내림차순으로 재배열한 recent API 사용
+                      const res = await csrfFetch(`${getApiBase()}/api/chat/messages/recent/?room=${room.id}&limit=10&offset=0`, { credentials: 'include' });
                       if (res.ok) {
                         const data = await res.json();
+                        // console.log('data.results', data.results);
+                        // 시간순으로 표시하기 위해 배열을 뒤집어줘야할 필요가 있을 경우 (.slice().reverse())
+                        // 백엔드 API(recent)가 이미 최신순으로 10개를 반환하므로, 뒤집어줄 필요가 없음
                         setRoomMessages(data.results || []); // AppContent에서 관리
                       } else {
                         setRoomMessages([]); // AppContent에서 관리
@@ -647,12 +653,10 @@ function AppContent(props) {
                   overlayKey="lobby"
                 />
               </div>
-              {overlayTab !== 'favorite' && (
-                <div className="selected-room-info-title">최근 메시지 `{room?.name}`</div>
-              )}
               {/* 대가방 하단 정보 관리 영역 */}
               {overlayTab !== 'favorite' && (
                 <div className="room-info-panel">
+                  <span style={{ fontSize: 18, fontWeight: 600 }}>최근 메시지 &nbsp; </span> {room?.name}
                   {renderRoomInfoPanel()}
                 </div>
               )}

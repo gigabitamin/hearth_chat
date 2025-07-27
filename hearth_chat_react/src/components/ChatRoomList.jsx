@@ -3,6 +3,7 @@ import LoginModal from './LoginModal';
 import './ChatRoomList.css';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE, getCookie } from '../utils/apiConfig';
+import AiMessageRenderer from './AiMessageRenderer';
 
 const AI_PROVIDERS = [
     { value: 'GEMINI', label: 'Gemini' },
@@ -443,6 +444,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
     // HOME 버튼: 오버레이(사이드바)에서만, 최상단 오른쪽 끝에 고정
     // const isOverlay = overlayKey === 'overlay'; // 더 이상 사용하지 않음
 
+    console.log('favoriteMessages', favoriteMessages);
     return (
         <div className="chat-room-list" style={{ height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
             {loading ? (
@@ -507,7 +509,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                 )}
                             </div>
                             {/* 즐겨찾기 메시지 50% */}
-                            <div className="favorite-message-section" style={{ flex: 1, height: '50%', overflowY: 'auto', minWidth: 0 }}>
+                            <div className="favorite-message-section" style={{ flex: 1, height: '50%', overflowY: 'auto', minWidth: 0, paddingBottom: '56px' }}>
                                 <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8, padding: '8px 0 8px 8px' }}>★ 즐겨찾기 메시지</div>
                                 {favoriteMessagesLoading ? (
                                     <div>로딩 중...</div>
@@ -519,20 +521,34 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                             <div
                                                 key={msg.id}
                                                 className="room-item"
-                                                style={{ display: 'flex', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #222', cursor: 'pointer' }}
+                                                style={{ display: 'flex', alignItems: 'flex-start', padding: '12px 0', borderBottom: '1px solid #222', cursor: 'pointer' }}
                                                 onClick={() => handleFavoriteMessageClick(msg)}
                                             >
                                                 {/* 왼쪽: 프로필/종류 (메시지의 방 타입/AI 여부 등은 room_id로 rooms에서 찾아서 표시) */}
                                                 <div className="room-item-left" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 48, minWidth: 48, marginRight: 8 }}>
                                                     <div className="room-icon" style={{ fontSize: 24 }}>
-                                                        {getRoomIcon((rooms.find(r => r.id === msg.room_id)?.room_type), (rooms.find(r => r.id === msg.room_id)?.ai_provider))}
+                                                        {(() => {                                                        
+                                                            const room = rooms.find(r => r.id === msg.room_id);                                                        
+                                                            return getRoomIcon(room?.room_type, room?.ai_provider);
+                                                        })()}
                                                     </div>
                                                 </div>
                                                 {/* 가운데: 메시지 정보 */}
                                                 <div style={{ flex: 1, minWidth: 0 }}>
-                                                    <div style={{ fontWeight: 700, color: '#fff', fontSize: 15, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{msg.sender || 'Unknown'} <span style={{ color: '#bbb', fontSize: 12, marginLeft: 8 }}>{msg.room_id ? `방 #${msg.room_id}` : ''}</span></div>
-                                                    <div style={{ background: '#1976d2', color: '#fff', borderRadius: 12, padding: '8px 16px', fontSize: 15, fontWeight: 500, marginBottom: 2, maxWidth: 360, wordBreak: 'break-all', display: 'inline-block' }}>{msg.content}</div>
-                                                    <div style={{ color: '#bbb', fontSize: 11, marginTop: 2 }}>{msg.timestamp ? new Date(msg.timestamp).toLocaleString('ko-KR', { year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : ''}</div>
+                                                    <div style={{ fontWeight: 700, color: '#fff', fontSize: 15, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                        <span style={{ fontSize: 18, fontWeight: 600, backgroundColor: '#f0f0f0', padding: '4px 4px', borderRadius: 4 }}>
+                                                            {msg.sender || 'Unknown'}
+                                                        </span> 
+                                                        <span style={{ color: '#bbb', fontSize: 12, marginLeft: 8 }}>
+                                                            {msg.room_name ? `방 #${msg.room_name}` : ''}
+                                                        </span>
+                                                    </div>
+                                                    <div style={{ background: '#1976d2', color: '#fff', borderRadius: 12, padding: '8px 16px', fontSize: 15, fontWeight: 500, marginBottom: 2, maxWidth: 360, wordBreak: 'break-all', display: 'inline-block' }}>
+                                                        <AiMessageRenderer message={msg.content} />
+                                                    </div>
+                                                    <div style={{ color: '#bbb', fontSize: 11, marginTop: 2 }}>
+                                                        {msg.timestamp ? new Date(msg.timestamp).toLocaleString('ko-KR', { year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : ''}                                                        
+                                                    </div>
                                                 </div>
                                                 {/* 오른쪽: 메시지 즐겨찾기, 입장 버튼 */}
                                                 <div className="room-item-actions" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, marginLeft: 8 }}>
