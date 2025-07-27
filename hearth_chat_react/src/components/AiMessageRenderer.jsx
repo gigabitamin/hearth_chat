@@ -11,6 +11,8 @@ import 'highlight.js/styles/github.css';
 import { Bar, Line, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement } from 'chart.js';
 import MermaidRenderer from './MermaidRenderer';
+import rehypeSanitize from 'rehype-sanitize';
+
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement);
 
@@ -53,16 +55,18 @@ const AiMessageRenderer = ({ message }) => {
     // not JSON - treat as markdown
   }
   return (
-    <ReactMarkdown
-      children={message}
-      remarkPlugins={[remarkGfm, remarkMath]}
-      rehypePlugins={[rehypeKatex, rehypeHighlight, rehypeRaw]}
-      components={{
-        img: ({ node, ...props }) => (
-          <img {...props} style={{ maxWidth: '100%' }} />
-        )
-      }}
-    />
+    <div className="message-markdown">
+      <ReactMarkdown        
+        children={message}
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeKatex, rehypeHighlight, rehypeRaw, rehypeSanitize]}
+        components={{
+          img: ({ node, ...props }) => (
+            <img {...props} style={{ maxWidth: '100%' }} />
+          )
+        }}
+      />
+    </div>      
   );
 };
 

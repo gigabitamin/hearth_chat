@@ -240,11 +240,12 @@ const VirtualizedMessageList = ({
                             )}
                             <div className="message-text">
                                 {/* AI/특수 메시지 포맷 렌더링: type이 'ai' 또는 sender_type이 'ai'이거나, content가 JSON/특수포맷일 때 AiMessageRenderer 사용 */}
-                                {((message.type === 'ai' || message.sender_type === 'ai') && message.text) ? (
+                                {/* {((message.type === 'ai' || message.sender_type === 'ai') && message.text) ? (
                                     <AiMessageRenderer message={message.text} />
                                 ) : (
                                     message.text || message.content
-                                )}
+                                )} */}
+                                <AiMessageRenderer message={message.text || message.content} />                                
                             </div>
                         </div>
                     </div>

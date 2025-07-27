@@ -958,3 +958,21 @@ body,
     border-color: #ffd600;
   }
 }
+
+
+/* 표 스타일 */
+.message-markdown table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+}
+.message-markdown th, .message-markdown td {
+  border: 1px solid #bbb;
+  padding: 6px 10px;
+  text-align: left;
+  background: #fff;
+}
+.message-markdown th {
+  background: #f0f0f0;
+  font-weight: bold;
+}
