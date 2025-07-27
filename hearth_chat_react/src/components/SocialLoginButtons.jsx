@@ -37,6 +37,12 @@ const SOCIALS = [
 ];
 
 export default function SocialLoginButtons({ onSocialLogin }) {
+    // 카카오 로그아웃-재로그인 핸들러
+    const handleKakaoLogin = (loginUrl) => {
+        const kakaoLogoutUrl = `https://kauth.kakao.com/oauth/logout?client_id=478186fe798621a0f6b66cc28b4028b0&logout_redirect_uri=${encodeURIComponent(loginUrl)}`;
+        // 새 창에서 로그아웃 → 로그인 순차 진행
+        window.open(kakaoLogoutUrl, '_blank', 'width=500,height=600');
+    };
     return (
         <div className="social-login-list">
             {SOCIALS.map(social => (
@@ -46,7 +52,12 @@ export default function SocialLoginButtons({ onSocialLogin }) {
                     className={`social-login-btn ${social.className}`}
                     onClick={e => {
                         e.preventDefault();
-                        onSocialLogin(social.url);
+                        e.stopPropagation(); // 상위로 이벤트 전파 방지
+                        if (social.name === 'Kakao') {
+                            handleKakaoLogin(social.url);
+                        } else {
+                            onSocialLogin(social.url);
+                        }
                     }}
                 >
                     <img

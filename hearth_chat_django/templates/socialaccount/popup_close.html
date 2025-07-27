@@ -9,79 +9,13 @@
     <div id="debug-info">
         <h3>인증 완료!</h3>
         <p>팝업창이 자동으로 닫힙니다.</p>
-        <p>디버그: 콘솔을 확인하세요.</p>
         <p id="status">처리 중...</p>
     </div>
 
     <script>
-        // 즉시 실행되는 로그
-        console.log('=== POPUP_CLOSE 페이지 로드됨 ===');
-        console.log('[POPUP_CLOSE] 팝업창 닫기 페이지 로드됨');
-        console.log('[POPUP_CLOSE] window.opener 존재 여부:', !!window.opener);
-        console.log('[POPUP_CLOSE] window.opener:', window.opener);
-        console.log('[POPUP_CLOSE] 현재 URL:', window.location.href);
-        console.log('[POPUP_CLOSE] 현재 시간:', new Date().toISOString());
-
-        const statusElement = document.getElementById('status');
-
-        // URL에서 action 파라미터 확인 (login 또는 connect)
-        const urlParams = new URLSearchParams(window.location.search);
-        const action = urlParams.get('action') || 'login'; // 기본값은 login
-        console.log('[POPUP_CLOSE] action 파라미터:', action);
-
-        // action에 따라 다른 메시지 전송
-        const messageType = action === 'connect' ? 'connection_success' : 'login_success';
-        console.log('[POPUP_CLOSE] 전송할 메시지 타입:', messageType);
-
-        // window.opener가 없는 경우를 대비한 대안 방법
-        statusElement.textContent = '부모 창 통신 시도 중...';
-        console.log('[POPUP_CLOSE] 부모 창 통신 시도');
-
-        // window.opener가 있는 경우 postMessage 시도
-        if (window.opener) {
-            try {
-                window.opener.postMessage(messageType, '*');
-                console.log('[POPUP_CLOSE] 메시지 전송 완료 (window.opener 사용):', messageType);
-                statusElement.textContent = `메시지 전송 완료 (window.opener): ${messageType}`;
-            } catch (error) {
-                console.error('[POPUP_CLOSE] window.opener로 메시지 전송 실패:', error);
-                statusElement.textContent = 'window.opener 메시지 전송 실패';
-            }
-        } else {
-            console.log('[POPUP_CLOSE] window.opener가 없음 - 대안 방법 사용');
-            statusElement.textContent = 'window.opener 없음 - 대안 방법 사용';
-
-            // URL 파라미터를 통해 부모 창에 신호 전달
-            // 부모 창에서 이 URL을 감지하여 모달 닫기 처리
-            try {
-                // 부모 창의 URL을 변경하여 신호 전달
-                if (window.opener) {
-                    window.opener.location.href = window.opener.location.href + (window.opener.location.href.includes('?') ? '&' : '?') + 'connection_success=true';
-                }
-            } catch (e) {
-                console.log('[POPUP_CLOSE] URL 변경 시도 실패:', e);
-            }
-        }
-
-        // 즉시 팝업창 닫기 시도
-        console.log('[POPUP_CLOSE] 즉시 팝업창 닫기 시도');
-        try {
-            window.close();
-            console.log('[POPUP_CLOSE] 즉시 window.close() 호출 완료');
-        } catch (error) {
-            console.error('[POPUP_CLOSE] 즉시 window.close() 실패:', error);
-        }
-
-        // 1초 후 2차 시도
         setTimeout(() => {
-            console.log('[POPUP_CLOSE] 1초 후 팝업창 닫기 시도');
-            try {
-                window.close();
-                console.log('[POPUP_CLOSE] 1초 후 window.close() 호출 완료');
-            } catch (error) {
-                console.error('[POPUP_CLOSE] 1초 후 window.close() 실패:', error);
-            }
-        }, 1000);
+            window.close();
+        }, 300);
     </script>
 </body>
 

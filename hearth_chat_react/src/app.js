@@ -452,7 +452,7 @@ function AppContent(props) {
       {/* 알림/검색 모달 */}
       <NotifyModal
         open={isNotifyModalOpen}
-        onClose={() => setIsNotifyModalOpen(false)}
+        onClose={() => { console.log('[DEBUG] setIsLoginModalOpen(false) 호출 위치: NotifyModal onClose'); setIsNotifyModalOpen(false); }}
         notifications={notifications.map(n => ({
           ...n,
           read: !unreadNotificationList.some(u => u.message_id === n.messageId)
@@ -461,13 +461,12 @@ function AppContent(props) {
         unreadList={unreadNotificationList}
         onMarkAllAsRead={handleMarkAllAsRead}
       />
-      <SearchModal open={isSearchModalOpen} onClose={() => setIsSearchModalOpen(false)} rooms={allRooms} messages={allMessages} users={allUsers} fetchPreviewMessages={fetchPreviewMessages} />
+      <SearchModal open={isSearchModalOpen} onClose={() => { console.log('[DEBUG] setIsLoginModalOpen(false) 호출 위치: SearchModal onClose'); setIsSearchModalOpen(false); }} rooms={allRooms} messages={allMessages} users={allUsers} fetchPreviewMessages={fetchPreviewMessages} />
       {/* 로그인 모달 */}
       <LoginModal
         isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
+        onClose={() => { console.log('[DEBUG] setIsLoginModalOpen(false) 호출 위치: LoginModal onClose'); setIsLoginModalOpen(false); }}
         onSocialLogin={(url) => {
-          console.log('[App] 소셜 로그인 팝업창 열기 시도:', url);
           const popupWidth = 480;
           const popupHeight = 600;
           const left = window.screenX + (window.outerWidth - popupWidth) / 2;
@@ -475,32 +474,21 @@ function AppContent(props) {
           const popupFeatures = `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes,menubar=no,toolbar=no,location=no`;
 
           const popup = window.open(url, 'social_login', popupFeatures);
+          console.log('[DEBUG] window.open 결과:', popup);
 
           if (popup) {
-            console.log('[App] 팝업창 열기 성공:', popup);
-            console.log('[App] 팝업창 window.opener:', popup.opener);
-
-            // 팝업창이 닫혔는지 확인하는 인터벌
+            console.log('[DEBUG] 팝업 감시 시작');
             const checkClosed = setInterval(() => {
               if (popup.closed) {
-                console.log('[App] 팝업창이 닫힘');
+                console.log('[DEBUG] 팝업 닫힘 감지됨, 새로고침');
                 clearInterval(checkClosed);
-
-                // 로그인 모달 닫기
-                setIsLoginModalOpen(false);
-                console.log('[App] 로그인 모달 닫기 완료');
-
-                // 로그인 상태 확인
+                console.log('[DEBUG] setIsLoginModalOpen(false) 호출 위치: 팝업 닫힘 감시');
+                setIsLoginModalOpen(false); // 팝업이 닫힐 때만 모달 닫기
                 checkLoginStatus();
-                console.log('[App] 로그인 상태 확인 완료');
-
-                // 페이지 새로고침
-                console.log('[App] 페이지 새로고침 실행');
                 window.location.reload();
               }
-            }, 1000);
+            }, 500);
           } else {
-            console.error('[App] 팝업창 열기 실패 - 브라우저가 팝업을 차단했을 수 있습니다');
             alert('팝업창이 차단되었습니다. 브라우저 설정에서 팝업을 허용해주세요.');
           }
         }}
@@ -508,7 +496,7 @@ function AppContent(props) {
       {/* 설정 모달 */}
       <SettingsModal
         isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
+        onClose={() => { console.log('[DEBUG] setIsLoginModalOpen(false) 호출 위치: SettingsModal onClose'); setIsSettingsModalOpen(false); }}
         tab={settingsTab}
         setTab={setSettingsTab}
         userSettings={userSettings}
@@ -538,7 +526,7 @@ function AppContent(props) {
       {showCreateModal && (
         <CreateRoomModal
           open={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
+          onClose={() => { console.log('[DEBUG] setIsLoginModalOpen(false) 호출 위치: CreateRoomModal onClose'); setShowCreateModal(false); }}
           onSuccess={handleCreateRoomSuccess}
         />
       )}
@@ -866,15 +854,16 @@ function App() {
     const handleMessage = (event) => {
       console.log('[App] 메시지 수신:', event.data, 'from:', event.origin);
       console.log('[App] 현재 설정 모달 상태:', isSettingsModalOpen);
-      
-      if (event.data === 'login_success') {
-        console.log('[App] 로그인 성공 메시지 수신 (postMessage)');
-        // 로그인 모달 닫기
-        setIsLoginModalOpen(false);
+      if (
+        event.data === 'login_success' ||
+        (event.data && event.data.type === "SOCIAL_LOGIN_SUCCESS")
+      ) {
         console.log('[App] 로그인 모달 닫기 완료 (postMessage)');
         // 로그인 상태 다시 확인
-        checkLoginStatus();
+        setIsLoginModalOpen(false);
         console.log('[App] 로그인 상태 확인 완료 (postMessage)');
+        checkLoginStatus();
+
         // 페이지 새로고침
         console.log('[App] 페이지 새로고침 실행 (postMessage)');
         window.location.reload();
@@ -1013,6 +1002,15 @@ function App() {
   }, []);
 
   const ws = useRef(null);
+  useEffect(() => {
+    function handleSocialLoginMessage(e) {
+      if (e.data && e.data.type === "SOCIAL_LOGIN_SUCCESS") {
+        window.location.reload();
+      }
+    }
+    window.addEventListener("message", handleSocialLoginMessage);
+    return () => window.removeEventListener("message", handleSocialLoginMessage);
+  }, []);
   return <AppContent
     loginUser={loginUser}
     loginLoading={loginLoading}
