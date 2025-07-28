@@ -481,10 +481,18 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                                     </div>
                                                 </div>
                                                 {/* 가운데: 방 정보 */}
-                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div className="room-item-center-room" style={{ flex: 1, minWidth: 0 }}>
                                                     <div style={{ fontWeight: 700, color: '#fff', fontSize: 15, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{room.name}</div>
-                                                    <div style={{ color: '#bbb', fontSize: 13, marginBottom: 2 }}>{room.latest_message?.content ? room.latest_message.content : ''}</div>
-                                                    <div style={{ color: '#888', fontSize: 11 }}>{room.latest_message?.username || room.latest_message?.ai_name || room.latest_message?.sender || 'Unknown'} | {room.latest_message?.timestamp ? new Date(room.latest_message.timestamp).toLocaleString('ko-KR', { year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : ''}</div>
+                                                    <div style={{ color: '#bbb', fontSize: 13, marginBottom: 2, wordBreak: 'break-all', display: 'inline-block' }}>
+                                                        {room.latest_message?.content ? room.latest_message.content : ''}</div>
+                                                    <div style={{ color: '#888', fontSize: 11 }}>
+                                                        {room.latest_message?.username || room.latest_message?.ai_name || room.latest_message?.sender || 'Unknown'} | {room.latest_message?.timestamp 
+                                                        ? new Date(room.latest_message.timestamp).toLocaleString(
+                                                            'ko-KR', 
+                                                            { year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : ''} 
+                                                                | {room.latest_message?.room_name 
+                                                                    ? `방 #${room.latest_message.room_name}` : ''}
+                                                        </div>
                                                 </div>
                                                 {/* 오른쪽: 즐겨찾기, 입장 버튼 */}
                                                 <div className="room-item-actions" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, marginLeft: 8 }}>
@@ -509,7 +517,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                 )}
                             </div>
                             {/* 즐겨찾기 메시지 50% */}
-                            <div className="favorite-message-section" style={{ flex: 1, height: '50%', overflowY: 'auto', minWidth: 0, paddingBottom: '56px' }}>
+                            <div className="favorite-message-section" style={{ flex: 1, height: '50%', overflowY: 'auto', minWidth: 0}}>
                                 <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8, padding: '8px 0 8px 8px' }}>★ 즐겨찾기 메시지</div>
                                 {favoriteMessagesLoading ? (
                                     <div>로딩 중...</div>
@@ -528,13 +536,13 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                                 <div className="room-item-left" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 48, minWidth: 48, marginRight: 8 }}>
                                                     <div className="room-icon" style={{ fontSize: 24 }}>
                                                         {(() => {                                                        
-                                                            const room = rooms.find(r => r.id === msg.room_id);                                                        
+                                                            const room = rooms.find(r => r.id === msg.room_id);
                                                             return getRoomIcon(room?.room_type, room?.ai_provider);
                                                         })()}
                                                     </div>
                                                 </div>
                                                 {/* 가운데: 메시지 정보 */}
-                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div className="room-item-center-message" style={{ flex: 1, minWidth: 0 }}>
                                                     <div style={{ fontWeight: 700, color: '#fff', fontSize: 15, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                         <span style={{ fontSize: 18, fontWeight: 600, backgroundColor: '#f0f0f0', padding: '4px 4px', borderRadius: 4 }}>
                                                             {msg.sender || 'Unknown'}
