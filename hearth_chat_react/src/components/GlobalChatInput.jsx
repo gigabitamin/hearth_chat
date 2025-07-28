@@ -436,8 +436,8 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
     // const [showEmojiMenu, setShowEmojiMenu] = useState(false);
 
     return (
-        <div className="global-chat-input" style={{ width: '100%', background: '#23242a', padding: 8, borderTop: '1px solid #333', position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 100 }}>
-            <div style={{ position: 'relative', maxWidth: 720, margin: '0 auto' }}>
+        <div className="global-chat-input" style={{ width: '100%', background: '#23242a', position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 100 }}>
+            <div className="global-chat-input-content-box" style={{ position: 'relative', maxWidth: 480, margin: '0 auto' }}>
                 {/* 입력창 위에 딱 붙는 첨부 이미지 미리보기 (겹치지 않게) */}
                 {attachedImagePreview && (
                     <div className="attached-image-preview-box" style={{
@@ -459,7 +459,15 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                         <button onClick={handleRemoveAttachedImage} className="attached-image-remove-btn" style={{ marginLeft: 6, color: '#fff', background: '#f44336', border: 'none', borderRadius: 4, padding: '2px 8px', cursor: 'pointer' }}>✖</button>
                     </div>
                 )}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'relative' }}>
+                <div className="global-chat-input-content" 
+                    style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        position: 'relative',                        
+                        background: '#23242a'
+                    }}>
+                    {/* 이모지(+) 버튼 및 메뉴 */}
+                    {/* 이모지 메뉴 제거로 인해 이 부분은 필요 없어짐 */}
                     {/* 새로운 AI 채팅방 생성 버튼 (입력창 왼쪽) */}
                     <button
                         onMouseDown={handlePressStart}
@@ -469,14 +477,23 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                         onTouchEnd={handlePressEnd}
                         onTouchCancel={handleCancel}
                         disabled={loading}
-                        style={{ background: '#ff6a00', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', fontSize: 18, cursor: 'pointer', minWidth: 48 }}
-                        title="짧게 클릭: 새 AI 채팅방 자동 생성 / 길게 누르기: 옵션"
+                        style={{ 
+                            border: 'none', 
+                            borderRadius: 8, 
+                            padding: '8px 8px',                             
+                            cursor: 'pointer', 
+                            minWidth: 48,                            
+                            margin: '8px 8px 8px 8px',
+                        }}
+                        title="짧게 클릭: 새 AI 채팅방 자동 생성 / 길게 누르기: 새 대화방 옵션"
                     >
-                        🔥
+                        <span className="global-chat-input-create-btn-icon">
+                            {!room ? '🔥' : '🔥'}                            
+                        </span>
                     </button>
                     <textarea
-                        ref={inputRef}
-                        placeholder={room ? '메시지를 입력하세요' : '메시지를 입력하면 새 대화방이 생성됩니다'}
+                        ref={inputRef}                        
+                        placeholder={room ? '안녕하세요' : '방제를 입력하고 새 대화방을 만드세요'}
                         value={input}
                         onChange={e => setInput(e.target.value)}
                         onKeyDown={e => {
@@ -489,54 +506,93 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                         rows={1}
                         style={{
                             flex: 1,
-                            borderRadius: 8,
-                            border: '1px solid #444',
-                            padding: 6,
+                            border: 'none',
+                            borderRadius: 8,                            
+                            padding: '4px 4px 4px 8px',
                             fontSize: 15,
                             background: '#181a20',
                             color: '#fff',
                             resize: 'none',
                             minHeight: '10px',
                             maxHeight: '120px',
-                            overflowY: 'auto'
+                            overflowY: 'auto',
+                            textAlign: 'left'
                         }}
                         disabled={loading}
-                    />
-                    {/* 이모지(+) 버튼 및 메뉴 */}
-                    {/* 이모지 메뉴 제거로 인해 이 부분은 필요 없어짐 */}
+                    />                    
+                        {room && (
+                        <button
+                            className="global-chat-input-send-btn"
+                            onClick={() => {
+                                if (!room) {
+                                    handleCreateNewAiRoom();
+                                } else if (attachedImage) {
+                                    const currentInput = input;
+                                    handleImageUploadAndSendWithFile(attachedImage, currentInput);
+                                } else {
+                                    handleSend();
+                                }
+                            }}
+                            // disabled={!input.trim() && !attachedImage}
+                            style={{ 
+                                border: 'none', 
+                                borderRadius: 8, 
+                                padding: '8px 8px',                             
+                                cursor: 'pointer', 
+                                minWidth: 48,                            
+                                margin: '8px 8px 8px 8px',
+                            }}
+                        >
+                            <span className="global-chat-input-send-btn-icon">                            
+                                🪵
+                            </span>
+                        </button>
+                        ) 
+                    }
+                    {room && (
+                        <button
+                            type="button"
+                            className="image-upload-btn-side"
+                            onClick={() => {
+                                const fileInput = document.getElementById('global-chat-image-upload');
+                                if (fileInput) fileInput.click();
+                            }}
+                            style={{ 
+                                border: 'none',                                                                                              
+                                cursor: 'pointer',                                                         
+                                background: 'transparent',                             
+                                margin: '0 auto',
+                            }}
+                        >
+                            <input
+                                id="global-chat-image-upload"
+                                type="file"
+                                accept="image/*"
+                                style={{ display: 'none' }}
+                                onChange={handleImageUpload}
+                            />
+                            <span className="image-upload-btn-icon"
+                                style={{
+                                    fontSize: 20,
+                                }}
+                            >🖼︎</span>
+                        </button>                        
+                        )
+                    }
                     <button
-                        type="button"
-                        className="image-upload-btn-side"
-                        onClick={() => {
-                            const fileInput = document.getElementById('global-chat-image-upload');
-                            if (fileInput) fileInput.click();
+                        // onClick={() => }
+                        style={{
+                            border: 'none',
+                            cursor: 'pointer',
+                            background: 'transparent',
+                            margin: '0 auto',
                         }}
-                        style={{ cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
                     >
-                        <input
-                            id="global-chat-image-upload"
-                            type="file"
-                            accept="image/*"
-                            style={{ display: 'none' }}
-                            onChange={handleImageUpload}
-                        />
-                        <span className="image-upload-btn-icon">📤</span>
-                    </button>
-                    <button
-                        onClick={() => {
-                            if (!room) {
-                                handleCreateNewAiRoom();
-                            } else if (attachedImage) {
-                                const currentInput = input;
-                                handleImageUploadAndSendWithFile(attachedImage, currentInput);
-                            } else {
-                                handleSend();
-                            }
-                        }}
-                        disabled={!input.trim() && !attachedImage}
-                        style={{ background: '#ff6a00', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', fontSize: 18, cursor: 'pointer', minWidth: 48 }}
-                    >
-                        {!room ? '개설' : (attachedImage ? '📤' : '전송')}
+                        <span className="global-chat-input-camera-btn-icon"
+                            style={{
+                                fontSize: 20,                                
+                            }}
+                        >📸</span>
                     </button>
                 </div>
             </div>
