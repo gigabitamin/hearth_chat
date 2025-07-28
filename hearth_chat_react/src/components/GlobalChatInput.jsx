@@ -1,5 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { getApiBase, getCookie, csrfFetch } from '../utils/apiConfig';
+import Webcam from 'react-webcam';
+import Cropper from 'react-easy-crop';
+import { getCroppedImg, dataURLtoFile } from './cropUtils'; 
 
 const EMOJI_LIST = ['👍', '😂', '❤️', '😮', '😢', '👏', '🔥', '😡', '🙏', '🎉'];
 
@@ -19,6 +22,58 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
     // --- [수정 2] 타이머와 long-press 상태를 관리할 useRef 선언 ---
     const pressTimer = useRef(null);
     const isLongPress = useRef(false);
+
+    // --- 카메라 및 자르기 기능 관련 상태 추가 ---
+    const [showCamera, setShowCamera] = useState(false);
+    const [capturedImage, setCapturedImage] = useState(null);
+    const [crop, setCrop] = useState({ x: 0, y: 0 });
+    const [zoom, setZoom] = useState(1);
+    const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+    const webcamRef = useRef(null);
+  
+    // --- 카메라 관련 함수 ---    
+    // 1. 카메라 버튼 클릭 핸들러
+    const handleCameraButtonClick = () => {
+        setShowCamera(true);
+    };
+
+    // 2. 사진 촬영 핸들러
+    const handleCapture = useCallback(() => {
+        const imageSrc = webcamRef.current.getScreenshot();
+        setCapturedImage(imageSrc);
+        setShowCamera(false); // 카메라 모달 닫고, 자르기 모달 열기
+    }, [webcamRef]);
+
+    // 3. 자르기 완료 콜백
+    const onCropComplete = useCallback((croppedArea, croppedAreaPixelsValue) => {
+        setCroppedAreaPixels(croppedAreaPixelsValue);
+    }, []);
+
+    // 4. 자르기 실행 및 이미지 첨부 핸들러
+    const handleCropImage = async () => {
+        if (!capturedImage || !croppedAreaPixels) return;
+
+        try {
+            const croppedImageBlobUrl = await getCroppedImg(capturedImage, croppedAreaPixels);
+            const croppedImageFile = dataURLtoFile(croppedImageBlobUrl, `capture-${Date.now()}.jpeg`);
+
+            setAttachedImage(croppedImageFile);
+            setAttachedImagePreview(URL.createObjectURL(croppedImageFile));
+
+            // 모든 모달 및 임시 상태 초기화
+            setCapturedImage(null);
+            setCroppedAreaPixels(null);
+
+        } catch (e) {
+            console.error('이미지 자르기에 실패했습니다.', e);
+        }
+    };
+
+    // 5. 카메라/자르기 취소 핸들러
+    const cancelAll = () => {
+        setShowCamera(false);
+        setCapturedImage(null);
+    };
 
     // 클립보드 이벤트 리스너 추가
     useEffect(() => {
@@ -436,7 +491,46 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
     // const [showEmojiMenu, setShowEmojiMenu] = useState(false);
 
     return (
-        <div className="global-chat-input" style={{ width: '100%', background: '#23242a', position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 100 }}>
+        <div className="global-chat-input" style={{ width: '100%', background: '#23242a', position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 100 }}>            
+
+            {/* --- 카메라 모달 --- */}
+            {showCamera && (
+                <div className="camera-modal" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    <Webcam
+                        audio={false}
+                        ref={webcamRef}
+                        screenshotFormat="image/jpeg"
+                        width="100%"
+                        videoConstraints={{ facingMode: 'user' }}
+                    />
+                    <div style={{ marginTop: '1rem' }}>
+                        <button onClick={handleCapture} style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}>사진 찍기</button>
+                        <button onClick={cancelAll} style={{ marginLeft: '1rem', padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}>취소</button>
+                    </div>
+                </div>
+            )}
+
+            {/* --- 이미지 자르기 모달 --- */}
+            {capturedImage && (
+                <div className="crop-modal" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.9)', zIndex: 400, display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ position: 'relative', width: '100%', height: '80%' }}>
+                        <Cropper
+                            image={capturedImage}
+                            crop={crop}
+                            zoom={zoom}
+                            // aspect={1} // 1:1 비율로 자르기, 자유 비율로 자르고 싶을 때는 비활성화
+                            onCropChange={setCrop}
+                            onZoomChange={setZoom}
+                            onCropComplete={onCropComplete}
+                        />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem' }}>
+                         <button onClick={handleCropImage} style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}>자르기 완료</button>
+                         <button onClick={cancelAll} style={{ marginLeft: '1rem', padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}>취소</button>
+                    </div>
+                </div>
+            )}
+
             <div className="global-chat-input-content-box" style={{ position: 'relative', maxWidth: 480, margin: '0 auto' }}>
                 {/* 입력창 위에 딱 붙는 첨부 이미지 미리보기 (겹치지 않게) */}
                 {attachedImagePreview && (
@@ -459,6 +553,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                         <button onClick={handleRemoveAttachedImage} className="attached-image-remove-btn" style={{ marginLeft: 6, color: '#fff', background: '#f44336', border: 'none', borderRadius: 4, padding: '2px 8px', cursor: 'pointer' }}>✖</button>
                     </div>
                 )}
+
                 <div className="global-chat-input-content" 
                     style={{ 
                         display: 'flex', 
@@ -579,8 +674,11 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                         </button>                        
                         )
                     }
+
+                    {/* --- 카메라 버튼 추가 --- */}
+                    {room && (
                     <button
-                        // onClick={() => }
+                        onClick={handleCameraButtonClick}
                         style={{
                             border: 'none',
                             cursor: 'pointer',
@@ -590,10 +688,12 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                     >
                         <span className="global-chat-input-camera-btn-icon"
                             style={{
-                                fontSize: 20,                                
+                                fontSize: 18,                                
                             }}
                         >📸</span>
                     </button>
+                    )
+                }
                 </div>
             </div>
         </div>

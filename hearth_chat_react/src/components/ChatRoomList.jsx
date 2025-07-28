@@ -221,7 +221,10 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             });
             if (sidebarTab === 'favorite') {
                 fetchMyFavorites();
-                fetchFavoriteMessages(); // 즐겨찾기 메시지도 업데이트
+                fetchFavoriteMessages();
+            } else if (sidebarTab === 'open') {
+                // 오픈 탭일 때 publicRooms도 새로고침!
+                fetchPublicRooms();
             } else {
                 fetchRooms();
             }
@@ -229,7 +232,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             alert('즐겨찾기 처리 실패: ' + err.message);
         }
     };
-
+    
     // 방 클릭 시 스크롤 위치 저장 (미리보기/입장 모두)
     const handleRoomClick = (room) => {
         if (listRef.current) {
@@ -467,52 +470,65 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                     <div style={{ color: '#888', fontSize: 14, padding: 8 }}>즐겨찾기한 채팅방이 없습니다.</div>
                                 ) : (
                                     <div className="room-items">
-                                        {filteredRooms.map((room) => (
-                                            <div
-                                                key={room.id}
-                                                className={`room-item ${selectedRoomId === room.id ? 'selected' : ''}`}
-                                                onClick={() => handleRoomClick(room)}
-                                                style={{ display: 'flex', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #222', cursor: 'pointer' }}
-                                            >
-                                                {/* 왼쪽: 프로필/종류 */}
-                                                <div className="room-item-left" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 48, minWidth: 48, marginRight: 8 }}>
-                                                    <div className="room-icon" style={{ fontSize: 24 }}>
-                                                        {getRoomIcon(room.room_type, room.ai_provider)}
+                                        {filteredRooms.map((room) => {
+                                            return (
+                                                <div
+                                                    key={room.id}
+                                                    className={`room-item ${selectedRoomId === room.id ? 'selected' : ''}`}
+                                                    onClick={() => handleRoomClick(room)}
+                                                    style={{ display: 'flex', alignItems: 'flex-start', padding: '12px 0', borderBottom: '1px solid #222', cursor: 'pointer' }}
+                                                >
+                                                    {/* 왼쪽: 프로필/종류 */}
+                                                    <div className="room-item-left" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 48, minWidth: 48, marginRight: 8 }}>
+                                                        <div className="room-icon" style={{ fontSize: 24 }}>
+                                                            {getRoomIcon(room.room_type, room.ai_provider)}
+                                                        </div>
+                                                    </div>
+                                                    {/* 가운데: 방 정보 */}
+                                                    <div className="room-item-center-room" style={{ flex: 1, minWidth: 0 }}>
+                                                        <div style={{ fontWeight: 700, color: '#fff', fontSize: 15, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{room.name}</div>
+                                                        <div style={{
+                                                            color: '#bbb',
+                                                            fontSize: 13,
+                                                            marginBottom: 2,
+                                                            wordBreak: 'break-all',
+                                                            display: 'inline-block',
+                                                            maxWidth: '100%',
+                                                            maxHeight: '100%',
+                                                            overflow: 'auto',
+                                                            textOverflow: 'ellipsis',
+                                                            whiteSpace: 'nowrap',
+                                                        }}>
+                                                            {room.latest_message?.content ? room.latest_message.content : ''}</div>
+                                                        <div style={{ color: '#888', fontSize: 11 }}>
+                                                            {room.latest_message?.username || room.latest_message?.ai_name || room.latest_message?.sender || 'Unknown'} | {room.latest_message?.timestamp
+                                                                ? new Date(room.latest_message.timestamp).toLocaleString(
+                                                                    'ko-KR',
+                                                                    { year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : ''}
+                                                            | {room.latest_message?.room_name
+                                                                ? `방 #${room.latest_message.room_name}` : ''}
+                                                        </div>
+                                                    </div>
+                                                    {/* 오른쪽: 즐겨찾기, 입장 버튼 */}
+                                                    <div className="room-item-actions" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, marginLeft: 8 }}>
+                                                        <button
+                                                            className="favorite-btn"
+                                                            style={{ background: 'none', border: 'none', fontSize: 18, color: '#FFD600', cursor: 'pointer', marginBottom: 2 }}
+                                                            title="즐겨찾기"
+                                                            onClick={e => handleFavoriteToggle(room, e)}
+                                                        >
+                                                            {room.is_favorite ? '★' : '☆'}
+                                                        </button>
+                                                        <button
+                                                            className="enter-room-btn"
+                                                            style={{ fontSize: 14, color: '#1976d2', background: 'none', border: '1px solid #1976d2', borderRadius: 4, padding: '2px 10px', cursor: 'pointer' }}
+                                                            title="입장"
+                                                            onClick={e => { e.stopPropagation(); navigate(`/room/${room.id}`); } }
+                                                        >입장</button>
                                                     </div>
                                                 </div>
-                                                {/* 가운데: 방 정보 */}
-                                                <div className="room-item-center-room" style={{ flex: 1, minWidth: 0 }}>
-                                                    <div style={{ fontWeight: 700, color: '#fff', fontSize: 15, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{room.name}</div>
-                                                    <div style={{ color: '#bbb', fontSize: 13, marginBottom: 2, wordBreak: 'break-all', display: 'inline-block' }}>
-                                                        {room.latest_message?.content ? room.latest_message.content : ''}</div>
-                                                    <div style={{ color: '#888', fontSize: 11 }}>
-                                                        {room.latest_message?.username || room.latest_message?.ai_name || room.latest_message?.sender || 'Unknown'} | {room.latest_message?.timestamp 
-                                                        ? new Date(room.latest_message.timestamp).toLocaleString(
-                                                            'ko-KR', 
-                                                            { year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : ''} 
-                                                                | {room.latest_message?.room_name 
-                                                                    ? `방 #${room.latest_message.room_name}` : ''}
-                                                        </div>
-                                                </div>
-                                                {/* 오른쪽: 즐겨찾기, 입장 버튼 */}
-                                                <div className="room-item-actions" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, marginLeft: 8 }}>
-                                                    <button
-                                                        className="favorite-btn"
-                                                        style={{ background: 'none', border: 'none', fontSize: 18, color: '#FFD600', cursor: 'pointer', marginBottom: 2 }}
-                                                        title="즐겨찾기"
-                                                        onClick={e => handleFavoriteToggle(room, e)}
-                                                    >
-                                                        {room.is_favorite ? '★' : '☆'}
-                                                    </button>
-                                                    <button
-                                                        className="enter-room-btn"
-                                                        style={{ fontSize: 14, color: '#1976d2', background: 'none', border: '1px solid #1976d2', borderRadius: 4, padding: '2px 10px', cursor: 'pointer' }}
-                                                        title="입장"
-                                                        onClick={e => { e.stopPropagation(); navigate(`/room/${room.id}`); }}
-                                                    >입장</button>
-                                                </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>
@@ -566,7 +582,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                                         title={favoriteMessages.find(fm => fm.id === msg.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
                                                         onClick={e => { e.stopPropagation(); handleToggleFavorite(msg); }}
                                                     >
-                                                        {favoriteMessages.find(fm => fm.id === msg.id) ? '▼' : '▽'}
+                                                        {favoriteMessages.find(fm => fm.id === msg.id) ? '★' : '☆'}
                                                     </button>
                                                     <button
                                                         className="enter-room-btn"
@@ -642,7 +658,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                             >
                                                 {room.is_favorite ? '★' : '☆'}
                                             </button>
-                                            {sidebarTab === 'personal' && (
+                                            {(sidebarTab === 'personal' || sidebarTab === 'open') && (
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();

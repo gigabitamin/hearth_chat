@@ -159,21 +159,24 @@ const VirtualizedMessageList = ({
                         <span style={{ color: '#fff', fontWeight: 700, fontSize: 13, marginRight: 8 }}>
                             {message.sender || message.username || 'Unknown'}
                         </span>
+
+                        {/* 즐겨찾기(★/☆) 버튼 */}
+                        <button
+                            className="favorite-btn"
+                            style={{ marginRight: 5, fontSize: 15, color: favoriteMessages.includes(message.id) ? '#1976d2' : '#bbb', background: 'none', border: 'none', cursor: 'pointer' }}
+                            title={favoriteMessages.includes(message.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+                            onClick={e => { e.stopPropagation(); onToggleFavorite(message); }}
+                        >
+                            {favoriteMessages.includes(message.id) ? '★' : '☆'}
+                        </button>
+
                         {/* 핀(고정) 버튼 */}
                         <button
                             className={`pin-btn${pinnedIds.includes(message.id) ? ' pinned' : ''}`}
                             onClick={e => { e.stopPropagation(); togglePin(message.id); }}
                             title={pinnedIds.includes(message.id) ? '핀 해제' : '상단 고정'}
                         >📌</button>
-                        {/* 즐겨찾기(▽/▼) 버튼 */}
-                        <button
-                            className="favorite-btn"
-                            style={{ marginLeft: 8, fontSize: 18, color: favoriteMessages.includes(message.id) ? '#1976d2' : '#bbb', background: 'none', border: 'none', cursor: 'pointer' }}
-                            title={favoriteMessages.includes(message.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-                            onClick={e => { e.stopPropagation(); onToggleFavorite(message); }}
-                        >
-                            {favoriteMessages.includes(message.id) ? '▼' : '▽'}
-                        </button>
+
                     </div>
                     {/* 답장 인용 표시 */}
                     {message.reply && (
@@ -405,6 +408,31 @@ const VirtualizedMessageList = ({
                                         답장
                                     </button>
 
+                                    {/* 즐겨찾기('★' : '☆') 버튼 */}
+                                    <button
+                                        className="favorite-btn"
+                                        title={favoriteMessages.includes(message.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+                                        onClick={e => { e.stopPropagation(); onToggleFavorite(message); }}
+                                        style={{
+                                            width: '100%',
+                                            background: 'none',
+                                            border: 'none',
+                                            padding: '8px 12px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 8,
+                                            color: '#4aa8d8',
+                                            fontSize: 14,
+                                            transition: 'background 0.15s',
+                                        }}
+                                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(0, 68, 255, 0.1)'}
+                                        onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                    >
+                                        <div style={{ fontSize: 16 }}>{favoriteMessages.includes(message.id) ? '★' : '☆'}</div>
+                                        즐겨찾기
+                                    </button>
+
                                     {/* 고정핀 버튼 */}
                                     <button
                                         className={`pin-btn${pinnedIds.includes(message.id) ? ' pinned' : ''}`}
@@ -428,32 +456,7 @@ const VirtualizedMessageList = ({
                                     >
                                         <div style={{ fontSize: 16 }}>📌</div>
                                         고정핀
-                                    </button>
-
-                                    {/* 즐겨찾기(▽/▼) 버튼 */}
-                                    <button
-                                        className="favorite-btn"
-                                        title={favoriteMessages.includes(message.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-                                        onClick={e => { e.stopPropagation(); onToggleFavorite(message); }}
-                                        style={{
-                                            width: '100%',
-                                            background: 'none',
-                                            border: 'none',
-                                            padding: '8px 12px',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: 8,
-                                            color: '#4aa8d8',
-                                            fontSize: 14,
-                                            transition: 'background 0.15s',
-                                        }}
-                                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(0, 68, 255, 0.1)'}
-                                        onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                                    >
-                                        <div style={{ fontSize: 16 }}>{favoriteMessages.includes(message.id) ? '▼' : '▽'}</div>
-                                        즐겨찾기
-                                    </button>
+                                    </button>                                    
 
                                     {/* 메시지 삭제 버튼 (본인 메시지만 삭제 가능) */}
                                     {isMyMessage && (
@@ -663,10 +666,20 @@ function CopyMessageButton({ message }) {
     return (
         <button
             onClick={handleCopy}
-            style={{ fontSize: 13, background: 'none', border: '1px solid #bbb', color: copied ? '#4caf50' : '#888', borderRadius: 6, padding: '2px 10px', cursor: 'pointer', marginRight: 2 }}
+            style={{ 
+                fontSize: 9, 
+                background: 'none', 
+                border: '1px solid #bbb', 
+                color: copied ? '#4caf50' : '#fff', 
+                borderRadius: 6, 
+                padding: '2px 10px', 
+                cursor: 'pointer', 
+                marginRight: 2,
+                opacity: 0.5,
+            }}
             title="메시지 전체 복사"
         >
-            {copied ? '복사됨' : '전체 복사'}
+            {copied ? 'Copied' : 'Copy'}
         </button>
     );
 }

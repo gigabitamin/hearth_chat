@@ -208,16 +208,38 @@ function AppContent(props) {
     setPendingImageFile,
   } = props;
 
-  const [isFavoriteRoom, setIsFavoriteRoom] = useState(false);
-  // 즐겨찾기 토글 함수
-  const handleToggleFavoriteRoom = () => {
-    setIsFavoriteRoom(prev => !prev);
+  // const [isFavoriteRoom, setIsFavoriteRoom] = useState(false);
+  // const [isFavoriteRoom, setIsFavoriteRoom] = useState(room?.is_favorite || false);
+  const isFavoriteRoom = !!room?.is_favorite;
+
+  // 즐겨찾기 토글 함수 (서버에 요청 + room 상태 갱신)
+  const handleToggleFavoriteRoom = async () => {
+    if (!room) return;
+    const isFav = room.is_favorite;
+    const url = `${getApiBase()}/api/chat/rooms/${room.id}/${isFav ? 'unfavorite' : 'favorite'}/`;
+    const method = isFav ? 'DELETE' : 'POST';
+    try {
+      const csrftoken = getCookie('csrftoken');
+      await fetch(url, {
+        method,
+        credentials: 'include',
+        headers: { 'X-CSRFToken': csrftoken },
+      });
+      // 서버에서 최신 room 정보 fetch
+      const res = await fetch(`${getApiBase()}/api/chat/rooms/${room.id}/`, { credentials: 'include' });
+      if (res.ok) {
+        const updatedRoom = await res.json();
+        setRoom(updatedRoom); // room 상태 갱신
+      }
+    } catch (err) {
+      alert('즐겨찾기 처리 실패: ' + err.message);
+    }
   };
 
   const [ttsRate, setTtsRate] = useState(1.5);
   const [ttsPitch, setTtsPitch] = useState(1.5);
   const [ttsVoice, setTtsVoice] = useState(null);
-  const [voiceList, setVoiceList] = useState([]); // 음성 목록이 필요 없다면 빈 배열로
+  const [voiceList, setVoiceList] = useState(null); // 음성 목록이 필요 없다면 빈 배열로
   const [isTTSEnabled, setIsTTSEnabled] = useState(false);
   const [isVoiceRecognitionEnabled, setIsVoiceRecognitionEnabled] = useState(false);
   const [autoSend, setAutoSend] = useState(false);
@@ -445,6 +467,7 @@ function AppContent(props) {
         title={headerTitle}
         unreadNotifications={unreadNotifications}
         isInRoom={isInRoom}
+        room={room}
       />
       {/* 알림/검색 모달 */}
       <NotifyModal

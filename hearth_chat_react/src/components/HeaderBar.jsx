@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './HeaderBar.css';
 import AboutModal from './AboutModal';
+import { API_BASE, getCookie } from '../utils/apiConfig';
 
 const CreateRoomButton = ({ onClick }) => (
     <button
@@ -14,6 +15,7 @@ const CreateRoomButton = ({ onClick }) => (
         <span style={{ fontSize: 28, userSelect: 'none', transition: 'transform 0.15s' }} role="img" aria-label="logo">🔥</span>
     </button>
 );
+
 
 export default function HeaderBar({
     activeTab,
@@ -28,7 +30,8 @@ export default function HeaderBar({
     unreadNotifications = 0, // 읽지 않은 알림 개수
     isInRoom = false, // 새로 추가된 prop
     isFavoriteRoom, // 즐겨찾기 상태
-    onToggleFavoriteRoom // 즐겨찾기 토글 함수
+    onToggleFavoriteRoom, // 즐겨찾기 토글 함수
+    room,
 }) {
     const [showTitlePopup, setShowTitlePopup] = useState(false);
     const titleClickTimer = useRef(null);
@@ -38,6 +41,25 @@ export default function HeaderBar({
     // --- 추가: 모바일 롱클릭 플래그 및 타이머 ---
     const titleTouchTimer = useRef(null);
     const ignoreNextTouchEnd = useRef(false);
+
+    // 즐겨찾기 토글
+    const handleFavoriteToggle = async (room, e) => {
+        e.stopPropagation();
+        if (!loginUser) return;
+        const isFav = room.is_favorite;
+        const url = `${API_BASE}/api/chat/rooms/${room.id}/${isFav ? 'unfavorite' : 'favorite'}/`;
+        const method = isFav ? 'DELETE' : 'POST';
+        try {
+            const csrftoken = getCookie('csrftoken');
+            await fetch(url, {
+                method,
+                credentials: 'include',
+                headers: { 'X-CSRFToken': csrftoken },
+            });
+        } catch (err) {
+            alert('즐겨찾기 처리 실패: ' + err.message);
+        }
+    };
 
     // 롱클릭/숏클릭 분기 (PC)
     const handleTitleMouseDown = () => {
@@ -116,8 +138,7 @@ export default function HeaderBar({
                 {/* <CreateRoomButton onClick={onCreateRoomClick} /> */}
             </div>
             <div className="header-center">
-                <div>
-                    
+                <div>                    
                     {title && (                                                                    
                         <span
                             className="header-title-text"
@@ -129,8 +150,7 @@ export default function HeaderBar({
                             onTouchEnd={handleTitleTouchEnd}
                             onTouchCancel={handleTitleTouchCancel}
                             style={{
-                                maxWidth: 140,
-                                // fontSize: '0.98rem',
+                                maxWidth: 140,                                
                                 fontWeight: 600,
                                 color: '#23242a',
                                 whiteSpace: 'nowrap',
@@ -146,19 +166,23 @@ export default function HeaderBar({
                                 letterSpacing: '0.2px',
                             }}
                         >
-                            {/* 즐겨찾기(▽/▼) 버튼 */}
-                            <button
-                                className="favorite-btn1"
+                            {/* 즐겨찾기('★' : '☆') 버튼 */}
+                            {isInRoom && <button
+                                className="favorite-btn"
                                 title={isFavoriteRoom ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-                                onClick={e => { e.stopPropagation(); onToggleFavoriteRoom && onToggleFavoriteRoom(); }}
+                                onClick={e => {
+                                    // e.stopPropagation();
+                                    handleFavoriteToggle(room, e);
+                                    onToggleFavoriteRoom && onToggleFavoriteRoom();
+                                }}
                                 style={{ marginRight: 6, background: 'none', border: 'none', fontSize: 16, color: '#FFD600', cursor: 'pointer', paddingRight: 10, paddingLeft: 0}}
                             >
-                                <div style={{ background: 'none', border: 'none', fontSize: 16, color: '#FFD600', cursor: 'pointer'}}>{isFavoriteRoom ?'★' : '☆'}</div>
+                                <div style={{ background: 'none', border: 'none', fontSize: 16, color: '#FFD600', cursor: 'pointer'}}>{isFavoriteRoom ? '★' : '☆'}</div>
                             </button>                            
+                            }
                             {title}                            
                         </span>                        
                     )}
-
                 {/* 전체 타이틀 팝업 (채팅방 내부) */}
                     {isInRoom && showTitlePopup && (
                         <div
