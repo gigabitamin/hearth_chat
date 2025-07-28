@@ -496,7 +496,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                                             maxWidth: '100%',
                                                             maxHeight: '100%',
                                                             overflow: 'auto',
-                                                            textOverflow: 'ellipsis',
+                                                            // textOverflow: 'ellipsis',
                                                             whiteSpace: 'nowrap',
                                                         }}>
                                                             {room.latest_message?.content ? room.latest_message.content : ''}</div>
