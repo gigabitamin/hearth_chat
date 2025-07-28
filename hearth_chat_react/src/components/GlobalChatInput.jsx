@@ -588,7 +588,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                     </button>
                     <textarea
                         ref={inputRef}                        
-                        placeholder={room ? '안녕하세요' : '방제를 입력하고 새 대화방을 만드세요'}
+                        placeholder={room ? '안녕하세요' : 'Shot/Long Click 방제 입력 후 새 대화방을 만드세요'}
                         value={input}
                         onChange={e => setInput(e.target.value)}
                         onKeyDown={e => {
@@ -605,7 +605,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                             borderRadius: 8,                            
                             padding: '4px 4px 4px 8px',
                             fontSize: 15,
-                            background: '#181a20',
+                            // background: '#181a20',
                             color: '#fff',
                             resize: 'none',
                             minHeight: '10px',

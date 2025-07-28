@@ -70,7 +70,8 @@
     margin-bottom: 0;
     height: 36px;
     font-size: 15px;
-    border-radius: 6px 6px 0 0;
+    border-radius: 4px 4px 0 0;
+    border-color: #444;
     box-sizing: border-box;
     padding: 0;
     display: flex;
@@ -87,9 +88,18 @@
     padding: 0.8rem 0 0 0;
 }
 
+.settings-modal-button-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    width: 160px;
+    align-items: center;
+    justify-content: center;
+}
+
 /* 유저 관련 스타일들 */
 .settings-modal-button {
-    background: #ff9800;
+    background: #888;
     color: #fff;
     border: none;
     border-radius: 8px;
@@ -103,7 +113,7 @@
 }
 
 .settings-modal-button:hover {
-    background: #f57c00;
+    background: #665f5f;
 }
 
 .settings-modal-button:disabled {

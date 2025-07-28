@@ -247,7 +247,7 @@ export default function HeaderBar({
                     </button>
                 )}
                 <button className="header-action-btn" onClick={onSearchClick} title="검색">
-                    <span role="img" aria-label="search">🔍</span>
+                    <span role="img" aria-label="search">🔍︎</span>
                 </button>
                 <button className="header-action-btn notify-btn" onClick={onNotifyClick} title="알림">
                     <span role="img" aria-label="notify">🔔</span>

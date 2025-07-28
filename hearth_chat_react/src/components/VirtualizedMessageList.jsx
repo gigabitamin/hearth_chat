@@ -667,19 +667,19 @@ function CopyMessageButton({ message }) {
         <button
             onClick={handleCopy}
             style={{ 
-                fontSize: 9, 
+                fontSize: 12, 
                 background: 'none', 
-                border: '1px solid #bbb', 
-                color: copied ? '#4caf50' : '#fff', 
-                borderRadius: 6, 
-                padding: '2px 10px', 
+                border: 'none', 
+                color: copied ? '#bbb' : '#fff', 
+                // borderRadius: 6, 
+                // padding: '2px 10px', 
                 cursor: 'pointer', 
-                marginRight: 2,
-                opacity: 0.5,
+                // marginRight: 2,
+                opacity: 0.7,
             }}
             title="메시지 전체 복사"
         >
-            {copied ? 'Copied' : 'Copy'}
+            {copied ? 'Copied' : '📑'}
         </button>
     );
 }

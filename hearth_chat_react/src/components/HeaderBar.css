@@ -4,7 +4,7 @@
     align-items: center;
     justify-content: space-between;
     background: #23242a;
-    border-bottom: 1.5px solid #23242a;
+    /* border-bottom: 1.5px solid #23242a; */
     padding: 0 4px;
     height: 40px;
     min-height: 36px;

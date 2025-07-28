@@ -411,7 +411,7 @@ const SettingsModal = ({
                 <button
                   onClick={() => window.location.href = '/admin'}
                   title="관리자 대시보드"
-                  style={{ position: 'absolute', top: 0, right: 0, background: '#ff6b6b', color: 'white', border: 'none', borderRadius: '4px', padding: '6px 12px', cursor: 'pointer', fontSize: 16, zIndex: 2 }}
+                  style={{ position: 'absolute', top: 0, right: 0, background: '#888', color: 'white', border: 'none', borderRadius: '4px', padding: '6px 12px', cursor: 'pointer', fontSize: 16, zIndex: 2 }}
                 >
                   <span role="img" aria-label="admin">👑</span> 관리자
                 </button>
@@ -441,60 +441,64 @@ const SettingsModal = ({
                         </div>
                       )}
                     </div>
-                    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                      <li>
-                        <button
-                          className="settings-modal-button"
-                          style={{ width: '100%', marginBottom: 8 }}
-                          onClick={() => setShowEmailModal(true)}
-                        >
-                          이메일 변경
-                        </button>
-                      </li>
-                      <li>
-                        {user.is_social_only ? (
-                          <div style={{ color: '#888', fontSize: 14, marginBottom: 8, textAlign: 'center' }}>
-                            소셜 계정만 연결된 사용자는 비밀번호를 변경할 수 없습니다.
-                          </div>
-                        ) : (
+                    
+                    <div className="settings-modal-button-list-container" style={{ display: 'flex', justifyContent: 'center' }}>
+                      <ul className="settings-modal-button-list">
+                        <li>
                           <button
                             className="settings-modal-button"
                             style={{ width: '100%', marginBottom: 8 }}
-                            onClick={() => setShowPasswordModal(true)}
+                            onClick={() => setShowEmailModal(true)}
                           >
-                            비밀번호 변경
+                            이메일 변경
                           </button>
-                        )}
-                      </li>
-                      <li>
-                        <button
-                          className="settings-modal-button"
-                          style={{ width: '100%', marginBottom: 8 }}
-                          onClick={() => setShowConnectionsModal(true)}
-                        >
-                          계정 연결
-                        </button>
-                      </li>
-                      <li>
-                        <button
-                          className="settings-modal-button"
-                          style={{ width: '100%', background: '#eee', color: '#333' }}
-                          onClick={handleLogout}
-                          disabled={logoutLoading}
-                        >
-                          {logoutLoading ? '로그아웃 중...' : '로그아웃'}
-                        </button>
-                      </li>
-                      <li>
-                        <button
-                          className="settings-modal-button"
-                          style={{ width: '100%', background: '#f44336', color: '#fff' }}
-                          onClick={() => setShowDeleteConfirmModal(true)}
-                        >
-                          회원탈퇴
-                        </button>
-                      </li>
-                    </ul>
+                        </li>
+                        <li>
+                          {user.is_social_only ? (
+                            <div style={{ color: '#888', fontSize: 14, marginBottom: 8, textAlign: 'center' }}>
+                              소셜 계정만 연결된 사용자는 비밀번호를 변경할 수 없습니다.
+                            </div>
+                          ) : (
+                            <button
+                              className="settings-modal-button"
+                              style={{ width: '100%', marginBottom: 8 }}
+                              onClick={() => setShowPasswordModal(true)}
+                            >
+                              비밀번호 변경
+                            </button>
+                          )}
+                        </li>
+                        <li>
+                          <button
+                            className="settings-modal-button"
+                            style={{ width: '100%', marginBottom: 8 }}
+                            onClick={() => setShowConnectionsModal(true)}
+                          >
+                            계정 연결
+                          </button>
+                        </li>
+                        <li>
+                          <button
+                            className="settings-modal-button"
+                            style={{ width: '100%', background: '#bbc', color: '#333' }}
+                            onClick={handleLogout}
+                            disabled={logoutLoading}
+                          >
+                            {logoutLoading ? '로그아웃 중...' : '로그아웃'}
+                          </button>
+                        </li>
+                        <li>
+                          <button
+                            className="settings-modal-button"
+                            style={{ width: '100%', background: '#fe11', color: '#fff' }}
+                            onClick={() => setShowDeleteConfirmModal(true)}
+                          >
+                            회원탈퇴
+                          </button>
+                        </li>
+                      </ul>
+                    </div>
+
                     {/* 이메일 변경 모달 */}
                     {showEmailModal && (
                       <div className="settings-modal-overlay" onClick={() => { setShowEmailModal(false); setEmailMsg(null); }}>
