@@ -1,4 +1,4 @@
-import { getApiBase } from '../app';
+import { getApiBase, csrfFetch, getCookie } from '../app.js';
 
 class AIService {
     constructor() {
@@ -11,6 +11,9 @@ class AIService {
         this.settings = settings;
         this.isInitialized = true;
         console.log('🤖 AI 서비스 초기화됨:', settings);
+        console.log('🔧 현재 AI 제공자:', settings.aiProvider);
+        console.log('🔧 Lily API URL:', settings.lilyApiUrl);
+        console.log('🔧 Lily 모델:', settings.lilyModel);
     }
 
     // AI 응답 생성
@@ -19,25 +22,38 @@ class AIService {
             throw new Error('AI 서비스가 초기화되지 않았거나 비활성화되어 있습니다.');
         }
 
+        console.log('🚀 AI 응답 생성 시작');
+        console.log('📝 메시지:', message);
+        console.log('🔧 AI 제공자:', this.settings.aiProvider);
+        console.log('🔧 현재 설정:', this.settings);
+
         try {
             switch (this.settings.aiProvider) {
                 case 'lily':
+                    console.log('🌿 Lily LLM 사용');
                     return await this.generateLilyResponse(message, context);
                 case 'chatgpt':
+                    console.log('💬 ChatGPT 사용');
                     return await this.generateChatGPTResponse(message, context);
                 case 'gemini':
+                    console.log('🌟 Gemini 사용');
                     return await this.generateGeminiResponse(message, context);
                 default:
+                    console.error('❌ 지원하지 않는 AI 제공자:', this.settings.aiProvider);
                     throw new Error(`지원하지 않는 AI 제공자: ${this.settings.aiProvider}`);
             }
         } catch (error) {
-            console.error('AI 응답 생성 실패:', error);
+            console.error('❌ AI 응답 생성 실패:', error);
             throw error;
         }
     }
 
     // Lily API 응답 생성
     async generateLilyResponse(message, context = '') {
+        console.log('🌿 Lily API 호출 시작');
+        console.log('🔗 API URL:', `${this.settings.lilyApiUrl}/generate`);
+        console.log('🔧 모델:', this.settings.lilyModel);
+        
         const url = `${this.settings.lilyApiUrl}/generate`;
 
         const formData = new FormData();
@@ -48,16 +64,29 @@ class AIService {
         formData.append('top_p', 0.9);
         formData.append('do_sample', true);
 
+        console.log('📤 요청 데이터:', {
+            prompt: message,
+            model_id: this.settings.lilyModel,
+            max_length: this.settings.maxTokens,
+            temperature: this.settings.temperature
+        });
+
         const response = await fetch(url, {
             method: 'POST',
             body: formData
         });
 
+        console.log('📥 응답 상태:', response.status, response.statusText);
+
         if (!response.ok) {
-            throw new Error(`Lily API 오류: ${response.status} ${response.statusText}`);
+            const errorText = await response.text();
+            console.error('❌ Lily API 오류:', errorText);
+            throw new Error(`Lily API 오류: ${response.status} ${response.statusText} - ${errorText}`);
         }
 
         const data = await response.json();
+        console.log('✅ Lily API 응답 성공:', data);
+        
         return {
             text: data.generated_text,
             model: data.model_name,
@@ -153,6 +182,7 @@ class AIService {
     // AI 응답 지연 처리
     async generateResponseWithDelay(message, context = '') {
         if (this.settings.responseDelay > 0) {
+            console.log(`⏳ 응답 지연: ${this.settings.responseDelay}ms`);
             await new Promise(resolve => setTimeout(resolve, this.settings.responseDelay));
         }
 
@@ -208,10 +238,13 @@ class AIService {
         try {
             switch (this.settings.aiProvider) {
                 case 'lily':
+                    console.log('🔗 Lily API 연결 테스트 중...');
                     const response = await fetch(`${this.settings.lilyApiUrl}/health`);
                     if (!response.ok) {
                         throw new Error(`Lily API 연결 실패: ${response.status}`);
                     }
+                    const healthData = await response.json();
+                    console.log('✅ Lily API 연결 성공:', healthData);
                     return { success: true, message: 'Lily API 연결 성공!' };
 
                 case 'chatgpt':
@@ -236,6 +269,7 @@ class AIService {
                     throw new Error(`지원하지 않는 AI 제공자: ${this.settings.aiProvider}`);
             }
         } catch (error) {
+            console.error('❌ 연결 테스트 실패:', error);
             return { success: false, message: error.message };
         }
     }

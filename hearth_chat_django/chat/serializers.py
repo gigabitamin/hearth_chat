@@ -90,7 +90,8 @@ class UserSettingsSerializer(serializers.ModelSerializer):
     ai_avatar_enabled = serializers.BooleanField(required=False)
     user_avatar_enabled = serializers.BooleanField(required=False)
     auto_send_enabled = serializers.BooleanField(required=False)
-    ai_response_enabled = serializers.BooleanField(required=False)    
+    ai_response_enabled = serializers.BooleanField(required=False)
+    ai_settings = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     class Meta:
         model = UserSettings

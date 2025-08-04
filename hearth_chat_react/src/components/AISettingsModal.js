@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import './AISettingsModal.css';
 
 const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {} }) => {
+    console.log('🔧 AISettingsModal - currentSettings:', currentSettings);
+
     const [settings, setSettings] = useState({
         aiEnabled: false,
         aiProvider: 'lily', // 'lily', 'chatgpt', 'gemini'
@@ -16,9 +18,43 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {} }) => {
         ...currentSettings
     });
 
+    console.log('🔧 AISettingsModal - 초기 settings:', settings);
+
     const [availableModels, setAvailableModels] = useState([]);
     const [loading, setLoading] = useState(false);
     const [testResult, setTestResult] = useState(null);
+
+    // currentSettings가 변경될 때 settings 업데이트
+    useEffect(() => {
+        console.log('🔧 AISettingsModal - currentSettings 변경됨:', currentSettings);
+        if (Object.keys(currentSettings).length > 0) {
+            setSettings(prev => {
+                const newSettings = {
+                    aiEnabled: false,
+                    aiProvider: 'lily',
+                    lilyApiUrl: 'http://localhost:8001',
+                    lilyModel: 'polyglot-ko-1.3b-chat',
+                    chatgptApiKey: '',
+                    geminiApiKey: '',
+                    autoRespond: false,
+                    responseDelay: 1000,
+                    maxTokens: 1000,
+                    temperature: 0.7,
+                    ...currentSettings
+                };
+                console.log('🔧 AISettingsModal - 새로운 settings:', newSettings);
+                return newSettings;
+            });
+        }
+    }, [currentSettings]);
+
+    // 모달이 열릴 때마다 현재 설정 확인
+    useEffect(() => {
+        if (isOpen) {
+            console.log('🔧 AISettingsModal - 모달 열림, 현재 설정:', settings);
+            console.log('🔧 AISettingsModal - aiProvider:', settings.aiProvider);
+        }
+    }, [isOpen, settings]);
 
     // Lily API 모델 목록 가져오기
     useEffect(() => {
@@ -43,10 +79,15 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {} }) => {
     };
 
     const handleInputChange = (field, value) => {
-        setSettings(prev => ({
-            ...prev,
-            [field]: value
-        }));
+        console.log('🔧 AISettingsModal - 입력 변경:', field, value);
+        setSettings(prev => {
+            const newSettings = {
+                ...prev,
+                [field]: value
+            };
+            console.log('🔧 AISettingsModal - 새로운 설정:', newSettings);
+            return newSettings;
+        });
     };
 
     const testAIConnection = async () => {
@@ -103,15 +144,24 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {} }) => {
     };
 
     const handleSave = () => {
+        console.log('💾 AISettingsModal - 설정 저장 시작');
+        console.log('💾 AISettingsModal - 현재 설정:', settings);
+        console.log('💾 AISettingsModal - onSave 함수 호출');
         onSave(settings);
+        console.log('💾 AISettingsModal - onClose 함수 호출');
         onClose();
     };
 
     if (!isOpen) return null;
 
     return (
-        <div className="ai-settings-modal-overlay">
-            <div className="ai-settings-modal">
+        <div className="ai-settings-modal-overlay" onClick={(e) => {
+            // 오버레이 클릭 시에만 모달 닫기
+            if (e.target === e.currentTarget) {
+                onClose();
+            }
+        }}>
+            <div className="ai-settings-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="ai-settings-modal-header">
                     <h2>🤖 AI 설정</h2>
                     <button className="close-button" onClick={onClose}>×</button>
@@ -268,7 +318,13 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {} }) => {
                     <button className="cancel-button" onClick={onClose}>
                         취소
                     </button>
-                    <button className="save-button" onClick={handleSave}>
+                    <button
+                        className="save-button"
+                        onClick={() => {
+                            console.log('🔘 AISettingsModal - 저장 버튼 클릭됨');
+                            handleSave();
+                        }}
+                    >
                         저장
                     </button>
                 </div>

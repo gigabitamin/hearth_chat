@@ -276,6 +276,7 @@ class UserSettings(models.Model):
     
     # AI 응답 설정
     ai_response_enabled = models.BooleanField(default=True, verbose_name='AI 응답 활성화')
+    ai_settings = models.TextField(blank=True, null=True, verbose_name='AI 설정 (JSON)')
     
     # 기타 설정
     theme = models.CharField(max_length=20, default='dark', verbose_name='테마')

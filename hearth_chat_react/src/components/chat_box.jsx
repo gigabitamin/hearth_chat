@@ -2501,10 +2501,14 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   useEffect(() => {
     if (userSettings) {
       try {
-        // AI 설정이 저장되어 있으면 로드
+        console.log('🔧 userSettings 확인:', userSettings);
+        console.log('🔧 ai_response_enabled:', userSettings.ai_response_enabled);
+        console.log('🔧 ai_settings:', userSettings.ai_settings);
+
+        // 기본 AI 설정
         let aiSettings = {
           aiEnabled: !!userSettings.ai_response_enabled,
-          aiProvider: 'lily',
+          aiProvider: 'lily', // 기본값
           lilyApiUrl: 'http://localhost:8001',
           lilyModel: 'polyglot-ko-1.3b-chat',
           chatgptApiKey: '',
@@ -2515,21 +2519,44 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           temperature: 0.7
         };
 
-        // 저장된 AI 설정이 있으면 파싱
+        console.log('🔧 기본 AI 설정:', aiSettings);
+
+        // 저장된 AI 설정이 있으면 파싱하고 병합
         if (userSettings.ai_settings) {
           try {
             const savedSettings = JSON.parse(userSettings.ai_settings);
-            aiSettings = { ...aiSettings, ...savedSettings };
+            console.log('🔧 저장된 AI 설정 파싱 성공:', savedSettings);
+
+            // 저장된 설정으로 기본값을 덮어씌움 (병합이 아닌 덮어씌움)
+            aiSettings = {
+              ...aiSettings,
+              ...savedSettings,
+              // aiEnabled는 별도로 관리
+              aiEnabled: !!userSettings.ai_response_enabled
+            };
+
+            console.log('🔧 병합된 AI 설정:', aiSettings);
           } catch (e) {
-            console.error('AI 설정 파싱 실패:', e);
+            console.error('❌ AI 설정 파싱 실패:', e);
+            console.error('❌ 원본 ai_settings:', userSettings.ai_settings);
           }
+        } else {
+          console.log('⚠️ 저장된 AI 설정이 없습니다. 기본값 사용');
         }
 
         // AI 서비스 초기화
         aiService.initialize(aiSettings);
         console.log('🤖 AI 서비스 초기화 완료:', aiSettings);
+
+        // 현재 설정 상태 출력
+        console.log('🔧 최종 AI 설정 상태:');
+        console.log('   - AI 활성화:', aiSettings.aiEnabled);
+        console.log('   - AI 제공자:', aiSettings.aiProvider);
+        console.log('   - Lily API URL:', aiSettings.lilyApiUrl);
+        console.log('   - Lily 모델:', aiSettings.lilyModel);
+
       } catch (error) {
-        console.error('AI 서비스 초기화 실패:', error);
+        console.error('❌ AI 서비스 초기화 실패:', error);
       }
     }
   }, [userSettings]);

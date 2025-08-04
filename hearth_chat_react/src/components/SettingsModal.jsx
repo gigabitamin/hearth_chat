@@ -109,6 +109,43 @@ const SettingsModal = ({
     temperature: 0.7
   });
 
+  // userSettings에서 AI 설정 로드
+  useEffect(() => {
+    if (userSettings) {
+      console.log('🔧 SettingsModal - userSettings 변경됨:', userSettings);
+      console.log('🔧 SettingsModal - ai_response_enabled:', userSettings.ai_response_enabled);
+      console.log('🔧 SettingsModal - ai_settings:', userSettings.ai_settings);
+
+      let newAiSettings = {
+        aiEnabled: !!userSettings.ai_response_enabled,
+        aiProvider: 'lily',
+        lilyApiUrl: 'http://localhost:8001',
+        lilyModel: 'polyglot-ko-1.3b-chat',
+        chatgptApiKey: '',
+        geminiApiKey: '',
+        autoRespond: false,
+        responseDelay: 1000,
+        maxTokens: 1000,
+        temperature: 0.7
+      };
+
+      // 저장된 AI 설정이 있으면 파싱
+      if (userSettings.ai_settings) {
+        try {
+          const savedSettings = JSON.parse(userSettings.ai_settings);
+          console.log('🔧 SettingsModal - 저장된 AI 설정 파싱 성공:', savedSettings);
+          newAiSettings = { ...newAiSettings, ...savedSettings };
+          console.log('🔧 SettingsModal - 병합된 AI 설정:', newAiSettings);
+        } catch (e) {
+          console.error('❌ SettingsModal - AI 설정 파싱 실패:', e);
+        }
+      }
+
+      setAiSettings(newAiSettings);
+      console.log('🔧 SettingsModal - AI 설정 업데이트 완료:', newAiSettings);
+    }
+  }, [userSettings]);
+
   // 계정 연결 상태 fetch 함수 분리 (JSON API 사용)
   const fetchConnections = () => {
     fetch(`${API_BASE}/api/social-connections/`, { credentials: 'include' })
@@ -355,6 +392,7 @@ const SettingsModal = ({
 
   // 서버에 설정 저장
   const saveSetting = async (patchObj) => {
+    console.log('💾 SettingsModal - 설정 저장 시작:', patchObj);
     setSaving(true);
     try {
       // 프론트 상태명 → 서버 필드명 매핑
@@ -372,6 +410,7 @@ const SettingsModal = ({
         userAvatarEnabled: 'user_avatar_enabled',
         user_avatar_enabled: 'user_avatar_enabled',
         ai_response_enabled: 'ai_response_enabled',
+        ai_settings: 'ai_settings',  // AI 설정 필드 추가
       };
       // 매핑 적용
       const serverPatch = {};
@@ -379,6 +418,8 @@ const SettingsModal = ({
         const mappedKey = keyMap[k] || k;
         serverPatch[mappedKey] = v;
       });
+
+      console.log('💾 SettingsModal - 서버에 전송할 데이터:', serverPatch);
 
       // CSRF 토큰 추출
       const csrftoken = document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
@@ -392,10 +433,19 @@ const SettingsModal = ({
         },
         body: JSON.stringify(serverPatch),
       });
+
+      console.log('💾 SettingsModal - 서버 응답 상태:', res.status);
+
       if (res.ok) {
         const data = await res.json();
+        console.log('💾 SettingsModal - 서버 응답 데이터:', data);
         setUserSettings(data.settings || { ...userSettings, ...serverPatch });
+        console.log('✅ SettingsModal - 설정 저장 성공');
+      } else {
+        console.error('❌ SettingsModal - 설정 저장 실패:', res.status, res.statusText);
       }
+    } catch (error) {
+      console.error('❌ SettingsModal - 설정 저장 중 오류:', error);
     } finally {
       setSaving(false);
     }
@@ -854,15 +904,22 @@ const SettingsModal = ({
       {/* AI 설정 모달 */}
       <AISettingsModal
         isOpen={showAISettingsModal}
-        onClose={() => setShowAISettingsModal(false)}
+        onClose={() => {
+          console.log('🔧 SettingsModal - AI 설정 모달 닫기');
+          setShowAISettingsModal(false);
+        }}
         onSave={(newSettings) => {
+          console.log('🔧 SettingsModal - AI 설정 저장 시작:', newSettings);
           setAiSettings(newSettings);
           setShowAISettingsModal(false);
           // AI 설정을 서버에 저장
-          saveSetting({
+          const saveData = {
             ai_response_enabled: newSettings.aiEnabled,
             ai_settings: JSON.stringify(newSettings)
-          });
+          };
+          console.log('🔧 SettingsModal - 서버에 저장할 데이터:', saveData);
+          console.log('🔧 SettingsModal - ai_settings JSON:', JSON.stringify(newSettings));
+          saveSetting(saveData);
         }}
         currentSettings={aiSettings}
       />
