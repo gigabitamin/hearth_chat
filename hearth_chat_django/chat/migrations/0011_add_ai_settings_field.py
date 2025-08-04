@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('chat', '0011_auto_20250804_0000'),  # 이전 마이그레이션에 맞게 수정 필요
+        ('chat', '0010_mediafile_uploaded_at'),  # 이전 마이그레이션에 맞게 수정 필요
     ]
 
     operations = [

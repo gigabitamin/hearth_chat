@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './AISettingsModal.css';
 
-const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {} }) => {
+const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActiveModelChange }) => {
     console.log('🔧 AISettingsModal - currentSettings:', currentSettings);
 
     const [settings, setSettings] = useState({
@@ -23,6 +23,7 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {} }) => {
     const [availableModels, setAvailableModels] = useState([]);
     const [loading, setLoading] = useState(false);
     const [testResult, setTestResult] = useState(null);
+    const [currentActiveModel, setCurrentActiveModel] = useState(null);
 
     // currentSettings가 변경될 때 settings 업데이트
     useEffect(() => {
@@ -56,6 +57,13 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {} }) => {
         }
     }, [isOpen, settings]);
 
+    // 현재 활성화된 모델 정보를 부모 컴포넌트로 전달
+    useEffect(() => {
+        if (currentActiveModel && onActiveModelChange) {
+            onActiveModelChange(currentActiveModel);
+        }
+    }, [currentActiveModel, onActiveModelChange]);
+
     // Lily API 모델 목록 가져오기
     useEffect(() => {
         if (isOpen && settings.aiProvider === 'lily') {
@@ -69,7 +77,19 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {} }) => {
             const response = await fetch(`${settings.lilyApiUrl}/models`);
             if (response.ok) {
                 const data = await response.json();
-                setAvailableModels(data.available_models || []);
+                setAvailableModels(data.models || []);
+
+                // 현재 활성화된 모델 정보 가져오기
+                if (data.current_model) {
+                    console.log('🔧 AISettingsModal - 현재 활성화된 모델:', data.current_model);
+                    setCurrentActiveModel(data.current_model);
+
+                    // 현재 활성화된 모델로 설정 업데이트
+                    setSettings(prev => ({
+                        ...prev,
+                        lilyModel: data.current_model.model_id || prev.lilyModel
+                    }));
+                }
             }
         } catch (error) {
             console.error('Lily API 모델 목록 가져오기 실패:', error);
@@ -219,6 +239,20 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {} }) => {
                                         </option>
                                     ))}
                                 </select>
+
+                                {/* 현재 활성화된 모델 정보 표시 */}
+                                {currentActiveModel && (
+                                    <div className="current-model-info">
+                                        <small style={{ color: '#4CAF50', fontWeight: 'bold' }}>
+                                            ✅ 현재 활성화된 모델: {currentActiveModel.display_name}
+                                        </small>
+                                        {currentActiveModel.model_id !== settings.lilyModel && (
+                                            <small style={{ color: '#FF9800', display: 'block', marginTop: '4px' }}>
+                                                ⚠️ 선택된 모델과 서버의 활성 모델이 다릅니다
+                                            </small>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </>
                     )}

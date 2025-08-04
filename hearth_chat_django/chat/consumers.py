@@ -169,10 +169,24 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return
 
         try:            
-            ai_response = await self.get_ai_response(user_message, user_emotion, image_url)            
+            ai_response_result = await self.get_ai_response(user_message, user_emotion, image_url)            
             
-            # AI 응답을 DB에 저장            
-            ai_message_obj = await self.save_ai_message(ai_response, room_id, ai_name='Gemini', ai_type='google', question_message=user_message_obj)
+            # AI 응답 결과에서 정보 추출
+            ai_response = ai_response_result['response']
+            actual_provider = ai_response_result['provider']
+            ai_name = ai_response_result['ai_name']
+            ai_type = ai_response_result['ai_type']
+            
+            print(f"✅ 실제 사용된 API: {actual_provider}, AI 이름: {ai_name}")
+            
+            # AI 응답을 DB에 저장 (question_message를 명시적으로 전달)
+            ai_message_obj = await self.save_ai_message(
+                ai_response, 
+                room_id, 
+                ai_name=ai_name, 
+                ai_type=ai_type, 
+                question_message=user_message_obj  # user_message_obj를 명시적으로 전달
+            )
             
             # FK select_related로 새로 불러오기
             from .models import Chat
@@ -189,7 +203,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 self.conversation_context = self.conversation_context[-10:]
             
             # AI 응답을 방의 모든 참여자에게 브로드캐스트
-            # print(f"[SEND] AI 메시지 group_send: chat_room_{room_id} (채널: {self.channel_name})")
+            print(f"📤 AI 응답 전송 준비: {ai_response[:50]}...")
+            print(f"📤 방 ID: {room_id}")
+            print(f"📤 AI 이름: {ai_name}")
+            
             try:
                 debug_event = {
                     'type': 'ai_message',
@@ -201,9 +218,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     ),
                     'ai_name': ai_message_obj.ai_name if ai_message_obj else 'AI',
                     'sender': ai_message_obj.ai_name if ai_message_obj else 'AI',
-                }                
+                }
+                print(f"📤 디버그 이벤트: {debug_event}")
             except Exception as e:
                 print(f"[DEBUG][group_send][ai_message] event 출력 오류: {e}")
+            
+            # WebSocket을 통해 AI 응답 전송
             await self.channel_layer.group_send(
                 f'chat_room_{room_id}',
                 {
@@ -219,6 +239,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'sender': ai_message_obj.ai_name if ai_message_obj else 'AI',
                 }
             )
+            print(f"✅ AI 응답 WebSocket 전송 완료")
         except Exception as e:            
             error_message = f"AI 오류: {str(e)}"
             await self.save_ai_message(error_message, room_id)
@@ -253,11 +274,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
         }))
 
     async def ai_message(self, event):        
+        print(f"📥 AI 메시지 이벤트 수신: {event}")
         try:
             debug_event = dict(event) if isinstance(event, dict) else event            
         except Exception as e:
             print(f"[DEBUG][self.send][ai_message] event 출력 오류: {e}")
-        await self.send(text_data=json.dumps({
+        
+        # WebSocket을 통해 클라이언트로 전송
+        response_data = {
             'type': 'ai_message',
             'message': event['message'],
             'roomId': event['roomId'],
@@ -265,7 +289,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'questioner_username': event.get('questioner_username'),
             'ai_name': event.get('ai_name', 'AI'),
             'sender': event.get('ai_name', 'AI'),
-        }))
+        }
+        print(f"📤 클라이언트로 전송할 데이터: {response_data}")
+        
+        await self.send(text_data=json.dumps(response_data))
+        print(f"✅ AI 메시지 클라이언트 전송 완료")
 
     async def handle_webrtc_signaling(self, data):
         """WebRTC 시그널링 메시지 처리"""
@@ -360,13 +388,174 @@ class ChatConsumer(AsyncWebsocketConsumer):
             print(f"커스텀 백엔드 디버깅 - 오류 내용: {str(e)}")
             raise e
 
+    @sync_to_async
+    def get_user_ai_settings(self, user):
+        """사용자의 AI 설정을 가져오기"""
+        from .models import UserSettings
+        try:
+            settings = UserSettings.objects.get(user=user)
+            if settings.ai_settings:
+                try:
+                    return json.loads(settings.ai_settings)
+                except json.JSONDecodeError:
+                    pass
+            # 기본 설정 반환
+            return {
+                "aiProvider": "gemini",
+                "aiEnabled": True
+            }
+        except Exception:
+            # 기본 설정 반환
+            return {
+                "aiProvider": "gemini", 
+                "aiEnabled": True
+            }
+
     async def get_ai_response(self, user_message, user_emotion="neutral", image_url=None):
-        from asgiref.sync import sync_to_async
         import base64
         import requests
         import os
+        import json
         from django.conf import settings
         from openai import OpenAI
+
+        @sync_to_async
+        def call_lily_api(user_message, user_emotion, image_url=None):
+            """Lily LLM API 호출"""
+            import requests
+            try:
+                # 사용자 설정에서 Lily API URL 가져오기
+                user = getattr(self, 'scope', {}).get('user', None)
+                ai_settings = None
+                if user and hasattr(user, 'is_authenticated') and user.is_authenticated:
+                    # 동기적으로 AI 설정 가져오기
+                    from .models import UserSettings
+                    try:
+                        settings = UserSettings.objects.get(user=user)
+                        if settings.ai_settings:
+                            try:
+                                ai_settings = json.loads(settings.ai_settings)
+                            except json.JSONDecodeError:
+                                pass
+                    except Exception:
+                        pass
+                
+                lily_api_url = ai_settings.get('lilyApiUrl', 'http://localhost:8001') if ai_settings else 'http://localhost:8001'
+                lily_model = ai_settings.get('lilyModel', 'polyglot-ko-1.3b-chat') if ai_settings else 'polyglot-ko-1.3b-chat'
+                
+                # 감정 변화 추세 분석
+                emotion_trend = self.get_emotion_trend()
+                
+                # 감정 전략 등 기존 코드 유지
+                emotion_strategies = {
+                    "happy": {"tone": "기쁨과 함께 공감하며", "approach": "사용자의 기쁨을 함께 나누고, 긍정적인 에너지를 더해주세요. 기쁜 일에 대해 더 자세히 이야기해보도록 유도하세요.", "examples": "정말 기뻐 보이네요! 😊 어떤 일이 그렇게 기쁘게 만든 거예요? 함께 기뻐해도 될까요?"},
+                    "sad": {"tone": "따뜻하고 공감적으로", "approach": "사용자의 슬픔에 공감하고, 위로와 격려를 제공하세요. 슬픈 감정을 인정하고, 함께 극복할 방법을 찾아보세요.", "examples": "지금 많이 힘드시겠어요. 😔 그런 감정을 느끼는 것은 당연해요. 제가 옆에서 함께 있어드릴게요."},
+                    "angry": {"tone": "차분하고 이해하는 태도로", "approach": "사용자의 분노를 인정하고, 차분하게 상황을 분석해보세요. 분노의 원인을 파악하고 해결책을 제시하세요.", "examples": "화가 나실 만해요. 😤 그런 상황이라면 누구라도 화가 날 거예요. 차분히 생각해보면 어떨까요?"},
+                    "fearful": {"tone": "안심시키고 안전함을 느끼게", "approach": "사용자의 두려움을 인정하고, 안전함을 느끼게 해주세요. 구체적인 해결책이나 대안을 제시하세요.", "examples": "무서우시겠어요. 😰 걱정하지 마세요, 함께 해결해보아요. 어떤 부분이 가장 두려우신가요?"},
+                    "surprised": {"tone": "함께 놀라워하며", "approach": "사용자의 놀라움에 함께 반응하고, 호기심을 나누어주세요. 놀라운 일에 대해 더 자세히 알아보세요.", "examples": "정말 놀라운 일이네요! 😲 저도 함께 놀랐어요. 어떻게 된 일인지 더 자세히 들려주세요!"},
+                    "disgusted": {"tone": "이해하고 다른 주제로 전환", "approach": "사용자의 불쾌감을 인정하고, 다른 주제로 자연스럽게 전환하세요. 긍정적인 주제로 대화를 이어가세요.", "examples": "그런 일이 있으셨군요. 😕 다른 이야기로 기분 전환해볼까요? 요즘 즐거운 일은 없으셨나요?"},
+                    "neutral": {"tone": "편안하고 자연스럽게", "approach": "평온한 상태를 유지하며, 자연스럽고 편안한 대화를 이어가세요. 관심사나 일상에 대해 이야기해보세요.", "examples": "편안한 하루 보내고 계시네요. 😊 오늘은 어떤 일이 있었나요? 이야기해주세요."}
+                }
+                strategy = emotion_strategies.get(user_emotion, emotion_strategies["neutral"])
+                trend_guidance = {
+                    "improving": "사용자의 기분이 좋아지고 있는 것 같아요. 이 긍정적인 흐름을 유지할 수 있도록 도와주세요.",
+                    "declining": "사용자의 기분이 안 좋아지고 있는 것 같아요. 더 따뜻하고 지지적인 태도로 접근해주세요.",
+                    "stable": "사용자의 감정 상태가 안정적입니다. 편안하고 일관된 톤으로 대화를 이어가주세요."
+                }
+                trend_guide = trend_guidance.get(emotion_trend, trend_guidance["stable"])
+                context_summary = ""
+                if len(self.conversation_context) > 0:
+                    recent_context = self.conversation_context[-3:]
+                    context_summary = "최근 대화 맥락: " + " | ".join([
+                        f"사용자({ctx['user']['emotion']}): {ctx['user']['message'][:50]}..." for ctx in recent_context
+                    ])
+                
+                system_content = f"""당신은 따뜻하고 공감적인 AI 대화상대입니다. \n벽난로 주변의 아늑한 공간에서 대화하는 것처럼 편안하고 따뜻한 톤으로 응답해주세요.\n\n현재 사용자의 감정 상태: {user_emotion}\n감정 변화 추세: {emotion_trend}\n\n응답 전략:\n- 톤: {strategy['tone']}\n- 접근법: {strategy['approach']}\n- 감정 변화 지침: {trend_guide}\n\n{context_summary}\n\n사용자의 감정에 맞춰 적절한 톤과 내용으로 응답해주세요. \n필요시 조언, 위로, 격려, 동조, 기쁨 등을 자연스럽게 표현하세요.\n이모티콘을 적절히 사용하여 감정을 표현하세요."""
+
+                # Lily API 호출
+                lily_url = f"{lily_api_url}/generate"
+                
+                # 이미지가 있는 경우 처리
+                if image_url:
+                    from urllib.parse import unquote
+                    from django.conf import settings
+                    print(f"🖼️ 이미지 처리 시작: {image_url}")
+                    try:
+                        if image_url.startswith('/media/'):
+                            rel_path = unquote(image_url.replace('/media/', ''))
+                            file_path = os.path.normpath(os.path.join(settings.MEDIA_ROOT, rel_path))
+                            print(f"📁 미디어 파일 경로: {file_path}")
+                        else:
+                            file_path = unquote(image_url)
+                            print(f"📁 직접 파일 경로: {file_path}")
+                        
+                        if os.path.exists(file_path):
+                            print(f"✅ 이미지 파일 존재 확인됨: {file_path}")
+                            with open(file_path, 'rb') as f:
+                                img_bytes = f.read()
+                            print(f"📊 이미지 크기: {len(img_bytes)} bytes")
+                            
+                            # Form 데이터로 전송
+                            files = {'image1': ('image.png', img_bytes, 'image/png')}
+                            data = {
+                                'prompt': user_message or "이 이미지를 분석해줘.",
+                                'max_length': 1000,
+                                'temperature': 0.7
+                            }
+                            print(f"🔄 멀티모달 요청 준비 완료 (이미지 포함)")
+                        else:
+                            print(f"❌ 이미지 파일이 존재하지 않음: {file_path}")
+                            # 이미지 파일이 없으면 텍스트만
+                            data = {
+                                'prompt': user_message or "이미지 분석을 요청했지만 파일을 찾을 수 없습니다.",
+                                'max_length': 1000,
+                                'temperature': 0.7
+                            }
+                            files = None
+                            print(f"🔄 텍스트 전용 요청으로 변경")
+                    except Exception as e:
+                        print(f"❌ 이미지 처리 오류: {e}")
+                        data = {
+                            'prompt': user_message,
+                            'max_length': 1000,
+                            'temperature': 0.7
+                        }
+                        files = None
+                        print(f"🔄 텍스트 전용 요청으로 변경 (오류로 인해)")
+                else:
+                    # 텍스트만 요청
+                    data = {
+                        'prompt': user_message,
+                        'max_length': 1000,
+                        'temperature': 0.7
+                    }
+                    files = None
+
+                print(f"🚀 Lily API 호출 시작: {lily_url}")
+                print(f"📤 요청 데이터: {data}")
+                print(f"📁 파일 포함 여부: {files is not None}")
+                
+                if files:
+                    print(f"🔄 멀티모달 요청 전송 (이미지 포함)")
+                    response = requests.post(lily_url, data=data, files=files, timeout=2200)
+                else:
+                    print(f"🔄 텍스트 전용 요청 전송")
+                    response = requests.post(lily_url, data=data, timeout=200)
+                
+                print(f"📥 응답 상태: {response.status_code}")
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    response_text = result.get('generated_text', 'Lily API에서 응답을 받지 못했습니다.')
+                    print(f"✅ Lily API 응답 성공: {len(response_text)} 문자")
+                    return response_text
+                else:
+                    print(f"❌ Lily API 오류: {response.status_code} - {response.text}")
+                    raise Exception(f"Lily API 호출 실패: {response.status_code}")
+                    
+            except Exception as e:
+                print(f"Lily API 호출 중 오류: {e}")
+                raise e
 
         @sync_to_async
         def call_gemini():            
@@ -510,4 +699,50 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 except Exception as e:
                     print(f"[Gemini] 텍스트 응답 실패: {e}")                    
 
-        return await call_gemini()
+        # 사용자의 AI 설정에 따라 적절한 API 호출
+        user = getattr(self, 'scope', {}).get('user', None)
+        ai_settings = None
+        if user and hasattr(user, 'is_authenticated') and user.is_authenticated:
+            ai_settings = await self.get_user_ai_settings(user)
+        
+        ai_provider = ai_settings.get('aiProvider', 'gemini') if ai_settings else 'gemini'
+        
+        print(f"🔍 AI 설정 확인: {ai_provider}")
+        
+        try:
+            if ai_provider == 'lily':
+                print("🚀 Lily LLM API 호출")
+                response_text = await call_lily_api(user_message, user_emotion, image_url)
+                return {
+                    'response': response_text,
+                    'provider': 'lily',
+                    'ai_name': 'Lily LLM',
+                    'ai_type': 'lily'
+                }
+            else:
+                print("🚀 Gemini API 호출")
+                response_text = await call_gemini()
+                return {
+                    'response': response_text,
+                    'provider': 'gemini',
+                    'ai_name': 'Gemini',
+                    'ai_type': 'google'
+                }
+        except Exception as e:
+            print(f"❌ {ai_provider} API 호출 실패: {e}")
+            # 실패 시 Gemini로 폴백
+            if ai_provider != 'gemini':
+                print("🔄 Gemini API로 폴백")
+                try:
+                    response_text = await call_gemini()
+                    return {
+                        'response': response_text,
+                        'provider': 'gemini',
+                        'ai_name': 'Gemini',
+                        'ai_type': 'google'
+                    }
+                except Exception as fallback_e:
+                    print(f"❌ Gemini 폴백도 실패: {fallback_e}")
+                    raise fallback_e
+            else:
+                raise e

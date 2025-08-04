@@ -106,8 +106,10 @@ const SettingsModal = ({
     autoRespond: false,
     responseDelay: 1000,
     maxTokens: 1000,
-    temperature: 0.7
+    temperature: 0.7,
+    ...(userSettings?.ai_settings ? JSON.parse(userSettings.ai_settings) : {})
   });
+  const [currentActiveModel, setCurrentActiveModel] = useState(null);
 
   // userSettings에서 AI 설정 로드
   useEffect(() => {
@@ -884,7 +886,14 @@ const SettingsModal = ({
                     <div>• 제공자: {aiSettings.aiProvider === 'lily' ? 'Lily LLM (로컬)' :
                       aiSettings.aiProvider === 'chatgpt' ? 'ChatGPT' : 'Gemini'}</div>
                     {aiSettings.aiProvider === 'lily' && (
-                      <div>• 모델: {aiSettings.lilyModel}</div>
+                      <>
+                        <div>• 모델: {aiSettings.lilyModel}</div>
+                        {currentActiveModel && (
+                          <div style={{ color: '#4CAF50', fontWeight: 'bold' }}>
+                            • 서버 활성 모델: {currentActiveModel.display_name}
+                          </div>
+                        )}
+                      </>
                     )}
                     <div>• 자동 응답: {aiSettings.autoRespond ? '활성화' : '비활성화'}</div>
                     <div>• 응답 지연: {aiSettings.responseDelay}ms</div>
@@ -922,6 +931,7 @@ const SettingsModal = ({
           saveSetting(saveData);
         }}
         currentSettings={aiSettings}
+        onActiveModelChange={setCurrentActiveModel}
       />
     </div>
   );

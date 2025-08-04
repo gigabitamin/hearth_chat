@@ -56,9 +56,12 @@ ALLOWED_HOSTS = [
 ]
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:8000',
+    'http://localhost:8001',
     'http://localhost:3000',
     'http://127.0.0.1:8000',
+    'http://127.0.0.1:8001',
     'http://127.0.0.1:3000',    
+    'http://192.168.44.9:8001',
     'http://192.168.44.9:8000',
     'http://192.168.44.9:3000',    
     'https://hearthchat-production.up.railway.app',
@@ -112,10 +115,16 @@ else:
     CSRF_COOKIE_SECURE = False
     CSRF_TRUSTED_ORIGINS = [
         "http://localhost:3000",
+        "http://localhost:8001",
+        "http://127.0.0.1:8001",
+        "http://192.168.44.9:8001",
     ]
 
     CORS_ALLOWED_ORIGINS = [
         "http://localhost:3000",
+        "http://localhost:8001",
+        "http://127.0.0.1:8001",
+        "http://192.168.44.9:8001",
     ]
 
     print("로컬 개발 환경 설정 완료")
@@ -195,10 +204,13 @@ if not CORS_ALLOWED_ORIGINS:
         "https://hearthchat-production.up.railway.app",
         "http://localhost:3000",
         "http://localhost:8000",
+        "http://localhost:8001",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:8000",
+        "http://127.0.0.1:8001",
         "http://192.168.44.9:3000",
         "http://192.168.44.9:8000",
+        "http://192.168.44.9:8001",
     ]
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://192\.168\.[0-9]+\.[0-9]+(:[0-9]+)?$",  # 192.168.*.*:포트 전체 허용
