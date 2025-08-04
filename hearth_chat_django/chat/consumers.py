@@ -120,7 +120,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         user_obj = self.scope.get('user', None)
         # 첫 번째 이미지 URL을 사용 (호환성 유지)
         first_image_url = image_urls[0] if image_urls else image_url
-        user_message_obj = await self.save_user_message(user_message or '[이미지 첨부]', room_id, user_emotion, user_obj, first_image_url)        
+        # imageUrls를 JSON으로 저장
+        image_urls_json = json.dumps(image_urls) if image_urls else None
+        user_message_obj = await self.save_user_message(user_message or '[이미지 첨부]', room_id, user_emotion, user_obj, first_image_url, image_urls_json)        
         try:
             debug_event = {
                 'type': 'user_message',
@@ -247,6 +249,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     ),
                     'ai_name': ai_message_obj.ai_name if ai_message_obj else 'AI',
                     'sender': ai_message_obj.ai_name if ai_message_obj else 'AI',
+                    'imageUrls': image_urls  # 원본 이미지 URL 배열 추가
                 }
             )
             print(f"✅ AI 응답 WebSocket 전송 완료")
@@ -280,7 +283,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'user_id': event.get('user_id'),  # user_id 필드 추가
             'timestamp': event['timestamp'],
             'emotion': event.get('emotion', 'neutral'),
-            'imageUrl': event.get('imageUrl', '')  # imageUrl 추가
+            'imageUrl': event.get('imageUrl', ''),  # imageUrl 추가
+            'imageUrls': event.get('imageUrls', [])  # imageUrls 배열 추가
         }))
 
     async def ai_message(self, event):        
@@ -299,6 +303,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'questioner_username': event.get('questioner_username'),
             'ai_name': event.get('ai_name', 'AI'),
             'sender': event.get('ai_name', 'AI'),
+            'imageUrls': event.get('imageUrls', [])  # imageUrls 배열 추가
         }
         print(f"📤 클라이언트로 전송할 데이터: {response_data}")
         
@@ -361,7 +366,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return "stable"
 
     @sync_to_async
-    def save_user_message(self, content, room_id, emotion="neutral", user=None, image_url=None):
+    def save_user_message(self, content, room_id, emotion="neutral", user=None, image_url=None, image_urls_json=None):
         """사용자 메시지를 DB에 저장 (감정 정보 포함)"""
         try:
             from .models import Chat
@@ -370,7 +375,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 import unicodedata
                 content = unicodedata.normalize('NFC', content)
             
-            result = Chat.save_user_message(content, room_id, emotion, user, image_url)            
+            result = Chat.save_user_message(content, room_id, emotion, user, image_url, image_urls_json)            
             return result
         except Exception as e:
             print(f"사용자 메시지 저장 실패: {e}")

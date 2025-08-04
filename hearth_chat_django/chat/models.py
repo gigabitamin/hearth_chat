@@ -155,6 +155,10 @@ class Chat(models.Model):
         max_length=500,  # URL 길이를 고려한 충분한 길이
         blank=True, null=True, verbose_name='첨부 이미지 URL'
     )
+    # 다중 이미지 URL 배열 (JSON 형태로 저장)
+    imageUrls = models.TextField(
+        blank=True, null=True, verbose_name='다중 이미지 URL 배열 (JSON)'
+    )
     # 메타 정보
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='생성 시간')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='수정 시간')
@@ -180,7 +184,7 @@ class Chat(models.Model):
         return f"{sender} - {self.get_message_type_display()} - {self.content[:50]}..."
     
     @classmethod
-    def save_user_message(cls, content, session_id=None, emotion=None, user=None, image_url=None, question_message=None):
+    def save_user_message(cls, content, session_id=None, emotion=None, user=None, image_url=None, image_urls_json=None, question_message=None):
         """사용자 메시지 저장 (감정 정보 포함)"""        
         room_id = session_id
         if room_id and str(room_id).isdigit():
@@ -212,6 +216,7 @@ class Chat(models.Model):
             session_id=session_id,
             emotion=emotion,
             attach_image=image_url,  # 이미지 URL 저장
+            imageUrls=image_urls_json,  # 다중 이미지 URL 배열 (JSON)
             # questioner_username=question_message.username if question_message else None,
         )
     

@@ -147,23 +147,23 @@ function MyChart() {
   );
 }
 
-const ChatBox = ({ 
-  selectedRoom, 
-  loginUser, 
-  loginLoading, 
-  checkLoginStatus, 
-  userSettings, 
-  setUserSettings, 
-  onUserMenuOpen, 
-  isSettingsModalOpen, 
-  setIsSettingsModalOpen, 
-  isLoginModalOpen, 
-  setIsLoginModalOpen, 
-  settingsTab, 
-  setSettingsTab, 
-  pendingImageFile, 
-  setPendingImageFile, 
-  highlightMessageId,  
+const ChatBox = ({
+  selectedRoom,
+  loginUser,
+  loginLoading,
+  checkLoginStatus,
+  userSettings,
+  setUserSettings,
+  onUserMenuOpen,
+  isSettingsModalOpen,
+  setIsSettingsModalOpen,
+  isLoginModalOpen,
+  setIsLoginModalOpen,
+  settingsTab,
+  setSettingsTab,
+  pendingImageFile,
+  setPendingImageFile,
+  highlightMessageId,
 }) => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
@@ -393,8 +393,10 @@ const ChatBox = ({
             sender_type: 'user',
             user_id: data.user_id,
             emotion: data.emotion,
-            imageUrl: data.imageUrl || null  // data.imageUrl 사용
+            imageUrl: data.imageUrl || null,      // 단일 이미지(호환성)
+            imageUrls: data.imageUrls || [],       // 다중 이미지 배열 추가
           };
+          console.log('newMessage 399 chat_box.jsx', newMessage);
 
           setMessages((prev) => {
             let next;
@@ -422,9 +424,10 @@ const ChatBox = ({
             questioner_username: data.questioner_username,
             ai_name: data.ai_name, // AI 이름 포함
             emotion: null,
-            imageUrl: null
+            imageUrl: null,
+            imageUrls: data.imageUrls || [],  // AI 메시지에 첨부된 이미지 URL 배열
           };
-
+          console.log('newMessage 430 chat_box.jsx', newMessage);
           setMessages((prev) => {
             // 중복 메시지 방지: 동일 timestamp/text/questioner_username/ai_name이 이미 있으면 추가하지 않음
             if (prev.some(m => m.type === 'ai' && m.date === data.timestamp && m.text === data.message && m.questioner_username === data.questioner_username && m.ai_name === data.ai_name)) {
@@ -439,7 +442,10 @@ const ChatBox = ({
               ai_name: data.ai_name,
               questioner_username: data.questioner_username,
               pending: false,
+              imageUrl: null,
+              imageUrls: data.imageUrls || [],
             };
+            console.log('newMsg 448 chat_box.jsx', newMsg);
             const arr = [...prev, newMsg];
 
             return arr;
@@ -832,8 +838,12 @@ const ChatBox = ({
               date: data.timestamp,
               sender: data.sender,
               user_id: data.user_id,
+              emotion: data.emotion,
+              imageUrl: data.imageUrl || null,  // 단일 이미지 (호환성 유지)
+              imageUrls: data.imageUrls || [],  // 다중 이미지 배열              
               pending: false,
             };
+            console.log('newMsg 846 chat_box.jsx', newMsg);
             const result = [...arr, newMsg];
 
             return result;
@@ -852,8 +862,11 @@ const ChatBox = ({
               sender: data.ai_name, // sender는 항상 ai_name
               ai_name: data.ai_name,
               questioner_username: data.questioner_username,
+              imageUrl: null,
+              imageUrls: data.imageUrls || [],  // AI 메시지는 이미지 없음
               pending: false,
             };
+            console.log('newMsg 870 chat_box.jsx', newMsg);
             const arr = [...prev, newMsg];
 
             return arr;
@@ -942,7 +955,8 @@ const ChatBox = ({
             sender_type: 'user',
             user_id: data.user_id,
             emotion: data.emotion,
-            imageUrl: data.imageUrl || null  // data.imageUrl 사용
+            imageUrl: data.imageUrl || null,
+            imageUrls: data.imageUrls || [],
           };
 
           setMessages((prev) => {
@@ -971,8 +985,11 @@ const ChatBox = ({
             questioner_username: data.questioner_username,
             ai_name: data.ai_name, // AI 이름 포함
             emotion: null,
-            imageUrl: null
+            imageUrl: null,
+            imageUrls: data.imageUrls || [],
+            pending: false,
           };
+          console.log('newMsg 992 chat_box.jsx', newMessage);
           setMessages((prev) => {
             // 중복 메시지 방지: 동일 timestamp/text/questioner_username/ai_name이 이미 있으면 추가하지 않음
             if (prev.some(m => m.type === 'ai' && m.date === data.timestamp && m.text === data.message && m.questioner_username === data.questioner_username && m.ai_name === data.ai_name)) {
@@ -986,8 +1003,11 @@ const ChatBox = ({
               sender: data.ai_name, // sender는 항상 ai_name
               ai_name: data.ai_name,
               questioner_username: data.questioner_username,
+              imageUrl: null,
+              imageUrls: data.imageUrls || [],
               pending: false,
             };
+            console.log('newMsg 1010 chat_box.jsx', newMsg);
             const arr = [...prev, newMsg];
 
             return arr;
@@ -1968,16 +1988,16 @@ const ChatBox = ({
     if (attachedImages.length === 0 || !ws.current || ws.current.readyState !== 1) return;
 
     const finalMessageText = messageText || '이미지 첨부';
-    
+
     try {
       // 각 이미지를 순차적으로 업로드
       const uploadedUrls = [];
-      
+
       for (let i = 0; i < attachedImages.length; i++) {
         const formData = new FormData();
         formData.append('file', attachedImages[i]);
         formData.append('content', finalMessageText);
-        
+
         const res = await axios.post(`${API_BASE}/api/chat/upload_image/`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
@@ -1985,7 +2005,7 @@ const ChatBox = ({
           },
           withCredentials: true,
         });
-        
+
         if (res.data.status === 'success') {
           uploadedUrls.push(res.data.file_url);
         }
@@ -1998,11 +2018,10 @@ const ChatBox = ({
           imageUrls: uploadedUrls, // 다중 이미지 URL 배열
           roomId: selectedRoom?.id || null
         };
-
         ws.current.send(JSON.stringify(messageData));
         setInput('');
         handleRemoveAllAttachedImages();
-        
+
         setTimeout(() => {
           if (chatScrollRef.current) {
             chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
@@ -2049,7 +2068,10 @@ const ChatBox = ({
         user_id: loginUserRef.current?.id,
         pending: true,
         client_id: clientId,
+        imageUrl: null,
+        imageUrls: [],
       };
+      console.log('newMsg 2076 chat_box.jsx', newMsg);
       const arr = [...prev, newMsg];
 
       return arr;
@@ -2694,6 +2716,14 @@ const ChatBox = ({
         setTotalCount(data.count || 0);
         // setHasMore(data.has_more); // 제거: hasMore는 동적으로 계산됨        
 
+        // // API 응답 디버깅 - imageUrls 필드 확인
+        // console.log('[fetchMessages] API 응답 데이터:', data.results.map(msg => ({
+        //   id: msg.id,
+        //   content: msg.content,
+        //   imageUrl: msg.imageUrl,
+        //   imageUrls: msg.imageUrls
+        // })));
+
         // 특정 메시지 찾아가기 디버깅
         // if (scrollToId) {
         //   console.log('[특정 메시지 찾아가기] 로딩된 메시지들:', data.results.map(m => m.id));
@@ -3260,28 +3290,28 @@ const ChatBox = ({
 
       {/* 입력창 위에 첨부 이미지 미리보기 UI */}
       {attachedImagePreviews.length > 0 && (
-        <div className="attached-image-preview-box" style={{ 
-          margin: '8px 0', 
-          display: 'flex', 
+        <div className="attached-image-preview-box" style={{
+          margin: '8px 0',
+          display: 'flex',
           flexWrap: 'wrap',
           gap: '8px',
-          alignItems: 'center' 
+          alignItems: 'center'
         }}>
           {attachedImagePreviews.map((preview, index) => (
             <div key={index} style={{ position: 'relative', display: 'inline-block' }}>
-              <img 
-                src={preview} 
+              <img
+                src={preview}
                 alt={`첨부 이미지 ${index + 1}`}
-                style={{ 
-                  maxWidth: 120, 
-                  maxHeight: 120, 
+                style={{
+                  maxWidth: 120,
+                  maxHeight: 120,
                   borderRadius: 8,
                   border: '1px solid #ddd'
-                }} 
+                }}
               />
-              <button 
+              <button
                 onClick={() => handleRemoveAttachedImage(index)}
-                style={{ 
+                style={{
                   position: 'absolute',
                   top: '-8px',
                   right: '-8px',
@@ -3300,14 +3330,14 @@ const ChatBox = ({
             </div>
           ))}
           {attachedImagePreviews.length > 1 && (
-            <button 
+            <button
               onClick={handleRemoveAllAttachedImages}
-              style={{ 
-                color: '#f44336', 
-                background: 'none', 
-                border: 'none', 
-                fontSize: 12, 
-                cursor: 'pointer' 
+              style={{
+                color: '#f44336',
+                background: 'none',
+                border: 'none',
+                fontSize: 12,
+                cursor: 'pointer'
               }}
             >
               모두 제거

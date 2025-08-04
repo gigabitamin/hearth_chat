@@ -43,7 +43,7 @@ const VirtualizedMessageList = ({
     scrollToMessageId, // [입장] 버튼 클릭 시 전달받는 메시지 id
     loadingMessages = false, // 메시지 로딩 상태
     firstItemIndex = 0, // 전체 메시지 중 현재 배열의 시작 인덱스
-    totalCount = 0, // 전체 메시지 개수
+    totalCount = 0, // 전체 메시지 개수    
 }) => {
     const virtuosoRef = useRef(null);
     const [emojiPickerMsgId, setEmojiPickerMsgId] = useState(null);
@@ -231,11 +231,29 @@ const VirtualizedMessageList = ({
                                     </>
                                 )}
                             </div>
-                            {message.imageUrl && (
+                            {/* 다중 이미지 처리 */}
+                            {message.imageUrls && message.imageUrls.length > 0 ? (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
+                                    {message.imageUrls.map((url, idx) => (
+                                    <img
+                                        key={idx}
+                                        src={getImageUrl(url)}
+                                        alt={`첨부 이미지 ${idx + 1}`}
+                                        className="message-image"
+                                        style={{ maxWidth: 200, maxHeight: 200, borderRadius: 4 }}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (onImageClick) onImageClick(getImageUrl(url));
+                                        }}
+                                    />
+                                    ))}
+                                </div>
+                            ) : message.imageUrl && (
                                 <img
                                     src={getImageUrl(message.imageUrl)}
                                     alt="첨부 이미지"
                                     className="message-image"
+                                    style={{ maxWidth: 200, maxHeight: 200, borderRadius: 4 }}
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         if (onImageClick) onImageClick(getImageUrl(message.imageUrl));
@@ -456,7 +474,7 @@ const VirtualizedMessageList = ({
                                     >
                                         <div style={{ fontSize: 16 }}>📌</div>
                                         고정핀
-                                    </button>                                    
+                                    </button>
 
                                     {/* 메시지 삭제 버튼 (본인 메시지만 삭제 가능) */}
                                     {isMyMessage && (
@@ -666,14 +684,14 @@ function CopyMessageButton({ message }) {
     return (
         <button
             onClick={handleCopy}
-            style={{ 
-                fontSize: 12, 
-                background: 'none', 
-                border: 'none', 
-                color: copied ? '#bbb' : '#fff', 
+            style={{
+                fontSize: 12,
+                background: 'none',
+                border: 'none',
+                color: copied ? '#bbb' : '#fff',
                 // borderRadius: 6, 
                 // padding: '2px 10px', 
-                cursor: 'pointer', 
+                cursor: 'pointer',
                 // marginRight: 2,
                 opacity: 0.7,
             }}

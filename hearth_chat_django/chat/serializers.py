@@ -51,16 +51,19 @@ class ChatRoomSerializer(serializers.ModelSerializer):
     def get_message_count(self, obj):
         return obj.chat_set.count()
 
+import json
+
 class ChatSerializer(serializers.ModelSerializer):
     sender = UserSerializer(read_only=True)
     room_name = serializers.SerializerMethodField()
     sender_name = serializers.SerializerMethodField()
     reaction_count = serializers.SerializerMethodField()
     questioner_username = serializers.SerializerMethodField()
+    imageUrls = serializers.SerializerMethodField()
     
     class Meta:
         model = Chat
-        fields = ['id', 'room', 'room_name', 'sender', 'sender_name', 'sender_type', 'username', 'user_id', 'ai_name', 'ai_type', 'message_type', 'content', 'timestamp', 'emotion', 'attach_image', 'reaction_count', 'created_at', 'updated_at', 'questioner_username']
+        fields = ['id', 'room', 'room_name', 'sender', 'sender_name', 'sender_type', 'username', 'user_id', 'ai_name', 'ai_type', 'message_type', 'content', 'timestamp', 'emotion', 'attach_image', 'imageUrls', 'reaction_count', 'created_at', 'updated_at', 'questioner_username']
     
     def get_room_name(self, obj):
         return obj.room.name if obj.room else 'No Room'
@@ -82,6 +85,15 @@ class ChatSerializer(serializers.ModelSerializer):
         if obj.sender_type == 'ai' and obj.question_message:
             return obj.question_message.username
         return None
+
+    def get_imageUrls(self, obj):
+        """imageUrls 필드를 JSON 배열로 파싱하여 반환"""
+        if obj.imageUrls:
+            try:
+                return json.loads(obj.imageUrls)
+            except (json.JSONDecodeError, TypeError):
+                return []
+        return []
 
 class UserSettingsSerializer(serializers.ModelSerializer):
     tts_enabled = serializers.BooleanField(required=False)

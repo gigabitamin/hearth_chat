@@ -15,6 +15,8 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
     const inputRef = useRef();
     const [attachedImages, setAttachedImages] = useState([]); // 다중 이미지 지원
     const [attachedImagePreviews, setAttachedImagePreviews] = useState([]); // 다중 이미지 미리보기
+    const [attachedDocuments, setAttachedDocuments] = useState([]); // 문서 파일 지원
+    const [attachedDocumentPreviews, setAttachedDocumentPreviews] = useState([]); // 문서 파일 미리보기
     const [longPressTimer, setLongPressTimer] = useState(null);
 
     // --- [수정 1] long-press 발생 여부를 추적할 ref 추가 ---
@@ -164,7 +166,130 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
         return true;
     };
 
-    // 다중 이미지 업로드 핸들러
+    // 문서 파일 검증 함수
+    const validateDocumentFile = (file) => {
+        const allowedTypes = [
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-powerpoint',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'text/plain',
+            'text/csv'
+        ];
+        const maxSize = 50 * 1024 * 1024; // 50MB
+
+        if (!allowedTypes.includes(file.type)) {
+            alert('지원되지 않는 문서 형식입니다. PDF, Word, Excel, PowerPoint, TXT, CSV 파일만 업로드 가능합니다.');
+            return false;
+        }
+
+        if (file.size > maxSize) {
+            alert('파일 크기가 너무 큽니다. 50MB 이하의 파일만 업로드 가능합니다.');
+            return false;
+        }
+
+        return true;
+    };
+
+    // 파일 타입 판별 함수
+    const getFileType = (file) => {
+        if (file.type.startsWith('image/')) {
+            return 'image';
+        } else if (file.type.startsWith('application/') || file.type.startsWith('text/')) {
+            return 'document';
+        }
+        return 'unknown';
+    };
+
+    // 통합 파일 업로드 핸들러 (이미지 + 문서)
+    const handleFileUpload = (e) => {
+        console.log('[DEBUG] handleFileUpload 호출됨');
+        const files = Array.from(e.target.files || []);
+        if (files.length === 0) return;
+
+        const imageFiles = [];
+        const documentFiles = [];
+        const imagePreviews = [];
+        const documentPreviews = [];
+
+        files.forEach(file => {
+            console.log('[DEBUG] 선택된 파일:', file.name, file.type);
+
+            const fileType = getFileType(file);
+
+            if (fileType === 'image') {
+                if (validateImageFile(file)) {
+                    imageFiles.push(file);
+                    imagePreviews.push(URL.createObjectURL(file));
+                }
+            } else if (fileType === 'document') {
+                if (validateDocumentFile(file)) {
+                    documentFiles.push(file);
+                    // 문서 파일은 아이콘으로 미리보기
+                    const fileIcon = getDocumentIcon(file.type);
+                    documentPreviews.push({
+                        name: file.name,
+                        icon: fileIcon,
+                        size: file.size
+                    });
+                }
+            } else {
+                alert(`지원되지 않는 파일 형식입니다: ${file.name}`);
+            }
+        });
+
+        // 최대 파일 개수 체크 (이미지 5개 + 문서 3개)
+        const maxImages = 5;
+        const maxDocuments = 3;
+
+        if (attachedImages.length + imageFiles.length > maxImages) {
+            alert(`최대 ${maxImages}개의 이미지만 첨부할 수 있습니다.`);
+            return;
+        }
+
+        if (attachedDocuments.length + documentFiles.length > maxDocuments) {
+            alert(`최대 ${maxDocuments}개의 문서만 첨부할 수 있습니다.`);
+            return;
+        }
+
+        // 상태 업데이트
+        if (imageFiles.length > 0) {
+            setAttachedImages(prev => [...prev, ...imageFiles]);
+            setAttachedImagePreviews(prev => [...prev, ...imagePreviews]);
+        }
+
+        if (documentFiles.length > 0) {
+            setAttachedDocuments(prev => [...prev, ...documentFiles]);
+            setAttachedDocumentPreviews(prev => [...prev, ...documentPreviews]);
+        }
+    };
+
+    // 문서 아이콘 반환 함수
+    const getDocumentIcon = (mimeType) => {
+        switch (mimeType) {
+            case 'application/pdf':
+                return '📄';
+            case 'application/msword':
+            case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+                return '📝';
+            case 'application/vnd.ms-excel':
+            case 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
+                return '📊';
+            case 'application/vnd.ms-powerpoint':
+            case 'application/vnd.openxmlformats-officedocument.presentationml.presentation':
+                return '📈';
+            case 'text/plain':
+            case 'text/csv':
+                return '📃';
+            default:
+                return '📎';
+        }
+    };
+
+    // 기존 이미지 업로드 핸들러 (호환성 유지)
     const handleImageUpload = (e) => {
         console.log('[DEBUG] handleImageUpload 호출됨');
         console.log('[DEBUG] e.target:', e.target);
@@ -233,6 +358,24 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
         setAttachedImagePreviews([]);
     };
 
+    // 특정 문서 제거
+    const handleRemoveAttachedDocument = (index) => {
+        setAttachedDocuments(prev => prev.filter((_, i) => i !== index));
+        setAttachedDocumentPreviews(prev => prev.filter((_, i) => i !== index));
+    };
+
+    // 모든 문서 제거
+    const handleRemoveAllAttachedDocuments = () => {
+        setAttachedDocuments([]);
+        setAttachedDocumentPreviews([]);
+    };
+
+    // 모든 파일 제거 (이미지 + 문서)
+    const handleRemoveAllAttachedFiles = () => {
+        handleRemoveAllAttachedImages();
+        handleRemoveAllAttachedDocuments();
+    };
+
     // 다중 이미지 업로드 후 전송
     const handleMultipleImagesUploadAndSend = async (messageText) => {
         if (attachedImages.length === 0) return;
@@ -264,13 +407,15 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
             }
 
             // 모든 이미지가 업로드되면 WebSocket으로 전송
+            console.log('uploadedUrls GlobalChatInput.jsx', uploadedUrls);
             if (uploadedUrls.length > 0) {
                 if (room && ws && ws.readyState === 1) {
                     const messageData = {
                         message: finalMessageText,
-                        imageUrls: uploadedUrls, // 다중 이미지 URL 배열
+                        imageUrls: uploadedUrls, // 다중 이미지 URL 배열                        
                         roomId: room.id
                     };
+                    console.log('messageData GlobalChatInput.jsx', messageData);
                     ws.send(JSON.stringify(messageData));
                 } else {
                     // 대기방: localStorage에 임시 저장 후 방 생성

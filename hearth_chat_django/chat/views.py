@@ -648,6 +648,15 @@ class ChatViewSet(viewsets.ModelViewSet):
                     for emoji, data in reactions_data.items()
                 ]
 
+                # imageUrls 필드 처리
+                image_urls = []
+                if msg.imageUrls:
+                    try:
+                        import json
+                        image_urls = json.loads(msg.imageUrls)
+                    except (json.JSONDecodeError, TypeError):
+                        image_urls = []
+
                 message_data = {
                     'id': msg.id,
                     'type': 'send' if is_mine else 'recv',
@@ -660,10 +669,14 @@ class ChatViewSet(viewsets.ModelViewSet):
                     'ai_name': msg.ai_name,
                     'emotion': getattr(msg, 'emotion', None),
                     'imageUrl': msg.attach_image if msg.attach_image else None,  # .url 제거
+                    'imageUrls': image_urls,  # 다중 이미지 URL 배열 추가
                     'reactions': reactions_list,
                     'questioner_username': (msg.question_message.username if msg.sender_type == 'ai' and msg.question_message else None)
                 }
+                print('chat views 676 message_data', message_data);
                 message_list.append(message_data)
+                
+            
 
             response_data = {
                 'results': message_list,
