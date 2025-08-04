@@ -966,13 +966,132 @@ body,
   width: 100%;
   margin: 8px 0;
 }
-.message-markdown th, .message-markdown td {
+
+.message-markdown th,
+.message-markdown td {
   border: 1px solid #bbb;
   padding: 6px 10px;
   text-align: left;
   background: #fff;
 }
+
 .message-markdown th {
   background: #f0f0f0;
   font-weight: bold;
+}
+
+/* AI 메시지 스타일 */
+.ai-message {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin: 8px 0;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+}
+
+.ai-message::before {
+  content: '🤖';
+  position: absolute;
+  top: -8px;
+  left: 12px;
+  background: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.ai-typing-message {
+  background: linear-gradient(135deg, #ffd700 0%, #ffb347 100%);
+  color: #333;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin: 8px 0;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.2);
+  animation: typingPulse 1.5s ease-in-out infinite;
+}
+
+.ai-typing-message::before {
+  content: '⏳';
+  position: absolute;
+  top: -8px;
+  left: 12px;
+  background: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.ai-error-message {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+  color: white;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin: 8px 0;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(255, 107, 107, 0.2);
+}
+
+.ai-error-message::before {
+  content: '❌';
+  position: absolute;
+  top: -8px;
+  left: 12px;
+  background: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes typingPulse {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.8;
+    transform: scale(1.02);
+  }
+}
+
+.ai-message-info {
+  font-size: 0.8em;
+  opacity: 0.8;
+  margin-top: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ai-model-badge {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.7em;
+  font-weight: 500;
+}
+
+.ai-processing-time {
+  font-size: 0.7em;
+  opacity: 0.7;
 }

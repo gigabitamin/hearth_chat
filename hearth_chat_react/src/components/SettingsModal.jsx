@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './SettingsModal.css';
 import VoiceRecognition from './VoiceRecognition';
+import AISettingsModal from './AISettingsModal';
 import { API_BASE } from '../utils/apiConfig';
 
 const ALLAUTH_BASE = `${API_BASE}/accounts`;
@@ -92,6 +93,21 @@ const SettingsModal = ({
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
+
+  // AI 설정 관련 상태
+  const [showAISettingsModal, setShowAISettingsModal] = useState(false);
+  const [aiSettings, setAiSettings] = useState({
+    aiEnabled: !!userSettings?.ai_response_enabled,
+    aiProvider: 'lily',
+    lilyApiUrl: 'http://localhost:8001',
+    lilyModel: 'polyglot-ko-1.3b-chat',
+    chatgptApiKey: '',
+    geminiApiKey: '',
+    autoRespond: false,
+    responseDelay: 1000,
+    maxTokens: 1000,
+    temperature: 0.7
+  });
 
   // 계정 연결 상태 fetch 함수 분리 (JSON API 사용)
   const fetchConnections = () => {
@@ -441,7 +457,7 @@ const SettingsModal = ({
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="settings-modal-button-list-container" style={{ display: 'flex', justifyContent: 'center' }}>
                       <ul className="settings-modal-button-list">
                         <li>
@@ -776,18 +792,55 @@ const SettingsModal = ({
           )}
           {tab === 'ai' && (
             <div>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={!!userSettings?.ai_response_enabled}
-                  onChange={e => { saveSetting({ ai_response_enabled: e.target.checked }); }}
-                  disabled={saving}
-                />
-                AI 응답 사용
-              </label>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={aiSettings.aiEnabled}
+                    onChange={e => {
+                      setAiSettings(prev => ({ ...prev, aiEnabled: e.target.checked }));
+                      saveSetting({ ai_response_enabled: e.target.checked });
+                    }}
+                    disabled={saving}
+                  />
+                  AI 응답 사용
+                </label>
+                <button
+                  onClick={() => setShowAISettingsModal(true)}
+                  style={{
+                    padding: '8px 16px',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '0.9em'
+                  }}
+                >
+                  🤖 AI 설정
+                </button>
+              </div>
+
               <div style={{ marginTop: 12, fontSize: '0.9em', color: '#666' }}>
                 AI 응답을 끄면 AI가 메시지에 응답하지 않습니다.
               </div>
+
+              {aiSettings.aiEnabled && (
+                <div style={{ marginTop: 16, padding: 12, background: '#f8f9fa', borderRadius: '8px', border: '1px solid #e0e0e0' }}>
+                  <div style={{ fontWeight: '600', marginBottom: '8px' }}>
+                    현재 AI 설정:
+                  </div>
+                  <div style={{ fontSize: '0.9em', color: '#666' }}>
+                    <div>• 제공자: {aiSettings.aiProvider === 'lily' ? 'Lily LLM (로컬)' :
+                      aiSettings.aiProvider === 'chatgpt' ? 'ChatGPT' : 'Gemini'}</div>
+                    {aiSettings.aiProvider === 'lily' && (
+                      <div>• 모델: {aiSettings.lilyModel}</div>
+                    )}
+                    <div>• 자동 응답: {aiSettings.autoRespond ? '활성화' : '비활성화'}</div>
+                    <div>• 응답 지연: {aiSettings.responseDelay}ms</div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
           {tab === 'notify' && <div>알림 설정 (예: 소리, 팝업 등)</div>}
@@ -797,6 +850,22 @@ const SettingsModal = ({
           {tab === 'etc' && <div>기타 설정</div>}
         </div>
       </div>
+
+      {/* AI 설정 모달 */}
+      <AISettingsModal
+        isOpen={showAISettingsModal}
+        onClose={() => setShowAISettingsModal(false)}
+        onSave={(newSettings) => {
+          setAiSettings(newSettings);
+          setShowAISettingsModal(false);
+          // AI 설정을 서버에 저장
+          saveSetting({
+            ai_response_enabled: newSettings.aiEnabled,
+            ai_settings: JSON.stringify(newSettings)
+          });
+        }}
+        currentSettings={aiSettings}
+      />
     </div>
   );
 };

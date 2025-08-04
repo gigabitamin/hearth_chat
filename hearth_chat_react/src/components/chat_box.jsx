@@ -5,6 +5,7 @@ import VoiceRecognition from './VoiceRecognition';
 import ttsService from '../services/ttsService';
 import readyPlayerMeService from '../services/readyPlayerMe';
 import faceTrackingService from '../services/faceTrackingService';
+import aiService from '../services/aiService';
 import './chat_box.css';
 import axios from 'axios';
 import katex from 'katex';
@@ -2025,6 +2026,92 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     } catch (e) {
       alert('메시지 전송 중 오류: ' + e.message);
     }
+
+    // AI 자동 응답 처리
+    if (aiService.isAutoRespondEnabled()) {
+      generateAIResponse(textToSend);
+    }
+  };
+
+  // AI 응답 생성 함수
+  const generateAIResponse = async (userMessage) => {
+    try {
+      // AI 응답 생성 중임을 표시
+      const aiTypingMessage = {
+        id: `ai_typing_${Date.now()}`,
+        type: 'ai_typing',
+        text: '🤖 AI가 응답을 생성하고 있습니다...',
+        date: new Date().toISOString(),
+        sender: 'AI Assistant',
+        pending: true
+      };
+
+      setMessages(prev => [...prev, aiTypingMessage]);
+
+      // AI 응답 생성
+      const aiResponse = await aiService.generateResponseWithDelay(userMessage);
+
+      // 타이핑 메시지 제거
+      setMessages(prev => prev.filter(msg => msg.id !== aiTypingMessage.id));
+
+      // AI 응답 메시지 추가
+      const aiMessage = {
+        id: `ai_${Date.now()}`,
+        type: 'ai',
+        text: aiResponse.text,
+        date: new Date().toISOString(),
+        sender: 'AI Assistant',
+        model: aiResponse.model,
+        processingTime: aiResponse.processingTime
+      };
+
+      setMessages(prev => [...prev, aiMessage]);
+
+      // AI 응답을 서버에 저장
+      try {
+        await csrfFetch(`${getApiBase()}/api/chat/messages/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            room: selectedRoom?.id,
+            content: aiResponse.text,
+            sender_type: 'ai',
+            message_type: 'text',
+            username: 'AI Assistant',
+            user_id: null,
+            ai_model: aiResponse.model,
+            processing_time: aiResponse.processingTime
+          }),
+          credentials: 'include',
+        });
+      } catch (e) {
+        console.error('AI 응답 서버 저장 실패:', e);
+      }
+
+      // TTS로 AI 응답 읽기 (설정에 따라)
+      if (userSettings?.tts_enabled && aiResponse.text) {
+        speakAIMessage(aiResponse.text);
+      }
+
+    } catch (error) {
+      console.error('AI 응답 생성 실패:', error);
+
+      // 에러 메시지 표시
+      const errorMessage = {
+        id: `ai_error_${Date.now()}`,
+        type: 'ai_error',
+        text: `AI 응답 생성에 실패했습니다: ${error.message}`,
+        date: new Date().toISOString(),
+        sender: 'AI Assistant',
+        error: true
+      };
+
+      setMessages(prev => {
+        // 타이핑 메시지 제거
+        const filtered = prev.filter(msg => msg.id !== `ai_typing_${Date.now()}`);
+        return [...filtered, errorMessage];
+      });
+    }
   };
 
 
@@ -2410,6 +2497,43 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     return () => window.removeEventListener('message', handleLoginSuccess);
   }, []);
 
+  // AI 서비스 초기화
+  useEffect(() => {
+    if (userSettings) {
+      try {
+        // AI 설정이 저장되어 있으면 로드
+        let aiSettings = {
+          aiEnabled: !!userSettings.ai_response_enabled,
+          aiProvider: 'lily',
+          lilyApiUrl: 'http://localhost:8001',
+          lilyModel: 'polyglot-ko-1.3b-chat',
+          chatgptApiKey: '',
+          geminiApiKey: '',
+          autoRespond: false,
+          responseDelay: 1000,
+          maxTokens: 1000,
+          temperature: 0.7
+        };
+
+        // 저장된 AI 설정이 있으면 파싱
+        if (userSettings.ai_settings) {
+          try {
+            const savedSettings = JSON.parse(userSettings.ai_settings);
+            aiSettings = { ...aiSettings, ...savedSettings };
+          } catch (e) {
+            console.error('AI 설정 파싱 실패:', e);
+          }
+        }
+
+        // AI 서비스 초기화
+        aiService.initialize(aiSettings);
+        console.log('🤖 AI 서비스 초기화 완료:', aiSettings);
+      } catch (error) {
+        console.error('AI 서비스 초기화 실패:', error);
+      }
+    }
+  }, [userSettings]);
+
   // 소셜 로그인 팝업 오픈 함수 (최상위에서 정의)
   const openSocialLoginPopup = (url) => {
     const popupWidth = 480;
@@ -2453,14 +2577,14 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
         setFirstItemIndex(reloadOffset);
         setMessageOffset(reloadOffset);
         setTotalCount(data.count || 0);
-        setLoadingMessages(false);        
+        setLoadingMessages(false);
       } catch (err) {
         setLoadingMessages(false);
         console.error('[슬라이딩윈도우:fallback] 전체 reload 실패', err);
       }
     };
 
-    if (loadingMessages) {      
+    if (loadingMessages) {
       return;
     }
 
@@ -2503,7 +2627,7 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
         if (isPrepending) {
           // 연속성 체크 및 fallback 전체 reload 로직
-          const reloadWindow = async (reloadOffset, reloadLimit) => {            
+          const reloadWindow = async (reloadOffset, reloadLimit) => {
             setLoadingMessages(true);
             try {
               const response = await fetch(`/api/chat/messages/messages/?room=${selectedRoom.id}&limit=${reloadLimit}&offset=${reloadOffset}`);
@@ -2512,9 +2636,9 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
               setFirstItemIndex(reloadOffset);
               setMessageOffset(reloadOffset);
               setTotalCount(data.count || 0);
-              setLoadingMessages(false);              
+              setLoadingMessages(false);
             } catch (err) {
-              setLoadingMessages(false);              
+              setLoadingMessages(false);
             }
           };
 
@@ -2627,16 +2751,16 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
   // (3) messageId로 offset을 계산해서 fetch하는 함수 (슬라이딩 윈도우 40개 유지)
   const fetchOffsetForMessageId = async (roomId, messageId) => {
-    try {      
+    try {
       const res = await fetch(`${API_BASE}/api/chat/messages/offset/?room=${roomId}&messageId=${messageId}&page_size=40`, {
         credentials: 'include',
       });
 
       if (res.ok) {
-        const data = await res.json();        
+        const data = await res.json();
 
         // 백엔드에서 이미 윈도우 중앙에 위치하도록 offset을 계산해줬으므로 그대로 사용
-        const offset = data.offset;        
+        const offset = data.offset;
         setIsJumpingToMessage(true); // 특정 메시지 찾아가기 모드 진입
         fetchMessages(roomId, offset, 40, false, true, messageId);
         setFirstItemIndex(offset);
@@ -2866,14 +2990,14 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
   // messages와 scrollToMessageId를 감시하여 스크롤 트리거
   useEffect(() => {
-    if (scrollToMessageId && messages.some(m => m.id == scrollToMessageId)) {      
+    if (scrollToMessageId && messages.some(m => m.id == scrollToMessageId)) {
       // VirtualizedMessageList에서 직접 처리하므로 여기서는 아무것도 하지 않음
     }
   }, [messages, scrollToMessageId]);
 
   // 메시지 클릭 핸들러
   const handleMessageClick = (message, action) => {
-    if (action === 'resetScrollToMessageId') {      
+    if (action === 'resetScrollToMessageId') {
       setScrollToMessageId(null);
       setIsJumpingToMessage(false); // 스크롤 완료 후 모드 해제      
     }
