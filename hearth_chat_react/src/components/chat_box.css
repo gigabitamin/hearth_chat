@@ -733,6 +733,55 @@ body,
   max-width: 100%;
 }
 
+/* LaTeX 수식 렌더링 개선 */
+.message-markdown .katex {
+  font-size: 1em;
+  line-height: 1.2;
+  color: #fff;
+}
+
+.message-markdown .katex-display {
+  margin: 1em 0;
+  text-align: center;
+  overflow-x: auto;
+}
+
+.message-markdown .katex .mathnormal {
+  font-family: KaTeX_Main;
+  font-style: normal;
+}
+
+.message-markdown .katex .mathit {
+  font-family: KaTeX_Math;
+  font-style: italic;
+}
+
+.message-markdown .katex .mathbf {
+  font-family: KaTeX_Main;
+  font-weight: bold;
+}
+
+.message-markdown .katex .boldsymbol {
+  font-family: KaTeX_Math;
+  font-weight: bold;
+  font-style: italic;
+}
+
+/* 인라인 수식 스타일 */
+.math-inline {
+  font-family: KaTeX_Main, serif;
+  color: #fff;
+}
+
+/* 블록 수식 스타일 */
+.math-display {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+  font-family: KaTeX_Main, serif;
+  color: #fff;
+}
+
 .chat-bubble .markdown-table-wrapper {
   overflow-x: auto;
   max-width: 100%;

@@ -1,0 +1,27 @@
+{% extends "socialaccount/base.html" %}
+{% load i18n %}
+
+{% block content %}
+<div
+    style="max-width: 400px; margin: 60px auto; background: #222; border-radius: 16px; box-shadow: 0 8px 32px #0002; padding: 32px 24px; color: #fff; text-align: center;">
+    <img src="/static/oauth_logo/Google.svg" alt="Google" style="width: 48px; height: 48px; margin-bottom: 16px;" />
+    <h2 style="font-size: 2rem; margin-bottom: 12px;">Google 계정 연결</h2>
+    <p style="color: #bbb; margin-bottom: 24px;">
+        이 계정에 Google 로그인을 연결합니다.<br>
+        아래 버튼을 눌러 인증을 진행해 주세요.
+    </p>
+    <form method="post" style="margin-bottom: 0;">
+        {% csrf_token %}
+        <button type="submit"
+            style="background: #4285F4; color: #fff; border: none; border-radius: 8px; font-size: 1.1rem; padding: 12px 32px; font-weight: bold; cursor: pointer;">
+            Google로 연결하기
+        </button>
+    </form>
+</div>
+<script>
+    if (window.opener && window.location.search.includes('process=connect')) {
+        window.opener.postMessage('connection_success', '*');
+        setTimeout(() => window.close(), 500);
+    }
+</script>
+{% endblock %}
