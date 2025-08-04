@@ -47,7 +47,7 @@ function LobbyPage({ loginUser, loginLoading, checkLoginStatus, userSettings, se
   );
 }
 
-function ChatRoomPage({ loginUser, loginLoading, checkLoginStatus, userSettings, setUserSettings, onUserMenuOpen, isSettingsModalOpen, setIsSettingsModalOpen, isLoginModalOpen, setIsLoginModalOpen, settingsTab, setSettingsTab, pendingImageFile, setPendingImageFile }) {
+function ChatRoomPage({ loginUser, loginLoading, checkLoginStatus, userSettings, setUserSettings, onUserMenuOpen, isSettingsModalOpen, setIsSettingsModalOpen, isLoginModalOpen, setIsLoginModalOpen, settingsTab, setSettingsTab, pendingImageFile, setPendingImageFile, pendingImageUrls, setPendingImageUrls }) {
   const { roomId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -65,7 +65,7 @@ function ChatRoomPage({ loginUser, loginLoading, checkLoginStatus, userSettings,
       try {
         const res = await csrfFetch(`${getApiBase()}/api/chat/rooms/${roomId}/`, { credentials: 'include' });
         if (res.ok) {
-          const data = await res.json();          
+          const data = await res.json();
           setRoom(data);
         } else {
           setRoom(null);
@@ -109,6 +109,8 @@ function ChatRoomPage({ loginUser, loginLoading, checkLoginStatus, userSettings,
         highlightMessageId={highlightMessageId}
         pendingImageFile={pendingImageFile}
         setPendingImageFile={setPendingImageFile}
+        pendingImageUrls={pendingImageUrls}
+        setPendingImageUrls={setPendingImageUrls}
       />
     </div>
   );
@@ -206,6 +208,9 @@ function AppContent(props) {
     // GlobalChatInput에서 전달받은 이미지 파일 상태
     pendingImageFile,
     setPendingImageFile,
+    // 다중 이미지 URL 상태
+    pendingImageUrls,
+    setPendingImageUrls,
   } = props;
 
   // const [isFavoriteRoom, setIsFavoriteRoom] = useState(false);
@@ -249,7 +254,7 @@ function AppContent(props) {
   const [isCreateNewChatOpen, setIsCreateNewChatOpen] = useState(false);
 
   // 새 대화방 만들기 모달 열기
-  const onOpenCreateRoomModal = () => {    
+  const onOpenCreateRoomModal = () => {
     setIsCreateNewChatOpen(true);
   };
 
@@ -288,7 +293,7 @@ function AppContent(props) {
           ) : (
             roomMessages.map(msg => (
               <div key={msg.id} style={{ marginBottom: 8, color: msg.type === 'send' ? '#2196f3' : '#fff' }}>
-                <span style={{ fontSize: 18, fontWeight: 600, backgroundColor: '#f0f0f0', padding: '4px 4px', borderRadius: 4 }}>{msg.sender}</span> 
+                <span style={{ fontSize: 18, fontWeight: 600, backgroundColor: '#f0f0f0', padding: '4px 4px', borderRadius: 4 }}>{msg.sender}</span>
                 <AiMessageRenderer message={msg.text} />
               </div>
             ))
@@ -456,10 +461,10 @@ function AppContent(props) {
         }}
         onSearchClick={() => setIsSearchModalOpen(true)}
         onNotifyClick={() => setIsNotifyModalOpen(true)}
-        onSettingsClick={() => {          
+        onSettingsClick={() => {
           setIsSettingsModalOpen(true);
         }}
-        onLoginClick={() => {          
+        onLoginClick={() => {
           setIsLoginModalOpen(true);
         }}
         onCreateRoomClick={() => setShowCreateModal(true)}
@@ -492,12 +497,12 @@ function AppContent(props) {
           const left = window.screenX + (window.outerWidth - popupWidth) / 2;
           const top = window.screenY + (window.outerHeight - popupHeight) / 2;
           const popupFeatures = `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes,menubar=no,toolbar=no,location=no`;
-          const popup = window.open(url, 'social_login', popupFeatures);          
+          const popup = window.open(url, 'social_login', popupFeatures);
 
-          if (popup) {            
+          if (popup) {
             const checkClosed = setInterval(() => {
-              if (popup.closed) {                
-                clearInterval(checkClosed);                
+              if (popup.closed) {
+                clearInterval(checkClosed);
                 setIsLoginModalOpen(false); // 팝업이 닫힐 때만 모달 닫기
                 checkLoginStatus();
                 window.location.reload();
@@ -702,6 +707,8 @@ function AppContent(props) {
             setSettingsTab={setSettingsTab}
             pendingImageFile={pendingImageFile}
             setPendingImageFile={setPendingImageFile}
+            pendingImageUrls={pendingImageUrls}
+            setPendingImageUrls={setPendingImageUrls}
           />
         } />
         <Route path="/admin" element={<AdminPage loginUser={loginUser} loginLoading={loginLoading} checkLoginStatus={checkLoginStatus} />} />
@@ -759,7 +766,8 @@ function App() {
   // 이미지 뷰어 모달 상태 추가
   const [viewerImage, setViewerImage] = useState(null);
   // GlobalChatInput에서 전달받은 이미지 파일 상태
-  const [pendingImageFile, setPendingImageFile] = useState(null);
+  const [pendingImageFile, setPendingImageFile] = useState([]);
+  const [pendingImageUrls, setPendingImageUrls] = useState([]); // 다중 이미지 URL 지원
 
   // 1. previewMessages 상태 추가
   const [previewMessages, setPreviewMessages] = useState([]);
@@ -869,21 +877,21 @@ function App() {
 
   // 팝업창으로부터 메시지 수신 처리 (백업용)
   useEffect(() => {
-    const handleMessage = (event) => {      
+    const handleMessage = (event) => {
       if (
         event.data === 'login_success' ||
         (event.data && event.data.type === "SOCIAL_LOGIN_SUCCESS")
-      ) {        
+      ) {
         // 로그인 상태 다시 확인
-        setIsLoginModalOpen(false);        
+        setIsLoginModalOpen(false);
         checkLoginStatus();
         // 페이지 새로고침        
         window.location.reload();
       }
     };
-    
+
     window.addEventListener('message', handleMessage);
-    return () => { 
+    return () => {
       window.removeEventListener('message', handleMessage);
     };
   }, [isSettingsModalOpen]);
@@ -959,7 +967,7 @@ function App() {
         : `${protocol}//${host}/ws/chat/`;
       wsInstance = new window.WebSocket(wsUrl);
       ws.current = wsInstance;
-      wsInstance.onopen = () => {};
+      wsInstance.onopen = () => { };
       wsInstance.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
@@ -973,7 +981,7 @@ function App() {
     };
     connect();
     return () => { if (wsInstance) wsInstance.close(); };
-  }, []);  
+  }, []);
   // 현재 페이지가 /room/:roomId로 시작하면 room 상태를 업데이트하는 useEffect 추가
   useEffect(() => {
     // /room/:roomId 패턴 매칭
@@ -1065,6 +1073,9 @@ function App() {
     // GlobalChatInput에서 전달받은 이미지 파일 상태
     pendingImageFile={pendingImageFile}
     setPendingImageFile={setPendingImageFile}
+    // 다중 이미지 URL 상태
+    pendingImageUrls={pendingImageUrls}
+    setPendingImageUrls={setPendingImageUrls}
   />;
 }
 

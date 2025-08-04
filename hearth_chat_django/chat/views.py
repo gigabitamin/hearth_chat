@@ -145,6 +145,78 @@ def upload_chat_image(request):
     })
 
 @csrf_exempt
+@require_http_methods(["POST"])
+def upload_multiple_chat_images(request):
+    """다중 채팅 이미지 업로드 API"""
+    files = request.FILES.getlist('files')
+    content = request.POST.get('content', '')
+    
+    if not files:
+        return JsonResponse({'status': 'error', 'message': '파일이 첨부되지 않았습니다.'}, status=400)
+
+    # 최대 파일 개수 제한
+    MAX_FILES = 5
+    if len(files) > MAX_FILES:
+        return JsonResponse({'status': 'error', 'message': f'최대 {MAX_FILES}개의 파일만 업로드할 수 있습니다.'}, status=400)
+
+    uploaded_files = []
+    errors = []
+
+    for i, file in enumerate(files):
+        try:
+            # 확장자 검사
+            ext = file.name.split('.')[-1].lower()
+            if ext not in ALLOWED_EXTENSIONS:
+                errors.append(f'파일 {i+1}: 허용되지 않는 확장자입니다: {ext}')
+                continue
+
+            # 용량 검사
+            if file.size > MAX_FILE_SIZE_MB * 1024 * 1024:
+                errors.append(f'파일 {i+1}: 파일 용량은 {MAX_FILE_SIZE_MB}MB 이하만 허용됩니다.')
+                continue
+
+            # MIME 타입 검사
+            if file.content_type not in ALLOWED_MIME_TYPES:
+                errors.append(f'파일 {i+1}: 허용되지 않는 MIME 타입입니다: {file.content_type}')
+                continue
+
+            # 파일 저장
+            from django.core.files.storage import default_storage
+            from django.core.files.base import ContentFile
+            from django.conf import settings
+            
+            # 파일을 저장하고 URL 생성
+            file_path = default_storage.save(f'image/chat_attach/{file.name}', ContentFile(file.read()))
+            
+            # 절대 URL 생성
+            if hasattr(settings, 'MEDIA_URL') and settings.MEDIA_URL.startswith('http'):
+                file_url = f"{settings.MEDIA_URL}{file_path}"
+            else:
+                # 로컬 개발 환경에서는 상대 경로를 절대 경로로 변환
+                file_url = f"/media/{file_path}"
+            
+            uploaded_files.append({
+                'original_name': file.name,
+                'file_url': file_url,
+                'size': file.size
+            })
+
+        except Exception as e:
+            errors.append(f'파일 {i+1}: 업로드 중 오류가 발생했습니다. ({str(e)})')
+
+    if errors:
+        return JsonResponse({
+            'status': 'partial_success' if uploaded_files else 'error',
+            'uploaded_files': uploaded_files,
+            'errors': errors
+        }, status=400 if not uploaded_files else 200)
+    else:
+        return JsonResponse({
+            'status': 'success',
+            'uploaded_files': uploaded_files
+        })
+
+@csrf_exempt
 @require_http_methods(["GET"])
 def user_info(request):
     """현재 로그인된 사용자 정보 + 로그인 방법 반환 API"""

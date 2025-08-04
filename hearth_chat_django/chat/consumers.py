@@ -102,9 +102,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
         user_message = data.get("message", "")
         user_emotion = data.get("emotion", "neutral")  # 감정 정보 추출
         image_url = data.get("imageUrl", "")
+        image_urls = data.get("imageUrls", [])  # 다중 이미지 URL 배열
         room_id = data.get("roomId", "")  # 대화방 ID 추가
+        
+        # 단일 이미지 URL을 배열로 변환 (호환성 유지)
+        if image_url and not image_urls:
+            image_urls = [image_url]
 
-        if not user_message and not image_url:
+        if not user_message and not image_urls:
             await self.send(text_data=json.dumps({'message': "메시지와 이미지가 모두 비어 있습니다."}))
             return
 
@@ -113,7 +118,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         
         # 사용자 메시지를 DB에 저장 (감정 정보 포함)        
         user_obj = self.scope.get('user', None)
-        user_message_obj = await self.save_user_message(user_message or '[이미지 첨부]', room_id, user_emotion, user_obj, image_url)        
+        # 첫 번째 이미지 URL을 사용 (호환성 유지)
+        first_image_url = image_urls[0] if image_urls else image_url
+        user_message_obj = await self.save_user_message(user_message or '[이미지 첨부]', room_id, user_emotion, user_obj, first_image_url)        
         try:
             debug_event = {
                 'type': 'user_message',
@@ -127,7 +134,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'user_id': user_message_obj.user_id if user_message_obj and hasattr(user_message_obj, 'user_id') else None,
                 'timestamp': user_message_obj.timestamp.isoformat() if user_message_obj and hasattr(user_message_obj, 'timestamp') else None,
                 'emotion': user_emotion,
-                'imageUrl': image_url  # imageUrl 추가
+                'imageUrl': first_image_url,  # 첫 번째 이미지 URL
+                'imageUrls': image_urls  # 다중 이미지 URL 배열 추가
             }            
         except Exception as e:
             print(f"[DEBUG][group_send][user_message] event 출력 오류: {e}")
@@ -145,7 +153,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'user_id': user_message_obj.user_id if hasattr(user_message_obj, 'user_id') else None,  # user_id 추가
                 'timestamp': user_message_obj.timestamp.isoformat(),
                 'emotion': user_emotion,
-                'imageUrl': image_url  # imageUrl 추가
+                'imageUrl': first_image_url,  # 첫 번째 이미지 URL (호환성 유지)
+                'imageUrls': image_urls  # 다중 이미지 URL 배열 추가
             }
         )
 
@@ -169,7 +178,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return
 
         try:            
-            ai_response_result = await self.get_ai_response(user_message, user_emotion, image_url)            
+            # 모든 이미지 URL을 AI 응답에 전달
+            ai_response_result = await self.get_ai_response(user_message, user_emotion, image_urls)            
             
             # AI 응답 결과에서 정보 추출
             ai_response = ai_response_result['response']
@@ -411,7 +421,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 "aiEnabled": True
             }
 
-    async def get_ai_response(self, user_message, user_emotion="neutral", image_url=None):
+    async def get_ai_response(self, user_message, user_emotion="neutral", image_urls=None):
         import base64
         import requests
         import os
@@ -420,7 +430,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         from openai import OpenAI
 
         @sync_to_async
-        def call_lily_api(user_message, user_emotion, image_url=None):
+        def call_lily_api(user_message, user_emotion, image_urls=None):
             """Lily LLM API 호출"""
             import requests
             try:
@@ -475,53 +485,58 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 # Lily API 호출
                 lily_url = f"{lily_api_url}/generate"
                 
-                # 이미지가 있는 경우 처리
-                if image_url:
+                # 다중 이미지 처리
+                if image_urls and len(image_urls) > 0:
                     from urllib.parse import unquote
                     from django.conf import settings
-                    print(f"🖼️ 이미지 처리 시작: {image_url}")
-                    try:
-                        if image_url.startswith('/media/'):
-                            rel_path = unquote(image_url.replace('/media/', ''))
-                            file_path = os.path.normpath(os.path.join(settings.MEDIA_ROOT, rel_path))
-                            print(f"📁 미디어 파일 경로: {file_path}")
-                        else:
-                            file_path = unquote(image_url)
-                            print(f"📁 직접 파일 경로: {file_path}")
-                        
-                        if os.path.exists(file_path):
-                            print(f"✅ 이미지 파일 존재 확인됨: {file_path}")
-                            with open(file_path, 'rb') as f:
-                                img_bytes = f.read()
-                            print(f"📊 이미지 크기: {len(img_bytes)} bytes")
+                    print(f"🖼️ 다중 이미지 처리 시작: {len(image_urls)}개 이미지")
+                    
+                    files = {}
+                    data = {
+                        'prompt': user_message or "이 이미지들을 분석해줘.",
+                        'max_length': 1000,
+                        'temperature': 0.7
+                    }
+                    
+                    for i, image_url in enumerate(image_urls):
+                        try:
+                            if image_url.startswith('/media/'):
+                                rel_path = unquote(image_url.replace('/media/', ''))
+                                file_path = os.path.normpath(os.path.join(settings.MEDIA_ROOT, rel_path))
+                                print(f"📁 미디어 파일 경로 {i+1}: {file_path}")
+                            else:
+                                file_path = unquote(image_url)
+                                print(f"📁 직접 파일 경로 {i+1}: {file_path}")
                             
-                            # Form 데이터로 전송
-                            files = {'image1': ('image.png', img_bytes, 'image/png')}
-                            data = {
-                                'prompt': user_message or "이 이미지를 분석해줘.",
-                                'max_length': 1000,
-                                'temperature': 0.7
-                            }
-                            print(f"🔄 멀티모달 요청 준비 완료 (이미지 포함)")
-                        else:
-                            print(f"❌ 이미지 파일이 존재하지 않음: {file_path}")
-                            # 이미지 파일이 없으면 텍스트만
-                            data = {
-                                'prompt': user_message or "이미지 분석을 요청했지만 파일을 찾을 수 없습니다.",
-                                'max_length': 1000,
-                                'temperature': 0.7
-                            }
-                            files = None
-                            print(f"🔄 텍스트 전용 요청으로 변경")
-                    except Exception as e:
-                        print(f"❌ 이미지 처리 오류: {e}")
+                            if os.path.exists(file_path):
+                                print(f"✅ 이미지 파일 {i+1} 존재 확인됨: {file_path}")
+                                with open(file_path, 'rb') as f:
+                                    img_bytes = f.read()
+                                print(f"📊 이미지 {i+1} 크기: {len(img_bytes)} bytes")
+                                
+                                # 파일 확장자 추출
+                                import mimetypes
+                                mime_type, _ = mimetypes.guess_type(file_path)
+                                if not mime_type or not mime_type.startswith('image/'):
+                                    mime_type = 'image/png'
+                                
+                                # Form 데이터에 추가
+                                files[f'image{i+1}'] = (f'image{i+1}.png', img_bytes, mime_type)
+                            else:
+                                print(f"❌ 이미지 파일 {i+1}이 존재하지 않음: {file_path}")
+                        except Exception as e:
+                            print(f"❌ 이미지 {i+1} 처리 오류: {e}")
+                    
+                    if not files:
+                        print(f"🔄 모든 이미지 처리 실패, 텍스트 전용 요청으로 변경")
                         data = {
-                            'prompt': user_message,
+                            'prompt': user_message or "이미지 분석을 요청했지만 파일을 찾을 수 없습니다.",
                             'max_length': 1000,
                             'temperature': 0.7
                         }
                         files = None
-                        print(f"🔄 텍스트 전용 요청으로 변경 (오류로 인해)")
+                    else:
+                        print(f"🔄 멀티모달 요청 준비 완료 ({len(files)}개 이미지 포함)")
                 else:
                     # 텍스트만 요청
                     data = {
@@ -558,7 +573,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 raise e
 
         @sync_to_async
-        def call_gemini():            
+        def call_gemini(image_urls=None):            
             # 감정 변화 추세 분석
             emotion_trend = self.get_emotion_trend()
             # 감정 전략 등 기존 코드 유지
@@ -587,9 +602,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
             system_content = f"""당신은 따뜻하고 공감적인 AI 대화상대입니다. \n벽난로 주변의 아늑한 공간에서 대화하는 것처럼 편안하고 따뜻한 톤으로 응답해주세요.\n\n현재 사용자의 감정 상태: {user_emotion}\n감정 변화 추세: {emotion_trend}\n\n응답 전략:\n- 톤: {strategy['tone']}\n- 접근법: {strategy['approach']}\n- 감정 변화 지침: {trend_guide}\n\n{context_summary}\n\n사용자의 감정에 맞춰 적절한 톤과 내용으로 응답해주세요. \n필요시 조언, 위로, 격려, 동조, 기쁨 등을 자연스럽게 표현하세요.\n이모티콘을 적절히 사용하여 감정을 표현하세요."""
 
             # 1. 이미지가 포함된 경우: 먼저 OpenAI 라이브러리 방식 시도
-            if image_url:
+            if image_urls and len(image_urls) > 0:
                 from urllib.parse import unquote
                 try:
+                    # 첫 번째 이미지 사용
+                    image_url = image_urls[0]
                     # image_url이 /media/... 형태라면 MEDIA_ROOT에서 파일 경로 추출 (unquote 적용)
                     if image_url.startswith('/media/'):
                         rel_path = unquote(image_url.replace('/media/', ''))
@@ -712,7 +729,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         try:
             if ai_provider == 'lily':
                 print("🚀 Lily LLM API 호출")
-                response_text = await call_lily_api(user_message, user_emotion, image_url)
+                response_text = await call_lily_api(user_message, user_emotion, image_urls)
                 return {
                     'response': response_text,
                     'provider': 'lily',
@@ -721,7 +738,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 }
             else:
                 print("🚀 Gemini API 호출")
-                response_text = await call_gemini()
+                response_text = await call_gemini(image_urls)
                 return {
                     'response': response_text,
                     'provider': 'gemini',

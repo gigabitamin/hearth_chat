@@ -1,3 +1,4 @@
+import MultiImageUpload from './MultiImageUpload';
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import RealisticAvatar3D from './RealisticAvatar3D';
 import EmotionCamera from './EmotionCamera';
@@ -47,6 +48,8 @@ ChartJS.register(
   Tooltip,
   Legend
 );
+
+
 
 // 이미지 URL을 절대 경로로 변환하는 함수
 const getImageUrl = (imageUrl) => {
@@ -144,7 +147,24 @@ function MyChart() {
   );
 }
 
-const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, userSettings, setUserSettings, onUserMenuOpen, isSettingsModalOpen, setIsSettingsModalOpen, isLoginModalOpen, setIsLoginModalOpen, settingsTab, setSettingsTab, pendingImageFile, setPendingImageFile, highlightMessageId }) => {
+const ChatBox = ({ 
+  selectedRoom, 
+  loginUser, 
+  loginLoading, 
+  checkLoginStatus, 
+  userSettings, 
+  setUserSettings, 
+  onUserMenuOpen, 
+  isSettingsModalOpen, 
+  setIsSettingsModalOpen, 
+  isLoginModalOpen, 
+  setIsLoginModalOpen, 
+  settingsTab, 
+  setSettingsTab, 
+  pendingImageFile, 
+  setPendingImageFile, 
+  highlightMessageId,  
+}) => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const messageIdFromUrl = searchParams.get('messageId');
@@ -1830,34 +1850,70 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     }
   };
 
-  // 이미지 첨부 핸들러
+  // 멀티 이미지 첨부 핸들러
   const handleImageUpload = (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
     const allowedExt = ['jpg', 'jpeg', 'png', 'webp'];
     const allowedMime = ['image/jpeg', 'image/png', 'image/webp'];
     const maxSize = 4 * 1024 * 1024;
-    const ext = file.name.split('.').pop().toLowerCase();
-    if (!allowedExt.includes(ext)) {
-      alert('허용되지 않는 확장자입니다: ' + ext);
+    const maxImages = 5;
+
+    // 최대 이미지 개수 체크
+    if (attachedImages.length + files.length > maxImages) {
+      alert(`최대 ${maxImages}개의 이미지만 첨부할 수 있습니다.`);
       return;
     }
-    if (file.size > maxSize) {
-      alert('파일 용량은 4MB 이하만 허용됩니다.');
-      return;
+
+    const validFiles = [];
+    const validPreviews = [];
+
+    files.forEach(file => {
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (!allowedExt.includes(ext)) {
+        alert('허용되지 않는 확장자입니다: ' + ext);
+        return;
+      }
+      if (file.size > maxSize) {
+        alert('파일 용량은 4MB 이하만 허용됩니다.');
+        return;
+      }
+      if (!allowedMime.includes(file.type)) {
+        alert('허용되지 않는 이미지 형식입니다: ' + file.type);
+        return;
+      }
+      validFiles.push(file);
+      validPreviews.push(URL.createObjectURL(file));
+    });
+
+    if (validFiles.length > 0) {
+      setAttachedImages(prev => [...prev, ...validFiles]);
+      setAttachedImagePreviews(prev => [...prev, ...validPreviews]);
     }
-    if (!allowedMime.includes(file.type)) {
-      alert('허용되지 않는 이미지 형식입니다: ' + file.type);
-      return;
-    }
-    setAttachedImage(file);
-    setAttachedImagePreview(URL.createObjectURL(file));
   };
 
-  // 첨부 이미지 해제
-  const handleRemoveAttachedImage = () => {
-    setAttachedImage(null);
-    setAttachedImagePreview(null);
+  // 첨부 이미지 해제  
+  const handleRemoveAttachedImage = (index) => {
+    setAttachedImages(prev => prev.filter((_, i) => i !== index));
+    setAttachedImagePreviews(prev => {
+      const newPreviews = prev.filter((_, i) => i !== index);
+      // URL.revokeObjectURL 호출하여 메모리 정리
+      if (prev[index]) {
+        URL.revokeObjectURL(prev[index]);
+      }
+      return newPreviews;
+    });
+  };
+
+  // 모든 이미지 제거 함수 추가
+  const handleRemoveAllAttachedImages = () => {
+    // 모든 미리보기 URL 해제
+    attachedImagePreviews.forEach(url => {
+      URL.revokeObjectURL(url);
+    });
+    setAttachedImages([]);
+    setAttachedImagePreviews([]);
   };
 
   // 이미지 업로드 후 전송 (파일 직접 전달)
@@ -1885,8 +1941,8 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
 
         ws.current.send(JSON.stringify(messageData));
         setInput('');
-        setAttachedImage(null);
-        setAttachedImagePreview(null);
+        setAttachedImages([]);
+        setAttachedImagePreviews([]);
         setTimeout(() => {
           if (chatScrollRef.current) {
             chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
@@ -1899,42 +1955,54 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     }
   };
 
-  // 이미지 업로드 후 전송 (기존 함수 - attachedImage 사용)
+  // 기존 handleImageUploadAndSend 교체
   const handleImageUploadAndSend = async () => {
-    if (!attachedImage || !ws.current || ws.current.readyState !== 1) return;
+    if (attachedImages.length === 0 || !ws.current || ws.current.readyState !== 1) return;
 
-    // 입력된 텍스트를 미리 저장 (초기화 전에)
     const messageText = input || '이미지 첨부';
+    await handleMultipleImagesUploadAndSend(messageText);
+  };
 
+  // 새로운 다중 이미지 업로드 함수 추가
+  const handleMultipleImagesUploadAndSend = async (messageText) => {
+    if (attachedImages.length === 0 || !ws.current || ws.current.readyState !== 1) return;
+
+    const finalMessageText = messageText || '이미지 첨부';
+    
     try {
-      // FormData로 이미지 업로드
-      const formData = new FormData();
-      formData.append('file', attachedImage);
-      formData.append('content', messageText);
+      // 각 이미지를 순차적으로 업로드
+      const uploadedUrls = [];
+      
+      for (let i = 0; i < attachedImages.length; i++) {
+        const formData = new FormData();
+        formData.append('file', attachedImages[i]);
+        formData.append('content', finalMessageText);
+        
+        const res = await axios.post(`${API_BASE}/api/chat/upload_image/`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            'X-CSRFToken': getCookie('csrftoken'),
+          },
+          withCredentials: true,
+        });
+        
+        if (res.data.status === 'success') {
+          uploadedUrls.push(res.data.file_url);
+        }
+      }
 
-      const res = await axios.post(`${API_BASE}/api/chat/upload_image/`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          'X-CSRFToken': getCookie('csrftoken'),
-        },
-        withCredentials: true,
-      });
-
-      if (res.data.status === 'success') {
+      // 모든 이미지가 업로드되면 WebSocket으로 전송
+      if (uploadedUrls.length > 0) {
         const messageData = {
-          message: messageText,
-          imageUrl: res.data.file_url,
+          message: finalMessageText,
+          imageUrls: uploadedUrls, // 다중 이미지 URL 배열
           roomId: selectedRoom?.id || null
         };
 
-
         ws.current.send(JSON.stringify(messageData));
-
-        // 입력 상태 초기화 (WebSocket 전송 후)
         setInput('');
-        setAttachedImage(null);
-        setAttachedImagePreview(null);
-
+        handleRemoveAllAttachedImages();
+        
         setTimeout(() => {
           if (chatScrollRef.current) {
             chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
@@ -2178,8 +2246,9 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
   // 입력창 ref 추가
   const inputRef = useRef(null);
 
-  const [attachedImage, setAttachedImage] = useState(null); // 첨부 이미지 상태
-  const [attachedImagePreview, setAttachedImagePreview] = useState(null); // 미리보기용
+  // 첨부 이미지 상태, 미리보기용
+  const [attachedImages, setAttachedImages] = useState([]);
+  const [attachedImagePreviews, setAttachedImagePreviews] = useState([]);
   const [viewerImage, setViewerImage] = useState(null); // 이미지 뷰어 모달 상태
 
   // ESC 키로 이미지 뷰어 닫기
@@ -2471,8 +2540,8 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
       if (item.kind === 'file' && item.type.startsWith('image/')) {
         const file = item.getAsFile();
         if (file) {
-          setAttachedImage(file);
-          setAttachedImagePreview(URL.createObjectURL(file));
+          setAttachedImages([file]);
+          setAttachedImagePreviews([URL.createObjectURL(file)]);
           e.preventDefault();
           break;
         }
@@ -2837,14 +2906,19 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
     }
   }, [messages]);
 
-  // pendingImageFile이 변경될 때 이미지 업로드 처리
+  // pendingImageFile이 변경될 때 이미지 업로드 처리 (수정)
   useEffect(() => {
     if (pendingImageFile && selectedRoom) {
-
-      setAttachedImage(pendingImageFile);
-      setAttachedImagePreview(URL.createObjectURL(pendingImageFile));
-      setPendingImageFile(null);
-      // 자동 전송 제거: 버튼 클릭 시점에서만 전송
+      // pendingImageFile이 유효한 File 객체인지 확인
+      if (pendingImageFile instanceof File || pendingImageFile instanceof Blob) {
+        setAttachedImages(pendingImageFile);
+        setAttachedImagePreviews(URL.createObjectURL(pendingImageFile));
+        setPendingImageFile(null);
+        // 자동 전송 제거: 버튼 클릭 시점에서만 전송
+      } else {
+        console.warn('pendingImageFile이 유효한 File 객체가 아닙니다:', pendingImageFile);
+        setPendingImageFile(null);
+      }
     }
   }, [pendingImageFile, selectedRoom]);
 
@@ -3183,13 +3257,65 @@ const ChatBox = ({ selectedRoom, loginUser, loginLoading, checkLoginStatus, user
           </div>
         </div>
       </div>
+
       {/* 입력창 위에 첨부 이미지 미리보기 UI */}
-      {attachedImagePreview && (
-        <div className="attached-image-preview-box" style={{ margin: '8px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <img src={attachedImagePreview} alt="첨부 미리보기" className="attached-image-thumb" style={{ maxWidth: 120, maxHeight: 120, borderRadius: 8 }} />
-          <button className="attached-image-remove-btn" style={{ color: '#f44336', background: 'none', border: 'none', fontSize: 15, cursor: 'pointer', marginLeft: 8 }} onClick={handleRemoveAttachedImage}>제거</button>
+      {attachedImagePreviews.length > 0 && (
+        <div className="attached-image-preview-box" style={{ 
+          margin: '8px 0', 
+          display: 'flex', 
+          flexWrap: 'wrap',
+          gap: '8px',
+          alignItems: 'center' 
+        }}>
+          {attachedImagePreviews.map((preview, index) => (
+            <div key={index} style={{ position: 'relative', display: 'inline-block' }}>
+              <img 
+                src={preview} 
+                alt={`첨부 이미지 ${index + 1}`}
+                style={{ 
+                  maxWidth: 120, 
+                  maxHeight: 120, 
+                  borderRadius: 8,
+                  border: '1px solid #ddd'
+                }} 
+              />
+              <button 
+                onClick={() => handleRemoveAttachedImage(index)}
+                style={{ 
+                  position: 'absolute',
+                  top: '-8px',
+                  right: '-8px',
+                  background: '#ff4444',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '20px',
+                  height: '20px',
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          {attachedImagePreviews.length > 1 && (
+            <button 
+              onClick={handleRemoveAllAttachedImages}
+              style={{ 
+                color: '#f44336', 
+                background: 'none', 
+                border: 'none', 
+                fontSize: 12, 
+                cursor: 'pointer' 
+              }}
+            >
+              모두 제거
+            </button>
+          )}
         </div>
       )}
+
       {/* 입력창 위에 답장 인용 미리보기 UI */}
       {replyTo && (
         <div className="reply-preview-bar" style={{

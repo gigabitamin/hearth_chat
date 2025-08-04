@@ -1,5 +1,5 @@
 from rest_framework.routers import DefaultRouter
-from .views import ChatRoomViewSet, ChatViewSet, UserSettingsView, UserDeleteView, user_info, chat_home, get_chat_history, get_all_sessions, upload_chat_image, logout_api, UserListView, MessageReactionViewSet, MessageReplyViewSet, PinnedMessageViewSet, UserChatCreateAPIView, NotificationReadViewSet, file_exists
+from .views import ChatRoomViewSet, ChatViewSet, UserSettingsView, UserDeleteView, user_info, chat_home, get_chat_history, get_all_sessions, upload_chat_image, upload_multiple_chat_images, logout_api, UserListView, MessageReactionViewSet, MessageReplyViewSet, PinnedMessageViewSet, UserChatCreateAPIView, NotificationReadViewSet, file_exists
 from django.urls import path, include
 from . import views  # 상대경로로 변경
 
@@ -20,6 +20,7 @@ urlpatterns = [
     path('history/', views.get_chat_history, name='chat_history'),
     path('sessions/', views.get_all_sessions, name='all_sessions'),
     path('upload_image/', views.upload_chat_image, name='upload_chat_image'),
+    path('upload_multiple_images/', views.upload_multiple_chat_images, name='upload_multiple_chat_images'),
     path('user/', views.user_info, name='user_info'),
     path('logout/', views.logout_api, name='logout_api'),
     path('rooms/user_chat_alt/', UserChatCreateAPIView.as_view(), name='user_chat_api'),  # APIView 추가

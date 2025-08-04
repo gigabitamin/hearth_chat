@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { getApiBase, getCookie, csrfFetch } from '../utils/apiConfig';
 import Webcam from 'react-webcam';
 import Cropper from 'react-easy-crop';
-import { getCroppedImg, dataURLtoFile } from './cropUtils'; 
+import { getCroppedImg, dataURLtoFile } from './cropUtils';
 
 const EMOJI_LIST = ['👍', '😂', '❤️', '😮', '😢', '👏', '🔥', '😡', '🙏', '🎉'];
 
@@ -13,8 +13,8 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const inputRef = useRef();
-    const [attachedImage, setAttachedImage] = useState(null);
-    const [attachedImagePreview, setAttachedImagePreview] = useState(null);
+    const [attachedImages, setAttachedImages] = useState([]); // 다중 이미지 지원
+    const [attachedImagePreviews, setAttachedImagePreviews] = useState([]); // 다중 이미지 미리보기
     const [longPressTimer, setLongPressTimer] = useState(null);
 
     // --- [수정 1] long-press 발생 여부를 추적할 ref 추가 ---
@@ -30,7 +30,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
     const [zoom, setZoom] = useState(1);
     const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
     const webcamRef = useRef(null);
-  
+
     // --- 카메라 관련 함수 ---    
     // 1. 카메라 버튼 클릭 핸들러
     const handleCameraButtonClick = () => {
@@ -57,8 +57,8 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
             const croppedImageBlobUrl = await getCroppedImg(capturedImage, croppedAreaPixels);
             const croppedImageFile = dataURLtoFile(croppedImageBlobUrl, `capture-${Date.now()}.jpeg`);
 
-            setAttachedImage(croppedImageFile);
-            setAttachedImagePreview(URL.createObjectURL(croppedImageFile));
+            setAttachedImages([croppedImageFile]); // 단일 이미지로 설정
+            setAttachedImagePreviews([URL.createObjectURL(croppedImageFile)]);
 
             // 모든 모달 및 임시 상태 초기화
             setCapturedImage(null);
@@ -104,9 +104,9 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                                 return;
                             }
 
-                            // 이미지 첨부
-                            setAttachedImage(file);
-                            setAttachedImagePreview(URL.createObjectURL(file));
+                            // 이미지 첨부 (단일 이미지로 설정)
+                            setAttachedImages([file]);
+                            setAttachedImagePreviews([URL.createObjectURL(file)]);
                             console.log('클립보드에서 이미지가 자동으로 첨부되었습니다:', file.name);
                             return;
                         }
@@ -142,62 +142,150 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
         adjustTextareaHeight();
     }, [input]);
 
-    // 이미지 업로드 핸들러
+    // 이미지 파일 검증 함수
+    const validateImageFile = (file) => {
+        const allowedExt = ['jpg', 'jpeg', 'png', 'webp'];
+        const allowedMime = ['image/jpeg', 'image/png', 'image/webp'];
+        const maxSize = 4 * 1024 * 1024;
+        const ext = file.name.split('.').pop().toLowerCase();
+
+        if (!allowedExt.includes(ext)) {
+            alert('허용되지 않는 확장자입니다: ' + ext);
+            return false;
+        }
+        if (file.size > maxSize) {
+            alert('파일 용량은 4MB 이하만 허용됩니다.');
+            return false;
+        }
+        if (!allowedMime.includes(file.type)) {
+            alert('허용되지 않는 이미지 형식입니다: ' + file.type);
+            return false;
+        }
+        return true;
+    };
+
+    // 다중 이미지 업로드 핸들러
     const handleImageUpload = (e) => {
         console.log('[DEBUG] handleImageUpload 호출됨');
         console.log('[DEBUG] e.target:', e.target);
         console.log('[DEBUG] e.target.files:', e.target.files);
         console.log('[DEBUG] e.target.files.length:', e.target.files ? e.target.files.length : 'undefined');
 
-        const file = e.target.files && e.target.files[0];
-        if (!file) {
+        const files = Array.from(e.target.files || []);
+        if (files.length === 0) {
             console.log('[DEBUG] 파일이 없음');
             return;
         }
 
-        console.log('[DEBUG] 선택된 파일:', file);
-        console.log('[DEBUG] 파일 이름:', file.name);
-        console.log('[DEBUG] 파일 크기:', file.size);
-        console.log('[DEBUG] 파일 타입:', file.type);
-
-        const allowedExt = ['jpg', 'jpeg', 'png', 'webp'];
-        const allowedMime = ['image/jpeg', 'image/png', 'image/webp'];
-        const maxSize = 4 * 1024 * 1024;
-        const ext = file.name.split('.').pop().toLowerCase();
-
-        console.log('[DEBUG] 파일 확장자:', ext);
-        console.log('[DEBUG] 허용된 확장자:', allowedExt);
-        console.log('[DEBUG] 확장자 검사 결과:', allowedExt.includes(ext));
-
-        if (!allowedExt.includes(ext)) {
-            alert('허용되지 않는 확장자입니다: ' + ext);
-            return;
-        }
-        if (file.size > maxSize) {
-            alert('파일 용량은 4MB 이하만 허용됩니다.');
-            return;
-        }
-        if (!allowedMime.includes(file.type)) {
-            alert('허용되지 않는 이미지 형식입니다: ' + file.type);
+        // 최대 이미지 개수 체크
+        const maxImages = 5;
+        if (attachedImages.length + files.length > maxImages) {
+            alert(`최대 ${maxImages}개의 이미지만 첨부할 수 있습니다.`);
             return;
         }
 
-        console.log('[DEBUG] 이미지 파일 검증 통과');
-        console.log('[DEBUG] 이미지 파일 설정:', file.name, file.size);
+        const validFiles = [];
+        const validPreviews = [];
 
-        setAttachedImage(file);
-        setAttachedImagePreview(URL.createObjectURL(file));
+        files.forEach(file => {
+            console.log('[DEBUG] 선택된 파일:', file);
+            console.log('[DEBUG] 파일 이름:', file.name);
+            console.log('[DEBUG] 파일 크기:', file.size);
+            console.log('[DEBUG] 파일 타입:', file.type);
 
-        console.log('[DEBUG] attachedImage 상태 설정 완료');
+            if (validateImageFile(file)) {
+                validFiles.push(file);
+                validPreviews.push(URL.createObjectURL(file));
+            }
+        });
+
+        if (validFiles.length > 0) {
+            console.log('[DEBUG] 이미지 파일 검증 통과');
+            console.log('[DEBUG] 이미지 파일 설정:', validFiles.length, '개');
+
+            setAttachedImages(prev => [...prev, ...validFiles]);
+            setAttachedImagePreviews(prev => [...prev, ...validPreviews]);
+
+            console.log('[DEBUG] attachedImages 상태 설정 완료');
+        }
     };
 
-    // 첨부 이미지 해제
-    const handleRemoveAttachedImage = () => {
-        setAttachedImage(null);
-        setAttachedImagePreview(null);
+    // 특정 이미지 제거
+    const handleRemoveAttachedImage = (index) => {
+        setAttachedImages(prev => prev.filter((_, i) => i !== index));
+        setAttachedImagePreviews(prev => {
+            const newPreviews = prev.filter((_, i) => i !== index);
+            // URL.revokeObjectURL 호출하여 메모리 정리
+            if (prev[index]) {
+                URL.revokeObjectURL(prev[index]);
+            }
+            return newPreviews;
+        });
     };
 
-    // 1. 이미지 업로드 후 전송 함수 정의 (chat_box.jsx와 동일하게)
+    // 모든 이미지 제거
+    const handleRemoveAllAttachedImages = () => {
+        // 모든 미리보기 URL 해제
+        attachedImagePreviews.forEach(url => {
+            URL.revokeObjectURL(url);
+        });
+        setAttachedImages([]);
+        setAttachedImagePreviews([]);
+    };
+
+    // 다중 이미지 업로드 후 전송
+    const handleMultipleImagesUploadAndSend = async (messageText) => {
+        if (attachedImages.length === 0) return;
+
+        const finalMessageText = messageText || '이미지 첨부';
+
+        try {
+            // 각 이미지를 순차적으로 업로드
+            const uploadedUrls = [];
+
+            for (let i = 0; i < attachedImages.length; i++) {
+                const formData = new FormData();
+                formData.append('file', attachedImages[i]);
+                formData.append('content', finalMessageText);
+
+                const res = await fetch(`${getApiBase()}/api/chat/upload_image/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken'),
+                    },
+                    credentials: 'include',
+                    body: formData,
+                });
+
+                const data = await res.json();
+                if (data.status === 'success') {
+                    uploadedUrls.push(data.file_url);
+                }
+            }
+
+            // 모든 이미지가 업로드되면 WebSocket으로 전송
+            if (uploadedUrls.length > 0) {
+                if (room && ws && ws.readyState === 1) {
+                    const messageData = {
+                        message: finalMessageText,
+                        imageUrls: uploadedUrls, // 다중 이미지 URL 배열
+                        roomId: room.id
+                    };
+                    ws.send(JSON.stringify(messageData));
+                } else {
+                    // 대기방: localStorage에 임시 저장 후 방 생성
+                    localStorage.setItem('pending_image_urls', JSON.stringify(uploadedUrls));
+                    localStorage.setItem('pending_auto_message', finalMessageText);
+                }
+                setInput('');
+                handleRemoveAllAttachedImages();
+            }
+        } catch (error) {
+            alert('이미지 업로드에 실패했습니다.');
+        }
+    };
+
+    // 단일 이미지 업로드 후 전송 (호환성 유지)
     const handleImageUploadAndSendWithFile = async (imageFile, messageText) => {
         if (!imageFile) return;
         try {
@@ -228,8 +316,8 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                     localStorage.setItem('pending_auto_message', messageText || '이미지 첨부');
                 }
                 setInput('');
-                setAttachedImage(null);
-                setAttachedImagePreview(null);
+                setAttachedImages([]);
+                setAttachedImagePreviews([]);
             }
         } catch (error) {
             alert('이미지 업로드에 실패했습니다.');
@@ -237,10 +325,10 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
     };
 
     const handleSend = async () => {
-        console.log('[DEBUG] handleSend 호출됨, attachedImage:', attachedImage);
-        if (attachedImage) {
-            console.log('[DEBUG] 이미지가 있으므로 handleImageUploadAndSend 호출');
-            await handleImageUploadAndSendWithFile(attachedImage, input);
+        console.log('[DEBUG] handleSend 호출됨, attachedImages:', attachedImages);
+        if (attachedImages.length > 0) {
+            console.log('[DEBUG] 이미지가 있으므로 handleMultipleImagesUploadAndSend 호출');
+            await handleMultipleImagesUploadAndSend(input);
             return;
         }
         if (!input.trim()) return;
@@ -302,7 +390,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
     // 새로운 AI 채팅방 생성 및 이동
     // 방 생성 함수 내에서 localStorage 정리 및 강제 이동 보장
     const handleCreateNewAiRoom = async () => {
-        if (!input.trim() && !attachedImage) return;
+        if (!input.trim() && attachedImages.length === 0) return;
         setLoading(true);
         const now = new Date();
         const title = `${input.slice(0, 20)} - ${now.toLocaleString('ko-KR', { hour12: false })}`;
@@ -327,23 +415,29 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                     });
                 } catch (e) { /* 무시 */ }
                 // 2. 이미지 첨부가 있으면, 해당 roomId로 이미지 업로드 및 localStorage 저장
-                if (attachedImage) {
+                if (attachedImages.length > 0) {
                     try {
-                        const formData = new FormData();
-                        formData.append('file', attachedImage);
-                        formData.append('content', input || '이미지 첨부');
-                        const imgRes = await fetch(`${getApiBase()}/api/chat/upload_image/`, {
-                            method: 'POST',
-                            headers: {
-                                'X-CSRFToken': getCookie('csrftoken'),
-                            },
-                            credentials: 'include',
-                            body: formData,
-                        });
-                        const imgData = await imgRes.json();
-                        if (imgData.status === 'success') {
+                        const uploadedUrls = [];
+                        for (let i = 0; i < attachedImages.length; i++) {
+                            const formData = new FormData();
+                            formData.append('file', attachedImages[i]);
+                            formData.append('content', input || '이미지 첨부');
+                            const imgRes = await fetch(`${getApiBase()}/api/chat/upload_image/`, {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRFToken': getCookie('csrftoken'),
+                                },
+                                credentials: 'include',
+                                body: formData,
+                            });
+                            const imgData = await imgRes.json();
+                            if (imgData.status === 'success') {
+                                uploadedUrls.push(imgData.file_url);
+                            }
+                        }
+                        if (uploadedUrls.length > 0) {
                             localStorage.setItem('pending_auto_message', input || '이미지 첨부');
-                            localStorage.setItem('pending_image_url', imgData.file_url);
+                            localStorage.setItem('pending_image_urls', JSON.stringify(uploadedUrls));
                             localStorage.setItem('pending_room_id', String(roomData.id));
                         }
                     } catch {
@@ -353,18 +447,17 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                     // 텍스트만 있을 때도 roomId와 함께 저장
                     localStorage.setItem('pending_auto_message', input);
                     localStorage.setItem('pending_room_id', String(roomData.id));
-                    localStorage.removeItem('pending_image_url');
+                    localStorage.removeItem('pending_image_urls');
                 }
                 setInput('');
-                setAttachedImage(null);
-                setAttachedImagePreview(null);
+                handleRemoveAllAttachedImages();
                 setTimeout(() => {
                     window.location.href = `/room/${roomData.id}`;
                 }, 300);
             } else {
                 // 방 생성 실패 시 localStorage 정리 및 알림
                 localStorage.removeItem('pending_auto_message');
-                localStorage.removeItem('pending_image_url');
+                localStorage.removeItem('pending_image_urls');
                 localStorage.removeItem('pending_image_message_content');
                 localStorage.removeItem('pending_room_id');
                 alert('방 생성 실패');
@@ -372,7 +465,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
         } catch {
             // 예외 발생 시 localStorage 정리 및 알림
             localStorage.removeItem('pending_auto_message');
-            localStorage.removeItem('pending_image_url');
+            localStorage.removeItem('pending_image_urls');
             localStorage.removeItem('pending_image_message_content');
             localStorage.removeItem('pending_room_id');
             alert('방 생성 오류');
@@ -491,7 +584,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
     // const [showEmojiMenu, setShowEmojiMenu] = useState(false);
 
     return (
-        <div className="global-chat-input" style={{ width: '100%', background: '#23242a', position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 100 }}>            
+        <div className="global-chat-input" style={{ width: '100%', background: '#23242a', position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 100 }}>
 
             {/* --- 카메라 모달 --- */}
             {showCamera && (
@@ -525,15 +618,15 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                         />
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem' }}>
-                         <button onClick={handleCropImage} style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}>자르기 완료</button>
-                         <button onClick={cancelAll} style={{ marginLeft: '1rem', padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}>취소</button>
+                        <button onClick={handleCropImage} style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}>자르기 완료</button>
+                        <button onClick={cancelAll} style={{ marginLeft: '1rem', padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}>취소</button>
                     </div>
                 </div>
             )}
 
             <div className="global-chat-input-content-box" style={{ position: 'relative', maxWidth: 480, margin: '0 auto' }}>
                 {/* 입력창 위에 딱 붙는 첨부 이미지 미리보기 (겹치지 않게) */}
-                {attachedImagePreview && (
+                {attachedImagePreviews.length > 0 && (
                     <div className="attached-image-preview-box" style={{
                         position: 'absolute',
                         left: 0,
@@ -541,24 +634,76 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                         background: '#23242a',
                         borderRadius: 8,
                         boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
-                        padding: 4,
+                        padding: 8,
                         display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
+                        flexWrap: 'wrap',
+                        gap: 8,
                         marginBottom: 4,
                         maxWidth: 320,
                         zIndex: 200
                     }}>
-                        <img src={attachedImagePreview} alt="첨부 이미지 미리보기" className="attached-image-thumb" style={{ maxHeight: 240, borderRadius: 6 }} />
-                        <button onClick={handleRemoveAttachedImage} className="attached-image-remove-btn" style={{ marginLeft: 6, color: '#fff', background: '#f44336', border: 'none', borderRadius: 4, padding: '2px 8px', cursor: 'pointer' }}>✖</button>
+                        {attachedImagePreviews.map((preview, index) => (
+                            <div key={index} style={{ position: 'relative' }}>
+                                <img
+                                    src={preview}
+                                    alt={`첨부 이미지 미리보기 ${index + 1}`}
+                                    className="attached-image-thumb"
+                                    style={{
+                                        maxHeight: 120,
+                                        maxWidth: 120,
+                                        borderRadius: 6,
+                                        objectFit: 'cover'
+                                    }}
+                                />
+                                <button
+                                    onClick={() => handleRemoveAttachedImage(index)}
+                                    className="attached-image-remove-btn"
+                                    style={{
+                                        position: 'absolute',
+                                        top: -8,
+                                        right: -8,
+                                        color: '#fff',
+                                        background: '#f44336',
+                                        border: 'none',
+                                        borderRadius: '50%',
+                                        width: '20px',
+                                        height: '20px',
+                                        fontSize: '12px',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center'
+                                    }}
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        ))}
+                        {attachedImagePreviews.length > 1 && (
+                            <button
+                                onClick={handleRemoveAllAttachedImages}
+                                style={{
+                                    color: '#fff',
+                                    background: '#ff6666',
+                                    border: 'none',
+                                    borderRadius: 4,
+                                    padding: '4px 8px',
+                                    cursor: 'pointer',
+                                    fontSize: '12px',
+                                    alignSelf: 'flex-start'
+                                }}
+                            >
+                                모두 제거
+                            </button>
+                        )}
                     </div>
                 )}
 
-                <div className="global-chat-input-content" 
-                    style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        position: 'relative',                        
+                <div className="global-chat-input-content"
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        position: 'relative',
                         background: '#23242a'
                     }}>
                     {/* 이모지(+) 버튼 및 메뉴 */}
@@ -572,22 +717,22 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                         onTouchEnd={handlePressEnd}
                         onTouchCancel={handleCancel}
                         disabled={loading}
-                        style={{ 
-                            border: 'none', 
-                            borderRadius: 8, 
-                            padding: '8px 8px',                             
-                            cursor: 'pointer', 
-                            minWidth: 48,                            
+                        style={{
+                            border: 'none',
+                            borderRadius: 8,
+                            padding: '8px 8px',
+                            cursor: 'pointer',
+                            minWidth: 48,
                             margin: '8px 8px 8px 8px',
                         }}
                         title="짧게 클릭: 새 AI 채팅방 자동 생성 / 길게 누르기: 새 대화방 옵션"
                     >
                         <span className="global-chat-input-create-btn-icon">
-                            {!room ? '🔥' : '🔥'}                            
+                            {!room ? '🔥' : '🔥'}
                         </span>
                     </button>
                     <textarea
-                        ref={inputRef}                        
+                        ref={inputRef}
                         placeholder={room ? '안녕하세요' : 'Shot/Long Click 방제 입력 후 새 대화방을 만드세요'}
                         value={input}
                         onChange={e => setInput(e.target.value)}
@@ -602,7 +747,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                         style={{
                             flex: 1,
                             border: 'none',
-                            borderRadius: 8,                            
+                            borderRadius: 8,
                             padding: '4px 4px 4px 8px',
                             fontSize: 15,
                             // background: '#181a20',
@@ -614,35 +759,35 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                             textAlign: 'left'
                         }}
                         disabled={loading}
-                    />                    
-                        {room && (
+                    />
+                    {room && (
                         <button
                             className="global-chat-input-send-btn"
                             onClick={() => {
                                 if (!room) {
                                     handleCreateNewAiRoom();
-                                } else if (attachedImage) {
+                                } else if (attachedImages.length > 0) {
                                     const currentInput = input;
-                                    handleImageUploadAndSendWithFile(attachedImage, currentInput);
+                                    handleMultipleImagesUploadAndSend(currentInput);
                                 } else {
                                     handleSend();
                                 }
                             }}
                             // disabled={!input.trim() && !attachedImage}
-                            style={{ 
-                                border: 'none', 
-                                borderRadius: 8, 
-                                padding: '8px 8px',                             
-                                cursor: 'pointer', 
-                                minWidth: 48,                            
+                            style={{
+                                border: 'none',
+                                borderRadius: 8,
+                                padding: '8px 8px',
+                                cursor: 'pointer',
+                                minWidth: 48,
                                 margin: '8px 8px 8px 8px',
                             }}
                         >
-                            <span className="global-chat-input-send-btn-icon">                            
+                            <span className="global-chat-input-send-btn-icon">
                                 🪵
                             </span>
                         </button>
-                        ) 
+                    )
                     }
                     {room && (
                         <button
@@ -652,10 +797,10 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                                 const fileInput = document.getElementById('global-chat-image-upload');
                                 if (fileInput) fileInput.click();
                             }}
-                            style={{ 
-                                border: 'none',                                                                                              
-                                cursor: 'pointer',                                                         
-                                background: 'transparent',                             
+                            style={{
+                                border: 'none',
+                                cursor: 'pointer',
+                                background: 'transparent',
                                 margin: '0 auto',
                             }}
                         >
@@ -663,6 +808,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                                 id="global-chat-image-upload"
                                 type="file"
                                 accept="image/*"
+                                multiple={true}
                                 style={{ display: 'none' }}
                                 onChange={handleImageUpload}
                             />
@@ -671,29 +817,29 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                                     fontSize: 20,
                                 }}
                             >🖼︎</span>
-                        </button>                        
-                        )
+                        </button>
+                    )
                     }
 
                     {/* --- 카메라 버튼 추가 --- */}
                     {room && (
-                    <button
-                        onClick={handleCameraButtonClick}
-                        style={{
-                            border: 'none',
-                            cursor: 'pointer',
-                            background: 'transparent',
-                            margin: '0 auto',
-                        }}
-                    >
-                        <span className="global-chat-input-camera-btn-icon"
+                        <button
+                            onClick={handleCameraButtonClick}
                             style={{
-                                fontSize: 18,                                
+                                border: 'none',
+                                cursor: 'pointer',
+                                background: 'transparent',
+                                margin: '0 auto',
                             }}
-                        >📸</span>
-                    </button>
+                        >
+                            <span className="global-chat-input-camera-btn-icon"
+                                style={{
+                                    fontSize: 18,
+                                }}
+                            >📸</span>
+                        </button>
                     )
-                }
+                    }
                 </div>
             </div>
         </div>
