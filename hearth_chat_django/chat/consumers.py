@@ -103,7 +103,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
         user_emotion = data.get("emotion", "neutral")  # 감정 정보 추출
         image_url = data.get("imageUrl", "")
         image_urls = data.get("imageUrls", [])  # 다중 이미지 URL 배열
+        documents = data.get("documents", [])  # 문서 정보 배열
         room_id = data.get("roomId", "")  # 대화방 ID 추가
+        
+        print(f"[DEBUG] WebSocket 메시지 수신:")
+        print(f"[DEBUG] user_message: {user_message}")
+        print(f"[DEBUG] image_urls: {image_urls}")
+        print(f"[DEBUG] documents: {documents}")
+        print(f"[DEBUG] room_id: {room_id}")
         
         # 단일 이미지 URL을 배열로 변환 (호환성 유지)
         if image_url and not image_urls:
@@ -181,7 +188,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         try:            
             # 모든 이미지 URL을 AI 응답에 전달
-            ai_response_result = await self.get_ai_response(user_message, user_emotion, image_urls)            
+            ai_response_result = await self.get_ai_response(user_message, user_emotion, image_urls, documents)            
             
             # AI 응답 결과에서 정보 추출
             ai_response = ai_response_result['response']
@@ -426,7 +433,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 "aiEnabled": True
             }
 
-    async def get_ai_response(self, user_message, user_emotion="neutral", image_urls=None):
+    async def get_ai_response(self, user_message, user_emotion="neutral", image_urls=None, documents=None):
         import base64
         import requests
         import os
@@ -435,7 +442,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         from openai import OpenAI
 
         @sync_to_async
-        def call_lily_api(user_message, user_emotion, image_urls=None):
+        def call_lily_api(user_message, user_emotion, image_urls=None, documents=None):
             """Lily LLM API 호출"""
             import requests
             try:
@@ -465,261 +472,332 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 emotion_strategies = {
                     "happy": {"tone": "기쁨과 함께 공감하며", "approach": "사용자의 기쁨을 함께 나누고, 긍정적인 에너지를 더해주세요. 기쁜 일에 대해 더 자세히 이야기해보도록 유도하세요.", "examples": "정말 기뻐 보이네요! 😊 어떤 일이 그렇게 기쁘게 만든 거예요? 함께 기뻐해도 될까요?"},
                     "sad": {"tone": "따뜻하고 공감적으로", "approach": "사용자의 슬픔에 공감하고, 위로와 격려를 제공하세요. 슬픈 감정을 인정하고, 함께 극복할 방법을 찾아보세요.", "examples": "지금 많이 힘드시겠어요. 😔 그런 감정을 느끼는 것은 당연해요. 제가 옆에서 함께 있어드릴게요."},
-                    "angry": {"tone": "차분하고 이해하는 태도로", "approach": "사용자의 분노를 인정하고, 차분하게 상황을 분석해보세요. 분노의 원인을 파악하고 해결책을 제시하세요.", "examples": "화가 나실 만해요. 😤 그런 상황이라면 누구라도 화가 날 거예요. 차분히 생각해보면 어떨까요?"},
-                    "fearful": {"tone": "안심시키고 안전함을 느끼게", "approach": "사용자의 두려움을 인정하고, 안전함을 느끼게 해주세요. 구체적인 해결책이나 대안을 제시하세요.", "examples": "무서우시겠어요. 😰 걱정하지 마세요, 함께 해결해보아요. 어떤 부분이 가장 두려우신가요?"},
-                    "surprised": {"tone": "함께 놀라워하며", "approach": "사용자의 놀라움에 함께 반응하고, 호기심을 나누어주세요. 놀라운 일에 대해 더 자세히 알아보세요.", "examples": "정말 놀라운 일이네요! 😲 저도 함께 놀랐어요. 어떻게 된 일인지 더 자세히 들려주세요!"},
-                    "disgusted": {"tone": "이해하고 다른 주제로 전환", "approach": "사용자의 불쾌감을 인정하고, 다른 주제로 자연스럽게 전환하세요. 긍정적인 주제로 대화를 이어가세요.", "examples": "그런 일이 있으셨군요. 😕 다른 이야기로 기분 전환해볼까요? 요즘 즐거운 일은 없으셨나요?"},
-                    "neutral": {"tone": "편안하고 자연스럽게", "approach": "평온한 상태를 유지하며, 자연스럽고 편안한 대화를 이어가세요. 관심사나 일상에 대해 이야기해보세요.", "examples": "편안한 하루 보내고 계시네요. 😊 오늘은 어떤 일이 있었나요? 이야기해주세요."}
+                    "angry": {"tone": "차분하고 이해하며", "approach": "사용자의 분노를 인정하고, 차분하게 상황을 분석해보세요. 분노의 원인을 찾고 해결책을 제시하세요.", "examples": "화가 나시는 것 같아요. 😤 어떤 일이 그렇게 화나게 만든 거예요? 함께 해결책을 찾아보시죠."},
+                    "surprised": {"tone": "놀라움을 함께하며", "approach": "사용자의 놀라움에 공감하고, 그 상황에 대해 더 자세히 알아보세요. 새로운 관점을 제시하세요.", "examples": "정말 놀라운 일이었나 보네요! 😮 어떤 일이 그렇게 놀라게 만든 거예요? 더 자세히 들려주세요."},
+                    "fearful": {"tone": "안심시키며", "approach": "사용자의 두려움을 인정하고, 안심시켜주세요. 구체적인 해결책과 지원을 제시하세요.", "examples": "걱정되시는 것 같아요. 😰 어떤 일이 그렇게 걱정되게 만든 거예요? 함께 해결해보시죠."},
+                    "disgusted": {"tone": "이해하며", "approach": "사용자의 혐오감을 인정하고, 그 상황에 대해 객관적으로 분석해보세요.", "examples": "정말 싫은 일이었나 보네요. 🤢 어떤 일이 그렇게 싫게 만든 거예요? 다른 관점에서 보면 어떨까요?"},
+                    "neutral": {"tone": "편안하고 친근하게", "approach": "자연스럽고 편안한 대화를 이어가세요. 사용자의 관심사에 집중하고 유용한 정보를 제공하세요.", "examples": "편안한 대화를 나누고 싶으시군요. 😊 어떤 이야기를 나누고 싶으신가요?"}
                 }
-                strategy = emotion_strategies.get(user_emotion, emotion_strategies["neutral"])
-                trend_guidance = {
-                    "improving": "사용자의 기분이 좋아지고 있는 것 같아요. 이 긍정적인 흐름을 유지할 수 있도록 도와주세요.",
-                    "declining": "사용자의 기분이 안 좋아지고 있는 것 같아요. 더 따뜻하고 지지적인 태도로 접근해주세요.",
-                    "stable": "사용자의 감정 상태가 안정적입니다. 편안하고 일관된 톤으로 대화를 이어가주세요."
-                }
-                trend_guide = trend_guidance.get(emotion_trend, trend_guidance["stable"])
-                context_summary = ""
-                if len(self.conversation_context) > 0:
-                    recent_context = self.conversation_context[-3:]
-                    context_summary = "최근 대화 맥락: " + " | ".join([
-                        f"사용자({ctx['user']['emotion']}): {ctx['user']['message'][:50]}..." for ctx in recent_context
-                    ])
                 
-                system_content = f"""당신은 따뜻하고 공감적인 AI 대화상대입니다. \n벽난로 주변의 아늑한 공간에서 대화하는 것처럼 편안하고 따뜻한 톤으로 응답해주세요.\n\n현재 사용자의 감정 상태: {user_emotion}\n감정 변화 추세: {emotion_trend}\n\n응답 전략:\n- 톤: {strategy['tone']}\n- 접근법: {strategy['approach']}\n- 감정 변화 지침: {trend_guide}\n\n{context_summary}\n\n사용자의 감정에 맞춰 적절한 톤과 내용으로 응답해주세요. \n필요시 조언, 위로, 격려, 동조, 기쁨 등을 자연스럽게 표현하세요.\n이모티콘을 적절히 사용하여 감정을 표현하세요."""
-
-                # Lily API 호출
-                lily_url = f"{lily_api_url}/generate"
+                # 현재 감정에 따른 전략 선택
+                current_emotion = user_emotion.lower()
+                strategy = emotion_strategies.get(current_emotion, emotion_strategies["neutral"])
                 
-                # 다중 이미지 처리
-                if image_urls and len(image_urls) > 0:
-                    from urllib.parse import unquote
-                    from django.conf import settings
+                # 감정 변화 추세에 따른 추가 전략
+                if emotion_trend == "improving":
+                    strategy["approach"] += " 긍정적인 변화가 보이시네요. 계속해서 좋은 방향으로 나아가고 계세요."
+                elif emotion_trend == "declining":
+                    strategy["approach"] += " 요즘 힘드신 것 같아요. 제가 더 많이 도와드릴게요."
+                
+                # 프롬프트 구성
+                emotion_prompt = f"{strategy['tone']} {strategy['approach']}"
+                
+                # 문서가 있는 경우 RAG 처리
+                if documents and len(documents) > 0:
+                    print(f"📄 문서 처리 시작: {len(documents)}개 문서")
+                    
+                    try:
+                        # 첫 번째 문서로 RAG 쿼리 실행
+                        document_id = documents[0].get('document_id')
+                        if document_id:
+                            print(f"🔍 RAG 쿼리 실행: document_id={document_id}")
+                            
+                            # RAG API 호출
+                            rag_data = {
+                                'query': user_message,
+                                'user_id': user.username if user else 'default_user',
+                                'document_id': document_id,
+                                'max_length': 1000,
+                                'temperature': 0.7
+                            }
+                            
+                            print(f"📤 RAG 요청 데이터: {rag_data}")
+                            response = requests.post(f"{lily_api_url}/rag/generate", data=rag_data, timeout=60)
+                            
+                            if response.status_code == 200:
+                                result = response.json()
+                                print(f"✅ RAG API 응답 성공: {result.get('response', '')[:100]}...")
+                                return {
+                                    "response": result.get('response', ''),
+                                    "provider": "lily",
+                                    "ai_name": "Lily LLM (RAG)",
+                                    "ai_type": "local"
+                                }
+                            else:
+                                print(f"❌ RAG API 오류: {response.status_code} - {response.text}")
+                                raise Exception(f"RAG API 오류: {response.status_code}")
+                        else:
+                            print("❌ 문서 ID가 없음")
+                            raise Exception("문서 ID가 없습니다")
+                            
+                    except Exception as e:
+                        print(f"❌ RAG API 호출 중 오류: {e}")
+                        raise e
+                
+                # 이미지가 있는 경우 멀티모달 처리
+                elif image_urls and len(image_urls) > 0:
                     print(f"🖼️ 다중 이미지 처리 시작: {len(image_urls)}개 이미지")
                     
-                    files = {}
-                    data = {
-                        'prompt': user_message or "이 이미지들을 분석해줘.",
-                        'max_length': 1000,
-                        'temperature': 0.7
-                    }
-                    
+                    # 이미지 파일들을 HTTP로 가져와서 바이트로 변환
+                    image_data_list = []
                     for i, image_url in enumerate(image_urls):
                         try:
+                            # 상대 URL을 절대 URL로 변환
                             if image_url.startswith('/media/'):
-                                rel_path = unquote(image_url.replace('/media/', ''))
-                                file_path = os.path.normpath(os.path.join(settings.MEDIA_ROOT, rel_path))
-                                print(f"📁 미디어 파일 경로 {i+1}: {file_path}")
+                                # Django 서버의 절대 URL로 변환
+                                base_url = 'http://localhost:8000'  # Django 서버 URL
+                                absolute_url = f"{base_url}{image_url}"
                             else:
-                                file_path = unquote(image_url)
-                                print(f"📁 직접 파일 경로 {i+1}: {file_path}")
+                                absolute_url = image_url
                             
-                            if os.path.exists(file_path):
-                                print(f"✅ 이미지 파일 {i+1} 존재 확인됨: {file_path}")
-                                with open(file_path, 'rb') as f:
-                                    img_bytes = f.read()
-                                print(f"📊 이미지 {i+1} 크기: {len(img_bytes)} bytes")
-                                
-                                # 파일 확장자 추출
-                                import mimetypes
-                                mime_type, _ = mimetypes.guess_type(file_path)
-                                if not mime_type or not mime_type.startswith('image/'):
-                                    mime_type = 'image/png'
-                                
-                                # Form 데이터에 추가
-                                files[f'image{i+1}'] = (f'image{i+1}.png', img_bytes, mime_type)
+                            print(f"🌐 이미지 URL {i+1}: {absolute_url}")
+                            
+                            # HTTP 요청으로 이미지 가져오기
+                            image_response = requests.get(absolute_url, timeout=600)
+                            if image_response.status_code == 200:
+                                image_bytes = image_response.content
+                                print(f"✅ 이미지 {i+1} 다운로드 성공: {len(image_bytes)} bytes")
+                                image_data_list.append(image_bytes)
                             else:
-                                print(f"❌ 이미지 파일 {i+1}이 존재하지 않음: {file_path}")
+                                print(f"❌ 이미지 {i+1} 다운로드 실패: {image_response.status_code}")
                         except Exception as e:
-                            print(f"❌ 이미지 {i+1} 처리 오류: {e}")
+                            print(f"❌ 이미지 {i+1} 읽기 오류: {e}")
+                        except Exception as e:
+                            print(f"❌ 이미지 {i+1} 읽기 오류: {e}")
                     
-                    if not files:
-                        print(f"🔄 모든 이미지 처리 실패, 텍스트 전용 요청으로 변경")
+                    if image_data_list:
+                        print(f"🔄 멀티모달 요청 준비 완료 ({len(image_data_list)}개 이미지 포함)")
+                        
+                        # Lily LLM API 호출
+                        try:
+                            print(f"🚀 Lily API 호출 시작: {lily_api_url}/generate")
+                            
+                            # Form data 구성
+                            data = {
+                                'prompt': f"{emotion_prompt}\n\n사용자 메시지: {user_message}",
+                                'max_length': 1000,
+                                'temperature': 0.7
+                            }
+                            
+                            # 파일 데이터 구성
+                            files = {}
+                            for i, image_bytes in enumerate(image_data_list):
+                                files[f'image{i+1}'] = (f'image{i+1}.png', image_bytes, 'image/png')
+                            
+                            print(f"📤 요청 데이터: {data}")
+                            print(f"📁 파일 포함 여부: {bool(files)}")
+                            
+                            # API 호출
+                            print(f"🔄 멀티모달 요청 전송 (이미지 포함)")
+                            response = requests.post(f"{lily_api_url}/generate", data=data, files=files, timeout=1200)
+                            
+                            if response.status_code == 200:
+                                result = response.json()
+                                print(f"✅ Lily API 응답 성공: {result.get('generated_text', '')[:100]}...")
+                                return {
+                                    "response": result.get('generated_text', ''),
+                                    "provider": "lily",
+                                    "ai_name": "Lily LLM",
+                                    "ai_type": "local"
+                                }
+                            else:
+                                print(f"❌ Lily API 오류: {response.status_code} - {response.text}")
+                                raise Exception(f"Lily API 오류: {response.status_code}")
+                                
+                        except Exception as e:
+                            print(f"❌ Lily API 호출 중 오류: {e}")
+                            raise e
+                    else:
+                        print("❌ 처리할 이미지가 없음")
+                        raise Exception("이미지 처리 실패")
+                else:
+                    # 텍스트만 있는 경우
+                    print("📝 텍스트 전용 요청")
+                    
+                    try:
+                        # Form data 구성
                         data = {
-                            'prompt': user_message or "이미지 분석을 요청했지만 파일을 찾을 수 없습니다.",
+                            'prompt': f"{emotion_prompt}\n\n사용자 메시지: {user_message}",
                             'max_length': 1000,
                             'temperature': 0.7
                         }
-                        files = None
-                    else:
-                        print(f"🔄 멀티모달 요청 준비 완료 ({len(files)}개 이미지 포함)")
-                else:
-                    # 텍스트만 요청
-                    data = {
-                        'prompt': user_message,
-                        'max_length': 1000,
-                        'temperature': 0.7
-                    }
-                    files = None
-
-                print(f"🚀 Lily API 호출 시작: {lily_url}")
-                print(f"📤 요청 데이터: {data}")
-                print(f"📁 파일 포함 여부: {files is not None}")
-                
-                if files:
-                    print(f"🔄 멀티모달 요청 전송 (이미지 포함)")
-                    response = requests.post(lily_url, data=data, files=files, timeout=2200)
-                else:
-                    print(f"🔄 텍스트 전용 요청 전송")
-                    response = requests.post(lily_url, data=data, timeout=200)
-                
-                print(f"📥 응답 상태: {response.status_code}")
-                
-                if response.status_code == 200:
-                    result = response.json()
-                    response_text = result.get('generated_text', 'Lily API에서 응답을 받지 못했습니다.')
-                    print(f"✅ Lily API 응답 성공: {len(response_text)} 문자")
-                    return response_text
-                else:
-                    print(f"❌ Lily API 오류: {response.status_code} - {response.text}")
-                    raise Exception(f"Lily API 호출 실패: {response.status_code}")
-                    
+                        
+                        print(f"📤 요청 데이터: {data}")
+                        print(f"📁 파일 포함 여부: False")
+                        
+                        # API 호출
+                        print(f"🔄 텍스트 전용 요청 전송")
+                        response = requests.post(f"{lily_api_url}/generate", data=data, timeout=120)
+                        
+                        if response.status_code == 200:
+                            result = response.json()
+                            print(f"✅ Lily API 응답 성공: {result.get('generated_text', '')[:100]}...")
+                            return {
+                                "response": result.get('generated_text', ''),
+                                "provider": "lily",
+                                "ai_name": "Lily LLM",
+                                "ai_type": "local"
+                            }
+                        else:
+                            print(f"❌ Lily API 오류: {response.status_code} - {response.text}")
+                            raise Exception(f"Lily API 오류: {response.status_code}")
+                            
+                    except Exception as e:
+                        print(f"❌ Lily API 호출 중 오류: {e}")
+                        raise e
+                        
             except Exception as e:
-                print(f"Lily API 호출 중 오류: {e}")
+                print(f"❌ Lily API 호출 중 오류: {e}")
                 raise e
 
         @sync_to_async
-        def call_gemini(image_urls=None):            
+        def call_gemini(image_urls=None, documents=None):            
             # 감정 변화 추세 분석
             emotion_trend = self.get_emotion_trend()
+            
             # 감정 전략 등 기존 코드 유지
             emotion_strategies = {
                 "happy": {"tone": "기쁨과 함께 공감하며", "approach": "사용자의 기쁨을 함께 나누고, 긍정적인 에너지를 더해주세요. 기쁜 일에 대해 더 자세히 이야기해보도록 유도하세요.", "examples": "정말 기뻐 보이네요! 😊 어떤 일이 그렇게 기쁘게 만든 거예요? 함께 기뻐해도 될까요?"},
                 "sad": {"tone": "따뜻하고 공감적으로", "approach": "사용자의 슬픔에 공감하고, 위로와 격려를 제공하세요. 슬픈 감정을 인정하고, 함께 극복할 방법을 찾아보세요.", "examples": "지금 많이 힘드시겠어요. 😔 그런 감정을 느끼는 것은 당연해요. 제가 옆에서 함께 있어드릴게요."},
-                "angry": {"tone": "차분하고 이해하는 태도로", "approach": "사용자의 분노를 인정하고, 차분하게 상황을 분석해보세요. 분노의 원인을 파악하고 해결책을 제시하세요.", "examples": "화가 나실 만해요. 😤 그런 상황이라면 누구라도 화가 날 거예요. 차분히 생각해보면 어떨까요?"},
-                "fearful": {"tone": "안심시키고 안전함을 느끼게", "approach": "사용자의 두려움을 인정하고, 안전함을 느끼게 해주세요. 구체적인 해결책이나 대안을 제시하세요.", "examples": "무서우시겠어요. 😰 걱정하지 마세요, 함께 해결해보아요. 어떤 부분이 가장 두려우신가요?"},
-                "surprised": {"tone": "함께 놀라워하며", "approach": "사용자의 놀라움에 함께 반응하고, 호기심을 나누어주세요. 놀라운 일에 대해 더 자세히 알아보세요.", "examples": "정말 놀라운 일이네요! 😲 저도 함께 놀랐어요. 어떻게 된 일인지 더 자세히 들려주세요!"},
-                "disgusted": {"tone": "이해하고 다른 주제로 전환", "approach": "사용자의 불쾌감을 인정하고, 다른 주제로 자연스럽게 전환하세요. 긍정적인 주제로 대화를 이어가세요.", "examples": "그런 일이 있으셨군요. 😕 다른 이야기로 기분 전환해볼까요? 요즘 즐거운 일은 없으셨나요?"},
-                "neutral": {"tone": "편안하고 자연스럽게", "approach": "평온한 상태를 유지하며, 자연스럽고 편안한 대화를 이어가세요. 관심사나 일상에 대해 이야기해보세요.", "examples": "편안한 하루 보내고 계시네요. 😊 오늘은 어떤 일이 있었나요? 이야기해주세요."}
+                "angry": {"tone": "차분하고 이해하며", "approach": "사용자의 분노를 인정하고, 차분하게 상황을 분석해보세요. 분노의 원인을 찾고 해결책을 제시하세요.", "examples": "화가 나시는 것 같아요. 😤 어떤 일이 그렇게 화나게 만든 거예요? 함께 해결책을 찾아보시죠."},
+                "surprised": {"tone": "놀라움을 함께하며", "approach": "사용자의 놀라움에 공감하고, 그 상황에 대해 더 자세히 알아보세요. 새로운 관점을 제시하세요.", "examples": "정말 놀라운 일이었나 보네요! 😮 어떤 일이 그렇게 놀라게 만든 거예요? 더 자세히 들려주세요."},
+                "fearful": {"tone": "안심시키며", "approach": "사용자의 두려움을 인정하고, 안심시켜주세요. 구체적인 해결책과 지원을 제시하세요.", "examples": "걱정되시는 것 같아요. 😰 어떤 일이 그렇게 걱정되게 만든 거예요? 함께 해결해보시죠."},
+                "disgusted": {"tone": "이해하며", "approach": "사용자의 혐오감을 인정하고, 그 상황에 대해 객관적으로 분석해보세요.", "examples": "정말 싫은 일이었나 보네요. 🤢 어떤 일이 그렇게 싫게 만든 거예요? 다른 관점에서 보면 어떨까요?"},
+                "neutral": {"tone": "편안하고 친근하게", "approach": "자연스럽고 편안한 대화를 이어가세요. 사용자의 관심사에 집중하고 유용한 정보를 제공하세요.", "examples": "편안한 대화를 나누고 싶으시군요. 😊 어떤 이야기를 나누고 싶으신가요?"}
             }
-            strategy = emotion_strategies.get(user_emotion, emotion_strategies["neutral"])
-            trend_guidance = {
-                "improving": "사용자의 기분이 좋아지고 있는 것 같아요. 이 긍정적인 흐름을 유지할 수 있도록 도와주세요.",
-                "declining": "사용자의 기분이 안 좋아지고 있는 것 같아요. 더 따뜻하고 지지적인 태도로 접근해주세요.",
-                "stable": "사용자의 감정 상태가 안정적입니다. 편안하고 일관된 톤으로 대화를 이어가주세요."
-            }
-            trend_guide = trend_guidance.get(emotion_trend, trend_guidance["stable"])
-            context_summary = ""
-            if len(self.conversation_context) > 0:
-                recent_context = self.conversation_context[-3:]
-                context_summary = "최근 대화 맥락: " + " | ".join([
-                    f"사용자({ctx['user']['emotion']}): {ctx['user']['message'][:50]}..." for ctx in recent_context
-                ])
-            system_content = f"""당신은 따뜻하고 공감적인 AI 대화상대입니다. \n벽난로 주변의 아늑한 공간에서 대화하는 것처럼 편안하고 따뜻한 톤으로 응답해주세요.\n\n현재 사용자의 감정 상태: {user_emotion}\n감정 변화 추세: {emotion_trend}\n\n응답 전략:\n- 톤: {strategy['tone']}\n- 접근법: {strategy['approach']}\n- 감정 변화 지침: {trend_guide}\n\n{context_summary}\n\n사용자의 감정에 맞춰 적절한 톤과 내용으로 응답해주세요. \n필요시 조언, 위로, 격려, 동조, 기쁨 등을 자연스럽게 표현하세요.\n이모티콘을 적절히 사용하여 감정을 표현하세요."""
-
-            # 1. 이미지가 포함된 경우: 먼저 OpenAI 라이브러리 방식 시도
-            if image_urls and len(image_urls) > 0:
-                from urllib.parse import unquote
+            
+            # 현재 감정에 따른 전략 선택
+            current_emotion = user_emotion.lower()
+            strategy = emotion_strategies.get(current_emotion, emotion_strategies["neutral"])
+            
+            # 감정 변화 추세에 따른 추가 전략
+            if emotion_trend == "improving":
+                strategy["approach"] += " 긍정적인 변화가 보이시네요. 계속해서 좋은 방향으로 나아가고 계세요."
+            elif emotion_trend == "declining":
+                strategy["approach"] += " 요즘 힘드신 것 같아요. 제가 더 많이 도와드릴게요."
+            
+            # 프롬프트 구성
+            emotion_prompt = f"{strategy['tone']} {strategy['approach']}"
+            
+            # 문서가 있는 경우 (Gemini는 문서 처리 제한적)
+            if documents and len(documents) > 0:
+                print(f"📄 문서 처리 (Gemini): {len(documents)}개 문서")
+                # Gemini는 문서 처리에 제한이 있으므로 기본 응답
+                return {
+                    "response": f"{emotion_prompt}\n\n문서를 첨부해주셨네요. 현재 Gemini는 문서 분석에 제한이 있습니다. Lily LLM을 사용하시면 더 정확한 문서 분석이 가능합니다.",
+                    "provider": "gemini",
+                    "ai_name": "Gemini",
+                    "ai_type": "google"
+                }
+            
+            # 이미지가 있는 경우 멀티모달 처리
+            elif image_urls and len(image_urls) > 0:
+                print(f"🖼️ 이미지 처리 (Gemini): {len(image_urls)}개 이미지")
+                
+                # Gemini는 첫 번째 이미지만 처리
+                first_image_url = image_urls[0]
+                
                 try:
-                    # 첫 번째 이미지 사용
-                    image_url = image_urls[0]
-                    # image_url이 /media/... 형태라면 MEDIA_ROOT에서 파일 경로 추출 (unquote 적용)
-                    if image_url.startswith('/media/'):
-                        rel_path = unquote(image_url.replace('/media/', ''))
-                        file_path = os.path.normpath(os.path.join(settings.MEDIA_ROOT, rel_path))
+                    # Gemini API 직접 호출
+                    import requests
+                    import base64
+                    
+                    # 이미지 파일 읽기 (HTTP로 가져오기)
+                    if first_image_url.startswith('/media/'):
+                        base_url = 'http://localhost:8000'
+                        absolute_url = f"{base_url}{first_image_url}"
                     else:
-                        file_path = unquote(image_url)
+                        absolute_url = first_image_url
                     
-                    # 파일 존재 확인
-                    if not os.path.exists(file_path):                        
-                        # 파일이 없으면 텍스트만으로 처리
-                        client = OpenAI(
-                            api_key=os.environ.get("GEMINI_API_KEY"),
-                            base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
-                        )
-                        response = client.chat.completions.create(
-                            model="gemini-2.5-flash",
-                            messages=[
-                                {"role": "system", "content": system_content},
-                                {"role": "user", "content": user_message or "이미지 분석을 요청했지만 파일을 찾을 수 없습니다."}
-                            ]
-                        )                        
-                        return response.choices[0].message.content
+                    image_response = requests.get(absolute_url, timeout=1200)
+                    if image_response.status_code != 200:
+                        raise Exception(f"이미지 다운로드 실패: {image_response.status_code}")
                     
-                    # 파일을 base64로 읽어오기
-                    with open(file_path, 'rb') as f:
-                        img_bytes = f.read()
-                    img_b64 = base64.b64encode(img_bytes).decode('utf-8')
+                    image_bytes = image_response.content
+                    image_base64 = base64.b64encode(image_bytes).decode('utf-8')
                     
-                    # OpenAI 라이브러리로 멀티모달 시도
-                    client = OpenAI(
-                        api_key=os.environ.get("GEMINI_API_KEY"),
-                        base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
-                    )
-                    response = client.chat.completions.create(
-                        model="gemini-2.5-flash",
-                        messages=[
-                            {"role": "system", "content": system_content},
-                            {"role": "user", "content": [
-                                {"type": "text", "text": user_message or "이 이미지를 분석해줘."},
-                                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}}
-                            ]}
-                        ]
-                    )                    
-                    return response.choices[0].message.content
+                    # Gemini API 호출
+                    gemini_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent"
+                    headers = {
+                        "Content-Type": "application/json",
+                        "x-goog-api-key": os.getenv('GEMINI_API_KEY')
+                    }
                     
-                except Exception as e:                    
-                    # 백업: REST API 방식 시도
-                    try:
-                        GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-                        GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent"
-                        
-                        payload = {
-                            "contents": [
+                    payload = {
+                        "contents": [{
+                            "parts": [
                                 {
-                                    "parts": [
-                                        {"text": user_message or "이 이미지를 분석해줘."},
-                                        {
-                                            "inline_data": {
-                                                "mime_type": "image/png",
-                                                "data": img_b64
-                                            }
-                                        }
-                                    ]
+                                    "text": f"{emotion_prompt}\n\n사용자 메시지: {user_message}"
+                                },
+                                {
+                                    "inline_data": {
+                                        "mime_type": "image/png",
+                                        "data": image_base64
+                                    }
                                 }
                             ]
+                        }],
+                        "generationConfig": {
+                            "maxOutputTokens": 1000,
+                            "temperature": 0.7
                         }
-                        
-                        response = requests.post(
-                            GEMINI_API_URL + f"?key={GEMINI_API_KEY}",
-                            headers={"Content-Type": "application/json"},
-                            json=payload
-                        )
-                        response.raise_for_status()
+                    }
+                    
+                    # Gemini API 호출
+                    response = requests.post(gemini_url, headers=headers, json=payload, timeout=60)
+                    
+                    if response.status_code == 200:
                         result = response.json()
-                        gemini_text = result["candidates"][0]["content"]["parts"][0]["text"]                        
-                        return gemini_text
+                        if 'candidates' in result and len(result['candidates']) > 0:
+                            gemini_response = result['candidates'][0]['content']['parts'][0]['text']
+                            return {
+                                "response": gemini_response,
+                                "provider": "gemini",
+                                "ai_name": "Gemini",
+                                "ai_type": "google"
+                            }
+                        else:
+                            raise Exception("Gemini API 응답 형식 오류")
+                    else:
+                        raise Exception(f"Gemini API 오류: {response.status_code} - {response.text}")
                         
-                    except Exception as e2:                        
-                        # 최종 백업: 텍스트만으로 처리
-                        client = OpenAI(
-                            api_key=os.environ.get("GEMINI_API_KEY"),
-                            base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
-                        )
-                        response = client.chat.completions.create(
-                            model="gemini-2.5-flash",
-                            messages=[
-                                {"role": "system", "content": system_content},
-                                {"role": "user", "content": user_message or "이미지 분석을 시도했지만 실패했습니다. 텍스트로만 응답드립니다."}
-                            ]
-                        )                        
-                        return response.choices[0].message.content
-            # 2. 텍스트-only: 기존 OpenAI 라이브러리 방식
-            else:
-                try:
-                    client = OpenAI(
-                        api_key=os.environ.get("GEMINI_API_KEY"),
-                        base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
-                    )
-                    response = client.chat.completions.create(
-                        model="gemini-2.5-flash",
-                        messages=[
-                            {"role": "system", "content": system_content},
-                            {"role": "user", "content": user_message}
-                        ]
-                    )                    
-                    return response.choices[0].message.content
                 except Exception as e:
-                    print(f"[Gemini] 텍스트 응답 실패: {e}")                    
+                    print(f"❌ Gemini API 호출 중 오류: {e}")
+                    raise e
+            else:
+                # 텍스트만 있는 경우
+                print("📝 텍스트 전용 요청 (Gemini)")
+                
+                try:
+                    # OpenAI 클라이언트 생성
+                    client = OpenAI(
+                        api_key=os.getenv('GEMINI_API_KEY'),
+                        base_url="https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
+                    )
+                    
+                    # Gemini API 호출
+                    response = client.chat.completions.create(
+                        model="gemini-pro",
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": f"{emotion_prompt}\n\n사용자 메시지: {user_message}"
+                            }
+                        ],
+                        max_tokens=1000,
+                        temperature=0.7
+                    )
+                    
+                    return {
+                        "response": response.choices[0].message.content,
+                        "provider": "gemini",
+                        "ai_name": "Gemini",
+                        "ai_type": "google"
+                    }
+                    
+                except Exception as e:
+                    print(f"❌ Gemini API 호출 중 오류: {e}")
+                    raise e
 
         # 사용자의 AI 설정에 따라 적절한 API 호출
         user = getattr(self, 'scope', {}).get('user', None)
@@ -734,21 +812,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
         try:
             if ai_provider == 'lily':
                 print("🚀 Lily LLM API 호출")
-                response_text = await call_lily_api(user_message, user_emotion, image_urls)
+                result = await call_lily_api(user_message, user_emotion, image_urls, documents)
                 return {
-                    'response': response_text,
-                    'provider': 'lily',
-                    'ai_name': 'Lily LLM',
-                    'ai_type': 'lily'
+                    'response': result.get('response', ''),
+                    'provider': result.get('provider', 'lily'),
+                    'ai_name': result.get('ai_name', 'Lily LLM'),
+                    'ai_type': result.get('ai_type', 'local')
                 }
             else:
                 print("🚀 Gemini API 호출")
-                response_text = await call_gemini(image_urls)
+                result = await call_gemini(image_urls, documents)
                 return {
-                    'response': response_text,
-                    'provider': 'gemini',
-                    'ai_name': 'Gemini',
-                    'ai_type': 'google'
+                    'response': result.get('response', ''),
+                    'provider': result.get('provider', 'gemini'),
+                    'ai_name': result.get('ai_name', 'Gemini'),
+                    'ai_type': result.get('ai_type', 'google')
                 }
         except Exception as e:
             print(f"❌ {ai_provider} API 호출 실패: {e}")
@@ -756,15 +834,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
             if ai_provider != 'gemini':
                 print("🔄 Gemini API로 폴백")
                 try:
-                    response_text = await call_gemini()
+                    result = await call_gemini(image_urls, documents)
                     return {
-                        'response': response_text,
-                        'provider': 'gemini',
-                        'ai_name': 'Gemini',
-                        'ai_type': 'google'
+                        'response': result.get('response', ''),
+                        'provider': result.get('provider', 'gemini'),
+                        'ai_name': result.get('ai_name', 'Gemini'),
+                        'ai_type': result.get('ai_type', 'google')
                     }
                 except Exception as fallback_e:
                     print(f"❌ Gemini 폴백도 실패: {fallback_e}")
                     raise fallback_e
             else:
                 raise e
+

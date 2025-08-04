@@ -114,9 +114,6 @@ const SettingsModal = ({
   // userSettings에서 AI 설정 로드
   useEffect(() => {
     if (userSettings) {
-      console.log('🔧 SettingsModal - userSettings 변경됨:', userSettings);
-      console.log('🔧 SettingsModal - ai_response_enabled:', userSettings.ai_response_enabled);
-      console.log('🔧 SettingsModal - ai_settings:', userSettings.ai_settings);
 
       let newAiSettings = {
         aiEnabled: !!userSettings.ai_response_enabled,
@@ -134,17 +131,14 @@ const SettingsModal = ({
       // 저장된 AI 설정이 있으면 파싱
       if (userSettings.ai_settings) {
         try {
-          const savedSettings = JSON.parse(userSettings.ai_settings);
-          console.log('🔧 SettingsModal - 저장된 AI 설정 파싱 성공:', savedSettings);
-          newAiSettings = { ...newAiSettings, ...savedSettings };
-          console.log('🔧 SettingsModal - 병합된 AI 설정:', newAiSettings);
+          const savedSettings = JSON.parse(userSettings.ai_settings);          
+          newAiSettings = { ...newAiSettings, ...savedSettings };          
         } catch (e) {
           console.error('❌ SettingsModal - AI 설정 파싱 실패:', e);
         }
       }
-
       setAiSettings(newAiSettings);
-      console.log('🔧 SettingsModal - AI 설정 업데이트 완료:', newAiSettings);
+
     }
   }, [userSettings]);
 

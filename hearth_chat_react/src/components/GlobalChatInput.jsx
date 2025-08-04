@@ -376,7 +376,117 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
         handleRemoveAllAttachedDocuments();
     };
 
-    // 다중 이미지 업로드 후 전송
+    // 통합 파일 업로드 및 전송 (이미지 + 문서)
+    const handleMultipleFilesUploadAndSend = async (messageText) => {
+        console.log('[DEBUG] handleMultipleFilesUploadAndSend 호출됨');
+        console.log('[DEBUG] messageText:', messageText);
+        console.log('[DEBUG] attachedImages:', attachedImages);
+        console.log('[DEBUG] attachedDocuments:', attachedDocuments);
+        console.log('[DEBUG] ws:', ws);
+        console.log('[DEBUG] ws.readyState:', ws?.readyState);
+        console.log('[DEBUG] room:', room);
+
+        if (attachedImages.length === 0 && attachedDocuments.length === 0) {
+            console.log('[DEBUG] 첨부된 파일이 없음');
+            return;
+        }
+
+        const finalMessageText = messageText || '파일 첨부';
+        console.log('[DEBUG] finalMessageText:', finalMessageText);
+
+        try {
+            const uploadedUrls = [];
+            const uploadedDocuments = [];
+
+            // 이미지 파일 업로드
+            for (let i = 0; i < attachedImages.length; i++) {
+                const imageFile = attachedImages[i];
+                const formData = new FormData();
+                formData.append('file', imageFile);
+
+                const response = await fetch('/api/chat/upload_image/', {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.file_url) {
+                        uploadedUrls.push(result.file_url);
+                    }
+                } else {
+                    console.error('이미지 업로드 실패:', response.status, response.statusText);
+                    const errorData = await response.json();
+                    console.error('에러 상세:', errorData);
+                }
+            }
+
+            // 문서 파일 업로드 (Lily LLM API로 직접 전송)
+            for (let i = 0; i < attachedDocuments.length; i++) {
+                const documentFile = attachedDocuments[i];
+                const formData = new FormData();
+                formData.append('file', documentFile);
+                formData.append('user_id', loginUser?.username || 'default_user');
+
+                const response = await fetch('http://localhost:8001/document/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        uploadedDocuments.push({
+                            document_id: result.document_id,
+                            filename: documentFile.name
+                        });
+                        console.log(`✅ 문서 업로드 성공: ${documentFile.name}`);
+                    } else {
+                        console.error(`❌ 문서 업로드 실패: ${documentFile.name}`, result);
+                    }
+                } else {
+                    console.error(`❌ 문서 업로드 HTTP 오류: ${documentFile.name}`, response.status, response.statusText);
+                    const errorData = await response.json();
+                    console.error('에러 상세:', errorData);
+                }
+            }
+
+            // WebSocket으로 메시지 전송
+            console.log('[DEBUG] WebSocket 전송 시작');
+            console.log('[DEBUG] ws:', ws);
+            console.log('[DEBUG] ws.readyState:', ws?.readyState);
+
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const messageData = {
+                    type: 'chat_message',
+                    message: finalMessageText,
+                    roomId: room.id,
+                    imageUrls: uploadedUrls,
+                    documents: uploadedDocuments
+                };
+
+                console.log('[DEBUG] messageData GlobalChatInput.jsx', messageData);
+                console.log('[DEBUG] WebSocket 상태:', ws.readyState);
+                console.log('[DEBUG] 전송할 메시지:', JSON.stringify(messageData));
+                ws.send(JSON.stringify(messageData));
+                console.log('[DEBUG] WebSocket 메시지 전송 완료');
+            } else {
+                console.error('[DEBUG] WebSocket이 연결되지 않음');
+                console.error('[DEBUG] ws:', ws);
+                console.error('[DEBUG] ws.readyState:', ws?.readyState);
+            }
+
+            // 파일 상태 초기화
+            handleRemoveAllAttachedFiles();
+            setInput('');
+        } catch (error) {
+            console.error('파일 업로드 중 오류:', error);
+            alert('파일 업로드 중 오류가 발생했습니다.');
+        }
+    };
+
+    // 다중 이미지 업로드 후 전송 (기존 함수 유지)
     const handleMultipleImagesUploadAndSend = async (messageText) => {
         if (attachedImages.length === 0) return;
 
@@ -470,12 +580,15 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
     };
 
     const handleSend = async () => {
-        console.log('[DEBUG] handleSend 호출됨, attachedImages:', attachedImages);
-        if (attachedImages.length > 0) {
-            console.log('[DEBUG] 이미지가 있으므로 handleMultipleImagesUploadAndSend 호출');
-            await handleMultipleImagesUploadAndSend(input);
+        console.log('[DEBUG] handleSend 호출됨, attachedImages:', attachedImages, 'attachedDocuments:', attachedDocuments);
+
+        // 이미지나 문서가 첨부된 경우
+        if (attachedImages.length > 0 || attachedDocuments.length > 0) {
+            console.log('[DEBUG] 파일이 첨부되어 있으므로 handleMultipleFilesUploadAndSend 호출');
+            await handleMultipleFilesUploadAndSend(input);
             return;
         }
+
         if (!input.trim()) return;
         setLoading(true);
         if (!room) {
@@ -535,7 +648,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
     // 새로운 AI 채팅방 생성 및 이동
     // 방 생성 함수 내에서 localStorage 정리 및 강제 이동 보장
     const handleCreateNewAiRoom = async () => {
-        if (!input.trim() && attachedImages.length === 0) return;
+        if (!input.trim() && attachedImages.length === 0 && attachedDocuments.length === 0) return;
         setLoading(true);
         const now = new Date();
         const title = `${input.slice(0, 20)} - ${now.toLocaleString('ko-KR', { hour12: false })}`;
@@ -770,9 +883,9 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
             )}
 
             <div className="global-chat-input-content-box" style={{ position: 'relative', maxWidth: 480, margin: '0 auto' }}>
-                {/* 입력창 위에 딱 붙는 첨부 이미지 미리보기 (겹치지 않게) */}
-                {attachedImagePreviews.length > 0 && (
-                    <div className="attached-image-preview-box" style={{
+                {/* 입력창 위에 딱 붙는 첨부 파일 미리보기 (겹치지 않게) */}
+                {(attachedImagePreviews.length > 0 || attachedDocumentPreviews.length > 0) && (
+                    <div className="attached-file-preview-box" style={{
                         position: 'absolute',
                         left: 0,
                         bottom: '100%',
@@ -787,8 +900,9 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                         maxWidth: 320,
                         zIndex: 200
                     }}>
+                        {/* 이미지 미리보기 */}
                         {attachedImagePreviews.map((preview, index) => (
-                            <div key={index} style={{ position: 'relative' }}>
+                            <div key={`img-${index}`} style={{ position: 'relative' }}>
                                 <img
                                     src={preview}
                                     alt={`첨부 이미지 미리보기 ${index + 1}`}
@@ -824,9 +938,68 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                                 </button>
                             </div>
                         ))}
-                        {attachedImagePreviews.length > 1 && (
+
+                        {/* 문서 미리보기 */}
+                        {attachedDocumentPreviews.map((doc, index) => (
+                            <div key={`doc-${index}`} style={{
+                                position: 'relative',
+                                background: '#2a2b32',
+                                borderRadius: 6,
+                                padding: 8,
+                                minWidth: 120,
+                                maxWidth: 200
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <span style={{ fontSize: '24px' }}>{doc.icon}</span>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{
+                                            fontSize: '12px',
+                                            color: '#fff',
+                                            fontWeight: 'bold',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap'
+                                        }}>
+                                            {doc.name}
+                                        </div>
+                                        <div style={{
+                                            fontSize: '10px',
+                                            color: '#888',
+                                            marginTop: 2
+                                        }}>
+                                            {(doc.size / 1024 / 1024).toFixed(1)}MB
+                                        </div>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => handleRemoveAttachedDocument(index)}
+                                    className="attached-document-remove-btn"
+                                    style={{
+                                        position: 'absolute',
+                                        top: -8,
+                                        right: -8,
+                                        color: '#fff',
+                                        background: '#f44336',
+                                        border: 'none',
+                                        borderRadius: '50%',
+                                        width: '20px',
+                                        height: '20px',
+                                        fontSize: '12px',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center'
+                                    }}
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        ))}
+
+                        {/* 모두 제거 버튼 */}
+                        {(attachedImagePreviews.length + attachedDocumentPreviews.length) > 1 && (
                             <button
-                                onClick={handleRemoveAllAttachedImages}
+                                onClick={handleRemoveAllAttachedFiles}
                                 style={{
                                     color: '#fff',
                                     background: '#ff6666',
@@ -908,14 +1081,23 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                     {room && (
                         <button
                             className="global-chat-input-send-btn"
-                            onClick={() => {
+                            onClick={async () => {
+                                console.log('[DEBUG] 전송 버튼 클릭됨');
+                                console.log('[DEBUG] room:', room);
+                                console.log('[DEBUG] attachedImages:', attachedImages);
+                                console.log('[DEBUG] attachedDocuments:', attachedDocuments);
+                                console.log('[DEBUG] input:', input);
+
                                 if (!room) {
-                                    handleCreateNewAiRoom();
-                                } else if (attachedImages.length > 0) {
+                                    console.log('[DEBUG] 방이 없으므로 handleCreateNewAiRoom 호출');
+                                    await handleCreateNewAiRoom();
+                                } else if (attachedImages.length > 0 || attachedDocuments.length > 0) {
+                                    console.log('[DEBUG] 파일이 첨부되어 있으므로 handleMultipleFilesUploadAndSend 호출');
                                     const currentInput = input;
-                                    handleMultipleImagesUploadAndSend(currentInput);
+                                    await handleMultipleFilesUploadAndSend(currentInput);
                                 } else {
-                                    handleSend();
+                                    console.log('[DEBUG] 일반 텍스트 메시지이므로 handleSend 호출');
+                                    await handleSend();
                                 }
                             }}
                             // disabled={!input.trim() && !attachedImage}
@@ -937,9 +1119,9 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                     {room && (
                         <button
                             type="button"
-                            className="image-upload-btn-side"
+                            className="file-upload-btn-side"
                             onClick={() => {
-                                const fileInput = document.getElementById('global-chat-image-upload');
+                                const fileInput = document.getElementById('global-chat-file-upload');
                                 if (fileInput) fileInput.click();
                             }}
                             style={{
@@ -948,20 +1130,21 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                                 background: 'transparent',
                                 margin: '0 auto',
                             }}
+                            title="파일 첨부 (이미지, PDF, 문서)"
                         >
                             <input
-                                id="global-chat-image-upload"
+                                id="global-chat-file-upload"
                                 type="file"
-                                accept="image/*"
+                                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
                                 multiple={true}
                                 style={{ display: 'none' }}
-                                onChange={handleImageUpload}
+                                onChange={handleFileUpload}
                             />
-                            <span className="image-upload-btn-icon"
+                            <span className="file-upload-btn-icon"
                                 style={{
                                     fontSize: 20,
                                 }}
-                            >🖼︎</span>
+                            >📎</span>
                         </button>
                     )
                     }

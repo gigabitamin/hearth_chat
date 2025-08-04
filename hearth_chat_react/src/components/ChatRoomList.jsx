@@ -446,8 +446,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
 
     // HOME 버튼: 오버레이(사이드바)에서만, 최상단 오른쪽 끝에 고정
     // const isOverlay = overlayKey === 'overlay'; // 더 이상 사용하지 않음
-
-    console.log('favoriteMessages', favoriteMessages);
+    
     return (
         <div className="chat-room-list" style={{ height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
             {loading ? (

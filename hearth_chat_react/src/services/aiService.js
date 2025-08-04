@@ -10,10 +10,10 @@ class AIService {
     initialize(settings) {
         this.settings = settings;
         this.isInitialized = true;
-        console.log('🤖 AI 서비스 초기화됨:', settings);
-        console.log('🔧 현재 AI 제공자:', settings.aiProvider);
-        console.log('🔧 Lily API URL:', settings.lilyApiUrl);
-        console.log('🔧 Lily 모델:', settings.lilyModel);
+        // console.log('🤖 AI 서비스 초기화됨:', settings);
+        // console.log('🔧 현재 AI 제공자:', settings.aiProvider);
+        // console.log('🔧 Lily API URL:', settings.lilyApiUrl);
+        // console.log('🔧 Lily 모델:', settings.lilyModel);
     }
 
     // AI 응답 생성
