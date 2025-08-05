@@ -723,7 +723,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         "x-goog-api-key": os.getenv('GEMINI_API_KEY')
                     }
                         
-                        payload = {
+                    payload = {
                         "contents": [{
                             "parts": [
                                 {
