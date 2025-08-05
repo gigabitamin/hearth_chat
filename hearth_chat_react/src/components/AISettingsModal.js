@@ -8,7 +8,7 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
         aiEnabled: false,
         aiProvider: 'lily', // 'lily', 'chatgpt', 'gemini'
         lilyApiUrl: 'http://localhost:8001',
-        lilyModel: 'polyglot-ko-1.3b-chat',
+        lilyModel: 'kanana-1.5-v-3b-instruct',
         chatgptApiKey: '',
         geminiApiKey: '',
         autoRespond: false,
@@ -34,7 +34,7 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
                     aiEnabled: false,
                     aiProvider: 'lily',
                     lilyApiUrl: 'http://localhost:8001',
-                    lilyModel: 'polyglot-ko-1.3b-chat',
+                    lilyModel: 'kanana-1.5-v-3b-instruct',
                     chatgptApiKey: '',
                     geminiApiKey: '',
                     autoRespond: false,

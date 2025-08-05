@@ -105,7 +105,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         image_urls = data.get("imageUrls", [])  # 다중 이미지 URL 배열
         documents = data.get("documents", [])  # 문서 정보 배열
         room_id = data.get("roomId", "")  # 대화방 ID 추가
-        
+
         print(f"[DEBUG] WebSocket 메시지 수신:")
         print(f"[DEBUG] user_message: {user_message}")
         print(f"[DEBUG] image_urls: {image_urls}")
@@ -237,7 +237,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     ),
                     'ai_name': ai_message_obj.ai_name if ai_message_obj else 'AI',
                     'sender': ai_message_obj.ai_name if ai_message_obj else 'AI',
-                }
+                }                
                 print(f"📤 디버그 이벤트: {debug_event}")
             except Exception as e:
                 print(f"[DEBUG][group_send][ai_message] event 출력 오류: {e}")
@@ -512,7 +512,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             }
                             
                             print(f"📤 RAG 요청 데이터: {rag_data}")
-                            response = requests.post(f"{lily_api_url}/rag/generate", data=rag_data, timeout=60)
+                            response = requests.post(f"{lily_api_url}/rag/generate", data=rag_data, timeout=1200)
                             
                             if response.status_code == 200:
                                 result = response.json()
@@ -553,7 +553,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             print(f"🌐 이미지 URL {i+1}: {absolute_url}")
                             
                             # HTTP 요청으로 이미지 가져오기
-                            image_response = requests.get(absolute_url, timeout=600)
+                            image_response = requests.get(absolute_url, timeout=1200)
                             if image_response.status_code == 200:
                                 image_bytes = image_response.content
                                 print(f"✅ 이미지 {i+1} 다운로드 성공: {len(image_bytes)} bytes")
@@ -627,7 +627,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         
                         # API 호출
                         print(f"🔄 텍스트 전용 요청 전송")
-                        response = requests.post(f"{lily_api_url}/generate", data=data, timeout=120)
+                        response = requests.post(f"{lily_api_url}/generate", data=data, timeout=1200)
                         
                         if response.status_code == 200:
                             result = response.json()
@@ -722,16 +722,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         "Content-Type": "application/json",
                         "x-goog-api-key": os.getenv('GEMINI_API_KEY')
                     }
-                    
-                    payload = {
+                        
+                        payload = {
                         "contents": [{
                             "parts": [
                                 {
                                     "text": f"{emotion_prompt}\n\n사용자 메시지: {user_message}"
                                 },
-                                {
-                                    "inline_data": {
-                                        "mime_type": "image/png",
+                                        {
+                                            "inline_data": {
+                                                "mime_type": "image/png",
                                         "data": image_base64
                                     }
                                 }
