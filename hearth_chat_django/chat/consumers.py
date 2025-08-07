@@ -799,6 +799,88 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     print(f"❌ Gemini API 호출 중 오류: {e}")
                     raise e
 
+        @sync_to_async
+        def call_huggingface_space(user_message, user_emotion, image_urls=None, documents=None):
+            """Hugging Face 스페이스 API 호출"""
+            import requests
+            import json
+            
+            try:
+                # 허깅페이스 스페이스 URL
+                hf_space_url = "https://gbrabbit-lily-math-rag.hf.space"
+                
+                # 감정 변화 추세 분석
+                emotion_trend = self.get_emotion_trend()
+                
+                # 감정 전략
+                emotion_strategies = {
+                    "happy": {"tone": "기쁨과 함께 공감하며", "approach": "사용자의 기쁨을 함께 나누고, 긍정적인 에너지를 더해주세요."},
+                    "sad": {"tone": "따뜻하고 공감적으로", "approach": "사용자의 슬픔에 공감하고, 위로와 격려를 제공하세요."},
+                    "angry": {"tone": "차분하고 이해하며", "approach": "사용자의 분노를 인정하고, 차분하게 상황을 분석해보세요."},
+                    "surprised": {"tone": "놀라움을 함께하며", "approach": "사용자의 놀라움에 공감하고, 그 상황에 대해 더 자세히 알아보세요."},
+                    "fearful": {"tone": "안심시키며", "approach": "사용자의 두려움을 인정하고, 안심시켜주세요."},
+                    "disgusted": {"tone": "이해하며", "approach": "사용자의 혐오감을 인정하고, 그 상황에 대해 객관적으로 분석해보세요."},
+                    "neutral": {"tone": "편안하고 친근하게", "approach": "자연스럽고 편안한 대화를 이어가세요."}
+                }
+                
+                # 현재 감정에 따른 전략 선택
+                current_emotion = user_emotion.lower()
+                strategy = emotion_strategies.get(current_emotion, emotion_strategies["neutral"])
+                
+                # 감정 변화 추세에 따른 추가 전략
+                if emotion_trend == "improving":
+                    strategy["approach"] += " 긍정적인 변화가 보이시네요. 계속해서 좋은 방향으로 나아가고 계세요."
+                elif emotion_trend == "declining":
+                    strategy["approach"] += " 요즘 힘드신 것 같아요. 제가 더 많이 도와드릴게요."
+                
+                # 프롬프트 구성
+                emotion_prompt = f"{strategy['tone']} {strategy['approach']}"
+                
+                # 허깅페이스 스페이스 API 호출
+                api_data = {
+                    "data": [
+                        f"{emotion_prompt}\n\n사용자 메시지: {user_message}",
+                        "kanana-1.5-v-3b-instruct",  # 모델명
+                        512,  # max_new_tokens
+                        0.7,  # temperature
+                        0.9,  # top_p
+                        1.0,  # repetition_penalty
+                        True   # do_sample
+                    ]
+                }
+                
+                print(f"🌐 Hugging Face 스페이스 API 호출: {hf_space_url}")
+                print(f"📤 요청 데이터: {api_data}")
+                
+                response = requests.post(
+                    f"{hf_space_url}/api/predict",
+                    json=api_data,
+                    headers={"Content-Type": "application/json"},
+                    timeout=120
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    print(f"✅ Hugging Face 스페이스 API 응답 성공")
+                    
+                    # Gradio API 응답 형식에서 텍스트 추출
+                    if 'data' in result and len(result['data']) > 0:
+                        hf_response = result['data'][0]
+                        return {
+                            "response": hf_response,
+                            "provider": "huggingface",
+                            "ai_name": "Kanana LLM (Hugging Face)",
+                            "ai_type": "huggingface"
+                        }
+                    else:
+                        raise Exception("Hugging Face API 응답 형식 오류")
+                else:
+                    raise Exception(f"Hugging Face API 오류: {response.status_code} - {response.text}")
+                    
+            except Exception as e:
+                print(f"❌ Hugging Face 스페이스 API 호출 중 오류: {e}")
+                raise e
+
         # 사용자의 AI 설정에 따라 적절한 API 호출
         user = getattr(self, 'scope', {}).get('user', None)
         ai_settings = None
@@ -819,6 +901,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'ai_name': result.get('ai_name', 'Lily LLM'),
                     'ai_type': result.get('ai_type', 'local')
                 }
+            elif ai_provider == 'huggingface':
+                print("🚀 Hugging Face 스페이스 API 호출")
+                result = await call_huggingface_space(user_message, user_emotion, image_urls, documents)
+                return {
+                    'response': result.get('response', ''),
+                    'provider': result.get('provider', 'huggingface'),
+                    'ai_name': result.get('ai_name', 'Kanana LLM (Hugging Face)'),
+                    'ai_type': result.get('ai_type', 'huggingface')
+                }
             else:
                 print("🚀 Gemini API 호출")
                 result = await call_gemini(image_urls, documents)
@@ -831,7 +922,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             print(f"❌ {ai_provider} API 호출 실패: {e}")
             # 실패 시 Gemini로 폴백
-            if ai_provider != 'gemini':
+            if ai_provider not in ['gemini']:
                 print("🔄 Gemini API로 폴백")
                 try:
                     result = await call_gemini(image_urls, documents)

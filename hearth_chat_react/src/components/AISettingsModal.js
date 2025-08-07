@@ -109,7 +109,7 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
             return newSettings;
         });
     };
-
+    
     const testAIConnection = async () => {
         try {
             setLoading(true);
@@ -121,6 +121,26 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
             switch (settings.aiProvider) {
                 case 'lily':
                     testUrl = `${settings.lilyApiUrl}/health`;
+                    break;
+                case 'huggingface':
+                    testUrl = 'https://gbrabbit-lily-math-rag.hf.space/api/predict';
+                    testData = {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            data: [
+                                "안녕하세요! 테스트 메시지입니다.",
+                                "kanana-1.5-v-3b-instruct",
+                                50,
+                                0.7,
+                                0.9,
+                                1.0,
+                                true
+                            ]
+                        })
+                    };
                     break;
                 case 'chatgpt':
                     testUrl = 'https://api.openai.com/v1/models';
@@ -143,9 +163,23 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
             const response = await fetch(testUrl, testData);
 
             if (response.ok) {
+                let resultMessage = `${settings.aiProvider.toUpperCase()} API 연결 성공!`;
+
+                // 허깅페이스의 경우 응답 내용도 확인
+                if (settings.aiProvider === 'huggingface') {
+                    try {
+                        const result = await response.json();
+                        if (result.data && result.data[0]) {
+                            resultMessage += `\n테스트 응답: ${result.data[0].substring(0, 100)}...`;
+                        }
+                    } catch (e) {
+                        resultMessage += '\n(응답 파싱 실패)';
+                    }
+                }
+
                 setTestResult({
                     success: true,
-                    message: `${settings.aiProvider.toUpperCase()} API 연결 성공!`
+                    message: resultMessage
                 });
             } else {
                 setTestResult({
@@ -208,6 +242,7 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
                             onChange={(e) => handleInputChange('aiProvider', e.target.value)}
                         >
                             <option value="lily">Lily LLM (로컬)</option>
+                            <option value="huggingface">Kanana LLM (Hugging Face)</option>
                             <option value="chatgpt">ChatGPT (OpenAI)</option>
                             <option value="gemini">Gemini (Google)</option>
                         </select>
@@ -267,6 +302,24 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
                                 onChange={(e) => handleInputChange('chatgptApiKey', e.target.value)}
                                 placeholder="sk-..."
                             />
+                        </div>
+                    )}
+
+                    {/* Hugging Face 설정 */}
+                    {settings.aiProvider === 'huggingface' && (
+                        <div className="setting-group">
+                            <label className="setting-label">Hugging Face 스페이스:</label>
+                            <div style={{
+                                padding: '10px',
+                                backgroundColor: '#f5f5f5',
+                                borderRadius: '4px',
+                                fontSize: '14px',
+                                color: '#666'
+                            }}>
+                                <strong>Kanana LLM (Hugging Face)</strong><br />
+                                <small>스페이스 URL: https://gbrabbit-lily-math-rag.hf.space</small><br />
+                                <small>모델: kanana-1.5-v-3b-instruct</small>
+                            </div>
                         </div>
                     )}
 
