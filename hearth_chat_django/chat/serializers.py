@@ -104,6 +104,10 @@ class UserSettingsSerializer(serializers.ModelSerializer):
     auto_send_enabled = serializers.BooleanField(required=False)
     ai_response_enabled = serializers.BooleanField(required=False)
     ai_settings = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    
+    # AI 모델 설정 필드들
+    ai_provider = serializers.CharField(required=False)
+    gemini_model = serializers.CharField(required=False)
 
     class Meta:
         model = UserSettings

@@ -2,13 +2,23 @@ import React, { useState, useEffect } from 'react';
 import './AISettingsModal.css';
 
 const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActiveModelChange }) => {
-    console.log('🔧 AISettingsModal - currentSettings:', currentSettings);
+    // console.log('🔧 AISettingsModal - currentSettings:', currentSettings);
+
+    // 사용 가능한 Gemini 모델 목록
+    const geminiModels = [
+        { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', description: '빠르고 다재다능한 멀티모달 모델' },
+        { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: '고성능 멀티모달 모델 (최대 200만 토큰)' },
+        { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', description: '최신 2.0 버전의 빠른 모델' },
+        { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: '최신 2.5 버전의 빠른 모델' },
+        { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', description: '최신 2.5 버전의 고성능 모델' }
+    ];
 
     const [settings, setSettings] = useState({
         aiEnabled: false,
-        aiProvider: 'lily', // 'lily', 'chatgpt', 'gemini'
+        aiProvider: 'lily', // 'lily', 'huggingface', 'chatgpt', 'gemini'
         lilyApiUrl: 'http://localhost:8001',
         lilyModel: 'kanana-1.5-v-3b-instruct',
+        geminiModel: 'gemini-1.5-flash',
         chatgptApiKey: '',
         geminiApiKey: '',
         autoRespond: false,
@@ -18,7 +28,7 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
         ...currentSettings
     });
 
-    console.log('🔧 AISettingsModal - 초기 settings:', settings);
+    // console.log('🔧 AISettingsModal - 초기 settings:', settings);
 
     const [availableModels, setAvailableModels] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -27,7 +37,7 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
 
     // currentSettings가 변경될 때 settings 업데이트
     useEffect(() => {
-        console.log('🔧 AISettingsModal - currentSettings 변경됨:', currentSettings);
+        // console.log('🔧 AISettingsModal - currentSettings 변경됨:', currentSettings);
         if (Object.keys(currentSettings).length > 0) {
             setSettings(prev => {
                 const newSettings = {
@@ -43,7 +53,7 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
                     temperature: 0.7,
                     ...currentSettings
                 };
-                console.log('🔧 AISettingsModal - 새로운 settings:', newSettings);
+                // console.log('🔧 AISettingsModal - 새로운 settings:', newSettings);
                 return newSettings;
             });
         }
@@ -52,8 +62,8 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
     // 모달이 열릴 때마다 현재 설정 확인
     useEffect(() => {
         if (isOpen) {
-            console.log('🔧 AISettingsModal - 모달 열림, 현재 설정:', settings);
-            console.log('🔧 AISettingsModal - aiProvider:', settings.aiProvider);
+            // console.log('🔧 AISettingsModal - 모달 열림, 현재 설정:', settings);
+            // console.log('🔧 AISettingsModal - aiProvider:', settings.aiProvider);
         }
     }, [isOpen, settings]);
 
@@ -81,7 +91,7 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
 
                 // 현재 활성화된 모델 정보 가져오기
                 if (data.current_model) {
-                    console.log('🔧 AISettingsModal - 현재 활성화된 모델:', data.current_model);
+                    // console.log('🔧 AISettingsModal - 현재 활성화된 모델:', data.current_model);
                     setCurrentActiveModel(data.current_model);
 
                     // 현재 활성화된 모델로 설정 업데이트
@@ -99,17 +109,17 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
     };
 
     const handleInputChange = (field, value) => {
-        console.log('🔧 AISettingsModal - 입력 변경:', field, value);
+        // console.log('🔧 AISettingsModal - 입력 변경:', field, value);
         setSettings(prev => {
             const newSettings = {
                 ...prev,
                 [field]: value
             };
-            console.log('🔧 AISettingsModal - 새로운 설정:', newSettings);
+            // console.log('🔧 AISettingsModal - 새로운 설정:', newSettings);
             return newSettings;
         });
     };
-    
+
     const testAIConnection = async () => {
         try {
             setLoading(true);
@@ -151,11 +161,26 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
                     };
                     break;
                 case 'gemini':
-                    testUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
+                    testUrl = `https://generativelanguage.googleapis.com/v1beta/models/${settings.geminiModel}:generateContent`;
                     testData = {
+                        method: 'POST',
                         headers: {
-                            'Authorization': `Bearer ${settings.geminiApiKey}`
-                        }
+                            'Content-Type': 'application/json',
+                            'x-goog-api-key': settings.geminiApiKey
+                        },
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [
+                                    {
+                                        text: "안녕하세요! 테스트 메시지입니다."
+                                    }
+                                ]
+                            }],
+                            generationConfig: {
+                                maxOutputTokens: 50,
+                                temperature: 0.7
+                            }
+                        })
                     };
                     break;
             }
@@ -198,11 +223,11 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
     };
 
     const handleSave = () => {
-        console.log('💾 AISettingsModal - 설정 저장 시작');
-        console.log('💾 AISettingsModal - 현재 설정:', settings);
-        console.log('💾 AISettingsModal - onSave 함수 호출');
+        // console.log('💾 AISettingsModal - 설정 저장 시작');
+        // console.log('💾 AISettingsModal - 현재 설정:', settings);
+        // console.log('💾 AISettingsModal - onSave 함수 호출');
         onSave(settings);
-        console.log('💾 AISettingsModal - onClose 함수 호출');
+        // console.log('💾 AISettingsModal - onClose 함수 호출');
         onClose();
     };
 
@@ -325,15 +350,43 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
 
                     {/* Gemini API 설정 */}
                     {settings.aiProvider === 'gemini' && (
-                        <div className="setting-group">
-                            <label className="setting-label">Gemini API Key:</label>
-                            <input
-                                type="password"
-                                value={settings.geminiApiKey}
-                                onChange={(e) => handleInputChange('geminiApiKey', e.target.value)}
-                                placeholder="AIza..."
-                            />
-                        </div>
+                        <>
+                            <div className="setting-group">
+                                <label className="setting-label">Gemini API Key:</label>
+                                <input
+                                    type="password"
+                                    value={settings.geminiApiKey}
+                                    onChange={(e) => handleInputChange('geminiApiKey', e.target.value)}
+                                    placeholder="AIza..."
+                                />
+                            </div>
+
+                            <div className="setting-group">
+                                <label className="setting-label">Gemini 모델 선택:</label>
+                                <select
+                                    value={settings.geminiModel}
+                                    onChange={(e) => handleInputChange('geminiModel', e.target.value)}
+                                >
+                                    {geminiModels.map(model => (
+                                        <option key={model.id} value={model.id}>
+                                            {model.name} - {model.description}
+                                        </option>
+                                    ))}
+                                </select>
+
+                                {/* 선택된 모델 정보 표시 */}
+                                {settings.geminiModel && (
+                                    <div className="model-info">
+                                        <small style={{ color: '#4CAF50', fontWeight: 'bold' }}>
+                                            ✅ 선택된 모델: {geminiModels.find(m => m.id === settings.geminiModel)?.name}
+                                        </small>
+                                        <small style={{ color: '#666', display: 'block', marginTop: '4px' }}>
+                                            {geminiModels.find(m => m.id === settings.geminiModel)?.description}
+                                        </small>
+                                    </div>
+                                )}
+                            </div>
+                        </>
                     )}
 
                     {/* 응답 설정 */}
@@ -408,7 +461,7 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
                     <button
                         className="save-button"
                         onClick={() => {
-                            console.log('🔘 AISettingsModal - 저장 버튼 클릭됨');
+                            // console.log('🔘 AISettingsModal - 저장 버튼 클릭됨');
                             handleSave();
                         }}
                     >

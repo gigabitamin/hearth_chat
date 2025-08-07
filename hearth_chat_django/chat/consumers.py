@@ -416,21 +416,42 @@ class ChatConsumer(AsyncWebsocketConsumer):
         from .models import UserSettings
         try:
             settings = UserSettings.objects.get(user=user)
+            print(f"🔍 DB에서 가져온 설정: ai_provider={settings.ai_provider}, gemini_model={settings.gemini_model}")
+            
+            # 기본 설정
+            default_settings = {
+                "aiProvider": "gemini",
+                "aiEnabled": True,
+                "geminiModel": "gemini-1.5-flash"
+            }
+            
+            # ai_settings JSON에서 설정 가져오기
             if settings.ai_settings:
                 try:
-                    return json.loads(settings.ai_settings)
+                    json_settings = json.loads(settings.ai_settings)
+                    default_settings.update(json_settings)
+                    print(f"🔍 JSON 설정에서 가져온 값: {json_settings}")
                 except json.JSONDecodeError:
+                    print(f"🔍 JSON 파싱 오류")
                     pass
-            # 기본 설정 반환
-            return {
-                "aiProvider": "gemini",
-                "aiEnabled": True
-            }
-        except Exception:
+            
+            # 새로운 필드들 추가 (DB 필드 우선)
+            if hasattr(settings, 'ai_provider') and settings.ai_provider:
+                default_settings["aiProvider"] = settings.ai_provider
+                print(f"🔍 DB ai_provider 사용: {settings.ai_provider}")
+            if hasattr(settings, 'gemini_model') and settings.gemini_model:
+                default_settings["geminiModel"] = settings.gemini_model
+                print(f"🔍 DB gemini_model 사용: {settings.gemini_model}")
+            
+            print(f"🔍 최종 설정: {default_settings}")
+            return default_settings
+        except Exception as e:
+            print(f"🔍 설정 가져오기 오류: {e}")
             # 기본 설정 반환
             return {
                 "aiProvider": "gemini", 
-                "aiEnabled": True
+                "aiEnabled": True,
+                "geminiModel": "gemini-1.5-flash"
             }
 
     async def get_ai_response(self, user_message, user_emotion="neutral", image_urls=None, documents=None):
@@ -651,7 +672,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 raise e
 
         @sync_to_async
-        def call_gemini(image_urls=None, documents=None):            
+        def call_gemini(user_message, user_emotion, image_urls=None, documents=None, gemini_model='gemini-1.5-flash'):            
             # 감정 변화 추세 분석
             emotion_trend = self.get_emotion_trend()
             
@@ -717,7 +738,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     image_base64 = base64.b64encode(image_bytes).decode('utf-8')
                     
                     # Gemini API 호출
-                    gemini_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent"
+                    gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{gemini_model}:generateContent"
                     headers = {
                         "Content-Type": "application/json",
                         "x-goog-api-key": os.getenv('GEMINI_API_KEY')
@@ -769,31 +790,46 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 print("📝 텍스트 전용 요청 (Gemini)")
                 
                 try:
-                    # OpenAI 클라이언트 생성
-                    client = OpenAI(
-                        api_key=os.getenv('GEMINI_API_KEY'),
-                        base_url="https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
-                    )
+                    # Gemini API 직접 호출
+                    import requests
+                    
+                    gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{gemini_model}:generateContent"
+                    headers = {
+                        "Content-Type": "application/json",
+                        "x-goog-api-key": os.getenv('GEMINI_API_KEY')
+                    }
+                    
+                    payload = {
+                        "contents": [{
+                            "parts": [
+                                {
+                                    "text": f"{emotion_prompt}\n\n사용자 메시지: {user_message}"
+                                }
+                            ]
+                        }],
+                        "generationConfig": {
+                            "maxOutputTokens": 1000,
+                            "temperature": 0.7
+                        }
+                    }
                     
                     # Gemini API 호출
-                    response = client.chat.completions.create(
-                        model="gemini-pro",
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": f"{emotion_prompt}\n\n사용자 메시지: {user_message}"
-                            }
-                        ],
-                        max_tokens=1000,
-                        temperature=0.7
-                    )
+                    response = requests.post(gemini_url, headers=headers, json=payload, timeout=60)
                     
-                    return {
-                        "response": response.choices[0].message.content,
-                        "provider": "gemini",
-                        "ai_name": "Gemini",
-                        "ai_type": "google"
-                    }
+                    if response.status_code == 200:
+                        result = response.json()
+                        if 'candidates' in result and len(result['candidates']) > 0:
+                            gemini_response = result['candidates'][0]['content']['parts'][0]['text']
+                            return {
+                                "response": gemini_response,
+                                "provider": "gemini",
+                                "ai_name": "Gemini",
+                                "ai_type": "google"
+                            }
+                        else:
+                            raise Exception("Gemini API 응답 형식 오류")
+                    else:
+                        raise Exception(f"Gemini API 오류: {response.status_code} - {response.text}")
                     
                 except Exception as e:
                     print(f"❌ Gemini API 호출 중 오류: {e}")
@@ -886,10 +922,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
         ai_settings = None
         if user and hasattr(user, 'is_authenticated') and user.is_authenticated:
             ai_settings = await self.get_user_ai_settings(user)
+            print(f"🔍 사용자 AI 설정: {ai_settings}")
+        else:
+            print(f"🔍 사용자 인증되지 않음")
         
         ai_provider = ai_settings.get('aiProvider', 'gemini') if ai_settings else 'gemini'
+        gemini_model = ai_settings.get('geminiModel', 'gemini-1.5-flash') if ai_settings else 'gemini-1.5-flash'
         
-        print(f"🔍 AI 설정 확인: {ai_provider}")
+        print(f"🔍 AI 제공자: {ai_provider}")
+        print(f"🔍 Gemini 모델: {gemini_model}")
         
         try:
             if ai_provider == 'lily':
@@ -912,7 +953,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 }
             else:
                 print("🚀 Gemini API 호출")
-                result = await call_gemini(image_urls, documents)
+                result = await call_gemini(user_message, user_emotion, image_urls, documents, gemini_model)
                 return {
                     'response': result.get('response', ''),
                     'provider': result.get('provider', 'gemini'),
@@ -925,7 +966,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             if ai_provider not in ['gemini']:
                 print("🔄 Gemini API로 폴백")
                 try:
-                    result = await call_gemini(image_urls, documents)
+                    result = await call_gemini(user_message, user_emotion, image_urls, documents, gemini_model)
                     return {
                         'response': result.get('response', ''),
                         'provider': result.get('provider', 'gemini'),

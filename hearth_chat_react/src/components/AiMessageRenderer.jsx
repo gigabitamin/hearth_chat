@@ -24,12 +24,12 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineEleme
 const decodeUnicodeChars = (text) => {
   if (!text || typeof text !== 'string') return text;
   
-  console.log(`[DEBUG] 텍스트 처리 시작`);
-  console.log(`[DEBUG] 원본 텍스트:`, text);
+  // console.log(`[DEBUG] 텍스트 처리 시작`);
+  // console.log(`[DEBUG] 원본 텍스트:`, text);
   
   // 백엔드에서 이미 올바른 형태로 전달받는다고 가정
   // 더 이상 unicodeMap을 사용하지 않음
-  console.log(`[DEBUG] 텍스트 처리 완료`);
+  // console.log(`[DEBUG] 텍스트 처리 완료`);
   
   return text;
 };
@@ -49,8 +49,8 @@ const katexOptions = {
 
 // DEBUG: LaTeX 수식 렌더링 확인 함수
 const debugLatexRendering = (text, blockType = 'text') => {
-  console.log(`[DEBUG] LaTeX 렌더링 시작 - 블록 타입: ${blockType}`);
-  console.log(`[DEBUG] 원본 텍스트:`, text);
+  // console.log(`[DEBUG] LaTeX 렌더링 시작 - 블록 타입: ${blockType}`);
+  // console.log(`[DEBUG] 원본 텍스트:`, text);
 
   // LaTeX 수식 패턴 찾기
   const inlineMathRegex = /\$([^\$]+?)\$/g;
@@ -70,8 +70,8 @@ const debugLatexRendering = (text, blockType = 'text') => {
     blockMatches.push(match[1]);
   }
 
-  console.log(`[DEBUG] 발견된 인라인 수식 (${inlineMatches.length}개):`, inlineMatches);
-  console.log(`[DEBUG] 발견된 블록 수식 (${blockMatches.length}개):`, blockMatches);
+  // console.log(`[DEBUG] 발견된 인라인 수식 (${inlineMatches.length}개):`, inlineMatches);
+  // console.log(`[DEBUG] 발견된 블록 수식 (${blockMatches.length}개):`, blockMatches);
 
   return { inlineMatches, blockMatches };
 };
@@ -90,7 +90,7 @@ const renderInlineMath = (text) => {
       });
       result = result.replace(match[0], rendered);
     } catch (error) {
-      console.log(`[DEBUG] 인라인 수식 렌더링 오류:`, error.message);
+      // console.log(`[DEBUG] 인라인 수식 렌더링 오류:`, error.message);
       // 오류가 발생하면 원본 텍스트 유지
     }
   }
@@ -114,11 +114,11 @@ const BlockCard = ({ type, value, language }) => {
 
   // DEBUG: 블록 카드 렌더링 확인
   useEffect(() => {
-    console.log(`[DEBUG] BlockCard 렌더링 - 타입: ${type}, 언어: ${language}`);
-    console.log(`[DEBUG] 블록 값:`, value);
+    // console.log(`[DEBUG] BlockCard 렌더링 - 타입: ${type}, 언어: ${language}`);
+    // console.log(`[DEBUG] 블록 값:`, value);
 
     if (type === 'latex') {
-      console.log(`[DEBUG] LaTeX 블록 렌더링 시작`);
+      // console.log(`[DEBUG] LaTeX 블록 렌더링 시작`);
       debugLatexRendering(value, 'latex');
     }
   }, [type, value, language]);
@@ -148,12 +148,12 @@ const BlockCard = ({ type, value, language }) => {
           ) : type === 'latex' ? (
             (() => {
               try {
-                console.log(`[DEBUG] LaTeX 블록 KaTeX 렌더링 시작:`, value);
+                // console.log(`[DEBUG] LaTeX 블록 KaTeX 렌더링 시작:`, value);
                 const rendered = katex.renderToString(value, {
                   ...katexOptions,
                   displayMode: true
                 });
-                console.log(`[DEBUG] LaTeX 블록 렌더링 성공`);
+                // console.log(`[DEBUG] LaTeX 블록 렌더링 성공`);
                 return (
                   <div
                     dangerouslySetInnerHTML={{ __html: rendered }}
@@ -165,7 +165,7 @@ const BlockCard = ({ type, value, language }) => {
                   />
                 );
               } catch (error) {
-                console.log(`[DEBUG] LaTeX 블록 렌더링 오류:`, error.message);
+                // console.log(`[DEBUG] LaTeX 블록 렌더링 오류:`, error.message);
                 return (
                   <ReactMarkdown
                     children={"$$" + value + "$$"}
@@ -197,7 +197,7 @@ const BlockCard = ({ type, value, language }) => {
 function parseBlocks(text) {
   if (!text || typeof text !== 'string') return [{ type: 'text', value: text }];
 
-  console.log(`[DEBUG] parseBlocks 시작 - 텍스트 길이: ${text.length}`);
+  // console.log(`[DEBUG] parseBlocks 시작 - 텍스트 길이: ${text.length}`);
 
   const blocks = [];
   let lastIndex = 0;
@@ -218,7 +218,7 @@ function parseBlocks(text) {
 
   // 블록 수식 먼저 찾기 ($$...$$)
   while ((match = blockMathRegex.exec(text)) !== null) {
-    console.log(`[DEBUG] 블록 수식 발견:`, match[0]);
+    // console.log(`[DEBUG] 블록 수식 발견:`, match[0]);
     matches.push({
       type: 'latex',
       value: match[1].trim(),
@@ -230,7 +230,7 @@ function parseBlocks(text) {
 
   // mermaid 블록 찾기
   while ((match = mermaidRegex.exec(text)) !== null) {
-    console.log(`[DEBUG] mermaid 블록 발견:`, match[0]);
+    // console.log(`[DEBUG] mermaid 블록 발견:`, match[0]);
     matches.push({
       type: 'mermaid',
       value: match[1],
@@ -242,7 +242,7 @@ function parseBlocks(text) {
 
   // chart 블록 찾기
   while ((match = chartRegex.exec(text)) !== null) {
-    console.log(`[DEBUG] chart 블록 발견:`, match[0]);
+    // console.log(`[DEBUG] chart 블록 발견:`, match[0]);
     matches.push({
       type: 'chart',
       value: match[1],
@@ -254,7 +254,7 @@ function parseBlocks(text) {
 
   // 코드 블록 찾기 (mermaid, chart와 중복되는 부분은 제외)
   while ((match = codeBlockRegex.exec(text)) !== null) {
-    console.log(`[DEBUG] 코드 블록 발견:`, match[0]);
+    // console.log(`[DEBUG] 코드 블록 발견:`, match[0]);
     // mermaid, chart와 중복되는 부분은 제외
     if (match[1] === 'mermaid' || match[1] === 'json') continue;
     matches.push({
@@ -270,7 +270,7 @@ function parseBlocks(text) {
   // 인덱스 순서로 정렬
   matches.sort((a, b) => a.index - b.index);
 
-  console.log(`[DEBUG] 발견된 블록들:`, matches);
+  // console.log(`[DEBUG] 발견된 블록들:`, matches);
 
   // 블록들을 순서대로 처리
   for (const m of matches) {
@@ -278,13 +278,13 @@ function parseBlocks(text) {
     if (lastIndex < m.index) {
       const textBefore = text.slice(lastIndex, m.index);
       if (textBefore.trim()) {
-        console.log(`[DEBUG] 텍스트 블록 추가:`, textBefore);
+        // console.log(`[DEBUG] 텍스트 블록 추가:`, textBefore);
         blocks.push({ type: 'text', value: textBefore });
       }
     }
 
     // 현재 블록 추가
-    console.log(`[DEBUG] ${m.type} 블록 추가:`, m.value);
+    // console.log(`[DEBUG] ${m.type} 블록 추가:`, m.value);
     blocks.push(m);
     lastIndex = m.index + m.length;
   }
@@ -293,21 +293,21 @@ function parseBlocks(text) {
   if (lastIndex < text.length) {
     const textAfter = text.slice(lastIndex);
     if (textAfter.trim()) {
-      console.log(`[DEBUG] 마지막 텍스트 블록 추가:`, textAfter);
+      // console.log(`[DEBUG] 마지막 텍스트 블록 추가:`, textAfter);
       blocks.push({ type: 'text', value: textAfter });
     }
   }
 
-  console.log(`[DEBUG] 파싱된 블록들:`, blocks);
+  // console.log(`[DEBUG] 파싱된 블록들:`, blocks);
   return blocks;
 }
 
 const AiMessageRenderer = ({ message }) => {
   // DEBUG: 메시지 렌더링 시작 확인
   useEffect(() => {
-    console.log(`[DEBUG] AiMessageRenderer 렌더링 시작`);
-    console.log(`[DEBUG] 메시지 타입:`, typeof message);
-    console.log(`[DEBUG] 메시지 내용:`, message);
+    // console.log(`[DEBUG] AiMessageRenderer 렌더링 시작`);
+    // console.log(`[DEBUG] 메시지 타입:`, typeof message);
+    // console.log(`[DEBUG] 메시지 내용:`, message);
   }, [message]);
 
   // 유니코드 이스케이프 시퀀스 디코딩
@@ -317,7 +317,7 @@ const AiMessageRenderer = ({ message }) => {
   try {
     const parsed = typeof decodedMessage === 'string' ? JSON.parse(decodedMessage) : decodedMessage;
     if (parsed && typeof parsed === 'object') {
-      console.log(`[DEBUG] JSON 메시지 감지:`, parsed.type);
+      // console.log(`[DEBUG] JSON 메시지 감지:`, parsed.type);
       if (parsed.type === 'chart') {
         return <BlockCard type="chart" value={JSON.stringify(parsed)} />;
       }
@@ -334,30 +334,30 @@ const AiMessageRenderer = ({ message }) => {
       }
     }
   } catch (e) {
-    console.log(`[DEBUG] JSON 파싱 실패, 마크다운으로 처리:`, e.message);
+    // console.log(`[DEBUG] JSON 파싱 실패, 마크다운으로 처리:`, e.message);
   }
 
   // 일반 텍스트/마크다운 메시지: 블록 분리
   const blocks = parseBlocks(decodedMessage);
 
-  console.log(`[DEBUG] 최종 렌더링할 블록 수:`, blocks.length);
+  // console.log(`[DEBUG] 최종 렌더링할 블록 수:`, blocks.length);
 
   return (
     <div className="message-markdown">
       {blocks.map((block, i) => {
-        console.log(`[DEBUG] 블록 ${i} 렌더링 - 타입: ${block.type}`);
+        // console.log(`[DEBUG] 블록 ${i} 렌더링 - 타입: ${block.type}`);
 
         if (block.type === 'code' || block.type === 'latex' || block.type === 'chart' || block.type === 'mermaid') {
           return <BlockCard key={i} type={block.type} value={block.value} language={block.language} />;
         }
 
         // 일반 텍스트/마크다운은 ReactMarkdown으로 렌더링 (LaTeX 수식 포함)
-        console.log(`[DEBUG] 텍스트 블록 렌더링 - 길이: ${block.value.length}`);
+        // console.log(`[DEBUG] 텍스트 블록 렌더링 - 길이: ${block.value.length}`);
         const latexInfo = debugLatexRendering(block.value, 'text');
 
         // 인라인 수식이 있는 경우 직접 처리
         if (latexInfo.inlineMatches.length > 0) {
-          console.log(`[DEBUG] 인라인 수식 직접 처리:`, latexInfo.inlineMatches);
+          // console.log(`[DEBUG] 인라인 수식 직접 처리:`, latexInfo.inlineMatches);
 
           // 인라인 수식을 KaTeX로 렌더링
           const renderedText = renderInlineMath(block.value);
@@ -380,7 +380,7 @@ const AiMessageRenderer = ({ message }) => {
             components={{
               // LaTeX 수식 렌더링을 위한 커스텀 컴포넌트
               math: ({ value }) => {
-                console.log(`[DEBUG] 블록 수식 렌더링:`, value);
+                // console.log(`[DEBUG] 블록 수식 렌더링:`, value);
                 return (
                   <div className="math-display" style={{
                     display: 'block',
@@ -394,7 +394,7 @@ const AiMessageRenderer = ({ message }) => {
                 );
               },
               inlineMath: ({ value }) => {
-                console.log(`[DEBUG] 인라인 수식 렌더링:`, value);
+                // console.log(`[DEBUG] 인라인 수식 렌더링:`, value);
                 return (
                   <span className="math-inline" style={{
                     fontFamily: 'KaTeX_Main, serif',
