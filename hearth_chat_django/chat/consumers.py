@@ -648,7 +648,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         # Form data 구성
                         data = {
                             'prompt': f"{emotion_prompt}\n\n사용자 메시지: {user_message}",
-                            'max_length': 512,
+                            'max_length': 256,  # 0이 아닌 적절한 값으로 설정
                             'temperature': 0.7
                         }
                         
@@ -971,20 +971,30 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 }
         except Exception as e:
             print(f"❌ {ai_provider} API 호출 실패: {e}")
-            # 실패 시 Gemini로 폴백
-            if ai_provider not in ['gemini']:
-                print("🔄 Gemini API로 폴백")
-                try:
-                    result = await call_gemini(user_message, user_emotion, image_urls, documents, gemini_model)
-                    return {
-                        'response': result.get('response', ''),
-                        'provider': result.get('provider', 'gemini'),
-                        'ai_name': result.get('ai_name', 'Gemini'),
-                        'ai_type': result.get('ai_type', 'google')
-                    }
-                except Exception as fallback_e:
-                    print(f"❌ Gemini 폴백도 실패: {fallback_e}")
-                    raise fallback_e
+            # 실패 시 사용자에게 명확한 메시지 제공
+            if ai_provider == 'lily':
+                error_message = f"Lily LLM 서버에 연결할 수 없습니다. (오류: {str(e)[:100]})\n\n허깅페이스 스페이스 상태를 확인해주세요: https://huggingface.co/spaces/gbrabbit/lily_fast_api\n\nGemini로 전환하시겠습니까?"
+                return {
+                    'response': error_message,
+                    'provider': 'error',
+                    'ai_name': 'Lily LLM (연결 실패)',
+                    'ai_type': 'error'
+                }
+            elif ai_provider == 'huggingface':
+                error_message = f"Hugging Face 스페이스에 연결할 수 없습니다. (오류: {str(e)[:100]})\n\nGemini로 전환하시겠습니까?"
+                return {
+                    'response': error_message,
+                    'provider': 'error',
+                    'ai_name': 'Hugging Face (연결 실패)',
+                    'ai_type': 'error'
+                }
             else:
-                raise e
+                # Gemini도 실패한 경우
+                error_message = f"AI 서비스에 연결할 수 없습니다. (오류: {str(e)[:100]})"
+                return {
+                    'response': error_message,
+                    'provider': 'error',
+                    'ai_name': 'AI 서비스 (연결 실패)',
+                    'ai_type': 'error'
+                }
 
