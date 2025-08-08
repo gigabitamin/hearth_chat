@@ -528,7 +528,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                 'query': user_message,
                                 'user_id': user.username if user else 'default_user',
                                 'document_id': document_id,
-                                'max_length': 1000,
+                                'max_length': 512,
                                 'temperature': 0.7
                             }
                             
@@ -596,7 +596,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             # Form data 구성
                             data = {
                                 'prompt': f"{emotion_prompt}\n\n사용자 메시지: {user_message}",
-                                'max_length': 1000,
+                                'max_length': 512,
                                 'temperature': 0.7
                             }
                             
@@ -639,7 +639,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         # Form data 구성
                         data = {
                             'prompt': f"{emotion_prompt}\n\n사용자 메시지: {user_message}",
-                            'max_length': 1000,
+                            'max_length': 512,
                             'temperature': 0.7
                         }
                         
@@ -759,7 +759,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             ]
                         }],
                         "generationConfig": {
-                            "maxOutputTokens": 1000,
+                            "maxOutputTokens": 512,
                             "temperature": 0.7
                         }
                     }
@@ -808,7 +808,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             ]
                         }],
                         "generationConfig": {
-                            "maxOutputTokens": 1000,
+                            "maxOutputTokens": 512,
                             "temperature": 0.7
                         }
                     }
