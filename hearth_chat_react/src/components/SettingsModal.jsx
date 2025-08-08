@@ -874,10 +874,10 @@ const SettingsModal = ({
               {aiSettings.aiEnabled && (
                 <div style={{ marginTop: 16, padding: 12, background: '#f8f9fa', borderRadius: '8px', border: '1px solid #e0e0e0' }}>
                   <div style={{ fontWeight: '600', marginBottom: '8px' }}>
-                    현재 AI 설정:
+                    현재 AI 설정: hi
                   </div>
                   <div style={{ fontSize: '0.9em', color: '#666' }}>
-                    <div>• 제공자: {aiSettings.aiProvider === 'lily' ? 'Lily LLM (로컬)' :
+                    <div>• 제공자: {aiSettings.aiProvider === 'lily' ? 'Lily LLM' :
                       aiSettings.aiProvider === 'chatgpt' ? 'ChatGPT' : 'Gemini'}</div>
                     {aiSettings.aiProvider === 'lily' && (
                       <>
