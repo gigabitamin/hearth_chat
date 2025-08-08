@@ -734,7 +734,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     
                     # 이미지 파일 읽기 (HTTP로 가져오기)
                     if first_image_url.startswith('/media/'):
-                        base_url = 'http://localhost:8000'
+                        # Django 서버의 절대 URL로 변환
+                        from django.conf import settings
+                        base_url = getattr(settings, 'BASE_URL', 'http://localhost:8000')
                         absolute_url = f"{base_url}{first_image_url}"
                     else:
                         absolute_url = first_image_url
