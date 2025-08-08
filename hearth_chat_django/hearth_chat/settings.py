@@ -86,6 +86,12 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
 else:
     BASE_URL = "http://localhost:8000"
 
+# Lily LLM API URL 설정
+if os.environ.get("RAILWAY_ENVIRONMENT"):
+    LILY_API_URL = "https://gbrabbit-lily-fast-api.hf.space"
+else:
+    LILY_API_URL = "http://localhost:8001"
+
 # Railway 환경에서 배포 여부 확인
 if os.environ.get("RAILWAY_ENVIRONMENT"):
     # CSRF / 세션 쿠키 설정
@@ -96,9 +102,12 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
     CSRF_TRUSTED_ORIGINS = [
         "https://hearthchat-production.up.railway.app",
         "https://*.hearthchat-production.up.railway.app",
+        "https://gbrabbit-lily-fast-api.hf.space",
+        "https://*.gbrabbit-lily-fast-api.hf.space",
     ]
     CORS_ALLOWED_ORIGINS = [
         "https://hearthchat-production.up.railway.app",
+        "https://gbrabbit-lily-fast-api.hf.space",
     ]
     CORS_ALLOW_CREDENTIALS = True
     # 기타 보안 설정
@@ -119,6 +128,8 @@ else:
         "http://localhost:8001",
         "http://127.0.0.1:8001",
         "http://192.168.44.9:8001",
+        "https://hearthchat-production.up.railway.app",
+        "https://gbrabbit-lily-fast-api.hf.space",
     ]
 
     CORS_ALLOWED_ORIGINS = [
@@ -126,6 +137,8 @@ else:
         "http://localhost:8001",
         "http://127.0.0.1:8001",
         "http://192.168.44.9:8001",
+        "https://hearthchat-production.up.railway.app",
+        "https://gbrabbit-lily-fast-api.hf.space",        
     ]
 
     print("로컬 개발 환경 설정 완료")
@@ -202,6 +215,7 @@ CORS_ALLOWED_ORIGINS = [
 if not CORS_ALLOWED_ORIGINS:
     CORS_ALLOWED_ORIGINS = [
         "https://hearthchat-production.up.railway.app",
+        "https://gbrabbit-lily-fast-api.hf.space",
         "http://localhost:3000",
         "http://localhost:8000",
         "http://localhost:8001",

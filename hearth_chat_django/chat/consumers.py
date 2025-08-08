@@ -483,8 +483,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     except Exception:
                         pass
                 
-                lily_api_url = ai_settings.get('lilyApiUrl', 'http://localhost:8001') if ai_settings else 'http://localhost:8001'
-                lily_model = ai_settings.get('lilyModel', 'polyglot-ko-1.3b-chat') if ai_settings else 'polyglot-ko-1.3b-chat'
+                # 환경별 기본 URL 설정
+                from django.conf import settings
+                default_lily_url = getattr(settings, 'LILY_API_URL', 'http://localhost:8001')
+                default_lily_model = 'kanana-1.5-v-3b-instruct'
+                
+                lily_api_url = ai_settings.get('lilyApiUrl', default_lily_url) if ai_settings else default_lily_url
+                lily_model = ai_settings.get('lilyModel', default_lily_model) if ai_settings else default_lily_model
+                
+                print(f"🔧 Lily API 설정: URL={lily_api_url}, Model={lily_model}")
+                print(f"🔧 환경 감지: RAILWAY_ENVIRONMENT={os.environ.get('RAILWAY_ENVIRONMENT', 'None')}")
                 
                 # 감정 변화 추세 분석
                 emotion_trend = self.get_emotion_trend()
@@ -566,7 +574,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             # 상대 URL을 절대 URL로 변환
                             if image_url.startswith('/media/'):
                                 # Django 서버의 절대 URL로 변환
-                                base_url = 'http://localhost:8000'  # Django 서버 URL
+                                from django.conf import settings
+                                base_url = getattr(settings, 'BASE_URL', 'http://localhost:8000')
                                 absolute_url = f"{base_url}{image_url}"
                             else:
                                 absolute_url = image_url
