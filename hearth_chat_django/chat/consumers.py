@@ -7,6 +7,7 @@ from asgiref.sync import sync_to_async
 
 load_dotenv()
 from openai import OpenAI
+max_length = 64
 
 class ChatConsumer(AsyncWebsocketConsumer):
     def __init__(self, *args, **kwargs):
@@ -536,7 +537,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                 'query': user_message,
                                 'user_id': user.username if user else 'default_user',
                                 'document_id': document_id,
-                                'max_length': 512,
+                                'max_length': max_length,
                                 'temperature': 0.7
                             }
                             
@@ -605,7 +606,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             # Form data 구성
                             data = {
                                 'prompt': f"{emotion_prompt}\n\n사용자 메시지: {user_message}",
-                                'max_length': 512,
+                                'max_length': max_length,
                                 'temperature': 0.7
                             }
                             
@@ -648,7 +649,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         # Form data 구성
                         data = {
                             'prompt': f"{emotion_prompt}\n\n사용자 메시지: {user_message}",
-                            'max_length': 256,  # 0이 아닌 적절한 값으로 설정
+                            'max_length': max_length,
                             'temperature': 0.7
                         }
                         

@@ -3,7 +3,6 @@ export const getApiBase = () => {
     const hostname = window.location.hostname;
     const isProd = process.env.NODE_ENV === 'production';
 
-    console.log('🔧 API_BASE 환경 감지:', { hostname, isProd, NODE_ENV: process.env.NODE_ENV });
 
     if (isProd) return 'https://hearthchat-production.up.railway.app';
     if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:8000';
@@ -16,7 +15,7 @@ export const getLilyApiUrl = () => {
     const hostname = window.location.hostname;
     const isProd = process.env.NODE_ENV === 'production';
 
-    console.log('🔧 LILY_API_URL 환경 감지:', { hostname, isProd, NODE_ENV: process.env.NODE_ENV });
+    // console.log('🔧 LILY_API_URL 환경 감지:', { hostname, isProd, NODE_ENV: process.env.NODE_ENV });
 
     // 프로덕션 환경에서는 허깅페이스 FastAPI 서버 사용
     if (isProd) return 'https://gbrabbit-lily-fast-api.hf.space';
