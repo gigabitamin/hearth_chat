@@ -4,9 +4,10 @@ import uuid
 from channels.generic.websocket import AsyncWebsocketConsumer
 from dotenv import load_dotenv
 from asgiref.sync import sync_to_async
+from openai import OpenAI
 
 load_dotenv()
-from openai import OpenAI
+
 max_length = 64
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -487,6 +488,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 # 환경별 기본 URL 설정
                 from django.conf import settings
                 default_lily_url = getattr(settings, 'LILY_API_URL', 'http://localhost:8001')
+                print(f"🔧 Lily URL={default_lily_url}")
                 default_lily_model = 'kanana-1.5-v-3b-instruct'
                 
                 lily_api_url = ai_settings.get('lilyApiUrl', default_lily_url) if ai_settings else default_lily_url
