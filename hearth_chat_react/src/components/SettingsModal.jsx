@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './SettingsModal.css';
 import VoiceRecognition from './VoiceRecognition';
 import AISettingsModal from './AISettingsModal';
-import { API_BASE } from '../utils/apiConfig';
+import { API_BASE, LILY_API_URL } from '../utils/apiConfig';
 
 const ALLAUTH_BASE = `${API_BASE}/accounts`;
 
@@ -99,8 +99,8 @@ const SettingsModal = ({
   const [aiSettings, setAiSettings] = useState({
     aiEnabled: !!userSettings?.ai_response_enabled,
     aiProvider: 'lily',
-    lilyApiUrl: 'http://localhost:8001',
-    lilyModel: 'polyglot-ko-1.3b-chat',
+    lilyApiUrl: LILY_API_URL,
+    lilyModel: 'kanana-1.5-v-3b-instruct',
     chatgptApiKey: '',
     geminiApiKey: '',
     autoRespond: false,
@@ -118,8 +118,8 @@ const SettingsModal = ({
       let newAiSettings = {
         aiEnabled: !!userSettings.ai_response_enabled,
         aiProvider: 'lily',
-        lilyApiUrl: 'http://localhost:8001',
-        lilyModel: 'polyglot-ko-1.3b-chat',
+        lilyApiUrl: LILY_API_URL,
+        lilyModel: 'kanana-1.5-v-3b-instruct',
         chatgptApiKey: '',
         geminiApiKey: '',
         autoRespond: false,
@@ -131,8 +131,8 @@ const SettingsModal = ({
       // 저장된 AI 설정이 있으면 파싱
       if (userSettings.ai_settings) {
         try {
-          const savedSettings = JSON.parse(userSettings.ai_settings);          
-          newAiSettings = { ...newAiSettings, ...savedSettings };          
+          const savedSettings = JSON.parse(userSettings.ai_settings);
+          newAiSettings = { ...newAiSettings, ...savedSettings };
         } catch (e) {
           console.error('❌ SettingsModal - AI 설정 파싱 실패:', e);
         }

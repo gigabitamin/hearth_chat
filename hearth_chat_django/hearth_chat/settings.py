@@ -64,7 +64,8 @@ CSRF_TRUSTED_ORIGINS = [
     'http://192.168.44.9:8001',
     'http://192.168.44.9:8000',
     'http://192.168.44.9:3000',    
-    'https://hearthchat-production.up.railway.app',
+    'https://hearthchat-production.up.railway.app',    
+    'https://gbrabbit-lily-fast-api.hf.space',
 ]
 
 

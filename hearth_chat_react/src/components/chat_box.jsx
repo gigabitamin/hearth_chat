@@ -26,7 +26,7 @@ import RoomSettingsModal from './RoomSettingsModal';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 
 import VirtualizedMessageList from './VirtualizedMessageList';
-import { getApiBase, getCookie, csrfFetch, API_BASE } from '../utils/apiConfig';
+import { getApiBase, getCookie, csrfFetch, API_BASE, LILY_API_URL } from '../utils/apiConfig';
 // Chart.js core 등록 필수!
 import {
   Chart as ChartJS,
@@ -2596,8 +2596,8 @@ const ChatBox = ({
         let aiSettings = {
           aiEnabled: !!userSettings.ai_response_enabled,
           aiProvider: 'lily', // 기본값
-          lilyApiUrl: 'http://localhost:8001',
-          lilyModel: 'polyglot-ko-1.3b-chat',
+          lilyApiUrl: LILY_API_URL,
+          lilyModel: 'kanana-1.5-v-3b-instruct',
           chatgptApiKey: '',
           geminiApiKey: '',
           autoRespond: false,

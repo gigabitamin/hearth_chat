@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { getApiBase, getCookie, csrfFetch } from '../utils/apiConfig';
+import { getApiBase, getCookie, csrfFetch, LILY_API_URL } from '../utils/apiConfig';
 import Webcam from 'react-webcam';
 import Cropper from 'react-easy-crop';
 import { getCroppedImg, dataURLtoFile } from './cropUtils';
@@ -429,7 +429,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                 formData.append('file', documentFile);
                 formData.append('user_id', loginUser?.username || 'default_user');
 
-                const response = await fetch('http://localhost:8001/document/upload', {
+                const response = await fetch(`${LILY_API_URL}/document/upload`, {
                     method: 'POST',
                     body: formData
                 });

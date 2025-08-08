@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './AISettingsModal.css';
+import { LILY_API_URL } from '../utils/apiConfig';
 
 const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActiveModelChange }) => {
     // console.log('🔧 AISettingsModal - currentSettings:', currentSettings);
@@ -16,7 +17,7 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
     const [settings, setSettings] = useState({
         aiEnabled: false,
         aiProvider: 'lily', // 'lily', 'huggingface', 'chatgpt', 'gemini'
-        lilyApiUrl: 'http://localhost:8001',
+        lilyApiUrl: LILY_API_URL,
         lilyModel: 'kanana-1.5-v-3b-instruct',
         geminiModel: 'gemini-1.5-flash',
         chatgptApiKey: '',
@@ -43,7 +44,7 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
                 const newSettings = {
                     aiEnabled: false,
                     aiProvider: 'lily',
-                    lilyApiUrl: 'http://localhost:8001',
+                    lilyApiUrl: LILY_API_URL,
                     lilyModel: 'kanana-1.5-v-3b-instruct',
                     chatgptApiKey: '',
                     geminiApiKey: '',
