@@ -4,181 +4,214 @@
 
 ==========================================
 
-## 250810 v0.98
-- private 모드 token 추가, lily fast api 와 통합 완료
 
-## 250809
-- 허깅페이스 fast_api 서버와 연결
 
-## 250729 v0.97
-- 카메라 기능 추가, 카메라 찍은 후 사진 잘라내기 -> 이미지 첨부 후 AI API 멀티모달 응답
+### Hearth Chat 패키지 구조 개요
 
-## 250728 v0.96
-- 소셜 로그인 allauth 중간창 생략, OAUTH CALLBACK REDIRECT URI 연결로 클릭시 소셜 자동 로그인 간략화 -> 사용자 경험 향상
-- 전체 컴포넌트에서 하드코딩된 코드 utility 함수 컴포넌트로 추출하여 리팩토링
-- AI API 메시지 파싱 형태에 따른 출력을 안정화시키기 위한 추가 작업(remark, mermaid, ketex 등)
-- 코드나 latex 수식, 도표, 차트 json 등 특수 형태의 문서 형식은 카드 형태로 만들어 복사, 코드 <-> 텍스트 변환 토글 버튼 추가
+이 문서는 `C:\Project\hearth_chat_project\hearth_chat_package`의 디렉터리 구조와 주요 컴포넌트, 실행/배포, Lily LLM 연동 포인트를 정리합니다.
 
-## 250727 
-- 메시지 코드 Virtuoso 방식으로 전체 리팩토링 (백엔드 API 포함)
-- 무한 스크롤 문제 해결
-- 1. Timestamp 기반 연속성 체크**: ID가 아닌 timestamp/date 기반으로 메시지 연속성 판단
-- 2. Fallback Reload: 연속성이 깨지면 해당 구간을 전체 새로 로딩하여 윈도우 재구성
-- 3. 슬라이딩 윈도우 관리 : 40개 메시지 제한을 유지하면서 연속성 보장
+---
 
-## 250726 v0.95
-- 멀티 삭제, 썸네일 모달창, 페이지네이션 추가
-- VirtualizedMessageList.jsx virtuoso 무한스크롤 오류 해결(hearth_chat_project/hearth_chat_flow_text/error_solution_log/250726_1437_무한스크롤_스크롤위치보정_해결.md) -> 다른 기능 수정 작업 중에 다시 error 
+### 최상위 구성
+- `app.js`, `build.sh`, `Dockerfile`: 빌드/배포 스크립트 및 진입점(프로젝트 관리용)
+- `script/`: 배포/실행 편의 스크립트
+- `hearth_chat_django/`: 백엔드 (Django + Channels)
+- `hearth_chat_react/`: 프론트엔드 (React)
+- `hearth_chat_media/`: 정적/업로드 미디어 경로(환경에 따라 다름)
 
-## 250725
-- media 파일 추가 시 Cloudflare R2 등 별도 정적 파일 서버/스토리지 사용
-- urls.py에서 serve로 media 서빙은 임시 개발용으로만 사용
-- 관리자 페이지 미디어 파일 업로드, 미디어 파일 목록 관리 탭 추가
+---
 
-## 250724 v0.94
-- 가상화 메시지 react-virtuoso 로 리팩토링 : react-virtual 에서 DOM 에서 estimate 요소를 찾지 못하는 문제
+### Backend: `hearth_chat_django/`
+- `manage.py`: Django 관리 진입점
+- `settings.py`: 프로젝트 설정
+- `urls.py`: URL 라우팅
+- `chat/`:
+  - `consumers.py`: WebSocket(Channels) 소비자. 클라이언트 메시지를 수신하고 AI 응답을 생성하여 브로드캐스트
+  - `admin_urls.py`, `admin_views.py`: 어드민 관련 라우팅/뷰
+  - `migrations/`: DB 마이그레이션
+  - `templates/`, `management/`, `mysql_backend/`: 템플릿, 관리 커맨드, DB 백엔드 등
+- `hearth_chat/`:
+  - `apps.py`, `adapters.py` 등: 앱 설정 및 어댑터 로직
+- `staticfiles/`, `templates/`: 정적/템플릿 자원
+- `test/`: Django 측 테스트 코드
+- `hearth_chat_django_250805_0616/`: 날짜가 포함된 스냅샷/백업 프로젝트(참고용)
 
-## 250723 
-- 가상화 메시지 react-virtual + ResizeObserver 으로 리팩토링 : react-window 메시지 중첩 문제
+핵심 연동 포인트
+- `chat/consumers.py`
+  - Lily FastAPI로의 호출을 담당
+  - 프론트에서 전달한 `client_ai_settings`를 우선 적용
+  - Private HF Space 대응: `HF_TOKEN`/`HUGGING_FACE_TOKEN` 환경변수를 읽어 `Authorization: Bearer ...` 헤더를 추가하여 `Lily /generate`, `/rag/generate` 호출
+  - 성능 최적화: 프롬프트 단순화 및 `max_length` 동적 적용, 상세 로깅
+- `hearth_chat/settings.py`
+  - `LILY_API_URL` 환경별 분기(로컬/서버)
+  - CORS/CSRF에 HF Spaces URL 포함
 
-## 250722 v0.93
-- pmx2vrm 아바타 모형 추가, 인터넷 배포 pmx 파일의 경우 커스텀 모델로 추가 확장 가능, 아바타 pose 리셋  
+실행(로컬)
+```bash
+python manage.py runserver 0.0.0.0:8000
+```
 
-## 250721 v0.92 -- check
-- css 리뉴얼, app.js 전역 함수 리팩토링, 이미지 첨부 문제 해결, questoner_username 출력문제 해결결
+환경변수(서버/로컬 공통 권장)
+- `LILY_API_URL`: Lily FastAPI 기본 URL
+- `HF_TOKEN` 또는 `HUGGING_FACE_TOKEN`: Private HF Space 접근 토큰(서버에서 Lily 호출 시 사용)
 
-## 250720 v0.91
-- 메시지 입력창 전역으로 변경, 대화방 상태가 아니라도 입력창에 메시지 입력후 전송 시 AI 질문 자동 답변 진행, 입력창 왼쪽에 새로운 대화방 개설 버튼 추가, short 클릭 시 자동 개설, long 시 대화방 개설 모달창
+---
 
-## 250719  
-- headerBar title 출력 문제 해결 -> app.js 전역 관리 fetch 로 setRoomId 갱신
+### Frontend: `hearth_chat_react/`
+- `package.json`, `package-lock.json`
+- `public/`, `src/`
+  - `src/utils/apiConfig.js`: `getLilyApiUrl()`, `LILY_API_URL` 정의(로컬/프로덕션 자동 분기)
+  - `src/components/SettingsModal.jsx`, `AISettingsModal.js`: 사용자 설정에 `LILY_API_URL` 반영
+  - `src/components/GlobalChatInput.jsx`: 파일 업로드 시 Lily API에 직접 업로드, WebSocket 전송 시 AI 설정 포함
+  - `src/components/chat_box.jsx`: 초기 설정/표시 로직
 
-## 250718
-- virtualized message 구현을 위해 채팅창 리뉴얼, autosize 로 부모창의 사이즈 자동감지해서 가상화 메시지 창 제어, 검색 결과창 즐겨찾기 연동
+실행(로컬)
+```bash
+npm install
+npm start
+```
 
-## 250717 v0.9
-- 검색 속도 향상을 위한 db query 개선, 지연시간 조절, csrf 인증 문제 해결
-- css 리뉴얼
+---
 
---
-- 알림창 뱃지 추가, 읽음/안읽음, 알림 소리 추가, localStorage fallback 유지/제거
-- 검색 결과에서 메시지 클릭 시 해당 채팅방으로 이동 후, 해당 메시지로 스크롤/강조 UX 구현
-- 검색 결과 미리보기(문맥, 날짜, 방 이름 등) 및 정렬(최신순/정확도순) UX 개선
-- 알림 읽음/미확인 표시, 뱃지, 소리/진동 등 알림 UX 고도화
-- 알림 클릭 시 해당 메시지/방으로 이동 및 강조 UX 구현
-- 채팅방/메시지별 이모지/반응, 답장, 인용, 핀/고정 기능 추가
-- 대용량 데이터 대응(검색/알림/목록 가상화), 백엔드 쿼리 최적화, 인덱스 추가
+### 데이터 흐름(요약)
+1) React가 WebSocket으로 Django에 메시지 전송(+현재 AI 설정)
+2) Django `consumers.py`가 설정을 합성하고 Lily FastAPI에 요청
+   - 텍스트/이미지/RAG 별로 `/generate`, `/rag/generate`, `/document/upload` 등 호출
+   - Private Space: `Authorization: Bearer <HF_TOKEN>` 헤더 필수
+3) 응답을 WebSocket으로 프론트에 브로드캐스트
 
-## 250716 v0.7 
-- 설정창 리뉴얼, css 리뉴얼, 채팅방 목록 사이드바 컴포넌트 추가, 검색창, 알림 메뉴 추가, 회원탈퇴 추가
-- 정규식 검색 추가, 검색 결과창에서 미리보기 강조, 이동시 해당 방에서 하이라이트 애니메이션 효과, 탐색 된 유저 방으로 입장
+---
 
-## 250715
-- 설정창 오류 수정, railway redis 실시간 채팅 환경 테스트
+### 배포/운영 팁
+- Railway(Django): `LILY_API_URL`, `HF_TOKEN` 설정 권장
+- HF Spaces(Lily): Private 시 토큰 필수, CORS 허용, 스케일에 따른 응답시간 주의
+- 장애 대응: `consumers.py` 상세 로깅 확인, 4xx/5xx 응답 본문 출력으로 원인 파악
 
-## 250714
-- 실시간 양방향 전송 websocket 구현을 위해 ubuntu(wsl) redis-server 구동  
-- user 와 ai 메시지 구분을 위한 모델 구조 리모델링, send, rev, ai
-- 전체 설정 창 구현, AI 응답기능 ON/OFF 기능 추가
 
-## 250713 v0.6
-- 대화방 기능 추가, 개인, 공개 모드, 1:1, AI 채팅, 그룹 화상(or 아바타) 채팅 모드 
 
-## 250712 v0.5
-- 이메일, 소셜 계정(구글. 카카오, 네이버, Github) 가입, 로그인, 계정 연동
-- 소셜 연동 로그인 시 allauth 팝업창 리다이렉트 문제 -> django templetes 오버라이드로 해결  
 
-## 250711  
-- 다른 서버(render 등)에 올릴 mount 용 로컬 doker image 생성(light 버전 360MB, slim(분할 버전) 640MB, normal 1.6GB)
-- 아바타 ON/OFF 모드 추가
-- 문제 : 아바타/카메라 ON/OFF 조합 변경 시 컴포넌트가 언마운트→마운트되어 이미 렌더링(로드)된 아바타가 다시 로드되는 현상 -> 불필요한 네트워크/리소스 낭비 (Railway 서버 5$ 플랜 고려) 및 사용자 경험 저하 
-- 원인 : 분기 구조가 조건부 렌더링({isAiAvatarOn && ...} 등)으로 되어 있어, 화면 분할 상태가 바뀔 때마다 해당 컴포넌트가 DOM에서 완전히 사라졌다가 다시 나타남 (React는 key/위치가 바뀌면 새로 마운트)
-- 해결 방향 : 항상 컴포넌트는 마운트된 상태로 두고, 화면 분할/위치/크기/가시성만 동적으로 조절  
-- avatar-container 내부에 AI 아바타, 사용자 아바타, 카메라 컴포넌트를 항상 렌더링
-- 각 컴포넌트의 style을 상태 조합에 따라 동적으로 조정, 분할/오버레이/숨김 등은 style로만 처리
-- React의 key 속성을 잘못 주면 새로 마운트되니, key를 고정하거나 아예 주지 않음
-- 아바타 pose, motion 적용
-- mysql db emoji 저장 error -> utf8mb4 강제 적용으로 해결
-- 채팅창의 마크다운, LaTeX, 코드, JSON, 차트 등 다양한 메시지 유형을 자동으로 구분/파싱하여 각기 다른 스타일과 기능으로 출력
-- 차트는 JSON 데이터만 입력해도 자동 변환, 밝은 색상/굵기/포인트로 시각화, 클릭 시 모달로 확대 가능
-- 코드/JSON/차트는 카드 스타일+복사/토글/확대 기능 제공
-- 전체 구조는 데이터 수/종류 변화에도 유연하게 동작하도록 설계
+### Hearth Chat × Lily LLM 통합 구조
 
-- 기타 버그 수정, 클립보드에 스크린샷 이미지가 있을 경우 ctrl + V 로 바로 이미지 첨부 가능하도록 수정
+Hearth Chat(Railway 배포)과 Lily LLM(Hugging Face Spaces, Docker) 간 연동 구조와 데이터 흐름, 환경변수, 주요 연동 포인트를 정리합니다.
 
-## 250710  
-- 이미지+텍스트 멀티모달 응답 기능 추가, 수신 정상 확인 
-- 기존 gemini 공식 문서참조 시 에러-> OpenAI 라이브러리의 멀티모달 메시지 구조를 적용
-- 1. 실패 요인 요약
-- 이미지 첨부 시, REST API 방식(직접 HTTP POST)으로만 시도 → 계속 실패(404, 구조 불일치, 권한 등)
-- OpenAI 라이브러리 방식도 시도했으나, 메시지 구조가 잘못되어 타입 에러 발생
-- 2. 성공 요인
-- OpenAI 라이브러리(chat.completions.create)에서 멀티모달 메시지 구조를 공식 문서대로 정확히 맞춤
-- content 에 리스트 형태로 { "type": "text", ... } { "type": "image_url", "image_url": { "url": ... } } 이 구조가 맞아야 Gemini가 이미지를 인식하고 멀티모달 답변을 반환함
-- 3. 부가적 요인
-- 이미지 경로의 한글/특수문자 문제를 unquote로 해결
-- 파일 존재 여부 체크 및 예외처리 강화
-- REST API 방식은 백업으로만 남김
+---
 
-- Railway 서버 구동 (url : https://hearthchat-production.up.railway.app)
-- 서버 구동 과정에서 오류 : 
-- 1. 핵심 원인: Railway의 PORT 환경변수 미사용
-- Railway 같은 PaaS(Platform as a Service)에서는 컨테이너가 리스닝해야 하는 포트 번호를 PORT 환경변수로 지정해서 전달
-- 기존 Dockerfile에서는 Daphne를 항상 8000번 포트로만 실행
-- 하지만 Railway는 내부적으로 임의의 포트(예: 5234 등)를 할당하고, PORT 환경변수로 그 값을 컨테이너에 전달
-- 만약 Daphne가 이 PORT 환경변수를 사용하지 않고 8000번 포트만 리스닝하면, Railway의 헬스체크가 해당 포트에 접근하지 못해 컨테이너를 "비정상"으로 간주하고 바로 종료 -> 서버가 구동과 동시에 종료된 원인
-- 2. 해결 방법: PORT 환경변수 사용
-- Dockerfile의 CMD를 $ 로 수정해서, PORT 환경변수가 있으면 그 포트로, 없으면 8000번 포트로 리스닝하도록 변경
-- 이 변경으로 Railway가 할당한 포트로 Daphne가 정상적으로 리스닝, 헬스체크가 통과되어 컨테이너가 정상적으로 실행
-- 3. 기타 원인 후보와 점검
-- ALLOWED_HOSTS, DB 연결, asgi.py import 등도 모두 점검했으나, 가장 결정적인 원인은 "PORT 환경변수 미사용"
-- 실제로 asgi.py의 print문, try/except, DB를 SQLite로 바꾸는 등 다양한 실험을 했지만,
-PORT 환경변수 문제를 해결하자마자 바로 OK가 떴음
-- 4. Railway, Heroku, Render 등 PaaS에서의 공통 패턴: 이런 플랫폼들은 항상 PORT 환경변수를 사용해서 컨테이너가 리스닝할 포트를 지정  
-- Flask, Django, Node.js 등 어떤 서버든 반드시 PORT 환경변수를 사용해야 정상적으로 외부에서 접근할 수 있음
-- 요약:서버가 제대로 실행되지 않던 진짜 이유 - Railway가 할당한 포트(PORT 환경변수)로 Daphne가 리스닝하지 않아서, 헬스체크가 실패하고 컨테이너가 바로 종료된 것
-- 해결:Dockerfile에서 PORT 환경변수를 사용하도록 Daphne 실행 명령을 수정
-- 고찰:이제 이 패턴을 기억해두면, 다른 PaaS(예: Heroku, Render, Vercel 등)에서도 비슷한 문제를 빠르게 해결할 수 있을 듯
+### 아키텍처 개요
+- 클라이언트(React) ↔ 서버(Django/Channels) ↔ LLM 서버(FastAPI on HF Spaces)
+- 실시간 메시징은 WebSocket(클라이언트 ↔ Django), LLM 호출은 Django → Lily(FastAPI) HTTP로 처리
 
-## 250709  
-- 미디어쿼리 삭제, 768px 스타일로 전부 통합, CSS 리팩토링  
-- TTS 기능 보강  
-- 1. 음소 기반 립싱크 : 한글 자음/모음 분석으로 실제 발음에 맞는 입모양  
-- 2. 영어 알파벳 립싱크 : 6가지 입모양 (closed, slightly_open, open, wide_open, rounded, neutral)  
-- 3. 립싱크 타이밍 수정 : 모음은 더 길게, 자음은 더 짧게 지속, TTS 재생 시간과 동기화, 50ms 간격으로 업데이트  
-- 4. 이모티콘/특수문자 필터링 : TTS에서 이모티콘과 특수문자 제거, 한글, 영어, 숫자, 기본 문장부호만 리딩  
-- 5. 페이지 언로드 시 TTS 중지 : 페이지 새로고침/이탈 시 TTS 자동 중지, 메모리 누수 방지  
-- Hearth_Chat_v0.3 업로드  
-- 채팅 로그에 날짜 시간 표시, 스크롤바 반투명화
-- 이미지 첨부 버튼 추가, 이미지 첨부 후 전송 시 채팅로그에 출력, 이미지 파일은 django 서버 media 경로에 저장, sql 에는 파일 주소만 저장
+데이터 흐름(요약)
+1) 사용자가 React에서 텍스트/파일 전송 → WebSocket으로 Django 전달(프론트 현재 AI 설정 동봉)
+2) Django `chat/consumers.py`가 AI 설정을 합성하여 Lily FastAPI 호출
+   - 텍스트·이미지: `POST /generate`
+   - 문서 업로드: `POST /document/upload` 후 `POST /rag/generate`
+3) Lily가 응답 생성 → Django가 WebSocket으로 클라이언트에게 브로드캐스트
 
-## 250708
-- 음성인식 -> 묵음 2초 뒤 자동전송 문제 해결 (onAutoSend로 finalText가 들어오면 무조건 handleVoiceResult를 호출)
-- 사용자 아바타 페이스 트래킹 구현 -> 카메라에 비친 모습에 따라 립싱크, 사용자 움직임에 따라 아바타 움직임 (머리와 상체만 구현현), 눈 깜박임 트래킹
-- Hearth Chat CSS 수정 작업, @@media 쿼리 CSS width 768px / 1000px / 1200 px 세부 수정
+---
 
-## 250707  
-- vrm 모델 세팅 - vroid, vmagicmirror, warudo 작동법 숙지 -> hearth chat 에 모델 컨버팅  
-- tts 글자 수 별 립싱크, 음성 선택 드롭다운 메뉴
-- 음성인식 기능 추가, 여러 음절 인식 후 1초 이상 묵음 시에 채탱창에서 AI에게 자동전송  
-- 음성인식 고급설정 : 신뢰도 임계값 조절(바 조절), 노이즈 감소, 적응형 인식,  자동 재시작 옵션 체크 추가  
+### 환경별 URL 및 인증
+- 프론트엔드
+  - `src/utils/apiConfig.js`의 `getLilyApiUrl()`이 로컬/프로덕션 자동 분기
+  - UI 설정 모달에서 사용자별 `aiProvider`, `lilyApiUrl`, `lilyModel`, `geminiModel`, `maxTokens` 관리
 
-## 250706 
-- glb 모델 아바타 적용 -> 표정 인식 확인  
-- 감정 포착 코드 삭제 -> LLM 에게 감정 피드백을 넘겨 반응을 이끌어내는건 정확도에서 무리가 있고, 의미가 크지 않을 것 같다 생각해서 해당 기능 삭제
-- 단, 멀티모달 기능이 순조롭게 작동 된다면(음성, 이미지, 텍스트), 추가 이미지를 보내어 FACE API 로 추측해낸 감정을 새로운 변수로 만들어 볼 것  
-- gemini 에 TTS 적용
+- Django(서버)
+  - `settings.py`의 `LILY_API_URL`(Railway/로컬 분기), CORS/CSRF에 HF URL 포함
+  - Private Space 인증: `HF_TOKEN` 또는 `HUGGING_FACE_TOKEN` 환경변수를 읽어 Lily 호출 시 아래 헤더 자동 첨부
 
-## 250705  
-- open ai api -> google gemini api 로 변경  
-- gemini api 채팅 응답 확인  
-- LLM AI 채팅 베이스 완성
-- 실시간 대화 내역 DB에 저장 추가
-- Ready Play Me API, 3D 아바타 생성, User 와 Ai 에 연동
-- AI, Cam 화상채팅 연동, 유저의 표정 상태에 따른 감정 포착 -> 적절한 피드백
-- 정확도가 너무 떨어지는 관계로 해당 기능은 이 정도로 마무리
+```http
+Authorization: Bearer <HF_TOKEN>
+```
 
-## 250704  
-- django 보일러 세팅  
-- open ai api 사용  
-"# Force redeploy" 
+- Lily(FastAPI, HF Spaces)
+  - Private Space에서는 토큰 필수
+  - 모델/토크나이저 로딩에도 `HF_TOKEN` 사용, 캐시 디렉토리 권한 설정 필요
+
+---
+
+### 주요 연동 포인트(코드)
+- 프런트엔드
+  - `src/utils/apiConfig.js`: `LILY_API_URL` 기본값 제공
+  - `GlobalChatInput.jsx`: 파일 업로드 시 Lily URL 직접 사용, WebSocket 메시지에 AI 설정 포함
+  - `SettingsModal.jsx`, `AISettingsModal.js`: 사용자 설정 저장/적용
+
+- Django
+  - `chat/consumers.py`: Lily API 호출부 단일화, `Authorization` 헤더 자동 첨부, 프롬프트 단순화 및 `max_length` 동적 적용
+
+- Lily
+  - `lily_llm_api/app_v2.py`: `/generate`, `/rag/generate`, `/document/upload` 등 엔드포인트 제공, CPU 스레드 최적화, 멀티모달 경량 처리
+
+---
+
+### 요청/응답 규약(대표)
+- 텍스트/이미지 생성
+  - URL: `<LILY_API_URL>/generate`
+  - 헤더: `Authorization: Bearer <HF_TOKEN>`(Private 시)
+  - Body: `multipart/form-data`
+    - `prompt`, optional `image1..image4`, `max_length`, `temperature`, `top_p`, `do_sample`
+
+- 문서 업로드 및 RAG
+  - 업로드: `<LILY_API_URL>/document/upload` (file, user_id, document_id)
+  - RAG: `<LILY_API_URL>/rag/generate` (query, user_id, document_id)
+
+---
+
+### 성능 최적화 핵심
+- Django → Lily 프롬프트 최소화(장문 프리픽스 제거), `max_length` 사용자 설정 기반(기본 20, 상한 128)
+- Lily 서버 CPU 스레드 환경 최적화(`CPU_THREADS`, `OMP_NUM_THREADS`, `MKL_NUM_THREADS`, `NUMEXPR_NUM_THREADS`)
+- 텍스트-only 경로는 탐색 비활성화(`do_sample=False`)로 지연 최소화
+
+---
+
+### 운영 체크리스트
+- Railway(Django)
+  - `LILY_API_URL`, `HF_TOKEN` 설정
+  - CORS/CSRF에 HF Spaces URL 포함
+- HF Spaces(Lily)
+  - Private 프로젝트: `HF_TOKEN` 필수
+  - 캐시 권한 및 디스크 여유 확인, 빌드 로그에서 권한 오류 점검
+- 공통
+  - 응답시간 증가 시: Django 소비자 로그(전송 프롬프트/파라미터), Lily 로그(토큰화/생성/디코드 시간) 교차 확인
+
+
+
+===========================================================
+
+
+# Hearth Chat 폴더 트리 구조
+
+C:\Project\hearth_chat_project\hearth_chat_package\
+├── hearth_chat_django\                 # Django + Channels 백엔드
+│   ├── manage.py                        # Django 관리 진입점
+│   ├── settings.py                      # 프로젝트 설정(CORS/CSRF, LILY_API_URL 등)
+│   ├── urls.py                          # URL 라우팅
+│   ├── chat\                            # 채팅 앱
+│   │   ├── consumers.py                 # WebSocket 소비자(Lily LLM 연동 핵심)
+│   │   ├── admin_urls.py, admin_views.py
+│   │   ├── migrations\
+│   │   ├── templates\
+│   │   └── mysql_backend\
+│   ├── hearth_chat\                     # 앱 설정/어댑터
+│   ├── staticfiles\, templates\        # 정적/템플릿 자원
+│   ├── test\                            # 백엔드 테스트
+│   └── hearth_chat_django_YYYYMMDD_...  # 스냅샷/백업 프로젝트
+├── hearth_chat_react\                  # React 프론트엔드
+│   ├── package.json, package-lock.json
+│   ├── public\
+│   └── src\
+│       ├── utils\apiConfig.js          # LILY_API_URL(로컬/프로덕션 분기)
+│       └── components\                 # SettingsModal/AISettingsModal/GlobalChatInput 등
+├── hearth_chat_media\                  # 업로드/정적 자원(환경에 따라 경로 상이)
+├── app.js, build.sh, Dockerfile        # 빌드/배포 스크립트·설정
+└── script\                              # 편의 스크립트(cs.sh 등)
+
+연동 핵심
+- 프론트: `apiConfig.js`에서 Lily 기본 URL 결정, 파일 업로드/요청은 Lily로 직접 전송 가능
+- 백엔드: `chat/consumers.py`가 WebSocket 메시지 처리 후 Lily FastAPI 호출
+  - 텍스트/이미지: `POST <LILY_API_URL>/generate` (multipart/form-data)
+  - RAG: 업로드 `POST /document/upload` → 질의 `POST /rag/generate`
+  - Private HF Space: `Authorization: Bearer <HF_TOKEN>` 헤더 자동 첨부(환경변수 `HF_TOKEN`/`HUGGING_FACE_TOKEN`)
+
+운영 포인트
+- Railway 배포 시 `LILY_API_URL`, `HF_TOKEN` 설정 권장
+- 대기시간 최적화: 프롬프트 최소화, `max_length`(기본 20, 상한 128) 적용
+- 문제 발생 시 Django 로그(요청 파라미터)와 Lily 로그(토큰화/생성 시간) 동시 확인
