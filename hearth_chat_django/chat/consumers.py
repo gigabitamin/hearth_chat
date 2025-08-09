@@ -190,7 +190,23 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         try:            
             # 모든 이미지 URL을 AI 응답에 전달
-            ai_response_result = await self.get_ai_response(user_message, user_emotion, image_urls, documents)            
+            # 클라이언트에서 넘어온 AI 설정이 있으면 우선 적용하도록 전달
+            client_ai_settings = {
+                'aiProvider': data.get('aiProvider'),
+                'lilyApiUrl': data.get('lilyApiUrl'),
+                'lilyModel': data.get('lilyModel'),
+                'geminiModel': data.get('geminiModel'),
+            }
+            # None 값 제거
+            client_ai_settings = {k: v for k, v in client_ai_settings.items() if v is not None}
+
+            ai_response_result = await self.get_ai_response(
+                user_message,
+                user_emotion,
+                image_urls,
+                documents,
+                client_ai_settings=client_ai_settings if client_ai_settings else None,
+            )            
             
             # AI 응답 결과에서 정보 추출
             ai_response = ai_response_result['response']
@@ -456,7 +472,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 "geminiModel": "gemini-1.5-flash"
             }
 
-    async def get_ai_response(self, user_message, user_emotion="neutral", image_urls=None, documents=None):
+    async def get_ai_response(self, user_message, user_emotion="neutral", image_urls=None, documents=None, client_ai_settings=None):
         import base64
         import requests
         import os
@@ -936,12 +952,24 @@ class ChatConsumer(AsyncWebsocketConsumer):
         ai_settings = None
         if user and hasattr(user, 'is_authenticated') and user.is_authenticated:
             ai_settings = await self.get_user_ai_settings(user)
-            print(f"🔍 사용자 AI 설정: {ai_settings}")
+            print(f"🔍 사용자 AI 설정(DB): {ai_settings}")
         else:
-            print(f"🔍 사용자 인증되지 않음")
+            print(f"🔍 사용자 인증되지 않음 (DB 설정을 사용할 수 없음)")
+
+        # 클라이언트에서 넘어온 설정이 있으면 DB 설정보다 우선 적용
+        if client_ai_settings:
+            print(f"🔧 클라이언트 AI 설정 적용: {client_ai_settings}")
+            if not ai_settings:
+                ai_settings = {}
+            # 안전 병합 (클라이언트 값이 우선)
+            for key, value in client_ai_settings.items():
+                if value not in (None, ""):
+                    ai_settings[key] = value
+            print(f"🔧 병합 후 최종 AI 설정: {ai_settings}")
         
         ai_provider = ai_settings.get('aiProvider', 'gemini') if ai_settings else 'gemini'
         gemini_model = ai_settings.get('geminiModel', 'gemini-1.5-flash') if ai_settings else 'gemini-1.5-flash'
+        print(f"🔍 최종 결정된 제공자: {ai_provider}")
         
         print(f"🔍 AI 제공자: {ai_provider}")
         print(f"🔍 Gemini 모델: {gemini_model}")
