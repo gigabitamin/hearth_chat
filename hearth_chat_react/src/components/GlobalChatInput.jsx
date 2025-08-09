@@ -633,10 +633,26 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                 return;
             }
             const clientId = `${Date.now()}_${Math.random()}`;
+            // AI 설정을 WebSocket 페이로드에 포함하여 서버가 즉시 우선 적용하도록 전달
+            let clientAI = null;
+            try {
+                const res = await csrfFetch(`${getApiBase()}/api/chat/user/settings/`, { credentials: 'include' });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.settings && data.settings.ai_settings) {
+                        clientAI = JSON.parse(data.settings.ai_settings);
+                    }
+                }
+            } catch (e) { /* ignore */ }
+
             const messageData = {
                 message: input,
                 roomId: room.id,
                 client_id: clientId,
+                aiProvider: clientAI?.aiProvider,
+                lilyApiUrl: clientAI?.lilyApiUrl,
+                lilyModel: clientAI?.lilyModel,
+                geminiModel: clientAI?.geminiModel,
             };
             ws.send(JSON.stringify(messageData));
             // setRoomMessages 호출 제거 - WebSocket을 통해 받은 메시지가 chat_box.jsx에서 처리됨

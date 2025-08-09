@@ -453,13 +453,23 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     print(f"🔍 JSON 파싱 오류")
                     pass
             
-            # 새로운 필드들 추가 (DB 필드 우선)
-            if hasattr(settings, 'ai_provider') and settings.ai_provider:
+            # 새로운 필드들 추가 (JSON > DB 우선 순위)
+            json_has_ai_provider = "aiProvider" in default_settings and bool(default_settings["aiProvider"])
+            json_has_gemini_model = "geminiModel" in default_settings and bool(default_settings["geminiModel"])
+
+            if hasattr(settings, 'ai_provider') and settings.ai_provider and not json_has_ai_provider:
                 default_settings["aiProvider"] = settings.ai_provider
-                print(f"🔍 DB ai_provider 사용: {settings.ai_provider}")
-            if hasattr(settings, 'gemini_model') and settings.gemini_model:
+                print(f"🔍 DB ai_provider 사용: {settings.ai_provider} (JSON에 값이 없어 DB로 보완)")
+            else:
+                if json_has_ai_provider:
+                    print(f"🔍 JSON aiProvider 우선 사용: {default_settings['aiProvider']}")
+
+            if hasattr(settings, 'gemini_model') and settings.gemini_model and not json_has_gemini_model:
                 default_settings["geminiModel"] = settings.gemini_model
-                print(f"🔍 DB gemini_model 사용: {settings.gemini_model}")
+                print(f"🔍 DB gemini_model 사용: {settings.gemini_model} (JSON에 값이 없어 DB로 보완)")
+            else:
+                if json_has_gemini_model:
+                    print(f"🔍 JSON geminiModel 우선 사용: {default_settings['geminiModel']}")
             
             print(f"🔍 최종 설정: {default_settings}")
             return default_settings

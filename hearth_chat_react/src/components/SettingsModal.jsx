@@ -918,7 +918,10 @@ const SettingsModal = ({
           // AI 설정을 서버에 저장
           const saveData = {
             ai_response_enabled: newSettings.aiEnabled,
-            ai_settings: JSON.stringify(newSettings)
+            ai_settings: JSON.stringify(newSettings),
+            // 서버 DB 필드도 동기화하여 기본 제공자 추론이 어긋나지 않도록 함
+            ai_provider: newSettings.aiProvider,
+            gemini_model: newSettings.geminiModel,
           };
           console.log('🔧 SettingsModal - 서버에 저장할 데이터:', saveData);
           console.log('🔧 SettingsModal - ai_settings JSON:', JSON.stringify(newSettings));
