@@ -571,7 +571,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             }
                             
                             print(f"📤 RAG 요청 데이터: {rag_data}")
-                            response = requests.post(f"{lily_api_url}/rag/generate", data=rag_data, timeout=1200)
+                            # OAuth 헤더 추가 (HF Private Space 대응)
+                            hf_token = os.getenv('HF_TOKEN') or os.getenv('HUGGING_FACE_TOKEN')
+                            headers = {"Authorization": f"Bearer {hf_token}"} if hf_token else {}
+                            response = requests.post(
+                                f"{lily_api_url}/rag/generate",
+                                data=rag_data,
+                                headers=headers,
+                                timeout=1200
+                            )
                             
                             if response.status_code == 200:
                                 result = response.json()
@@ -649,9 +657,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             print(f"📤 요청 데이터: {data}")
                             print(f"📁 파일 포함 여부: {bool(files)}")
                             
+                            # OAuth 헤더 추가 (HF Private Space 대응)
+                            hf_token = os.getenv('HF_TOKEN') or os.getenv('HUGGING_FACE_TOKEN')
+                            headers = {"Authorization": f"Bearer {hf_token}"} if hf_token else {}
+
                             # API 호출
                             print(f"🔄 멀티모달 요청 전송 (이미지 포함)")
-                            response = requests.post(f"{lily_api_url}/generate", data=data, files=files, timeout=1200)
+                            response = requests.post(
+                                f"{lily_api_url}/generate",
+                                data=data,
+                                files=files,
+                                headers=headers,
+                                timeout=1200
+                            )
                             
                             if response.status_code == 200:
                                 result = response.json()
@@ -688,9 +706,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         print(f"📤 요청 데이터: {data}")
                         print(f"📁 파일 포함 여부: False")
                         
+                        # OAuth 헤더 추가 (HF Private Space 대응)
+                        hf_token = os.getenv('HF_TOKEN') or os.getenv('HUGGING_FACE_TOKEN')
+                        headers = {"Authorization": f"Bearer {hf_token}"} if hf_token else {}
+
                         # API 호출
                         print(f"🔄 텍스트 전용 요청 전송")
-                        response = requests.post(f"{lily_api_url}/generate", data=data, timeout=1200)
+                        response = requests.post(
+                            f"{lily_api_url}/generate",
+                            data=data,
+                            headers=headers,
+                            timeout=1200
+                        )
                         
                         if response.status_code == 200:
                             result = response.json()
