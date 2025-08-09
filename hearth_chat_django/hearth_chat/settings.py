@@ -527,20 +527,28 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = "/static/"
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-# 운영/로컬에 따라 React 빌드 파일 경로 설정
+STATIC_URL = "/static/"
+# STATIC_ROOT를 컨테이너의 /app/staticfiles 로 명확하게 지정합니다.
+# 이렇게 하면 Django 프로젝트 폴더와 분리되어 관리가 용이합니다.
+STATIC_ROOT = "/app/staticfiles"
+
+# 운영/로컬에 따라 React 빌드 파일 경로를 설정합니다.
 if IS_PRODUCTION:
-    # Docker 컨테이너 내부 경로
+    # Docker 컨테이너 내부의 React 빌드 결과물 경로
     STATICFILES_DIRS = [
         '/app/hearth_chat_react/build',
     ]
 else:
-    # 로컬 개발 환경 경로
+    # 로컬 개발 환경의 React 빌드 결과물 경로
     STATICFILES_DIRS = [
         os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build'),
     ]
+
+# WhiteNoise를 위한 정적 파일 스토리지 설정 (운영 환경에서만)
+if IS_PRODUCTION:
+    # 이 설정은 파일 압축 및 캐싱을 자동으로 처리해 성능을 높여줍니다.
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -695,7 +703,3 @@ CHANNEL_LAYERS = {
 }
 
 # print("REDIS_URL:", REDIS_URL)
-
-# WhiteNoise를 위한 정적 파일 스토리지 설정 (운영 환경에서만)
-if IS_PRODUCTION:
-    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"

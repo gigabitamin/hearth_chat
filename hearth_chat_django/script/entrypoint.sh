@@ -1,55 +1,26 @@
 #!/bin/bash
-# set -e  # 임시로 주석 처리하여 에러 발생 시 컨테이너가 바로 종료되지 않게 함
+# set -e: 스크립트 실행 중 오류가 발생하면 즉시 중단합니다.
+set -e
 
 # Django 앱 디렉토리로 이동
 cd /app/hearth_chat_django
 
-echo "Starting Django application..."
+echo "--- [디버그] collectstatic 실행 전 파일 위치 확인 ---"
+echo ">>> /app/hearth_chat_react/build 폴더 내용:"
+# React 빌드 파일이 존재하는지 확인
+ls -laR /app/hearth_chat_react/build || echo "빌드 폴더를 찾을 수 없습니다."
 
+echo "--- 데이터베이스 마이그레이션 실행... ---"
+python manage.py migrate --noinput
 
-# # # psql 커맨드로 직접 DROP TABLE 시도 (IF EXISTS 포함)
-# echo "Cleaning chat app migration history..."
-# psql "$DATABASE_URL" -c "DELETE FROM django_migrations WHERE app = 'chat';"
+echo "--- 정적 파일 수집 실행... ---"
+# --clear 옵션으로 실행 전 기존 파일을 깨끗이 지웁니다.
+python manage.py collectstatic --noinput --clear
 
-# echo "Dropping chat app tables..."
-# psql "$DATABASE_URL" <<EOF
-# DROP TABLE IF EXISTS chat_voicecall CASCADE;
-# DROP TABLE IF EXISTS chat_usersettings CASCADE;
-# DROP TABLE IF EXISTS chat_pinnedmessage CASCADE;
-# DROP TABLE IF EXISTS chat_messagereply CASCADE;
-# DROP TABLE IF EXISTS chat_messagereaction CASCADE;
-# DROP TABLE IF EXISTS chat_chatroomparticipant CASCADE;
-# DROP TABLE IF EXISTS chat_chatroom_favorite_users CASCADE;
-# DROP TABLE IF EXISTS chat_chatroom CASCADE;
-# DROP TABLE IF EXISTS chat_chat CASCADE;
-# EOF
+echo "--- [디버그] collectstatic 실행 후 파일 위치 확인 ---"
+echo ">>> /app/staticfiles 폴더 내용:"
+# 수집된 파일들이 최종 목적지에 잘 들어왔는지 확인
+ls -laR /app/staticfiles || echo "staticfiles 폴더를 찾을 수 없습니다."
 
-# DB 마이그레이션 (실패 로그 저장 및 출력)
-echo "Running database migrations..."
-python manage.py migrate --noinput 2>&1 | tee /tmp/migrate.log || {
-    echo "[ERROR] Migration failed. See /tmp/migrate.log below:"
-    cat /tmp/migrate.log
-}
-
-# echo "Ensuring Site object exists for production..."
-# python manage.py createsiteobject 2>&1 | tee /tmp/createsiteobject.log || {
-#     echo "[ERROR] Site object creation failed. See /tmp/createsiteobject.log below:"
-#     cat /tmp/createsiteobject.log
-# }
-
-# echo "Ensuring superuser exists..."
-# python manage.py createinitialsuperuser 2>&1 | tee /tmp/createinitialsuperuser.log || {
-#     echo "[ERROR] Superuser creation failed. See /tmp/createinitialsuperuser.log below:"
-#     cat /tmp/createinitialsuperuser.log
-# }
-
-# 정적 파일 수집 (실패해도 계속 진행)
-echo "Collecting static files..."
-python manage.py collectstatic --noinput 2>&1 | tee /tmp/collectstatic.log || {
-    echo "[ERROR] collectstatic failed. See /tmp/collectstatic.log below:"
-    cat /tmp/collectstatic.log
-}
-
-echo "Starting server..."
-# 서버 실행
-exec daphne -b 0.0.0.0 -p 8080 hearth_chat.asgi:application 
+echo "--- 서버 시작... ---"
+exec daphne -b 0.0.0.0 -p 8080 hearth_chat.asgi:application
