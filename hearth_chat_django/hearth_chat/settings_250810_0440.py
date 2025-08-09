@@ -37,110 +37,111 @@ sys.path.append(os.path.join(BASE_DIR, 'chat'))
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "your-default-secret-key")
+DEBUG = False # 디버깅을 위해서는 True로 설정 (주의: 디버깅 모드에서는 보안 취약점 발생 가능)
 
-# ==============================================================================
-# ⚙️ 환경 설정 (로컬 / Railway / Render 자동 감지)
-# ==============================================================================
+# Railway 배포 시 디버깅을 위해 임시로 DEBUG 활성화
+if os.environ.get("RAILWAY_ENVIRONMENT"):
+    DEBUG = True
+    print("Railway environment detected - DEBUG mode enabled")
 
-# --- 1. 환경 변수 및 플랫폼 감지 ---
-# 배포 플랫폼(Railway, Render) 감지
-IS_RAILWAY_DEPLOY = 'RAILWAY_ENVIRONMENT' in os.environ
-IS_RENDER_DEPLOY = os.environ.get('RENDER') == 'true'
+# ALLOWED_HOSTS 설정 개선
+ALLOWED_HOSTS = [
+    # "*",  # 개발/테스트용 전체 허용
+    'hearthchat-production.up.railway.app',
+    "localhost",
+    "127.0.0.1",
+    # "[::1]",
+    "192.168.44.9",
+    # "192.168.0.0/16",  # 192.168.*.* 전체 허용
+]
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:8000',
+    'http://localhost:8001',
+    'http://localhost:3000',
+    'http://127.0.0.1:8000',
+    'http://127.0.0.1:8001',
+    'http://127.0.0.1:3000',    
+    'http://192.168.44.9:8001',
+    'http://192.168.44.9:8000',
+    'http://192.168.44.9:3000',    
+    'https://hearthchat-production.up.railway.app',    
+    'https://gbrabbit-lily-fast-api.hf.space',
+]
 
-# 두 플랫폼 중 하나라도 감지되면 운영(Production) 환경으로 설정
-IS_PRODUCTION = IS_RAILWAY_DEPLOY or IS_RENDER_DEPLOY
 
-# --- 2. 환경별 주요 설정 분기 ---
-if IS_PRODUCTION:
-    # --- 🏢 운영 환경 (Production) 공통 설정 ---
-    print("✅ 운영 환경(Production) 설정을 시작합니다.")
-    DEBUG = False # 운영 환경에서는 반드시 False
+# Railway 환경에서 추가 설정
+# settings.py 내부
 
-    # 허용할 호스트 목록 (플랫폼별로 자동 추가됨)
-    ALLOWED_HOSTS = []
-    
-    # 플랫폼별 호스트네임 추가
-    if IS_RENDER_DEPLOY:
-        RENDER_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
-        if RENDER_HOSTNAME:
-            ALLOWED_HOSTS.append(RENDER_HOSTNAME)
-            print(f"  - Render 환경 감지: {RENDER_HOSTNAME}")
+# 공통 설정
+CSRF_COOKIE_NAME = "csrftoken"
+CSRF_COOKIE_HTTPONLY = False  # JS에서 접근 가능하도록 설정
+CSRF_HEADER_NAME = "HTTP_X_CSRFTOKEN"
 
-    if IS_RAILWAY_DEPLOY:
-        RAILWAY_HOSTNAME = "hearthchat-production.up.railway.app" # 기존 Railway 주소
-        ALLOWED_HOSTS.append(RAILWAY_HOSTNAME)
-        print(f"  - Railway 환경 감지: {RAILWAY_HOSTNAME}")
+# CORS 관련 설정 (프론트 주소)
+CORS_ALLOW_CREDENTIALS = True
 
-    # URL 및 API 엔드포인트 설정
-    BASE_URL = f"https://{ALLOWED_HOSTS[0]}" if ALLOWED_HOSTS else ""
+# Base URL 설정
+if os.environ.get("RAILWAY_ENVIRONMENT"):
+    BASE_URL = "https://hearthchat-production.up.railway.app"
+else:
+    BASE_URL = "http://localhost:8000"
+
+# Lily LLM API URL 설정
+if os.environ.get("RAILWAY_ENVIRONMENT"):
     LILY_API_URL = "https://gbrabbit-lily-fast-api.hf.space"
+else:
+    LILY_API_URL = "http://localhost:8001"
 
-    # 보안 관련 설정 (HTTPS 환경)
+# Railway 환경에서 배포 여부 확인
+if os.environ.get("RAILWAY_ENVIRONMENT"):
+    # CSRF / 세션 쿠키 설정
     SESSION_COOKIE_SAMESITE = "None"
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SAMESITE = "None"
     CSRF_COOKIE_SECURE = True
-    
-    # 신뢰할 수 있는 출처 (CORS, CSRF)
-    # 위에서 추가된 호스트 주소들을 기반으로 자동 생성
-    CSRF_TRUSTED_ORIGINS = [f'https://{host}' for host in ALLOWED_HOSTS]
-    CORS_ALLOWED_ORIGINS = [f'https://{host}' for host in ALLOWED_HOSTS]
-    
-    # 허깅페이스 스페이스 URL 등 공통으로 필요한 주소 추가
-    CSRF_TRUSTED_ORIGINS.append(LILY_API_URL)
-    CORS_ALLOWED_ORIGINS.append(LILY_API_URL)
-    
-    print(f"  - BASE_URL: {BASE_URL}")
-    print(f"  - ALLOWED_HOSTS: {ALLOWED_HOSTS}")
-    print(f"  - CORS_ALLOWED_ORIGINS: {CORS_ALLOWED_ORIGINS}")
-
+    CSRF_TRUSTED_ORIGINS = [
+        "https://hearthchat-production.up.railway.app",
+        "https://*.hearthchat-production.up.railway.app",
+        "https://gbrabbit-lily-fast-api.hf.space",
+        "https://*.gbrabbit-lily-fast-api.hf.space",
+    ]
+    CORS_ALLOWED_ORIGINS = [
+        "https://hearthchat-production.up.railway.app",
+        "https://gbrabbit-lily-fast-api.hf.space",
+    ]
+    CORS_ALLOW_CREDENTIALS = True
+    # 기타 보안 설정
+    SECURE_SSL_REDIRECT = False
+    SECURE_PROXY_SSL_HEADER = None
+    SECURE_CONTENT_TYPE_NOSNIFF = False
+    SECURE_BROWSER_XSS_FILTER = False
+    X_FRAME_OPTIONS = 'ALLOWALL'
+    print("Railway 배포 환경 설정 완료")
 else:
-    # --- 💻 로컬 개발 환경 (Local) 설정 ---
-    print("✅ 로컬 개발 환경(Local) 설정을 시작합니다.")
-    DEBUG = True
-
-    # 허용할 호스트 목록
-    ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.44.9"]
-
-    # URL 및 API 엔드포인트 설정
-    BASE_URL = "http://localhost:8000"
-    LILY_API_URL = "http://localhost:8001" # 로컬에서 Lily API를 실행하는 경우
-
-    # 보안 관련 설정 (HTTP 환경)
+    # 로컬 개발 환경 (http)
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SAMESITE = "Lax"
     CSRF_COOKIE_SECURE = False
-    
-    # 신뢰할 수 있는 출처 (CORS, CSRF)
-    CORS_ALLOWED_ORIGINS = [
-        "http://localhost:3000",    # React 개발 서버
-        "http://127.0.0.1:3000",
-        "http://192.168.44.9:3000",
-        LILY_API_URL,               # 로컬 Lily API
+    CSRF_TRUSTED_ORIGINS = [
+        "http://localhost:3000",
+        "http://localhost:8001",
+        "http://127.0.0.1:8001",
+        "http://192.168.44.9:8001",
+        "https://hearthchat-production.up.railway.app",
+        "https://gbrabbit-lily-fast-api.hf.space",
     ]
-    CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS[:] # CORS와 동일하게 설정
 
-    print(f"  - BASE_URL: {BASE_URL}")
-    print(f"  - ALLOWED_HOSTS: {ALLOWED_HOSTS}")
-    print(f"  - CORS_ALLOWED_ORIGINS: {CORS_ALLOWED_ORIGINS}")
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "http://localhost:8001",
+        "http://127.0.0.1:8001",
+        "http://192.168.44.9:8001",
+        "https://hearthchat-production.up.railway.app",
+        "https://gbrabbit-lily-fast-api.hf.space",        
+    ]
 
-
-# --- 3. 공통 설정 (환경과 무관) ---
-# 이 설정들은 운영/로컬 환경 모두에 동일하게 적용됩니다.
-CSRF_COOKIE_NAME = "csrftoken"
-CSRF_COOKIE_HTTPONLY = False  # JS에서 CSRF 토큰에 접근해야 할 경우
-CSRF_HEADER_NAME = "HTTP_X_CSRFTOKEN"
-CORS_ALLOW_CREDENTIALS = True
-
-# 기타 보안 설정 (필요시 주석 해제)
-# SECURE_SSL_REDIRECT = IS_PRODUCTION
-# SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-# SECURE_CONTENT_TYPE_NOSNIFF = True
-# SECURE_BROWSER_XSS_FILTER = True
-# X_FRAME_OPTIONS = 'DENY'
-
-# ==============================================================================
+    print("로컬 개발 환경 설정 완료")
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
