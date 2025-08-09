@@ -40,7 +40,7 @@
   },
   "scripts": {
     "start": "cross-env BROWSER=none react-scripts start",
-    "build": "PUBLIC_URL=./ react-scripts build",
+    "build": "PUBLIC_URL=./ GENERATE_SOURCEMAP=false react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
