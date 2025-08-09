@@ -561,11 +561,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             print(f"🔍 RAG 쿼리 실행: document_id={document_id}")
                             
                             # RAG API 호출
+                            lily_max_len = max(1, min(int(ai_settings.get('maxTokens', 20)) if ai_settings else 20, 128))
                             rag_data = {
                                 'query': user_message,
                                 'user_id': user.username if user else 'default_user',
                                 'document_id': document_id,
-                                'max_length': max_length,
+                                'max_length': lily_max_len,
                                 'temperature': 0.7
                             }
                             
@@ -631,10 +632,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         try:
                             print(f"🚀 Lily API 호출 시작: {lily_api_url}/generate")
                             
-                            # Form data 구성
+                            # Form data 구성 (간결 프롬프트)
+                            # max_tokens(=max_length) 동적 적용: 사용자 설정 > 기본값(20) > 상한 128
+                            lily_max_len = max(1, min(int(ai_settings.get('maxTokens', 20)) if ai_settings else 20, 128))
                             data = {
-                                'prompt': f"{emotion_prompt}\n\n사용자 메시지: {user_message}",
-                                'max_length': max_length,
+                                'prompt': user_message,
+                                'max_length': lily_max_len,
                                 'temperature': 0.7
                             }
                             
@@ -674,10 +677,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     print("📝 텍스트 전용 요청")
                     
                     try:
-                        # Form data 구성
+                        # Form data 구성 (간결 프롬프트, max_tokens 동적 적용)
+                        lily_max_len = max(1, min(int(ai_settings.get('maxTokens', 20)) if ai_settings else 20, 128))
                         data = {
-                            'prompt': f"{emotion_prompt}\n\n사용자 메시지: {user_message}",
-                            'max_length': max_length,
+                            'prompt': user_message,
+                            'max_length': lily_max_len,
                             'temperature': 0.7
                         }
                         
