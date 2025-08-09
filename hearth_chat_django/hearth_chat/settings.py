@@ -477,10 +477,27 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "hearth_chat.urls"
 
+# TEMPLATES = [
+#     {
+#         "BACKEND": "django.template.backends.django.DjangoTemplates",
+#         "DIRS": [os.path.join(BASE_DIR, 'templates')],
+#         "APP_DIRS": True,
+#         "OPTIONS": {
+#             "context_processors": [
+#                 "django.template.context_processors.request",
+#                 "django.contrib.auth.context_processors.auth",
+#                 "django.contrib.messages.context_processors.messages",
+#             ],
+#         },
+#     },
+# ]
+
+# 템플릿 설정: React의 index.html을 Django 템플릿으로 사용
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [os.path.join(BASE_DIR, 'templates')],
+        # React 빌드 폴더를 템플릿 경로로 지정
+        "DIRS": [os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build')],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -528,24 +545,21 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 
+
+# 정적 파일(Static files: CSS, JavaScript, Images) 설정
+# 사용자가 /static/ URL로 요청할 때 사용할 URL 접두사
 STATIC_URL = "/static/"
-# STATIC_ROOT를 컨테이너의 /app/staticfiles 로 명확하게 지정합니다.
-# 이렇게 하면 Django 프로젝트 폴더와 분리되어 관리가 용이합니다.
-STATIC_ROOT = "/app/staticfiles"
 
-# 운영/로컬에 따라 React 빌드 파일 경로를 설정합니다.
-if IS_PRODUCTION:
-    # Docker 컨테이너 내부의 React 빌드 결과물 경로
-    STATICFILES_DIRS = [
-        '/app/hearth_chat_react/build',
-    ]
-else:
-    # 로컬 개발 환경의 React 빌드 결과물 경로
-    STATICFILES_DIRS = [
-        os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build'),
-    ]
+# 'collectstatic' 명령 실행 시 모든 정적 파일이 수집될 최종 디렉토리
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles_collected')
 
-# WhiteNoise를 위한 정적 파일 스토리지 설정 (운영 환경에서만)
+# collectstatic이 추가로 검색할 정적 파일 디렉토리 목록
+# React 빌드 결과물 안의 'static' 폴더를 직접 지정
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build', 'static'),
+]
+
+# 운영 환경에서 WhiteNoise가 정적 파일을 효율적으로 관리하도록 설정
 if IS_PRODUCTION:
     # 이 설정은 파일 압축 및 캐싱을 자동으로 처리해 성능을 높여줍니다.
     STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
