@@ -471,6 +471,8 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",  # allauth 미들웨어 추가
+    # render 정적 파일 문제 해결
+    "whitenoise.middleware.WhiteNoiseMiddleware", 
 ]
 
 ROOT_URLCONF = "hearth_chat.urls"
@@ -528,16 +530,16 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-# 추가 static 파일 디렉토리
-if os.environ.get("RAILWAY_ENVIRONMENT"):
+# 운영/로컬에 따라 React 빌드 파일 경로 설정
+if IS_PRODUCTION:
+    # Docker 컨테이너 내부 경로
     STATICFILES_DIRS = [
-        '/app/hearth_chat_react/build/static',
-        '/app/hearth_chat_react/build',  # 루트 파일 포함!
+        '/app/hearth_chat_react/build',
     ]
 else:
+    # 로컬 개발 환경 경로
     STATICFILES_DIRS = [
-        os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build', 'static'),
-        os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build'),  # 루트 파일 포함!
+        os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build'),
     ]
 
 # Default primary key field type
@@ -692,4 +694,8 @@ CHANNEL_LAYERS = {
     },
 }
 
-print("REDIS_URL:", REDIS_URL)
+# print("REDIS_URL:", REDIS_URL)
+
+# WhiteNoise를 위한 정적 파일 스토리지 설정 (운영 환경에서만)
+if IS_PRODUCTION:
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"

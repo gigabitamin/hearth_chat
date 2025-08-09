@@ -1,3 +1,6 @@
+# render 정적 파일 문제 해결
+whitenoise==6.7.0
+
 # Django 핵심
 Django==5.0.1
 django-allauth==65.10.0
