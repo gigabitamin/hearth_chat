@@ -54,22 +54,24 @@ IS_PRODUCTION = IS_RAILWAY_DEPLOY or IS_RENDER_DEPLOY
 if IS_PRODUCTION:
     # --- 🏢 운영 환경 (Production) 공통 설정 ---
     print("✅ 운영 환경(Production) 설정을 시작합니다.")
-    DEBUG = False # 운영 환경에서는 반드시 False
+    DEBUG = False
 
-    # 허용할 호스트 목록 (플랫폼별로 자동 추가됨)
-    ALLOWED_HOSTS = []
+    # 허용할 호스트 목록
+    # Render의 기본 URL을 직접 추가하여 안정성 확보
+    ALLOWED_HOSTS = ['hearth-chat.onrender.com']
     
-    # 플랫폼별 호스트네임 추가
+    # 플랫폼별 호스트네임 동적 추가
     if IS_RENDER_DEPLOY:
         RENDER_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
-        if RENDER_HOSTNAME:
+        if RENDER_HOSTNAME and RENDER_HOSTNAME not in ALLOWED_HOSTS:
             ALLOWED_HOSTS.append(RENDER_HOSTNAME)
             print(f"  - Render 환경 감지: {RENDER_HOSTNAME}")
 
     if IS_RAILWAY_DEPLOY:
-        RAILWAY_HOSTNAME = "hearthchat-production.up.railway.app" # 기존 Railway 주소
-        ALLOWED_HOSTS.append(RAILWAY_HOSTNAME)
-        print(f"  - Railway 환경 감지: {RAILWAY_HOSTNAME}")
+        RAILWAY_HOSTNAME = "hearthchat-production.up.railway.app"
+        if RAILWAY_HOSTNAME not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(RAILWAY_HOSTNAME)
+            print(f"  - Railway 환경 감지: {RAILWAY_HOSTNAME}")
 
     # URL 및 API 엔드포인트 설정
     BASE_URL = f"https://{ALLOWED_HOSTS[0]}" if ALLOWED_HOSTS else ""
@@ -117,7 +119,7 @@ else:
         "http://localhost:3000",    # React 개발 서버
         "http://127.0.0.1:3000",
         "http://192.168.44.9:3000",
-        LILY_API_URL,               # 로컬 Lily API
+        LILY_API_URL,               # 로컬 Lily API        
     ]
     CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS[:] # CORS와 동일하게 설정
 
