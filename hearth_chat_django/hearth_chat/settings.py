@@ -43,90 +43,61 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "your-default-secret-key")
 # ==============================================================================
 
 # --- 1. 환경 변수 및 플랫폼 감지 ---
-# 배포 플랫폼(Railway, Render) 감지
 IS_RAILWAY_DEPLOY = 'RAILWAY_ENVIRONMENT' in os.environ
 IS_RENDER_DEPLOY = os.environ.get('RENDER') == 'true'
-
-# 두 플랫폼 중 하나라도 감지되면 운영(Production) 환경으로 설정
 IS_PRODUCTION = IS_RAILWAY_DEPLOY or IS_RENDER_DEPLOY
 
 # --- 2. 환경별 주요 설정 분기 ---
 if IS_PRODUCTION:
-    # --- 🏢 운영 환경 (Production) 공통 설정 ---
+    # --- 🏢 운영 환경 (Production) 설정 ---
     print("✅ 운영 환경(Production) 설정을 시작합니다.")
     DEBUG = False
-
-    # 허용할 호스트 목록
-    # Render의 기본 URL을 직접 추가하여 안정성 확보
     ALLOWED_HOSTS = ['hearth-chat.onrender.com']
-    
-    # 플랫폼별 호스트네임 동적 추가
-    if IS_RENDER_DEPLOY:
-        RENDER_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
-        if RENDER_HOSTNAME and RENDER_HOSTNAME not in ALLOWED_HOSTS:
-            ALLOWED_HOSTS.append(RENDER_HOSTNAME)
-            print(f"  - Render 환경 감지: {RENDER_HOSTNAME}")
-
     if IS_RAILWAY_DEPLOY:
-        RAILWAY_HOSTNAME = "hearthchat-production.up.railway.app"
-        if RAILWAY_HOSTNAME not in ALLOWED_HOSTS:
-            ALLOWED_HOSTS.append(RAILWAY_HOSTNAME)
-            print(f"  - Railway 환경 감지: {RAILWAY_HOSTNAME}")
+        ALLOWED_HOSTS.append("hearthchat-production.up.railway.app")
 
-    # URL 및 API 엔드포인트 설정
-    BASE_URL = f"https://{ALLOWED_HOSTS[0]}" if ALLOWED_HOSTS else ""
+    BASE_URL = f"https://{ALLOWED_HOSTS[0]}"
     LILY_API_URL = "https://gbrabbit-lily-fast-api.hf.space"
 
-    # 보안 관련 설정 (HTTPS 환경)
-    SESSION_COOKIE_SAMESITE = "None"
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SAMESITE = "None"
-    CSRF_COOKIE_SECURE = True
-    
-    # 신뢰할 수 있는 출처 (CORS, CSRF)
-    # 위에서 추가된 호스트 주소들을 기반으로 자동 생성
-    CSRF_TRUSTED_ORIGINS = [f'https://{host}' for host in ALLOWED_HOSTS]
-    CORS_ALLOWED_ORIGINS = [f'https://{host}' for host in ALLOWED_HOSTS]
-    
-    # 허깅페이스 스페이스 URL 등 공통으로 필요한 주소 추가
-    CSRF_TRUSTED_ORIGINS.append(LILY_API_URL)
+    # CORS & CSRF 설정
+    CORS_ALLOWED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS]
+    CSRF_TRUSTED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS]
     CORS_ALLOWED_ORIGINS.append(LILY_API_URL)
+    CSRF_TRUSTED_ORIGINS.append(LILY_API_URL)
     
-    print(f"  - BASE_URL: {BASE_URL}")
-    print(f"  - ALLOWED_HOSTS: {ALLOWED_HOSTS}")
-    print(f"  - CORS_ALLOWED_ORIGINS: {CORS_ALLOWED_ORIGINS}")
+    # 보안 쿠키 설정
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SAMESITE = "None"
+    CSRF_COOKIE_SAMESITE = "None"
 
 else:
     # --- 💻 로컬 개발 환경 (Local) 설정 ---
     print("✅ 로컬 개발 환경(Local) 설정을 시작합니다.")
     DEBUG = True
-
-    # 허용할 호스트 목록
-    ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.44.9"]
-
-    # URL 및 API 엔드포인트 설정
+    ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
     BASE_URL = "http://localhost:8000"
-    LILY_API_URL = "http://localhost:8001" # 로컬에서 Lily API를 실행하는 경우
+    LILY_API_URL = "http://localhost:8001"
 
-    # 보안 관련 설정 (HTTP 환경)
-    SESSION_COOKIE_SAMESITE = "Lax"
-    SESSION_COOKIE_SECURE = False
-    CSRF_COOKIE_SAMESITE = "Lax"
-    CSRF_COOKIE_SECURE = False
-    
-    # 신뢰할 수 있는 출처 (CORS, CSRF)
+    # CORS & CSRF 설정 (React 개발 서버 허용)
     CORS_ALLOWED_ORIGINS = [
-        "http://localhost:3000",    # React 개발 서버
+        "http://localhost:3000",
         "http://127.0.0.1:3000",
-        "http://192.168.44.9:3000",
-        LILY_API_URL,               # 로컬 Lily API        
     ]
-    CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS[:] # CORS와 동일하게 설정
+    CSRF_TRUSTED_ORIGINS = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+    
+    # 보안 쿠키 설정 (HTTP 환경)
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+    SESSION_COOKIE_SAMESITE = "Lax"
+    CSRF_COOKIE_SAMESITE = "Lax"
 
-    print(f"  - BASE_URL: {BASE_URL}")
-    print(f"  - ALLOWED_HOSTS: {ALLOWED_HOSTS}")
-    print(f"  - CORS_ALLOWED_ORIGINS: {CORS_ALLOWED_ORIGINS}")
-
+print(f"  - BASE_URL: {BASE_URL}")
+print(f"  - ALLOWED_HOSTS: {ALLOWED_HOSTS}")
+print(f"  - CORS_ALLOWED_ORIGINS: {CORS_ALLOWED_ORIGINS}")
 
 # --- 3. 공통 설정 (환경과 무관) ---
 # 이 설정들은 운영/로컬 환경 모두에 동일하게 적용됩니다.
