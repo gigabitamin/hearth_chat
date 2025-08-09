@@ -739,7 +739,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             elif emotion_trend == "declining":
                 strategy["approach"] += " 요즘 힘드신 것 같아요. 제가 더 많이 도와드릴게요."
             
-            # 프롬프트 구성
+            # 프롬프트 구성 - 추가 시 응답속도 증가
             emotion_prompt = f"{strategy['tone']} {strategy['approach']}"
             
             # 문서가 있는 경우 (Gemini는 문서 처리 제한적)
