@@ -273,16 +273,24 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        # 공개방은 모두, 비공개방은 참여자만
-        return ChatRoom.objects.filter(
-            models.Q(is_public=True) | models.Q(chatroomparticipant__user=user)
-        ).distinct()
+        # 인증되지 않은 사용자는 공개방만 볼 수 있음
+        if user.is_authenticated:
+            # 공개방은 모두, 비공개방은 참여자만
+            return ChatRoom.objects.filter(
+                models.Q(is_public=True) | models.Q(chatroomparticipant__user=user)
+            ).distinct()
+        else:
+            # 인증되지 않은 사용자는 공개방만
+            return ChatRoom.objects.filter(is_public=True)
     
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         # 공개방은 누구나, 비공개방은 참여자만
-        if not instance.is_public and not instance.participants.filter(id=request.user.id).exists():
-            return Response({'error': '비공개 방입니다.'}, status=403)
+        if not instance.is_public:
+            if not request.user.is_authenticated:
+                return Response({'error': '비공개 방입니다. 로그인이 필요합니다.'}, status=403)
+            elif not instance.participants.filter(id=request.user.id).exists():
+                return Response({'error': '비공개 방입니다.'}, status=403)
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 
@@ -450,6 +458,9 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def my_favorites(self, request):
         user = request.user
+        if not user.is_authenticated:
+            return Response({'error': '로그인이 필요합니다.'}, status=401)
+        
         rooms = ChatRoom.objects.filter(favorite_users=user)
         page = self.paginate_queryset(rooms)
         if page is not None:
@@ -488,6 +499,9 @@ class ChatViewSet(viewsets.ModelViewSet):
     def my_favorites(self, request):
         """내 즐겨찾기 메시지 목록"""
         user = request.user
+        if not user.is_authenticated:
+            return Response({'error': '로그인이 필요합니다.'}, status=401)
+        
         favorites = MessageFavorite.objects.filter(user=user).select_related('message').order_by('-created_at')
         data = [
             {

@@ -3001,6 +3001,17 @@ const ChatBox = ({
   };
   useEffect(() => { fetchMyFavoriteMessages(); }, [selectedRoom?.id]);
 
+  // selectedRoom 변경 시 메시지 로드
+  useEffect(() => {
+    if (selectedRoom && selectedRoom.id) {
+      console.log('방 변경됨:', selectedRoom.id);
+      // 기존 메시지 초기화
+      setMessages([]);
+      // 새 방의 메시지 로드
+      fetchMessages(selectedRoom.id, 0, 20, false, true);
+    }
+  }, [selectedRoom?.id]);
+
   // 메시지 즐겨찾기 토글
   const handleToggleFavorite = async (msg) => {
     if (!msg.id) return;
