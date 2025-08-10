@@ -279,7 +279,7 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
     }
 
 elif os.environ.get("RENDER") == 'true':
-    SITE_ID = 1  # Railway와 동일하게 SITE_ID = 1 사용
+    SITE_ID = 2
     print(f"Render 환경 - SITE_ID 강제 설정: {SITE_ID}")
     
     try:
@@ -288,7 +288,7 @@ elif os.environ.get("RENDER") == 'true':
         if site:
             print(f"Render 환경 - 기존 Site 발견: {site.domain}")
         else:
-            print("Render 환경 - Site 객체가 없음, SITE_ID=1 사용")
+            print("Render 환경 - Site 객체가 없음, SITE_ID=2 사용")
     except Exception as e:
         print(f"Site 객체 확인 중 오류 (무시됨): {e}")
     
@@ -301,7 +301,7 @@ elif os.environ.get("RENDER") == 'true':
                 return Site.objects.get_current(request)
             except ObjectDoesNotExist:
                 site, created = Site.objects.get_or_create(
-                    id=1,  # SITE_ID = 1로 변경
+                    id=2,
                     defaults={'domain': 'hearth-chat.onrender.com', 'name': 'HearthChat Production'}
                 )
                 return site
@@ -340,11 +340,8 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 # 로그인 관련 설정 개선
-ACCOUNT_AUTHENTICATION_METHOD = 'username_email'  # username 또는 email로 로그인 가능
-ACCOUNT_USERNAME_REQUIRED = True
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_USERNAME_MIN_LENGTH = 3
-ACCOUNT_PASSWORD_MIN_LENGTH = 6
+ACCOUNT_LOGIN_METHODS = {'username', 'email'}  # username과 email 모두 허용
+ACCOUNT_SIGNUP_FIELDS = ['username*', 'email*', 'password1*', 'password2*']
 ACCOUNT_EMAIL_VERIFICATION = 'none'  # 이메일 인증 비활성화
 SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
 SOCIALACCOUNT_QUERY_EMAIL = True
@@ -360,8 +357,12 @@ ACCOUNT_LOGIN_ATTEMPTS_TIMEOUT = 300
 SESSION_COOKIE_AGE = 1209600  # 14일
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 
-# 회원가입 필드 설정
-ACCOUNT_SIGNUP_FIELDS = ['username', 'email', 'password1', 'password2']
+# 로그인 관련 추가 설정
+ACCOUNT_AUTHENTICATION_METHOD = 'username_email'  # username 또는 email로 로그인 가능
+ACCOUNT_USERNAME_REQUIRED = True
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_MIN_LENGTH = 3
+ACCOUNT_PASSWORD_MIN_LENGTH = 6
 
 # 로그인/로그아웃 URL 설정
 LOGIN_URL = '/accounts/login/'
@@ -398,10 +399,7 @@ ROOT_URLCONF = "hearth_chat.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [
-            os.path.join(BASE_DIR, 'templates'),  # Django 기본 템플릿
-            os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build'),  # React 빌드
-        ],
+        "DIRS": [os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build')],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
