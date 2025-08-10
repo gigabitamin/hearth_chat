@@ -47,5 +47,11 @@ python manage.py test_admin_access 2>&1 | tee /tmp/test_admin_access.log || {
     cat /tmp/test_admin_access.log
 }
 
+echo "--- 데이터베이스 진단... ---"
+python manage.py debug_database 2>&1 | tee /tmp/debug_database.log || {
+    echo "[WARNING] Database debug failed. See /tmp/debug_database.log below:"
+    cat /tmp/debug_database.log
+}
+
 echo "--- 서버 시작... ---"
 exec daphne -b 0.0.0.0 -p 8080 hearth_chat.asgi:application

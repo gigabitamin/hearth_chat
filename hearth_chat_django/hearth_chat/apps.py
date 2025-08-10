@@ -9,7 +9,16 @@ class HearthChatConfig(AppConfig):
     def ready(self):
         # SocialApp 자동 생성 비활성화 (관리자가 수동으로 관리)
         # post_migrate.connect(self.create_social_apps, sender=self)
-        pass
+        
+        # Django Admin 커스터마이징
+        try:
+            from django.contrib import admin
+            admin.site.site_header = "HearthChat 관리자"
+            admin.site.site_title = "HearthChat 관리자 페이지"
+            admin.site.index_title = "HearthChat 관리자 대시보드"
+        except Exception as e:
+            # Django가 아직 완전히 로드되지 않은 경우 무시
+            pass
 
     # def create_social_apps(self, sender, **kwargs):
     #     """마이그레이션 후 SocialApp 자동 생성"""

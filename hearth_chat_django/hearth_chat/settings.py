@@ -525,13 +525,4 @@ CHANNEL_LAYERS = {
     },
 }
 
-# Django Admin 보안 설정
-ADMIN_SITE_HEADER = "HearthChat 관리자"
-ADMIN_SITE_TITLE = "HearthChat 관리자 페이지"
-ADMIN_INDEX_TITLE = "HearthChat 관리자 대시보드"
 
-# Admin 사이트 커스터마이징
-from django.contrib import admin
-admin.site.site_header = ADMIN_SITE_HEADER
-admin.site.site_title = ADMIN_SITE_TITLE
-admin.site.index_title = ADMIN_INDEX_TITLE
