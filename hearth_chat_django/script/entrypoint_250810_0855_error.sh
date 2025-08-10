@@ -14,14 +14,13 @@ echo "--- 데이터베이스 마이그레이션 실행... ---"
 python manage.py migrate --noinput
 
 echo "--- 정적 파일 수집 실행... ---"
-# 커스텀 명령을 사용하여 안전하게 정적 파일 수집
-# 오류 발생 시에도 서버가 시작될 수 있도록 || echo로 처리
-python manage.py safe_collectstatic --noinput --clear || echo "정적 파일 수집 중 오류가 발생했지만 계속 진행합니다."
+# --clear 옵션으로 실행 전 기존 파일을 깨끗이 지웁니다.
+python manage.py collectstatic --noinput --clear
 
 echo "--- [디버그] collectstatic 실행 후 파일 위치 확인 ---"
-echo ">>> /app/staticfiles_collected 폴더 내용:"
+echo ">>> /app/staticfiles 폴더 내용:"
 # 수집된 파일들이 최종 목적지에 잘 들어왔는지 확인
-ls -laR /app/staticfiles_collected || echo "staticfiles_collected 폴더를 찾을 수 없습니다."
+ls -laR /app/staticfiles || echo "staticfiles 폴더를 찾을 수 없습니다."
 
 echo "--- 서버 시작... ---"
 exec daphne -b 0.0.0.0 -p 8080 hearth_chat.asgi:application

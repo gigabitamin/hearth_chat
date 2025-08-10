@@ -355,44 +355,7 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build', '
 # CSS 파일 내의 상대 경로('../media/')로 인한 경로 충돌(SuspiciousFileOperation)을 방지합니다.
 STATIC_ROOT = os.path.join(BASE_DIR.parent, 'staticfiles_collected')
 
-# WhiteNoise 설정을 단순화하여 경로 충돌 문제 해결
-if IS_PRODUCTION:
-    # 운영 환경에서는 단순한 WhiteNoise 스토리지 사용 (압축만, 해싱 없음)
-    STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
-    
-    # WhiteNoise 추가 설정
-    WHITENOISE_USE_FINDERS = True
-    WHITENOISE_AUTOREFRESH = False
-    WHITENOISE_MAX_AGE = 31536000  # 1년
-    
-    # 정적 파일 압축 설정
-    WHITENOISE_COMPRESS = True
-    WHITENOISE_COMPRESS_LEVEL = 6
-    
-    # 경로 안전성을 위한 추가 설정
-    WHITENOISE_ROOT = STATIC_ROOT
-    WHITENOISE_INDEX_FILE = True
-    
-    # 정적 파일 디렉토리 설정을 더 명확하게
-    STATICFILES_DIRS = [
-        os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build'),
-        os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build', 'static'),
-    ]
-    
-    # WhiteNoise 문제 발생 시 Django 기본 정적 파일 서빙으로 전환
-    # 환경변수 WHITENOISE_DISABLE=true로 설정하면 Django 기본 방식 사용
-    if os.environ.get('WHITENOISE_DISABLE') == 'true':
-        print('⚠️ WhiteNoise가 비활성화되었습니다. Django 기본 정적 파일 서빙을 사용합니다.')
-        STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
-        # WhiteNoise 미들웨어 제거
-        MIDDLEWARE = [mw for mw in MIDDLEWARE if 'whitenoise' not in mw.lower()]
-else:
-    # 로컬 개발 환경에서는 기본 Django 정적 파일 처리
-    STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
-    
-    # 로컬 환경 정적 파일 디렉토리
-    STATICFILES_DIRS = [os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build', 'static')]
-
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 MEDIA_ROOT = os.path.abspath(os.path.join(BASE_DIR, '..', 'hearth_chat_media'))
 MEDIA_URL = '/media/'
