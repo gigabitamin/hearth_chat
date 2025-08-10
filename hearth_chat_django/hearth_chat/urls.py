@@ -5,6 +5,8 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.shortcuts import render
 from django.http import HttpResponse
+from django.views.static import serve
+import os
 
 from .views import (
     social_connections_api, social_login_redirect_view, get_csrf_token, 
@@ -47,6 +49,41 @@ urlpatterns = [
 
 # --- 2. 미디어 파일 서빙 설정 (개발 및 프로덕션 환경 모두) ---
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# 미디어 파일 경로 디버깅을 위한 로깅
+print(f"🔍 URL 설정 - MEDIA_URL: {settings.MEDIA_URL}")
+print(f"🔍 URL 설정 - MEDIA_ROOT: {settings.MEDIA_ROOT}")
+print(f"🔍 URL 설정 - BASE_DIR: {settings.BASE_DIR}")
+
+# 추가 미디어 파일 서빙 패턴 (프로덕션 환경에서 더 안정적인 서빙을 위해)
+def media_serve(request, path):
+    """커스텀 미디어 파일 서빙 뷰"""
+    try:
+        # 미디어 파일 경로 로깅
+        print(f"🔍 미디어 파일 요청: {path}")
+        print(f"🔍 MEDIA_ROOT: {settings.MEDIA_ROOT}")
+        print(f"🔍 전체 경로: {os.path.join(settings.MEDIA_ROOT, path)}")
+        
+        # 파일 존재 여부 확인
+        full_path = os.path.join(settings.MEDIA_ROOT, path)
+        if os.path.exists(full_path):
+            print(f"✅ 파일 존재: {full_path}")
+        else:
+            print(f"❌ 파일 없음: {full_path}")
+            print(f"❌ MEDIA_ROOT 디렉토리 내용:")
+            try:
+                for root, dirs, files in os.walk(settings.MEDIA_ROOT):
+                    print(f"   {root}: {len(files)} files")
+            except Exception as e:
+                print(f"   디렉토리 읽기 오류: {e}")
+        
+        return serve(request, path, document_root=settings.MEDIA_ROOT)
+    except Exception as e:
+        print(f"❌ 미디어 파일 서빙 오류: {e}")
+        return HttpResponse(f"미디어 파일 서빙 오류: {e}", status=500)
+
+# 미디어 파일을 위한 추가 URL 패턴
+urlpatterns.append(re_path(r'^media/(?P<path>.*)$', media_serve, name='media_serve'))
 
 # --- 3. 정적 파일 서빙 (프로덕션 환경에서도 필요) ---
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

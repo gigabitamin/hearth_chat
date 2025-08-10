@@ -405,8 +405,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             print(f"사용자 메시지 저장 실패: {e}")
             # 커스텀 백엔드가 적용되지 않은 경우를 위한 디버깅
-            print(f"커스텀 백엔드 디버깅 - 오류 타입: {type(e)}")
-            print(f"커스텀 백엔드 디버깅 - 오류 내용: {str(e)}")
+            # print(f"커스텀 백엔드 디버깅 - 오류 타입: {type(e)}")
+            # print(f"커스텀 백엔드 디버깅 - 오류 내용: {str(e)}")
             raise e
 
     @sync_to_async
@@ -424,8 +424,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return result
         except Exception as e:
             print(f"AI 메시지 저장 실패: {e}")
-            print(f"커스텀 백엔드 디버깅 - 오류 타입: {type(e)}")
-            print(f"커스텀 백엔드 디버깅 - 오류 내용: {str(e)}")
+            # print(f"커스텀 백엔드 디버깅 - 오류 타입: {type(e)}")
+            # print(f"커스텀 백엔드 디버깅 - 오류 내용: {str(e)}")
             raise e
 
     @sync_to_async

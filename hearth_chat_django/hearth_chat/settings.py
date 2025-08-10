@@ -480,6 +480,34 @@ if IS_PRODUCTION:
     MEDIA_ROOT = os.environ.get('MEDIA_ROOT', os.path.join(BASE_DIR, 'media'))
     MEDIA_URL = '/media/'
     
+    # Render 서버에서 미디어 파일 경로 로깅
+    print(f"🔍 프로덕션 환경 - MEDIA_ROOT: {MEDIA_ROOT}")
+    print(f"🔍 프로덕션 환경 - MEDIA_URL: {MEDIA_URL}")
+    print(f"🔍 프로덕션 환경 - BASE_DIR: {BASE_DIR}")
+    
+    # 미디어 디렉토리 존재 여부 확인 및 생성
+    if not os.path.exists(MEDIA_ROOT):
+        print(f"⚠️ 미디어 디렉토리가 존재하지 않습니다: {MEDIA_ROOT}")
+        try:
+            os.makedirs(MEDIA_ROOT, exist_ok=True)
+            print(f"✅ 미디어 디렉토리를 생성했습니다: {MEDIA_ROOT}")
+        except Exception as e:
+            print(f"❌ 미디어 디렉토리 생성 실패: {e}")
+    else:
+        print(f"✅ 미디어 디렉토리가 존재합니다: {MEDIA_ROOT}")
+        # 디렉토리 내용 확인
+        try:
+            media_files = []
+            for root, dirs, files in os.walk(MEDIA_ROOT):
+                for file in files:
+                    rel_path = os.path.relpath(os.path.join(root, file), MEDIA_ROOT)
+                    media_files.append(rel_path)
+            print(f"📁 미디어 디렉토리 내 파일 수: {len(media_files)}")
+            if media_files:
+                print(f"📁 첫 5개 파일: {media_files[:5]}")
+        except Exception as e:
+            print(f"❌ 미디어 디렉토리 읽기 오류: {e}")
+    
     # 프로덕션에서 미디어 파일을 S3나 다른 클라우드 스토리지로 설정할 수 있음
     # DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
     # AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
@@ -492,6 +520,8 @@ else:
     # 로컬 개발 환경
     MEDIA_ROOT = os.path.abspath(os.path.join(BASE_DIR, '..', 'hearth_chat_media'))
     MEDIA_URL = '/media/'
+    print(f"🔍 로컬 환경 - MEDIA_ROOT: {MEDIA_ROOT}")
+    print(f"🔍 로컬 환경 - MEDIA_URL: {MEDIA_URL}")
 
 LOGGING = {
     'version': 1,
