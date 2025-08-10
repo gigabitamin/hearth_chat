@@ -45,9 +45,8 @@ urlpatterns = [
     path("accounts/popup-close/", lambda r: render(r, 'socialaccount/popup_close.html', {}), name="popup_close"),
 ]
 
-# --- 2. 미디어 파일 서빙 설정 (개발 환경용) ---
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# --- 2. 미디어 파일 서빙 설정 (개발 및 프로덕션 환경 모두) ---
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 # --- 3. 정적 파일 서빙 (프로덕션 환경에서도 필요) ---
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
