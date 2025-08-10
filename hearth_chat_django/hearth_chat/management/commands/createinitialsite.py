@@ -14,13 +14,13 @@ if IS_PRODUCTION:
         site_id = 1
     elif IS_RENDER_DEPLOY:
         domain = 'hearth-chat.onrender.com'
-        site_id = 2
+        site_id = 1
     else:
         domain = 'hearth-chat.onrender.com'
-        site_id = 2
+        site_id = 1
 else:
     domain = 'localhost:8000'
-    site_id = 3
+    site_id = 2
 
 class Command(BaseCommand):
     help = 'Create initial site for Railway/Render deploy'
