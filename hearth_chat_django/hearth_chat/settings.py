@@ -278,23 +278,102 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
         },
     }
 
+elif os.environ.get("RENDER") == 'true':
+    SITE_ID = 2
+    print(f"Render 환경 - SITE_ID 강제 설정: {SITE_ID}")
+    
+    try:
+        from django.contrib.sites.models import Site
+        site = Site.objects.first()
+        if site:
+            print(f"Render 환경 - 기존 Site 발견: {site.domain}")
+        else:
+            print("Render 환경 - Site 객체가 없음, SITE_ID=2 사용")
+    except Exception as e:
+        print(f"Site 객체 확인 중 오류 (무시됨): {e}")
+    
+    try:
+        from django.contrib.sites.models import Site
+        from django.contrib.sites.shortcuts import get_current_site
+        
+        def patched_get_current_site_render(request):
+            try:
+                return Site.objects.get_current(request)
+            except ObjectDoesNotExist:
+                site, created = Site.objects.get_or_create(
+                    id=2,
+                    defaults={'domain': 'hearth-chat.onrender.com', 'name': 'HearthChat Production'}
+                )
+                return site
+        
+        import django.contrib.sites.shortcuts
+        django.contrib.sites.shortcuts.get_current_site = patched_get_current_site_render
+        
+        def patched_get_current_render(self, request=None):
+            try:
+                return self.get(pk=SITE_ID)
+            except ObjectDoesNotExist:
+                site, created = Site.objects.get_or_create(
+                    id=SITE_ID,
+                    defaults={'domain': 'hearth-chat.onrender.com', 'name': 'HearthChat Production'}
+                )
+                return site
+        
+        from django.contrib.sites.models import SiteManager
+        SiteManager.get_current = patched_get_current_render
+        
+        print("Render 환경 - Site 객체 자동 생성 패치 완전 적용됨")
+    except Exception as e:
+        print(f"Site 패치 적용 중 오류 (무시됨): {e}")
+    
+    ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'https'
+    SOCIALACCOUNT_PROVIDERS = {
+        'google': {
+            'SCOPE': ['openid', 'profile', 'email'],
+            'AUTH_PARAMS': {'access_type': 'online'}
+        },
+    }
+
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
     'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
-LOGIN_REDIRECT_URL = '/accounts/popup-close/'
-LOGOUT_REDIRECT_URL = '/'
-ACCOUNT_LOGOUT_ON_GET = True
-
-ACCOUNT_LOGIN_METHODS = {'email'}
-ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
-ACCOUNT_EMAIL_VERIFICATION = 'optional'
+# 로그인 관련 설정 개선
+ACCOUNT_LOGIN_METHODS = {'username', 'email'}  # username과 email 모두 허용
+ACCOUNT_SIGNUP_FIELDS = ['username*', 'email*', 'password1*', 'password2*']
+ACCOUNT_EMAIL_VERIFICATION = 'none'  # 이메일 인증 비활성화
 SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
 SOCIALACCOUNT_QUERY_EMAIL = True
 ACCOUNT_UNIQUE_EMAIL = True
 ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 3
 ACCOUNT_RATE_LIMITS = {'confirm_email': '1/m'}
+
+# 로그인 시도 제한 설정
+ACCOUNT_LOGIN_ATTEMPTS_LIMIT = 5
+ACCOUNT_LOGIN_ATTEMPTS_TIMEOUT = 300
+
+# 세션 설정
+SESSION_COOKIE_AGE = 1209600  # 14일
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+
+# 로그인 관련 추가 설정
+ACCOUNT_AUTHENTICATION_METHOD = 'username_email'  # username 또는 email로 로그인 가능
+ACCOUNT_USERNAME_REQUIRED = True
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_MIN_LENGTH = 3
+ACCOUNT_PASSWORD_MIN_LENGTH = 6
+
+# 로그인/로그아웃 URL 설정
+LOGIN_URL = '/accounts/login/'
+LOGIN_REDIRECT_URL = '/accounts/popup-close/'
+LOGOUT_REDIRECT_URL = '/'
+ACCOUNT_LOGOUT_REDIRECT_URL = '/'
+
+# 소셜 로그인 설정
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_EMAIL_REQUIRED = False
+SOCIALACCOUNT_QUERY_EMAIL = True
 
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
