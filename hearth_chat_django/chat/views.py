@@ -480,35 +480,27 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
 class ChatViewSet(viewsets.ModelViewSet):
     queryset = Chat.objects.all()
     serializer_class = ChatSerializer
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
             
     @action(detail=False, methods=['get'], url_path='my_favorites')
     def my_favorites(self, request):
         """내 즐겨찾기 메시지 목록"""
         user = request.user
-        
-        # 사용자 인증 확인
-        if not user.is_authenticated:
-            return Response({'error': '인증이 필요합니다.'}, status=status.HTTP_401_UNAUTHORIZED)
-        
-        try:
-            favorites = MessageFavorite.objects.filter(user=user).select_related('message').order_by('-created_at')
-            data = [
-                {
-                    'id': fav.message.id,
-                    'content': fav.message.content,
-                    'timestamp': fav.message.timestamp,
-                    'room_id': fav.message.room_id,
-                    'room_name': fav.message.room.name,
-                    'sender': fav.message.username,
-                }
-                for fav in favorites
-            ]
-            print('data', data);
-            return Response({'results': data})
-        except Exception as e:
-            print(f'Error in my_favorites: {e}')
-            return Response({'error': '즐겨찾기 목록을 가져오는 중 오류가 발생했습니다.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)        
+        favorites = MessageFavorite.objects.filter(user=user).select_related('message').order_by('-created_at')
+        data = [
+            {
+                'id': fav.message.id,
+                'content': fav.message.content,
+                'timestamp': fav.message.timestamp,
+                'room_id': fav.message.room_id,
+                'room_name': fav.message.room.name,
+                'sender': fav.message.username,
+            }
+            for fav in favorites
+        ]
+        print('data', data);
+        return Response({'results': data})        
     
     @action(detail=True, methods=['post', 'delete'])
     def favorite(self, request, pk=None):

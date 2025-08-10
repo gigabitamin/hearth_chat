@@ -300,22 +300,11 @@ elif os.environ.get("RENDER") == 'true':
             try:
                 return Site.objects.get_current(request)
             except ObjectDoesNotExist:
-                try:
-                    site, created = Site.objects.get_or_create(
-                        id=3,
-                        defaults={'domain': 'hearth-chat.onrender.com', 'name': 'HearthChat Production'}
-                    )
-                    return site
-                except Exception as e:
-                    # Site 객체 생성에 실패한 경우 기본값 반환
-                    try:
-                        # 기존 Site 객체 중 하나를 반환
-                        return Site.objects.first()
-                    except:
-                        # 모든 방법이 실패한 경우 더미 Site 객체 생성
-                        site = Site(id=3, domain='hearth-chat.onrender.com', name='HearthChat Production')
-                        site.save()
-                        return site
+                site, created = Site.objects.get_or_create(
+                    id=2,
+                    defaults={'domain': 'hearth-chat.onrender.com', 'name': 'HearthChat Production'}
+                )
+                return site
         
         import django.contrib.sites.shortcuts
         django.contrib.sites.shortcuts.get_current_site = patched_get_current_site_render
@@ -535,5 +524,3 @@ CHANNEL_LAYERS = {
         },
     },
 }
-
-
