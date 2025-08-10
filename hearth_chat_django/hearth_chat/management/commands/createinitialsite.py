@@ -15,10 +15,10 @@ if IS_PRODUCTION:
         site_id = 1
     elif IS_RENDER_DEPLOY:
         domain = 'hearth-chat.onrender.com'
-        site_id = 1
+        site_id = 2
     else:
         domain = 'hearth-chat.onrender.com'
-        site_id = 1
+        site_id = 2
 else:
     domain = 'localhost:8000'
     site_id = 2
