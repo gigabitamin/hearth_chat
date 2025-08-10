@@ -3,10 +3,25 @@ export const getApiBase = () => {
     const hostname = window.location.hostname;
     const isProd = process.env.NODE_ENV === 'production';
 
+    // 프로덕션 환경에서 호스트명에 따른 서버 선택
+    if (isProd) {
+        // Render 서버인지 확인 (Render는 보통 .onrender.com 도메인 사용)
+        if (hostname.includes('onrender.com')) {
+            return `https://${hostname}`;
+        }
+        // Railway 서버인지 확인 (Railway는 보통 .up.railway.app 도메인 사용)
+        if (hostname.includes('up.railway.app')) {
+            return `https://${hostname}`;
+        }
+        // 기타 프로덕션 환경에서는 기본 Railway URL 사용
+        return 'https://hearthchat-production.up.railway.app';
+    }
 
-    if (isProd) return 'https://hearthchat-production.up.railway.app';
+    // 로컬 개발 환경
     if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:8000';
     if (hostname === '192.168.44.9') return 'http://192.168.44.9:8000';
+
+    // 기타 환경에서는 호스트명 기반으로 설정
     return `http://${hostname}:8000`;
 };
 
@@ -18,7 +33,10 @@ export const getLilyApiUrl = () => {
     // console.log('🔧 LILY_API_URL 환경 감지:', { hostname, isProd, NODE_ENV: process.env.NODE_ENV });
 
     // 프로덕션 환경에서는 허깅페이스 FastAPI 서버 사용
-    if (isProd) return 'https://gbrabbit-lily-fast-api.hf.space';
+    if (isProd) {
+        // Render나 Railway 환경에서도 허깅페이스 서버 사용
+        return 'https://gbrabbit-lily-fast-api.hf.space';
+    }
 
     // 로컬 개발 환경에서는 로컬 FastAPI 서버 사용
     if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:8001';
