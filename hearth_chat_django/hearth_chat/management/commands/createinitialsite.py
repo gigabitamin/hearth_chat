@@ -20,7 +20,7 @@ if IS_PRODUCTION:
         site_id = 2
 else:
     domain = 'localhost:8000'
-    site_id = 2
+    site_id = 3
 
 class Command(BaseCommand):
     help = 'Create initial site for Railway/Render deploy'

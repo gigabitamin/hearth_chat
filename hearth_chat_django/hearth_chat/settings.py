@@ -279,7 +279,7 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
     }
 
 elif os.environ.get("RENDER") == 'true':
-    SITE_ID = 3
+    SITE_ID = 2
     print(f"Render 환경 - SITE_ID 강제 설정: {SITE_ID}")
     
     try:

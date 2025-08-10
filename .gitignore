@@ -20,6 +20,7 @@ hearth_chat_media/uploads/
 chat_profile/
 chat_attach/
 uploads/
+backup_ignore/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
