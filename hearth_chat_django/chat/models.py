@@ -221,7 +221,7 @@ class Chat(models.Model):
         )
     
     @classmethod
-    def save_ai_message(cls, content, session_id=None, ai_name='Gemini', ai_type='google', question_message=None):
+    def save_ai_message(cls, content, session_id=None, ai_name='Gemini', ai_type='google', question_message=None, image_urls_json=None):
         """AI 메시지 저장"""
         room_id = session_id
         if room_id and str(room_id).isdigit():
@@ -245,7 +245,8 @@ class Chat(models.Model):
             message_type='text',
             content=content,
             session_id=session_id,
-            question_message=question_message
+            question_message=question_message,
+            imageUrls=image_urls_json  # 이미지 URL 배열 추가
         )
     
     @classmethod

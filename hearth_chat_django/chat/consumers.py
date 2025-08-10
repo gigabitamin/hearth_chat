@@ -216,13 +216,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
             
             # print(f"✅ 실제 사용된 API: {actual_provider}, AI 이름: {ai_name}")
             
-            # AI 응답을 DB에 저장 (question_message를 명시적으로 전달)
+            # AI 응답을 DB에 저장 (question_message와 image_urls를 명시적으로 전달)
             ai_message_obj = await self.save_ai_message(
                 ai_response, 
                 room_id, 
                 ai_name=ai_name, 
                 ai_type=ai_type, 
-                question_message=user_message_obj  # user_message_obj를 명시적으로 전달
+                question_message=user_message_obj,  # user_message_obj를 명시적으로 전달
+                image_urls_json=json.dumps(image_urls) if image_urls else None  # 이미지 URL 배열을 JSON으로 저장
             )
             
             # FK select_related로 새로 불러오기
@@ -280,7 +281,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             # print(f"✅ AI 응답 WebSocket 전송 완료")
         except Exception as e:            
             error_message = f"AI 오류: {str(e)}"
-            await self.save_ai_message(error_message, room_id)
+            await self.save_ai_message(error_message, room_id, image_urls_json=json.dumps(image_urls) if image_urls else None)
             await self.send(text_data=json.dumps({
                 'message': error_message,
                 'roomId': room_id,
@@ -410,7 +411,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             raise e
 
     @sync_to_async
-    def save_ai_message(self, content, room_id, ai_name='Gemini', ai_type='google', question_message=None):
+    def save_ai_message(self, content, room_id, ai_name='Gemini', ai_type='google', question_message=None, image_urls_json=None):
         """AI 메시지를 DB에 저장"""
         try:
             from .models import Chat
@@ -418,9 +419,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
             if content:
                 import unicodedata
                 content = unicodedata.normalize('NFC', content)
-            # question_message를 반드시 넘김
-            result = Chat.save_ai_message(content, room_id, ai_name=ai_name, ai_type=ai_type, question_message=question_message)
-            # print(f"AI 메시지 저장 성공: {result.id}, question_message: {question_message}")
+            # question_message와 image_urls를 반드시 넘김
+            result = Chat.save_ai_message(content, room_id, ai_name=ai_name, ai_type=ai_type, question_message=question_message, image_urls_json=image_urls_json)
+            # print(f"AI 메시지 저장 성공: {result.id}, question_message: {question_message}, image_urls: {image_urls_json}")
             return result
         except Exception as e:
             print(f"AI 메시지 저장 실패: {e}")

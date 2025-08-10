@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import LoginModal from './LoginModal';
 import './ChatRoomList.css';
 import { useNavigate } from 'react-router-dom';
-import { API_BASE, getCookie } from '../utils/apiConfig';
+import { API_BASE, getCookie, } from '../utils/apiConfig';
 import AiMessageRenderer from './AiMessageRenderer';
 
 const AI_PROVIDERS = [
@@ -557,6 +557,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                                     </div>
                                                 </div>
                                                 {/* 가운데: 메시지 정보 */}
+                                                {console.log('msg_560', msg)}
                                                 <div className="room-item-center-message" style={{ flex: 1, minWidth: 0 }}>
                                                     <div style={{ fontWeight: 700, color: '#fff', fontSize: 15, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                         <span style={{ fontSize: 18, fontWeight: 600, backgroundColor: '#f0f0f0', padding: '4px 4px', borderRadius: 4 }}>
