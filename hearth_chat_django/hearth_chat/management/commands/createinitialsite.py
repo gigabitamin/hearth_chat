@@ -44,7 +44,7 @@ class Command(BaseCommand):
         else:
             # Fallback for other production environments
             domain = 'hearth-chat.onrender.com'
-            site_id = 1
+            site_id = 2
             self.stdout.write(f"Other production environment detected, using domain: {domain}, site_id: {site_id}")
 
         # Create or update the site
