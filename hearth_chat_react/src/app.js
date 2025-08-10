@@ -711,6 +711,7 @@ function AppContent(props) {
             setPendingImageUrls={setPendingImageUrls}
           />
         } />
+        
         <Route path="/dashboard" element={<AdminPage loginUser={loginUser} loginLoading={loginLoading} checkLoginStatus={checkLoginStatus} />} />
       </Routes>
       {/* 항상 하단에 입력창 렌더링 */}
