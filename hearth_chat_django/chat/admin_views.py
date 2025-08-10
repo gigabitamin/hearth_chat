@@ -440,7 +440,7 @@ class AdminMediaDeleteView(APIView):
     # permission_classes = [AllowAny]
     
     def delete(self, request, pk):
-        print(f"AdminMediaDeleteView del pk: delete {pk}")
+        # print(f"AdminMediaDeleteView del pk: delete {pk}")
         try:
             obj = MediaFile.objects.get(pk=pk)
             obj.delete()

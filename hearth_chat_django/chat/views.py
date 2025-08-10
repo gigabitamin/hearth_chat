@@ -512,7 +512,7 @@ class ChatViewSet(viewsets.ModelViewSet):
             }
             for fav in favorites
         ]
-        print('data', data);
+        
         return Response({'results': data})        
     
     @action(detail=True, methods=['post', 'delete'])
@@ -686,7 +686,7 @@ class ChatViewSet(viewsets.ModelViewSet):
                     'reactions': reactions_list,
                     'questioner_username': (msg.question_message.username if msg.sender_type == 'ai' and msg.question_message else None)
                 }
-                print('chat views 676 message_data', message_data);
+                
                 message_list.append(message_data)
                 
             

@@ -73,7 +73,7 @@ class DatabaseWrapper(MySQLDatabaseWrapper):
         else:
             self.settings_dict["OPTIONS"]['init_command'] = '; '.join(init_commands)
 
-        print("✅ MySQL 커스텀 백엔드 연결 파라미터 설정 완료!")
+        # print("✅ MySQL 커스텀 백엔드 연결 파라미터 설정 완료!")
         return params
     
     def ensure_connection(self):
@@ -95,6 +95,6 @@ class DatabaseWrapper(MySQLDatabaseWrapper):
                 for command in utf8mb4_commands:
                     cursor.execute(command)
                 
-                print("✅ MySQL 커스텀 백엔드 연결 후 utf8mb4 강제 설정 완료!")
+                # print("✅ MySQL 커스텀 백엔드 연결 후 utf8mb4 강제 설정 완료!")
         
         return self.connection 

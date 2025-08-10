@@ -108,11 +108,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
         documents = data.get("documents", [])  # 문서 정보 배열
         room_id = data.get("roomId", "")  # 대화방 ID 추가
 
-        print(f"[DEBUG] WebSocket 메시지 수신:")
-        print(f"[DEBUG] user_message: {user_message}")
-        print(f"[DEBUG] image_urls: {image_urls}")
-        print(f"[DEBUG] documents: {documents}")
-        print(f"[DEBUG] room_id: {room_id}")
+        # print(f"[DEBUG] WebSocket 메시지 수신:")
+        # print(f"[DEBUG] user_message: {user_message}")
+        # print(f"[DEBUG] image_urls: {image_urls}")
+        # print(f"[DEBUG] documents: {documents}")
+        # print(f"[DEBUG] room_id: {room_id}")
         
         # 단일 이미지 URL을 배열로 변환 (호환성 유지)
         if image_url and not image_urls:
@@ -214,7 +214,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             ai_name = ai_response_result['ai_name']
             ai_type = ai_response_result['ai_type']
             
-            print(f"✅ 실제 사용된 API: {actual_provider}, AI 이름: {ai_name}")
+            # print(f"✅ 실제 사용된 API: {actual_provider}, AI 이름: {ai_name}")
             
             # AI 응답을 DB에 저장 (question_message를 명시적으로 전달)
             ai_message_obj = await self.save_ai_message(
@@ -240,9 +240,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 self.conversation_context = self.conversation_context[-10:]
             
             # AI 응답을 방의 모든 참여자에게 브로드캐스트
-            print(f"📤 AI 응답 전송 준비: {ai_response[:50]}...")
-            print(f"📤 방 ID: {room_id}")
-            print(f"📤 AI 이름: {ai_name}")
+            # print(f"📤 AI 응답 전송 준비: {ai_response[:50]}...")
+            # print(f"📤 방 ID: {room_id}")
+            # print(f"📤 AI 이름: {ai_name}")
             
             try:
                 debug_event = {
@@ -256,7 +256,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'ai_name': ai_message_obj.ai_name if ai_message_obj else 'AI',
                     'sender': ai_message_obj.ai_name if ai_message_obj else 'AI',
                 }                
-                print(f"📤 디버그 이벤트: {debug_event}")
+                # print(f"📤 디버그 이벤트: {debug_event}")
             except Exception as e:
                 print(f"[DEBUG][group_send][ai_message] event 출력 오류: {e}")
             
@@ -277,7 +277,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'imageUrls': image_urls  # 원본 이미지 URL 배열 추가
                 }
             )
-            print(f"✅ AI 응답 WebSocket 전송 완료")
+            # print(f"✅ AI 응답 WebSocket 전송 완료")
         except Exception as e:            
             error_message = f"AI 오류: {str(e)}"
             await self.save_ai_message(error_message, room_id)
@@ -313,7 +313,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         }))
 
     async def ai_message(self, event):        
-        print(f"📥 AI 메시지 이벤트 수신: {event}")
+        # print(f"📥 AI 메시지 이벤트 수신: {event}")
         try:
             debug_event = dict(event) if isinstance(event, dict) else event            
         except Exception as e:
@@ -330,10 +330,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'sender': event.get('ai_name', 'AI'),
             'imageUrls': event.get('imageUrls', [])  # imageUrls 배열 추가
         }
-        print(f"📤 클라이언트로 전송할 데이터: {response_data}")
+        # print(f"📤 클라이언트로 전송할 데이터: {response_data}")
         
         await self.send(text_data=json.dumps(response_data))
-        print(f"✅ AI 메시지 클라이언트 전송 완료")
+        # print(f"✅ AI 메시지 클라이언트 전송 완료")
 
     async def handle_webrtc_signaling(self, data):
         """WebRTC 시그널링 메시지 처리"""
@@ -420,7 +420,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 content = unicodedata.normalize('NFC', content)
             # question_message를 반드시 넘김
             result = Chat.save_ai_message(content, room_id, ai_name=ai_name, ai_type=ai_type, question_message=question_message)
-            print(f"AI 메시지 저장 성공: {result.id}, question_message: {question_message}")
+            # print(f"AI 메시지 저장 성공: {result.id}, question_message: {question_message}")
             return result
         except Exception as e:
             print(f"AI 메시지 저장 실패: {e}")
@@ -434,7 +434,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         from .models import UserSettings
         try:
             settings = UserSettings.objects.get(user=user)
-            print(f"🔍 DB에서 가져온 설정: ai_provider={settings.ai_provider}, gemini_model={settings.gemini_model}")
+            # print(f"🔍 DB에서 가져온 설정: ai_provider={settings.ai_provider}, gemini_model={settings.gemini_model}")
             
             # 기본 설정
             default_settings = {
@@ -448,7 +448,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 try:
                     json_settings = json.loads(settings.ai_settings)
                     default_settings.update(json_settings)
-                    print(f"🔍 JSON 설정에서 가져온 값: {json_settings}")
+                    # print(f"🔍 JSON 설정에서 가져온 값: {json_settings}")
                 except json.JSONDecodeError:
                     print(f"🔍 JSON 파싱 오류")
                     pass
@@ -459,19 +459,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
             if hasattr(settings, 'ai_provider') and settings.ai_provider and not json_has_ai_provider:
                 default_settings["aiProvider"] = settings.ai_provider
-                print(f"🔍 DB ai_provider 사용: {settings.ai_provider} (JSON에 값이 없어 DB로 보완)")
+                # print(f"🔍 DB ai_provider 사용: {settings.ai_provider} (JSON에 값이 없어 DB로 보완)")
             else:
                 if json_has_ai_provider:
                     print(f"🔍 JSON aiProvider 우선 사용: {default_settings['aiProvider']}")
 
             if hasattr(settings, 'gemini_model') and settings.gemini_model and not json_has_gemini_model:
                 default_settings["geminiModel"] = settings.gemini_model
-                print(f"🔍 DB gemini_model 사용: {settings.gemini_model} (JSON에 값이 없어 DB로 보완)")
+                # print(f"🔍 DB gemini_model 사용: {settings.gemini_model} (JSON에 값이 없어 DB로 보완)")
             else:
                 if json_has_gemini_model:
                     print(f"🔍 JSON geminiModel 우선 사용: {default_settings['geminiModel']}")
             
-            print(f"🔍 최종 설정: {default_settings}")
+            # print(f"🔍 최종 설정: {default_settings}")
             return default_settings
         except Exception as e:
             print(f"🔍 설정 가져오기 오류: {e}")
@@ -514,14 +514,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 # 환경별 기본 URL 설정
                 from django.conf import settings
                 default_lily_url = getattr(settings, 'LILY_API_URL', 'http://localhost:8001')
-                print(f"🔧 Lily URL={default_lily_url}")
+                # print(f"🔧 Lily URL={default_lily_url}")
                 default_lily_model = 'kanana-1.5-v-3b-instruct'
                 
                 lily_api_url = ai_settings.get('lilyApiUrl', default_lily_url) if ai_settings else default_lily_url
                 lily_model = ai_settings.get('lilyModel', default_lily_model) if ai_settings else default_lily_model
                 
-                print(f"🔧 Lily API 설정: URL={lily_api_url}, Model={lily_model}")
-                print(f"🔧 환경 감지: RAILWAY_ENVIRONMENT={os.environ.get('RAILWAY_ENVIRONMENT', 'None')}")
+                # print(f"🔧 Lily API 설정: URL={lily_api_url}, Model={lily_model}")
+                # print(f"🔧 환경 감지: RAILWAY_ENVIRONMENT={os.environ.get('RAILWAY_ENVIRONMENT', 'None')}")
                 
                 # 감정 변화 추세 분석
                 emotion_trend = self.get_emotion_trend()

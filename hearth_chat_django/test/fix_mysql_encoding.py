@@ -31,26 +31,26 @@ def fix_mysql_encoding():
                 "SET sql_mode = 'STRICT_TRANS_TABLES'"
             ]
             
-            print("MySQL 문자셋 설정 중...")
+            # print("MySQL 문자셋 설정 중...")
             for command in charset_commands:
                 cursor.execute(command)
-                print(f"✓ {command}")
+                # print(f"✓ {command}")
             
             # 데이터베이스 문자셋 확인
             cursor.execute("SHOW VARIABLES LIKE 'character_set%'")
             results = cursor.fetchall()
             
-            print("\n현재 문자셋 설정:")
-            for var, value in results:
-                print(f"  {var}: {value}")
+            # print("\n현재 문자셋 설정:")
+            # for var, value in results:
+                # print(f"  {var}: {value}")
             
             # 테이블 문자셋 변경
-            print("\n테이블 문자셋 변경 중...")
+            # print("\n테이블 문자셋 변경 중...")
             cursor.execute("ALTER TABLE chat_chat CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
-            print("✓ chat_chat 테이블 문자셋 변경 완료")
+            # print("✓ chat_chat 테이블 문자셋 변경 완료")
             
             connection.commit()
-            print("\n✅ MySQL 문자셋 설정 완료!")
+            # print("\n✅ MySQL 문자셋 설정 완료!")
             
     except Error as e:
         print(f"❌ MySQL 연결 오류: {e}")
@@ -58,7 +58,7 @@ def fix_mysql_encoding():
         if connection.is_connected():
             cursor.close()
             connection.close()
-            print("MySQL 연결 종료")
+            # print("MySQL 연결 종료")
 
 if __name__ == "__main__":
     fix_mysql_encoding() 

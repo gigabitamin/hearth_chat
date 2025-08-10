@@ -38,18 +38,18 @@ def force_utf8mb4_connection():
         print("MySQL 연결을 utf8mb4로 강제 설정 중...")
         for command in utf8mb4_commands:
             cursor.execute(command)
-            print(f"✓ {command}")
+            # print(f"✓ {command}")
         
         # 설정 확인
         cursor.execute("SHOW VARIABLES LIKE 'character_set%'")
         results = cursor.fetchall()
         
         print("\n현재 문자셋 설정:")
-        for var, value in results:
-            print(f"  {var}: {value}")
+        # for var, value in results:
+            # print(f"  {var}: {value}")
         
         cursor.close()
-        print("\n✅ MySQL 연결 utf8mb4 강제 설정 완료!")
+        # print("\n✅ MySQL 연결 utf8mb4 강제 설정 완료!")
         
     except Exception as e:
         print(f"❌ 오류 발생: {e}")

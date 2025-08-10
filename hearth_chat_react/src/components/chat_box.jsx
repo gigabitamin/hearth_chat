@@ -2803,25 +2803,25 @@ const ChatBox = ({
     }
   };
 
-  // 대화방이 바뀔 때마다 메시지 초기화 및 불러오기
-  useEffect(() => {
-    if (selectedRoom && selectedRoom.id) {
-      setMessages([]);
-      setMessageOffset(0);
-      setHasMore(true);
-      setFirstItemIndex(0);
-      setTotalCount(0);
-      setScrollToMessageId(null);
-      // (1) messageId가 있으면 해당 메시지가 포함된 페이지로 fetch
-      if (messageIdFromUrl) {
-        fetchOffsetForMessageId(selectedRoom.id, messageIdFromUrl);
-      } else {
-        // (2) 일반 입장: 전체 개수 fetch 후 최신 20개 fetch
-        fetchTotalCountAndFetchLatest(selectedRoom.id);
-      }
-      // ... WebSocket join_room 등 기존 코드 유지 ...
-    }
-  }, [selectedRoom, messageIdFromUrl]);
+  // 대화방이 바뀔 때마다 메시지 초기화 및 불러오기 (중복 제거를 위해 주석 처리)
+  // useEffect(() => {
+  //   if (selectedRoom && selectedRoom.id) {
+  //     setMessages([]);
+  //     setMessageOffset(0);
+  //     setHasMore(true);
+  //     setFirstItemIndex(0);
+  //     setTotalCount(0);
+  //     setScrollToMessageId(null);
+  //     // (1) messageId가 있으면 해당 메시지가 포함된 페이지로 fetch
+  //     if (messageIdFromUrl) {
+  //       fetchOffsetForMessageId(selectedRoom.id, messageIdFromUrl);
+  //     } else {
+  //       // (2) 일반 입장: 전체 개수 fetch 후 최신 20개 fetch
+  //       fetchTotalCountAndFetchLatest(selectedRoom.id);
+  //     }
+  //     // ... WebSocket join_room 등 기존 코드 유지 ...
+  //   }
+  // }, [selectedRoom, messageIdFromUrl]);
 
   // messages가 바뀔 때마다 firstItemIndex와 messages.length의 관계 확인 및 동기화
   useEffect(() => {
@@ -2847,12 +2847,12 @@ const ChatBox = ({
         const total = data.count || 0;
         setTotalCount(total);
         const offset = Math.max(0, total - 20);
-        fetchMessages(roomId, offset, 20, false, true);
+        fetchMessages(roomId, offset, 20, false, false);
         setFirstItemIndex(offset);
         setMessageOffset(offset);
       }
     } catch (e) {
-      fetchMessages(roomId, 0, 20, false, true);
+      fetchMessages(roomId, 0, 20, false, false);
       setFirstItemIndex(0);
       setMessageOffset(0);
     }
@@ -2871,20 +2871,20 @@ const ChatBox = ({
         // 백엔드에서 이미 윈도우 중앙에 위치하도록 offset을 계산해줬으므로 그대로 사용
         const offset = data.offset;
         setIsJumpingToMessage(true); // 특정 메시지 찾아가기 모드 진입
-        fetchMessages(roomId, offset, 40, false, true, messageId);
+        fetchMessages(roomId, offset, 40, false, false, messageId);
         setFirstItemIndex(offset);
         setMessageOffset(offset);
       } else {
         console.error('[특정 메시지 이동] API 오류:', res.status);
         setIsJumpingToMessage(true);
-        fetchMessages(roomId, 0, 40, false, true, messageId);
+        fetchMessages(roomId, 0, 40, false, false, messageId);
         setFirstItemIndex(0);
         setMessageOffset(0);
       }
     } catch (error) {
       console.error('[특정 메시지 이동] 네트워크 오류:', error);
       setIsJumpingToMessage(true);
-      fetchMessages(roomId, 0, 40, false, true, messageId);
+      fetchMessages(roomId, 0, 40, false, false, messageId);
       setFirstItemIndex(0);
       setMessageOffset(0);
     }
@@ -2999,7 +2999,7 @@ const ChatBox = ({
   };
   useEffect(() => { fetchMyFavoriteMessages(); }, [selectedRoom?.id]);
 
-  // selectedRoom 변경 시 메시지 로드
+  // selectedRoom 변경 시 메시지 로드 (중복 제거를 위해 통합)
   useEffect(() => {
     if (selectedRoom && selectedRoom.id) {
       console.log('방 변경됨:', selectedRoom.id);
@@ -3007,10 +3007,19 @@ const ChatBox = ({
       setMessages([]);
       setMessageOffset(0);
       setFirstItemIndex(0);
-      // 새 방의 메시지 로드 (isInit = false로 변경하여 중복 제거 로직 활성화)
-      fetchMessages(selectedRoom.id, 0, 20, false, false);
+      setHasMore(true);
+      setTotalCount(0);
+      setScrollToMessageId(null);
+
+      // (1) messageId가 있으면 해당 메시지가 포함된 페이지로 fetch
+      if (messageIdFromUrl) {
+        fetchOffsetForMessageId(selectedRoom.id, messageIdFromUrl);
+      } else {
+        // (2) 일반 입장: 전체 개수 fetch 후 최신 20개 fetch
+        fetchTotalCountAndFetchLatest(selectedRoom.id);
+      }
     }
-  }, [selectedRoom?.id]);
+  }, [selectedRoom?.id, messageIdFromUrl]);
 
   // 메시지 즐겨찾기 토글
   const handleToggleFavorite = async (msg) => {
@@ -3254,7 +3263,7 @@ const ChatBox = ({
                   scrollToMessageId={scrollToMessageId}
                   onMessageDelete={() => {
                     if (selectedRoom && selectedRoom.id) {
-                      fetchMessages(selectedRoom.id, 0, 20, false);
+                      fetchMessages(selectedRoom.id, 0, 20, false, false);
                     }
                   }}
                   onLoadMore={(isPrepending) => {
@@ -3262,11 +3271,11 @@ const ChatBox = ({
                       if (isPrepending) {
                         // 위로 스크롤: 현재 첫 번째 메시지 기준으로 이전 20개 fetch
                         const newOffset = Math.max(0, firstItemIndex - 20);
-                        fetchMessages(selectedRoom.id, newOffset, 20, true);
+                        fetchMessages(selectedRoom.id, newOffset, 20, true, false);
                       } else {
                         // 아래로 스크롤: 현재 마지막 메시지 기준으로 다음 20개 fetch
                         const newOffset = firstItemIndex + messages.length;
-                        fetchMessages(selectedRoom.id, newOffset, 20, false);
+                        fetchMessages(selectedRoom.id, newOffset, 20, false, false);
                       }
                     }
                   }}
