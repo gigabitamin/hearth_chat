@@ -472,8 +472,25 @@ else:
     STATICFILES_DIRS = [os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build', 'static')]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-MEDIA_ROOT = os.path.abspath(os.path.join(BASE_DIR, '..', 'hearth_chat_media'))
-MEDIA_URL = '/media/'
+
+# 미디어 파일 설정
+if IS_PRODUCTION:
+    # 프로덕션 환경: 환경변수로 설정하거나 기본값 사용
+    MEDIA_ROOT = os.environ.get('MEDIA_ROOT', os.path.join(BASE_DIR, 'media'))
+    MEDIA_URL = '/media/'
+    
+    # 프로덕션에서 미디어 파일을 S3나 다른 클라우드 스토리지로 설정할 수 있음
+    # DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    # AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+    # AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+    # AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
+    # AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'ap-northeast-2')
+    # AWS_DEFAULT_ACL = None
+    # AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
+else:
+    # 로컬 개발 환경
+    MEDIA_ROOT = os.path.abspath(os.path.join(BASE_DIR, '..', 'hearth_chat_media'))
+    MEDIA_URL = '/media/'
 
 LOGGING = {
     'version': 1,

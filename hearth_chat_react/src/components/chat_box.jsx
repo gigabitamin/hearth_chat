@@ -2719,17 +2719,15 @@ const ChatBox = ({
         // 중복 제거 로직을 실제 메시지 ID 기반으로 변경
         let uniqueNewMessages = data.results;
 
-        // 초기 로딩이 아닐 때만 중복 제거 수행
-        if (!isInit) {
-          const existingIds = new Set(messages.map(m => m.id));
-          uniqueNewMessages = data.results.filter(msg => !existingIds.has(msg.id));
+        // 항상 중복 제거 수행 (isInit 여부와 관계없이)
+        const existingIds = new Set(messages.map(m => m.id));
+        uniqueNewMessages = data.results.filter(msg => !existingIds.has(msg.id));
 
-          // if (uniqueNewMessages.length === 0) {
-          //   console.log('[중복 제거] 모든 메시지가 중복 - 기존 ID 개수:', existingIds.size, '새 메시지 개수:', data.results.length);
-          // } else {
-          //   console.log('[중복 제거] 중복 제거 완료 - 기존 ID 개수:', existingIds.size, '새 메시지 개수:', data.results.length, '고유 메시지 개수:', uniqueNewMessages.length);
-          // }
-        }
+        // if (uniqueNewMessages.length === 0) {
+        //   console.log('[중복 제거] 모든 메시지가 중복 - 기존 ID 개수:', existingIds.size, '새 메시지 개수:', data.results.length, '고유 메시지 개수:', uniqueNewMessages.length);
+        // } else {
+        //   console.log('[중복 제거] 중복 제거 완료 - 기존 ID 개수:', existingIds.size, '새 메시지 개수:', data.results.length, '고유 메시지 개수:', uniqueNewMessages.length);
+        // }
 
         if (uniqueNewMessages.length === 0) {
           // console.log('[fetchMessages] 새로운 메시지가 없으므로 스킵');
@@ -3007,8 +3005,10 @@ const ChatBox = ({
       console.log('방 변경됨:', selectedRoom.id);
       // 기존 메시지 초기화
       setMessages([]);
-      // 새 방의 메시지 로드
-      fetchMessages(selectedRoom.id, 0, 20, false, true);
+      setMessageOffset(0);
+      setFirstItemIndex(0);
+      // 새 방의 메시지 로드 (isInit = false로 변경하여 중복 제거 로직 활성화)
+      fetchMessages(selectedRoom.id, 0, 20, false, false);
     }
   }, [selectedRoom?.id]);
 
