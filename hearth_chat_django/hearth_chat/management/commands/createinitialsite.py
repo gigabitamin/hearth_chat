@@ -31,27 +31,49 @@ class Command(BaseCommand):
         self.stdout.write(f'🆔 SITE_ID: {site_id}')
         
         # 기존 Site 객체가 있으면 업데이트, 없으면 생성
-        site, created = Site.objects.get_or_create(
-            id=site_id,
-            defaults={
-                'domain': domain,
-                'name': f'HearthChat {"Production" if IS_PRODUCTION else "Local"}'
-            }
-        )
-        
-        if created:
-            self.stdout.write(
-                self.style.SUCCESS(f'✅ Site {site.domain} (ID: {site.id}) 생성됨')
+        try:
+            site, created = Site.objects.get_or_create(
+                id=site_id,
+                defaults={
+                    'domain': domain,
+                    'name': f'HearthChat {"Production" if IS_PRODUCTION else "Local"}'
+                }
             )
-        else:
-            # 기존 사이트 정보 업데이트
-            old_domain = site.domain
-            site.domain = domain
-            site.name = f'HearthChat {"Production" if IS_PRODUCTION else "Local"}'
-            site.save()
+            
+            if created:
+                self.stdout.write(
+                    self.style.SUCCESS(f'✅ Site {site.domain} (ID: {site.id}) 생성됨')
+                )
+            else:
+                # 기존 사이트 정보 업데이트
+                old_domain = site.domain
+                site.domain = domain
+                site.name = f'HearthChat {"Production" if IS_PRODUCTION else "Local"}'
+                site.save()
+                self.stdout.write(
+                    self.style.SUCCESS(f'✅ Site {old_domain} → {site.domain} (ID: {site.id}) 업데이트됨')
+                )
+        except Exception as e:
             self.stdout.write(
-                self.style.SUCCESS(f'✅ Site {old_domain} → {site.domain} (ID: {site.id}) 업데이트됨')
+                self.style.ERROR(f'❌ Site 객체 생성/업데이트 실패: {e}')
             )
+            # 강제로 Site 객체 생성 시도
+            try:
+                # 기존 Site 객체 삭제 후 재생성
+                Site.objects.filter(id=site_id).delete()
+                site = Site.objects.create(
+                    id=site_id,
+                    domain=domain,
+                    name=f'HearthChat {"Production" if IS_PRODUCTION else "Local"}'
+                )
+                self.stdout.write(
+                    self.style.SUCCESS(f'🔄 Site {site.domain} (ID: {site.id}) 강제 생성됨')
+                )
+            except Exception as e2:
+                self.stdout.write(
+                    self.style.ERROR(f'❌ 강제 생성도 실패: {e2}')
+                )
+                raise
         
         # 모든 Site 객체 목록 출력
         self.stdout.write('📋 현재 등록된 모든 Site 객체:')
