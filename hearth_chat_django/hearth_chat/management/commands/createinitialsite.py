@@ -15,10 +15,10 @@ if IS_PRODUCTION:
         site_id = 1
     elif IS_RENDER_DEPLOY:
         domain = 'hearth-chat.onrender.com'
-        site_id = 2
+        site_id = 1
     else:
         domain = 'hearth-chat.onrender.com'
-        site_id = 2
+        site_id = 1
 else:
     domain = 'localhost:8000'
     site_id = 2
@@ -34,7 +34,7 @@ class Command(BaseCommand):
             self.stdout.write(f"Railway deployment detected, using domain: {domain}, site_id: {site_id}")
         elif hasattr(settings, 'IS_RENDER_DEPLOY') and settings.IS_RENDER_DEPLOY:
             domain = 'hearth-chat.onrender.com'
-            site_id = 2
+            site_id = 1
             self.stdout.write(f"Render deployment detected, using domain: {domain}, site_id: {site_id}")
         elif os.environ.get('DJANGO_SETTINGS_MODULE') == 'hearth_chat.settings':
             # Local development
@@ -44,7 +44,7 @@ class Command(BaseCommand):
         else:
             # Fallback for other production environments
             domain = 'hearth-chat.onrender.com'
-            site_id = 2
+            site_id = 1
             self.stdout.write(f"Other production environment detected, using domain: {domain}, site_id: {site_id}")
 
         # Create or update the site

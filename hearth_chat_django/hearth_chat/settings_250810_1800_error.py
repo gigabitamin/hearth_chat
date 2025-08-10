@@ -340,11 +340,8 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 # 로그인 관련 설정 개선
-ACCOUNT_AUTHENTICATION_METHOD = 'username_email'  # username 또는 email로 로그인 가능
-ACCOUNT_USERNAME_REQUIRED = True
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_USERNAME_MIN_LENGTH = 3
-ACCOUNT_PASSWORD_MIN_LENGTH = 6
+ACCOUNT_LOGIN_METHODS = {'username', 'email'}  # username과 email 모두 허용
+ACCOUNT_SIGNUP_FIELDS = ['username*', 'email*', 'password1*', 'password2*']
 ACCOUNT_EMAIL_VERIFICATION = 'none'  # 이메일 인증 비활성화
 SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
 SOCIALACCOUNT_QUERY_EMAIL = True
@@ -360,8 +357,12 @@ ACCOUNT_LOGIN_ATTEMPTS_TIMEOUT = 300
 SESSION_COOKIE_AGE = 1209600  # 14일
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 
-# 회원가입 필드 설정
-ACCOUNT_SIGNUP_FIELDS = ['username', 'email', 'password1', 'password2']
+# 로그인 관련 추가 설정
+ACCOUNT_AUTHENTICATION_METHOD = 'username_email'  # username 또는 email로 로그인 가능
+ACCOUNT_USERNAME_REQUIRED = True
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_MIN_LENGTH = 3
+ACCOUNT_PASSWORD_MIN_LENGTH = 6
 
 # 로그인/로그아웃 URL 설정
 LOGIN_URL = '/accounts/login/'
