@@ -57,7 +57,7 @@ if IS_PRODUCTION:
 else:
     # --- 💻 로컬 개발 환경 (Local) 설정 ---
     print("✅ 로컬 개발 환경(Local) 설정을 시작합니다.")
-    DEBUG = True
+    DEBUG = False
     ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
     BASE_URL = "http://localhost:8000"
     LILY_API_URL = "http://localhost:8001"
@@ -173,159 +173,19 @@ SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 
 SITE_ID = 2 # 소셜 로그인 설정을 위한 필수 설정 (1: railway, 2: 로컬)
 
-# 로컬 환경에서 Site 객체가 없을 때를 대비한 동적 SITE_ID 설정
-if not os.environ.get("RAILWAY_ENVIRONMENT"):
-    SITE_ID = 2
-    print(f"로컬 환경 - SITE_ID 설정: {SITE_ID}")
-    
-    try:
-        from django.contrib.sites.models import Site
-        site = Site.objects.first()
-        if site:
-            print(f"로컬 환경 - 기존 Site 발견: {site.domain}")
-        else:
-            print("로컬 환경 - Site 객체가 없음, SITE_ID=2 사용")
-    except Exception as e:
-        print(f"Site 객체 확인 중 오류 (무시됨): {e}")
-    
-    try:
-        from django.contrib.sites.models import Site
-        from django.contrib.sites.shortcuts import get_current_site
-        
-        def patched_get_current_site_local(request):
-            try:
-                return Site.objects.get_current(request)
-            except ObjectDoesNotExist:
-                site, created = Site.objects.get_or_create(
-                    id=2,
-                    defaults={'domain': 'localhost:8000', 'name': 'localhost'}
-                )
-                return site
-        
-        import django.contrib.sites.shortcuts
-        django.contrib.sites.shortcuts.get_current_site = patched_get_current_site_local
-        
-        def patched_get_current_local(self, request=None):
-            try:
-                return self.get(pk=SITE_ID)
-            except ObjectDoesNotExist:
-                site, created = Site.objects.get_or_create(
-                    id=SITE_ID,
-                    defaults={'domain': 'localhost:8000', 'name': 'localhost'}
-                )
-                return site
-        
-        from django.contrib.sites.models import SiteManager
-        SiteManager.get_current = patched_get_current_local
-        
-        print("로컬 환경 - Site 객체 자동 생성 패치 완전 적용됨")
-    except Exception as e:
-        print(f"로컬 Site 패치 적용 중 오류 (무시됨): {e}")
-
+# 환경별 SITE_ID 설정
 if os.environ.get("RAILWAY_ENVIRONMENT"):
     SITE_ID = 1
-    print(f"Railway 환경 - SITE_ID 강제 설정: {SITE_ID}")
-    
-    try:
-        from django.contrib.sites.models import Site
-        site = Site.objects.first()
-        if site:
-            print(f"Railway 환경 - 기존 Site 발견: {site.domain}")
-        else:
-            print("Railway 환경 - Site 객체가 없음, SITE_ID=1 사용")
-    except Exception as e:
-        print(f"Site 객체 확인 중 오류 (무시됨): {e}")
-    
-    try:
-        from django.contrib.sites.models import Site
-        from django.contrib.sites.shortcuts import get_current_site
-        
-        def patched_get_current_site(request):
-            try:
-                return Site.objects.get_current(request)
-            except ObjectDoesNotExist:
-                site, created = Site.objects.get_or_create(
-                    id=1,
-                    defaults={'domain': os.environ.get('RAILWAY_PUBLIC_DOMAIN', 'default.railway.app'), 'name': 'HearthChat Production'}
-                )
-                return site
-        
-        import django.contrib.sites.shortcuts
-        django.contrib.sites.shortcuts.get_current_site = patched_get_current_site
-        
-        def patched_get_current(self, request=None):
-            try:
-                return self.get(pk=SITE_ID)
-            except ObjectDoesNotExist:
-                site, created = Site.objects.get_or_create(
-                    id=SITE_ID,
-                    defaults={'domain': os.environ.get('RAILWAY_PUBLIC_DOMAIN', 'default.railway.app'), 'name': 'HearthChat Production'}
-                )
-                return site
-        
-        from django.contrib.sites.models import SiteManager
-        SiteManager.get_current = patched_get_current
-        
-        print("Railway 환경 - Site 객체 자동 생성 패치 완전 적용됨")
-    except Exception as e:
-        print(f"Site 패치 적용 중 오류 (무시됨): {e}")
-    
-    ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'https'
-    SOCIALACCOUNT_PROVIDERS = {
-        'google': {
-            'SCOPE': ['openid', 'profile', 'email'],
-            'AUTH_PARAMS': {'access_type': 'online'}
-        },
-    }
-
+    print(f"Railway 환경 - SITE_ID 설정: {SITE_ID}")
 elif os.environ.get("RENDER") == 'true':
     SITE_ID = 3
-    print(f"Render 환경 - SITE_ID 강제 설정: {SITE_ID}")
-    
-    try:
-        from django.contrib.sites.models import Site
-        site = Site.objects.first()
-        if site:
-            print(f"Render 환경 - 기존 Site 발견: {site.domain}")
-        else:
-            print("Render 환경 - Site 객체가 없음, SITE_ID=3 사용")
-    except Exception as e:
-        print(f"Site 객체 확인 중 오류 (무시됨): {e}")
-    
-    try:
-        from django.contrib.sites.models import Site
-        from django.contrib.sites.shortcuts import get_current_site
-        
-        def patched_get_current_site_render(request):
-            try:
-                return Site.objects.get_current(request)
-            except ObjectDoesNotExist:
-                site, created = Site.objects.get_or_create(
-                    id=3,
-                    defaults={'domain': 'hearth-chat.onrender.com', 'name': 'HearthChat Production'}
-                )
-                return site
-        
-        import django.contrib.sites.shortcuts
-        django.contrib.sites.shortcuts.get_current_site = patched_get_current_site_render
-        
-        def patched_get_current_render(self, request=None):
-            try:
-                return self.get(pk=SITE_ID)
-            except ObjectDoesNotExist:
-                site, created = Site.objects.get_or_create(
-                    id=SITE_ID,
-                    defaults={'domain': 'hearth-chat.onrender.com', 'name': 'HearthChat Production'}
-                )
-                return site
-        
-        from django.contrib.sites.models import SiteManager
-        SiteManager.get_current = patched_get_current_render
-        
-        print("Render 환경 - Site 객체 자동 생성 패치 완전 적용됨")
-    except Exception as e:
-        print(f"Site 패치 적용 중 오류 (무시됨): {e}")
-    
+    print(f"Render 환경 - SITE_ID 설정: {SITE_ID}")
+else:
+    SITE_ID = 2
+    print(f"로컬 환경 - SITE_ID 설정: {SITE_ID}")
+
+# 환경별 추가 설정
+if os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RENDER") == 'true':
     ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'https'
     SOCIALACCOUNT_PROVIDERS = {
         'google': {
@@ -431,7 +291,7 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build', '
 
 # ❗️❗️❗️ 서버 오류 해결을 위한 유일한 변경점 ❗️❗️❗️
 # collectstatic의 최종 목적지를 Django 프로젝트 폴더 바깥(프로젝트 최상위)으로 변경하여
-# CSS 파일 내의 상대 경로('../media/')로 인한 경로 충돌(SuspiciousFileOperation)을 방지합니다.
+# CSS 파일 내의 상대 경로('../media/')로 인한 경로 충돌(SuspiciousFileOperation)을 방지
 STATIC_ROOT = os.path.join(BASE_DIR.parent, 'staticfiles_collected')
 
 # WhiteNoise 설정을 단순화하여 경로 충돌 문제 해결
