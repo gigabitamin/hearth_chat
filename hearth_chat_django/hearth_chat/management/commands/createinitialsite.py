@@ -34,7 +34,7 @@ class Command(BaseCommand):
             self.stdout.write(f"Railway deployment detected, using domain: {domain}, site_id: {site_id}")
         elif hasattr(settings, 'IS_RENDER_DEPLOY') and settings.IS_RENDER_DEPLOY:
             domain = 'hearth-chat.onrender.com'
-            site_id = 1
+            site_id = 2
             self.stdout.write(f"Render deployment detected, using domain: {domain}, site_id: {site_id}")
         elif os.environ.get('DJANGO_SETTINGS_MODULE') == 'hearth_chat.settings':
             # Local development
