@@ -23,5 +23,11 @@ echo ">>> /app/staticfiles_collected 폴더 내용:"
 # 수집된 파일들이 최종 목적지에 잘 들어왔는지 확인
 ls -laR /app/staticfiles_collected || echo "staticfiles_collected 폴더를 찾을 수 없습니다."
 
+# echo "Ensuring superuser exists..."
+python manage.py createinitialsuperuser 2>&1 | tee /tmp/createinitialsuperuser.log || {
+    echo "[ERROR] Superuser creation failed. See /tmp/createinitialsuperuser.log below:"
+    cat /tmp/createinitialsuperuser.log
+}
+
 echo "--- 서버 시작... ---"
 exec daphne -b 0.0.0.0 -p 8080 hearth_chat.asgi:application
