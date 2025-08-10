@@ -42,13 +42,16 @@ urlpatterns = [
     path("oauth/naver/connect/callback/", naver_connect_callback, name="naver_connect_callback"),
     path("oauth/github/connect/", github_connect_redirect, name="github_connect_direct"),
     path("oauth/github/connect/callback/", github_connect_callback, name="github_connect_callback"),
-    path("accounts/popup-close/", lambda r: render(r, 'socialaccount/popup_close.html'), name="popup_close"),
+    path("accounts/popup-close/", lambda r: render(r, 'socialaccount/popup_close.html', {}), name="popup_close"),
 ]
 
 # --- 2. 미디어 파일 서빙 설정 (개발 환경용) ---
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
-# --- 3. React 앱 서빙 (Fallback) ---
-urlpatterns.append(re_path(r"^(?!admin|api|accounts|oauth|social-redirect|health|dashboard).*", TemplateView.as_view(template_name="index.html")))
+# --- 3. 정적 파일 서빙 (프로덕션 환경에서도 필요) ---
+urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+
+# --- 4. React 앱 서빙 (Fallback) - 정적 파일 경로 제외 ---
+urlpatterns.append(re_path(r"^(?!admin|api|accounts|oauth|social-redirect|health|dashboard|static|media|favicon\.ico|manifest\.json).*", TemplateView.as_view(template_name="index.html")))
 
