@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 from django.contrib.sites.models import Site
+from django.conf import settings
 import os
 
 # --- 1. 환경 변수 및 플랫폼 감지 ---
@@ -14,43 +15,69 @@ if IS_PRODUCTION:
         site_id = 1
     elif IS_RENDER_DEPLOY:
         domain = 'hearth-chat.onrender.com'
-        site_id = 2
+        site_id = 1
     else:
         domain = 'hearth-chat.onrender.com'
-        site_id = 2
+        site_id = 1
 else:
     domain = 'localhost:8000'
-    site_id = 3
+    site_id = 2
 
 class Command(BaseCommand):
-    help = 'Create initial site for Railway/Render deploy'
+    help = 'Create initial site for the application'
 
     def handle(self, *args, **options):
-        self.stdout.write(f'🔧 환경 감지: Railway={IS_RAILWAY_DEPLOY}, Render={IS_RENDER_DEPLOY}')
-        self.stdout.write(f'🌐 도메인: {domain}')
-        self.stdout.write(f'🆔 SITE_ID: {site_id}')
-        
-        # 기존 Site 객체가 있으면 업데이트, 없으면 생성
+        # Determine environment and set appropriate domain and site_id
+        if hasattr(settings, 'IS_RAILWAY_DEPLOY') and settings.IS_RAILWAY_DEPLOY:
+            domain = 'hearthchat-production.up.railway.app'
+            site_id = 1
+            self.stdout.write(f"Railway deployment detected, using domain: {domain}, site_id: {site_id}")
+        elif hasattr(settings, 'IS_RENDER_DEPLOY') and settings.IS_RENDER_DEPLOY:
+            domain = 'hearth-chat.onrender.com'
+            site_id = 1
+            self.stdout.write(f"Render deployment detected, using domain: {domain}, site_id: {site_id}")
+        elif os.environ.get('DJANGO_SETTINGS_MODULE') == 'hearth_chat.settings':
+            # Local development
+            domain = 'localhost:8000'
+            site_id = 2
+            self.stdout.write(f"Local development detected, using domain: {domain}, site_id: {site_id}")
+        else:
+            # Fallback for other production environments
+            domain = 'hearth-chat.onrender.com'
+            site_id = 1
+            self.stdout.write(f"Other production environment detected, using domain: {domain}, site_id: {site_id}")
+
+        # Create or update the site
         site, created = Site.objects.get_or_create(
             id=site_id,
             defaults={
                 'domain': domain,
-                'name': f'HearthChat {"Production" if IS_PRODUCTION else "Local"}'
+                'name': 'Hearth Chat'
             }
         )
         
-        if created:
-            self.stdout.write(
-                self.style.SUCCESS(f'✅ Site {site.domain} (ID: {site.id}) 생성됨')
-            )
-        else:
-            # 기존 사이트 정보 업데이트
-            old_domain = site.domain
+        if not created:
+            # Update existing site
             site.domain = domain
-            site.name = f'HearthChat {"Production" if IS_PRODUCTION else "Local"}'
+            site.name = 'Hearth Chat'
             site.save()
             self.stdout.write(
-                self.style.SUCCESS(f'✅ Site {old_domain} → {site.domain} (ID: {site.id}) 업데이트됨')
+                self.style.SUCCESS(f'Site updated - ID: {site.id}, Domain: {site.domain}, Name: {site.name}')
+            )
+        else:
+            self.stdout.write(
+                self.style.SUCCESS(f'Site created - ID: {site.id}, Domain: {site.domain}, Name: {site.name}')
+            )
+
+        # Verify the site is set as default
+        try:
+            current_site = Site.objects.get_current()
+            self.stdout.write(
+                self.style.SUCCESS(f'Current site verified - ID: {current_site.id}, Domain: {current_site.domain}')
+            )
+        except Exception as e:
+            self.stdout.write(
+                self.style.WARNING(f'Could not verify current site: {e}')
             )
         
         # 모든 Site 객체 목록 출력

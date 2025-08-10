@@ -279,7 +279,7 @@ if os.environ.get("RAILWAY_ENVIRONMENT"):
     }
 
 elif os.environ.get("RENDER") == 'true':
-    SITE_ID = 2
+    SITE_ID = 1  # Railway와 동일하게 SITE_ID = 1 사용
     print(f"Render 환경 - SITE_ID 강제 설정: {SITE_ID}")
     
     try:
@@ -288,7 +288,7 @@ elif os.environ.get("RENDER") == 'true':
         if site:
             print(f"Render 환경 - 기존 Site 발견: {site.domain}")
         else:
-            print("Render 환경 - Site 객체가 없음, SITE_ID=2 사용")
+            print("Render 환경 - Site 객체가 없음, SITE_ID=1 사용")
     except Exception as e:
         print(f"Site 객체 확인 중 오류 (무시됨): {e}")
     
@@ -301,7 +301,7 @@ elif os.environ.get("RENDER") == 'true':
                 return Site.objects.get_current(request)
             except ObjectDoesNotExist:
                 site, created = Site.objects.get_or_create(
-                    id=2,
+                    id=1,  # SITE_ID = 1로 변경
                     defaults={'domain': 'hearth-chat.onrender.com', 'name': 'HearthChat Production'}
                 )
                 return site
