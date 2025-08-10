@@ -471,7 +471,7 @@ const SettingsModal = ({
               {/* 관리자 대시보드 버튼 (관리자만) */}
               {user && user.is_staff && (
                 <button
-                  onClick={() => window.location.href = '/admin'}
+                  onClick={() => window.location.href = '/dashboard'}
                   title="관리자 대시보드"
                   style={{ position: 'absolute', top: 0, right: 0, background: '#888', color: 'white', border: 'none', borderRadius: '4px', padding: '6px 12px', cursor: 'pointer', fontSize: 16, zIndex: 2 }}
                 >

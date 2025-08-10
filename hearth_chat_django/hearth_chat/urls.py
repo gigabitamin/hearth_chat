@@ -56,5 +56,6 @@ if settings.DEBUG:
 # --- 3. React 앱 서빙 (Fallback) ---
 # 위에서 정의한 API나 admin 경로가 아닐 경우, 모든 요청을 React의 index.html로 보냅니다.
 # 이렇게 하면 React Router가 브라우저에서 경로를 처리할 수 있게 됩니다.
-urlpatterns.append(re_path(r"^.*", TemplateView.as_view(template_name="index.html")))
+# Django admin 경로는 React 앱으로 보내지 않습니다.
+urlpatterns.append(re_path(r"^(?!admin|api|accounts|oauth|social-redirect|health|dashboard).*", TemplateView.as_view(template_name="index.html")))
 

@@ -301,7 +301,7 @@ elif os.environ.get("RENDER") == 'true':
                 return Site.objects.get_current(request)
             except ObjectDoesNotExist:
                 site, created = Site.objects.get_or_create(
-                    id=3,
+                    id=2,
                     defaults={'domain': 'hearth-chat.onrender.com', 'name': 'HearthChat Production'}
                 )
                 return site
@@ -524,8 +524,3 @@ CHANNEL_LAYERS = {
         },
     },
 }
-
-# Django Admin 보안 설정 (apps.py에서 처리)
-ADMIN_SITE_HEADER = "HearthChat 관리자"
-ADMIN_SITE_TITLE = "HearthChat 관리자 페이지"
-ADMIN_INDEX_TITLE = "HearthChat 관리자 대시보드"
