@@ -440,6 +440,10 @@ const SettingsModal = ({
         ai_response_enabled: 'ai_response_enabled',
         ai_settings: 'ai_settings',  // AI 설정 필드 추가
         face_tracking_enabled: 'face_tracking_enabled',  // 얼굴 트래킹 필드 추가
+        auto_tracking_enabled: 'auto_tracking_enabled', // 자동 트래킹 필드 추가
+        tracking_sensitivity: 'tracking_sensitivity', // 트래킹 민감도 필드 추가
+        tracking_smoothness: 'tracking_smoothness', // 트래킹 부드러움 필드 추가
+        tracking_camera_index: 'tracking_camera_index', // 트래킹 카메라 인덱스 필드 추가
       };
       // 매핑 적용
       const serverPatch = {};
@@ -884,6 +888,81 @@ const SettingsModal = ({
                 />
                 얼굴 트래킹 사용
               </label>
+
+              {userSettings?.face_tracking_enabled && (
+                <div style={{ marginLeft: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input
+                      type="checkbox"
+                      checked={!!userSettings?.auto_tracking_enabled}
+                      onChange={e => { saveSetting({ auto_tracking_enabled: e.target.checked }); }}
+                      disabled={saving}
+                    />
+                    자동 트래킹 활성화
+                  </label>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <label style={{ fontSize: '0.9em', fontWeight: '500' }}>
+                      트래킹 민감도: {userSettings?.tracking_sensitivity || 0.5}
+                    </label>
+                    <input
+                      type="range"
+                      min="0.1"
+                      max="1.0"
+                      step="0.1"
+                      value={userSettings?.tracking_sensitivity || 0.5}
+                      onChange={e => { saveSetting({ tracking_sensitivity: parseFloat(e.target.value) }); }}
+                      style={{ width: '100%' }}
+                      disabled={saving}
+                    />
+                    <small style={{ fontSize: '0.8em', color: '#666' }}>
+                      낮음 (0.1) - 높음 (1.0)
+                    </small>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <label style={{ fontSize: '0.9em', fontWeight: '500' }}>
+                      트래킹 부드러움: {userSettings?.tracking_smoothness || 0.3}
+                    </label>
+                    <input
+                      type="range"
+                      min="0.1"
+                      max="0.8"
+                      step="0.1"
+                      value={userSettings?.tracking_smoothness || 0.3}
+                      onChange={e => { saveSetting({ tracking_smoothness: parseFloat(e.target.value) }); }}
+                      style={{ width: '100%' }}
+                      disabled={saving}
+                    />
+                    <small style={{ fontSize: '0.8em', color: '#666' }}>
+                      부드러움 (0.1) - 정확함 (0.8)
+                    </small>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <label style={{ fontSize: '0.9em', fontWeight: '500' }}>
+                      트래킹 카메라 인덱스: {userSettings?.tracking_camera_index || 0}
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={userSettings?.tracking_camera_index || 0}
+                      onChange={e => { saveSetting({ tracking_camera_index: parseInt(e.target.value) }); }}
+                      style={{
+                        padding: '8px 12px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '0.9em',
+                        width: '100px'
+                      }}
+                      disabled={saving}
+                    />
+                    <small style={{ fontSize: '0.8em', color: '#666' }}>
+                      사용할 카메라의 인덱스 (0부터 시작)
+                    </small>
+                  </div>
+                </div>
+              )}
 
               <div style={{ marginLeft: 20, fontSize: '0.9em', color: '#666' }}>
                 <p>얼굴 트래킹을 활성화하면:</p>

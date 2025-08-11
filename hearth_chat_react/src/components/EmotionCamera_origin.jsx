@@ -11,9 +11,18 @@ const EmotionCamera = ({ isActive = true, hideControls = false, userAvatar, user
     // 카메라 전환 관련 상태
     const [availableCameras, setAvailableCameras] = useState([]);
     const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
+    const [isMobile, setIsMobile] = useState(false);
 
-    // 카메라 초기화 상태 추적
-    const initializedRef = useRef(false);
+    // 모바일 감지
+    useEffect(() => {
+        const checkMobile = () => {
+            const userAgent = navigator.userAgent.toLowerCase();
+            const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+            setIsMobile(isMobileDevice);
+            console.log('[카메라] 모바일 감지:', isMobileDevice);
+        };
+        checkMobile();
+    }, []);
 
     // 사용 가능한 카메라 목록 가져오기
     const getAvailableCameras = useCallback(async () => {
@@ -21,12 +30,35 @@ const EmotionCamera = ({ isActive = true, hideControls = false, userAvatar, user
             const devices = await navigator.mediaDevices.enumerateDevices();
             const videoDevices = devices.filter(device => device.kind === 'videoinput');
 
+            // 모바일에서는 후면 카메라를 우선으로 정렬
+            if (isMobile) {
+                videoDevices.sort((a, b) => {
+                    const aIsBack = a.label.toLowerCase().includes('back') || a.label.toLowerCase().includes('후면');
+                    const bIsBack = b.label.toLowerCase().includes('back') || b.label.toLowerCase().includes('후면');
+                    if (aIsBack && !bIsBack) return -1;
+                    if (!aIsBack && bIsBack) return 1;
+                    return 0;
+                });
+            }
+
             setAvailableCameras(videoDevices);
-            console.log('[카메라] 사용 가능한 카메라 개수:', videoDevices.length);
+            console.log('[카메라] 사용 가능한 카메라 목록:', videoDevices);
+
+            // 모바일에서 후면 카메라가 있으면 기본 선택
+            if (isMobile && videoDevices.length > 0) {
+                const backCameraIndex = videoDevices.findIndex(device =>
+                    device.label.toLowerCase().includes('back') ||
+                    device.label.toLowerCase().includes('후면')
+                );
+                if (backCameraIndex !== -1) {
+                    setCurrentCameraIndex(backCameraIndex);
+                    console.log('[카메라] 모바일 후면 카메라 기본 선택:', backCameraIndex);
+                }
+            }
         } catch (err) {
             console.error('[카메라] 카메라 목록 가져오기 실패:', err);
         }
-    }, []);
+    }, [isMobile]);
 
     // 다음 카메라로 전환
     const switchToNextCamera = useCallback(async () => {
@@ -49,16 +81,10 @@ const EmotionCamera = ({ isActive = true, hideControls = false, userAvatar, user
 
         // 새 카메라로 시작
         await startCamera();
-    }, [availableCameras.length, currentCameraIndex]);
+    }, [availableCameras, currentCameraIndex]);
 
     // 웹캠 시작
     const startCamera = useCallback(async () => {
-        // 이미 카메라가 실행 중이면 중단
-        if (isCameraOn) {
-            console.log('[카메라] 카메라가 이미 실행 중입니다');
-            return;
-        }
-
         try {
             setError(null);
             console.log('[카메라] 웹캠 시작 시도...');
@@ -73,7 +99,8 @@ const EmotionCamera = ({ isActive = true, hideControls = false, userAvatar, user
             const constraints = {
                 video: {
                     width: { ideal: 640 },
-                    height: { ideal: 480 }
+                    height: { ideal: 480 },
+                    frameRate: { ideal: 30 }
                 },
                 audio: false
             };
@@ -81,17 +108,30 @@ const EmotionCamera = ({ isActive = true, hideControls = false, userAvatar, user
             // 특정 카메라가 선택된 경우 deviceId 추가
             if (currentCamera && currentCamera.deviceId) {
                 constraints.video.deviceId = { exact: currentCamera.deviceId };
-                console.log('[카메라] 선택된 카메라:', currentCamera.label);
+                console.log('[카메라] 선택된 카메라:', currentCamera.label, currentCamera.deviceId);
             } else {
-                // 기본 카메라 설정
-                constraints.video.facingMode = 'user';
-                console.log('[카메라] 기본 카메라 사용');
+                // 모바일에서는 후면 카메라 우선
+                if (isMobile) {
+                    constraints.video.facingMode = 'user';
+                } else {
+                    constraints.video.facingMode = 'environment';
+                }
+                console.log('[카메라] 기본 카메라 설정 (facingMode):', constraints.video.facingMode);
             }
 
             console.log('[카메라] 스트림 제약 조건:', constraints);
             const stream = await navigator.mediaDevices.getUserMedia(constraints);
 
-            console.log('[카메라] 웹캠 스트림 획득 성공, 트랙 개수:', stream.getTracks().length);
+            console.log('[카메라] 웹캠 스트림 획득 성공:', {
+                id: stream.id,
+                active: stream.active,
+                cameraLabel: currentCamera?.label || '기본 카메라',
+                tracks: stream.getTracks().map(track => ({
+                    kind: track.kind,
+                    enabled: track.enabled,
+                    readyState: track.readyState
+                }))
+            });
 
             streamRef.current = stream;
             setIsCameraOn(true);
@@ -101,7 +141,7 @@ const EmotionCamera = ({ isActive = true, hideControls = false, userAvatar, user
             setError(`웹캠에 접근할 수 없습니다: ${err.message}`);
             alert(`웹캠에 접근할 수 없습니다: ${err.message}`);
         }
-    }, [availableCameras, currentCameraIndex, isCameraOn]);
+    }, [availableCameras, currentCameraIndex, isMobile, getAvailableCameras]);
 
     // 스트림 할당을 위한 useEffect
     useEffect(() => {
@@ -127,11 +167,6 @@ const EmotionCamera = ({ isActive = true, hideControls = false, userAvatar, user
 
             // 스트림 할당
             video.srcObject = streamRef.current;
-            console.log('[카메라] 스트림 할당됨:', {
-                hasStream: !!streamRef.current,
-                streamActive: streamRef.current?.active,
-                streamTracks: streamRef.current?.getTracks().length
-            });
 
             // 비디오 로드 이벤트 리스너 추가
             const handleLoadedMetadata = () => {
@@ -139,8 +174,7 @@ const EmotionCamera = ({ isActive = true, hideControls = false, userAvatar, user
                     videoWidth: video.videoWidth,
                     videoHeight: video.videoHeight,
                     duration: video.duration,
-                    readyState: video.readyState,
-                    srcObject: !!video.srcObject
+                    readyState: video.readyState
                 });
 
                 // 비디오 크기가 유효한지 확인
@@ -161,11 +195,7 @@ const EmotionCamera = ({ isActive = true, hideControls = false, userAvatar, user
             };
 
             const handleCanPlay = () => {
-                console.log('[카메라] 비디오 재생 가능 상태, 크기:', {
-                    width: video.videoWidth,
-                    height: video.videoHeight,
-                    readyState: video.readyState
-                });
+                console.log('[카메라] 비디오 재생 가능 상태');
                 // 재생 시도
                 const playPromise = video.play();
                 if (playPromise !== undefined) {
@@ -178,11 +208,7 @@ const EmotionCamera = ({ isActive = true, hideControls = false, userAvatar, user
             };
 
             const handlePlay = () => {
-                console.log('[카메라] 비디오 재생 시작됨, 상태:', {
-                    paused: video.paused,
-                    currentTime: video.currentTime,
-                    readyState: video.readyState
-                });
+                console.log('[카메라] 비디오 재생 시작됨');
                 // 재생 상태 확인
                 if (video.paused) {
                     console.warn('[카메라] 비디오가 일시정지 상태입니다');
@@ -196,8 +222,7 @@ const EmotionCamera = ({ isActive = true, hideControls = false, userAvatar, user
                 console.error('[카메라] 비디오 오류 세부사항:', {
                     error: video.error,
                     networkState: video.networkState,
-                    readyState: video.readyState,
-                    srcObject: !!video.srcObject
+                    readyState: video.readyState
                 });
             };
 
@@ -269,26 +294,18 @@ const EmotionCamera = ({ isActive = true, hideControls = false, userAvatar, user
 
     // 컴포넌트 마운트/언마운트 처리
     useEffect(() => {
-        if (isActive && !initializedRef.current) {
-            // 카메라 목록 가져오기 (한 번만)
-            if (availableCameras.length === 0) {
-                getAvailableCameras();
-            }
-            // 카메라 시작 (한 번만)
-            if (!isCameraOn) {
-                startCamera();
-                initializedRef.current = true;
-            }
-        } else if (!isActive) {
+        if (isActive) {
+            // 카메라 목록 가져오기
+            getAvailableCameras();
+            startCamera();
+        } else {
             stopCamera();
-            initializedRef.current = false;
         }
 
         return () => {
             stopCamera();
-            initializedRef.current = false;
         };
-    }, [isActive]); // isActive만 의존성으로 사용
+    }, [isActive, startCamera, stopCamera, getAvailableCameras]);
 
     return (
         <div className="emotion-camera">
@@ -350,18 +367,6 @@ const EmotionCamera = ({ isActive = true, hideControls = false, userAvatar, user
                     playsInline
                     muted
                     className="camera-video custom-camera-video"
-                    style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        backgroundColor: '#000',
-                        borderRadius: '8px',
-                        display: 'block',
-                        position: 'relative',
-                        zIndex: 1,
-                        minHeight: '200px',
-                        border: '2px solid #333'
-                    }}
                 />
                 {/* 사용자 아바타 오버레이 */}
                 {showAvatarOverlay && (

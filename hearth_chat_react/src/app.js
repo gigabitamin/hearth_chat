@@ -271,9 +271,9 @@ function AppContent(props) {
           } else {
             // 음성 목록이 아직 로드되지 않은 경우, 이벤트 리스너 설정
             console.log('🎵 음성 목록 로딩 대기 중...');
-            
+
             let fallbackInterval;
-            
+
             const handleVoicesChanged = () => {
               const loadedVoices = ttsService.getVoices();
               if (loadedVoices.length > 0) {
@@ -289,12 +289,12 @@ function AppContent(props) {
                 }
               }
             };
-            
+
             // voiceschanged 이벤트 리스너 추가
             if (window.speechSynthesis) {
               window.speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
             }
-            
+
             // 폴백: 주기적으로 음성 목록 확인 (이벤트가 작동하지 않는 경우)
             fallbackInterval = setInterval(() => {
               const currentVoices = ttsService.getVoices();
@@ -308,7 +308,7 @@ function AppContent(props) {
                 }
               }
             }, 500);
-            
+
             // 타임아웃 설정 (3초 후 빈 배열로 설정)
             setTimeout(() => {
               setVoiceList(prev => {

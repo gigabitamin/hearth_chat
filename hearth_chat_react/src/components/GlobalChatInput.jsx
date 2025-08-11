@@ -30,66 +30,11 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
     // --- 카메라 및 자르기 기능 관련 상태 추가 ---
     const [showCamera, setShowCamera] = useState(false);
     const [capturedImage, setCapturedImage] = useState(null);
-    const [crop, setCrop] = useState({ x: 0, y: 0, width: 200, height: 200 });
+    const [crop, setCrop] = useState({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1);
     const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
-    const [isMobile, setIsMobile] = useState(false);
     const webcamRef = useRef(null);
-    const cropContainerRef = useRef(null);
 
-    // 모바일 감지
-    useEffect(() => {
-        const checkMobile = () => {
-            const userAgent = navigator.userAgent.toLowerCase();
-            const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
-            setIsMobile(isMobileDevice);
-            console.log('[GlobalChatInput] 모바일 감지:', isMobileDevice);
-        };
-        checkMobile();
-
-        // 컴포넌트 언마운트 시 이벤트 리스너 정리
-        return () => {
-            // 모든 전역 마우스 이벤트 리스너 제거
-            document.removeEventListener('mousemove', () => { });
-            document.removeEventListener('mouseup', () => { });
-        };
-    }, []);
-
-    // 모바일에서 기본 카메라 설정 (후면 카메라 우선)
-    const getVideoConstraints = () => {
-        if (isMobile) {
-            return { facingMode: 'environment' }; // 후면 카메라
-        }
-        return { facingMode: 'user' }; // 전면 카메라 (데스크톱)
-    };
-
-    // 카메라 전환 기능
-    const [cameraFacingMode, setCameraFacingMode] = useState('environment'); // 모바일 기본값
-
-    // 모바일에서 카메라 전환
-    const toggleCamera = () => {
-        if (isMobile) {
-            const newMode = cameraFacingMode === 'environment' ? 'user' : 'environment';
-            setCameraFacingMode(newMode);
-            console.log('[GlobalChatInput] 카메라 전환:', newMode === 'environment' ? '후면' : '전면');
-
-            // 카메라가 활성화되어 있다면 새 카메라로 재시작
-            if (showCamera) {
-                setShowCamera(false);
-                setTimeout(() => {
-                    setShowCamera(true);
-                }, 100);
-            }
-        }
-    };
-
-    // 동적 비디오 제약 조건 생성
-    const getDynamicVideoConstraints = () => {
-        if (isMobile) {
-            return { facingMode: cameraFacingMode };
-        }
-        return { facingMode: 'user' };
-    };
 
 
     // --- 카메라 관련 함수 ---    
@@ -103,33 +48,12 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
         const imageSrc = webcamRef.current.getScreenshot();
         setCapturedImage(imageSrc);
         setShowCamera(false); // 카메라 모달 닫고, 자르기 모달 열기
-
-        // 자르기 상태 초기화
-        setCrop({ x: 0, y: 0, width: 200, height: 200 });
-        setZoom(1);
-        setCroppedAreaPixels(null);
-        console.log('[자르기] 사진 촬영 후 자르기 상태 초기화');
     }, [webcamRef]);
 
     // 3. 자르기 완료 콜백
     const onCropComplete = useCallback((croppedArea, croppedAreaPixelsValue) => {
-        console.log('[자르기] 자르기 영역 변경:', {
-            croppedArea,
-            croppedAreaPixels: croppedAreaPixelsValue,
-            currentCrop: crop
-        });
-
-        // 새로운 자르기 시스템에서는 crop 상태를 직접 사용
-        // croppedAreaPixels는 나중에 실제 자르기 시 계산
-        setCroppedAreaPixels({
-            x: (crop.x / 100) * 100,
-            y: (crop.y / 100) * 100,
-            width: (crop.width / 100) * 100,
-            height: (crop.height / 100) * 100
-        });
-
-        console.log('[자르기] crop 상태 업데이트:', crop);
-    }, [crop]);
+        setCroppedAreaPixels(croppedAreaPixelsValue);
+    }, []);
 
     // 4. 자르기 실행 및 이미지 첨부 핸들러
     const handleCropImage = async () => {
@@ -993,43 +917,12 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
             {/* --- 카메라 모달 --- */}
             {showCamera && (
                 <div className="camera-modal" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                    {/* 카메라 전환 버튼 (모바일에서만 표시) */}
-                    {isMobile && (
-                        <div style={{
-                            position: 'absolute',
-                            top: '20px',
-                            right: '20px',
-                            zIndex: 10
-                        }}>
-                            <button
-                                onClick={toggleCamera}
-                                style={{
-                                    padding: '12px 16px',
-                                    backgroundColor: '#2196F3',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '8px',
-                                    cursor: 'pointer',
-                                    fontSize: '14px',
-                                    fontWeight: 'bold',
-                                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '8px'
-                                }}
-                                title={`${cameraFacingMode === 'environment' ? '전면' : '후면'} 카메라로 전환`}
-                            >
-                                📷 {cameraFacingMode === 'environment' ? '전면' : '후면'} 전환
-                            </button>
-                        </div>
-                    )}
-
                     <Webcam
                         audio={false}
                         ref={webcamRef}
                         screenshotFormat="image/jpeg"
                         width="100%"
-                        videoConstraints={getDynamicVideoConstraints()}
+                        videoConstraints={{ facingMode: 'user' }}
                     />
                     <div style={{ marginTop: '1rem' }}>
                         <button onClick={handleCapture} style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}>사진 찍기</button>
@@ -1041,364 +934,20 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
             {/* --- 이미지 자르기 모달 --- */}
             {capturedImage && (
                 <div className="crop-modal" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.9)', zIndex: 400, display: 'flex', flexDirection: 'column' }}>
-                    {/* 자르기 가이드 및 컨트롤 */}
-                    <div style={{
-                        position: 'absolute',
-                        top: '20px',
-                        left: '20px',
-                        zIndex: 10,
-                        background: 'rgba(0,0,0,0.7)',
-                        padding: '12px',
-                        borderRadius: '8px',
-                        color: 'white',
-                        maxWidth: '280px'
-                    }}>
-                        <div style={{ marginBottom: '8px', fontWeight: 'bold' }}>📐 자르기 도구</div>
-                        <div style={{ fontSize: '12px', marginBottom: '8px' }}>
-                            • 드래그하여 영역 이동<br />
-                            • 모서리/가장자리 드래그하여 크기 조절<br />
-                            • 휠 또는 핀치로 확대/축소<br />
-                            • 자르기 박스 크기: 최소 50x50px
-                        </div>
-                        <div style={{ fontSize: '12px' }}>
-                            현재 확대: {Math.round(zoom * 100)}%
-                        </div>
-                        {/* 자르기 영역 정보 표시 */}
-                        {croppedAreaPixels && (
-                            <div style={{
-                                fontSize: '11px',
-                                marginTop: '8px',
-                                padding: '6px',
-                                background: 'rgba(255,255,255,0.1)',
-                                borderRadius: '4px',
-                                border: '1px solid rgba(255,255,255,0.2)'
-                            }}>
-                                <div>자르기 영역:</div>
-                                <div>너비: {Math.round(croppedAreaPixels.width)}px</div>
-                                <div>높이: {Math.round(croppedAreaPixels.height)}px</div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* 자르기 영역 */}
                     <div style={{ position: 'relative', width: '100%', height: '80%' }}>
-                        {/* 자르기 영역 크기 조절 가이드 */}
-                        <div style={{
-                            position: 'absolute',
-                            top: '10px',
-                            right: '10px',
-                            zIndex: 5,
-                            background: 'rgba(0,0,0,0.7)',
-                            padding: '8px',
-                            borderRadius: '6px',
-                            color: 'white',
-                            fontSize: '12px'
-                        }}>
-                            <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>🔧 크기 조절 방법</div>
-                            <div>• 파란색 박스 내부: 드래그하여 이동</div>
-                            <div>• 파란색 원형 핸들: 드래그하여 크기 조절</div>
-                            <div>• 모서리 핸들: 대각선 크기 조절</div>
-                            <div>• 가장자리 핸들: 한 방향 크기 조절</div>
-                            <div style={{ marginTop: '4px', fontSize: '11px', color: '#90EE90' }}>
-                                📏 현재 크기: {Math.round(crop.width)}% x {Math.round(crop.height)}%
-                            </div>
-                            <div style={{ marginTop: '4px', fontSize: '11px', color: '#87CEEB' }}>
-                                🎯 수동 조절: 하단 📏+ 📏- 버튼 사용
-                            </div>
-                        </div>
-
-                        {/* 간단한 Canvas 기반 자르기 */}
-                        <div
-                            ref={cropContainerRef}
-                            style={{
-                                position: 'relative',
-                                width: '100%',
-                                height: '100%',
-                                overflow: 'hidden',
-                                backgroundColor: '#000'
-                            }}
-                        >
-                            <img
-                                src={capturedImage}
-                                alt="자르기 대상 이미지"
-                                style={{
-                                    width: '100%',
-                                    height: '100%',
-                                    objectFit: 'contain',
-                                    transform: `scale(${zoom})`,
-                                    transformOrigin: 'center'
-                                }}
-                                draggable={false}
-                            />
-
-                            {/* 자르기 박스 */}
-                            <div
-                                style={{
-                                    position: 'absolute',
-                                    left: `${crop.x}%`,
-                                    top: `${crop.y}%`,
-                                    width: `${crop.width}%`,
-                                    height: `${crop.height}%`,
-                                    border: '3px solid #2196F3',
-                                    boxShadow: '0 0 0 9999px rgba(0,0,0,0.6)',
-                                    cursor: 'move',
-                                    boxSizing: 'border-box'
-                                }}
-                                onMouseDown={(e) => {
-                                    if (e.target === e.currentTarget) {
-                                        const startX = e.clientX;
-                                        const startY = e.clientY;
-                                        const startCrop = { ...crop };
-
-                                        const handleMouseMove = (moveEvent) => {
-                                            const deltaX = moveEvent.clientX - startX;
-                                            const deltaY = moveEvent.clientY - startY;
-
-                                            if (!cropContainerRef.current) return;
-
-                                            const containerRect = cropContainerRef.current.getBoundingClientRect();
-                                            const deltaXPercent = (deltaX / containerRect.width) * 100;
-                                            const deltaYPercent = (deltaY / containerRect.height) * 100;
-
-                                            setCrop({
-                                                ...startCrop,
-                                                x: Math.max(0, Math.min(100 - startCrop.width, startCrop.x + deltaXPercent)),
-                                                y: Math.max(0, Math.min(100 - startCrop.height, startCrop.y + deltaYPercent))
-                                            });
-                                        };
-
-                                        const handleMouseUp = () => {
-                                            document.removeEventListener('mousemove', handleMouseMove);
-                                            document.removeEventListener('mouseup', handleMouseUp);
-                                        };
-
-                                        document.addEventListener('mousemove', handleMouseMove);
-                                        document.addEventListener('mouseup', handleMouseUp);
-                                    }
-                                }}
-                            >
-                                {/* 크기 조절 핸들들 */}
-                                {['nw', 'ne', 'sw', 'se', 'n', 's', 'e', 'w'].map((handle) => (
-                                    <div
-                                        key={handle}
-                                        style={{
-                                            position: 'absolute',
-                                            width: '12px',
-                                            height: '12px',
-                                            backgroundColor: '#2196F3',
-                                            border: '2px solid white',
-                                            borderRadius: '50%',
-                                            cursor: `${handle === 'nw' || handle === 'se' ? 'nw-resize' :
-                                                handle === 'ne' || handle === 'sw' ? 'ne-resize' :
-                                                    handle === 'n' || handle === 's' ? 'ns-resize' : 'ew-resize'}`,
-                                            ...(handle === 'nw' ? { top: '-6px', left: '-6px' } :
-                                                handle === 'ne' ? { top: '-6px', right: '-6px' } :
-                                                    handle === 'sw' ? { bottom: '-6px', left: '-6px' } :
-                                                        handle === 'se' ? { bottom: '-6px', right: '-6px' } :
-                                                            handle === 'n' ? { top: '-6px', left: '50%', transform: 'translateX(-50%)' } :
-                                                                handle === 's' ? { bottom: '-6px', left: '50%', transform: 'translateX(-50%)' } :
-                                                                    handle === 'e' ? { right: '-6px', top: '50%', transform: 'translateY(-50%)' } :
-                                                                        { left: '-6px', top: '50%', transform: 'translateY(-50%)' })
-                                        }}
-                                        onMouseDown={(e) => {
-                                            e.stopPropagation();
-                                            const startX = e.clientX;
-                                            const startY = e.clientY;
-                                            const startCrop = { ...crop };
-
-                                            const handleMouseMove = (moveEvent) => {
-                                                const deltaX = moveEvent.clientX - startX;
-                                                const deltaY = moveEvent.clientY - startY;
-
-                                                if (!cropContainerRef.current) return;
-
-                                                const containerRect = cropContainerRef.current.getBoundingClientRect();
-                                                const deltaXPercent = (deltaX / containerRect.width) * 100;
-                                                const deltaYPercent = (deltaY / containerRect.height) * 100;
-
-                                                let newCrop = { ...startCrop };
-
-                                                if (handle.includes('e')) {
-                                                    newCrop.width = Math.max(10, startCrop.width + deltaXPercent);
-                                                }
-                                                if (handle.includes('w')) {
-                                                    const newWidth = Math.max(10, startCrop.width - deltaXPercent);
-                                                    newCrop.x = startCrop.x + (startCrop.width - newWidth);
-                                                    newCrop.width = newWidth;
-                                                }
-                                                if (handle.includes('s')) {
-                                                    newCrop.height = Math.max(10, startCrop.height + deltaYPercent);
-                                                }
-                                                if (handle.includes('n')) {
-                                                    const newHeight = Math.max(10, startCrop.height - deltaYPercent);
-                                                    newCrop.y = startCrop.y + (startCrop.height - newHeight);
-                                                    newCrop.height = newHeight;
-                                                }
-
-                                                setCrop(newCrop);
-                                            };
-
-                                            const handleMouseUp = () => {
-                                                document.removeEventListener('mousemove', handleMouseMove);
-                                                document.removeEventListener('mouseup', handleMouseUp);
-                                            };
-
-                                            document.addEventListener('mousemove', handleMouseMove);
-                                            document.addEventListener('mouseup', handleMouseUp);
-                                        }}
-                                    />
-                                ))}
-                            </div>
-                        </div>
+                        <Cropper
+                            image={capturedImage}
+                            crop={crop}
+                            zoom={zoom}
+                            // aspect={1} // 1:1 비율로 자르기, 자유 비율로 자르고 싶을 때는 비활성화
+                            onCropChange={setCrop}
+                            onZoomChange={setZoom}
+                            onCropComplete={onCropComplete}
+                        />
                     </div>
-
-                    {/* 하단 컨트롤 */}
-                    <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '1rem',
-                        background: 'rgba(0,0,0,0.8)',
-                        borderTop: '1px solid #333'
-                    }}>
-                        {/* 왼쪽: 확대/축소 컨트롤 */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <button
-                                onClick={() => setZoom(Math.max(0.5, zoom - 0.1))}
-                                style={{
-                                    padding: '8px 12px',
-                                    backgroundColor: '#666',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    fontSize: '14px'
-                                }}
-                                title="축소"
-                            >
-                                🔍-
-                            </button>
-                            <span style={{ color: 'white', fontSize: '14px', minWidth: '60px', textAlign: 'center' }}>
-                                {Math.round(zoom * 100)}%
-                            </span>
-                            <button
-                                onClick={() => setZoom(Math.min(3, zoom + 0.1))}
-                                style={{
-                                    padding: '8px 12px',
-                                    backgroundColor: '#666',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    fontSize: '14px'
-                                }}
-                                title="확대"
-                            >
-                                🔍+
-                            </button>
-                        </div>
-
-                        {/* 중앙: 자르기 비율 옵션 */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <button
-                                onClick={() => setZoom(1)}
-                                style={{
-                                    padding: '6px 10px',
-                                    backgroundColor: zoom === 1 ? '#2196F3' : '#666',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    fontSize: '12px'
-                                }}
-                                title="100% 크기로 리셋"
-                            >
-                                100%
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setCrop({ x: 0, y: 0, width: 200, height: 200 });
-                                    setZoom(1);
-                                    setCroppedAreaPixels(null);
-                                }}
-                                style={{
-                                    padding: '6px 10px',
-                                    backgroundColor: '#ff9800',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    fontSize: '12px'
-                                }}
-                                title="자르기 영역 리셋"
-                            >
-                                🔄 리셋
-                            </button>
-                            {/* 수동 크기 조절 버튼들 */}
-                            <button
-                                onClick={() => setCrop(prev => ({ ...prev, width: prev.width + 20, height: prev.height + 20 }))}
-                                style={{
-                                    padding: '6px 10px',
-                                    backgroundColor: '#4CAF50',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    fontSize: '12px'
-                                }}
-                                title="자르기 영역 확대"
-                            >
-                                📏+
-                            </button>
-                            <button
-                                onClick={() => setCrop(prev => ({ ...prev, width: Math.max(50, prev.width - 20), height: Math.max(50, prev.height - 20) }))}
-                                style={{
-                                    padding: '6px 10px',
-                                    backgroundColor: '#f44336',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    fontSize: '12px'
-                                }}
-                                title="자르기 영역 축소"
-                            >
-                                📏-
-                            </button>
-                        </div>
-
-                        {/* 오른쪽: 액션 버튼 */}
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            <button
-                                onClick={cancelAll}
-                                style={{
-                                    padding: '10px 20px',
-                                    fontSize: '16px',
-                                    cursor: 'pointer',
-                                    backgroundColor: '#666',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '6px'
-                                }}
-                            >
-                                취소
-                            </button>
-                            <button
-                                onClick={handleCropImage}
-                                style={{
-                                    padding: '10px 20px',
-                                    fontSize: '16px',
-                                    cursor: 'pointer',
-                                    backgroundColor: '#4CAF50',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '6px',
-                                    fontWeight: 'bold'
-                                }}
-                            >
-                                ✂️ 자르기 완료
-                            </button>
-                        </div>
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem' }}>
+                        <button onClick={handleCropImage} style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}>자르기 완료</button>
+                        <button onClick={cancelAll} style={{ marginLeft: '1rem', padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}>취소</button>
                     </div>
                 </div>
             )}

@@ -15,7 +15,6 @@ class FaceTrackingService {
         // 카메라 전환 관련
         this.availableCameras = [];
         this.currentCameraIndex = 0;
-        this.isMobile = false;
 
         // 트래킹 데이터
         this.trackingData = {
@@ -33,14 +32,6 @@ class FaceTrackingService {
         this.onFaceLost = null;
 
         this.initializeMediaPipe();
-        this.checkMobile();
-    }
-
-    // 모바일 감지
-    checkMobile() {
-        const userAgent = navigator.userAgent.toLowerCase();
-        this.isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
-        console.log('[FaceTrackingService] 모바일 감지:', this.isMobile);
     }
 
     // 사용 가능한 카메라 목록 가져오기
@@ -49,31 +40,8 @@ class FaceTrackingService {
             const devices = await navigator.mediaDevices.enumerateDevices();
             const videoDevices = devices.filter(device => device.kind === 'videoinput');
 
-            // 모바일에서는 후면 카메라를 우선으로 정렬
-            if (this.isMobile) {
-                videoDevices.sort((a, b) => {
-                    const aIsBack = a.label.toLowerCase().includes('back') || a.label.toLowerCase().includes('후면');
-                    const bIsBack = b.label.toLowerCase().includes('back') || b.label.toLowerCase().includes('후면');
-                    if (aIsBack && !bIsBack) return -1;
-                    if (!aIsBack && bIsBack) return 1;
-                    return 0;
-                });
-            }
-
             this.availableCameras = videoDevices;
             console.log('[FaceTrackingService] 사용 가능한 카메라 목록:', videoDevices);
-
-            // 모바일에서 후면 카메라가 있으면 기본 선택
-            if (this.isMobile && videoDevices.length > 0) {
-                const backCameraIndex = videoDevices.findIndex(device =>
-                    device.label.toLowerCase().includes('back') ||
-                    device.label.toLowerCase().includes('후면')
-                );
-                if (backCameraIndex !== -1) {
-                    this.currentCameraIndex = backCameraIndex;
-                    console.log('[FaceTrackingService] 모바일 후면 카메라 기본 선택:', backCameraIndex);
-                }
-            }
 
             return videoDevices;
         } catch (err) {
@@ -304,9 +272,8 @@ class FaceTrackingService {
             const currentCamera = this.availableCameras[this.currentCameraIndex];
             const constraints = {
                 video: {
-                    width: { min: 320, ideal: 640, max: 1280 },
-                    height: { min: 240, ideal: 480, max: 720 },
-                    frameRate: { ideal: 30 }
+                    width: { ideal: 640 },
+                    height: { ideal: 480 }
                 }
             };
 
@@ -315,24 +282,29 @@ class FaceTrackingService {
                 constraints.video.deviceId = { exact: currentCamera.deviceId };
                 console.log('[FaceTrackingService] 선택된 카메라:', currentCamera.label, currentCamera.deviceId);
             } else {
-                // 모바일에서는 후면 카메라 우선
-                if (this.isMobile) {
-                    constraints.video.facingMode = 'environment';
-                } else {
-                    constraints.video.facingMode = 'user';
-                }
+                // 기본 카메라 설정
+                constraints.video.facingMode = 'user';
                 console.log('[FaceTrackingService] 기본 카메라 설정 (facingMode):', constraints.video.facingMode);
             }
 
             // 비디오 요소 생성
             this.video = document.createElement('video');
             this.video.style.display = 'none';
+            this.video.autoplay = true;
+            this.video.playsInline = true;
+            this.video.muted = true;
+            this.video.controls = false;
+            this.video.style.width = '640px';
+            this.video.style.height = '480px';
+            this.video.style.objectFit = 'cover';
             document.body.appendChild(this.video);
             console.log('[FaceTrackingService] 비디오 요소 생성됨');
 
             // 캔버스 요소 생성
             this.canvas = document.createElement('canvas');
             this.canvas.style.display = 'none';
+            this.canvas.width = 640;
+            this.canvas.height = 480;
             document.body.appendChild(this.canvas);
             this.ctx = this.canvas.getContext('2d');
             console.log('[FaceTrackingService] 캔버스 요소 생성됨');
@@ -341,13 +313,53 @@ class FaceTrackingService {
             const stream = await navigator.mediaDevices.getUserMedia(constraints);
             console.log('[FaceTrackingService] 웹캠 스트림 획득 성공, 카메라:', currentCamera?.label || '기본');
 
+            // 비디오에 스트림 할당 및 재생
             this.video.srcObject = stream;
-            this.video.play();
-            console.log('[FaceTrackingService] 비디오 재생 시작');
 
-            // 캔버스 크기 설정
-            this.canvas.width = 640;
-            this.canvas.height = 480;
+            // 비디오 로드 이벤트 처리
+            this.video.addEventListener('loadedmetadata', () => {
+                console.log('[FaceTrackingService] 비디오 메타데이터 로드됨:', {
+                    videoWidth: this.video.videoWidth,
+                    videoHeight: this.video.videoHeight
+                });
+
+                // 비디오 크기 확인
+                if (this.video.videoWidth > 0 && this.video.videoHeight > 0) {
+                    console.log('[FaceTrackingService] 비디오 크기 확인됨');
+                }
+            });
+
+            this.video.addEventListener('canplay', () => {
+                console.log('[FaceTrackingService] 비디오 재생 가능 상태');
+                this.video.play().then(() => {
+                    console.log('[FaceTrackingService] 비디오 재생 시작됨');
+                }).catch(e => {
+                    console.log('[FaceTrackingService] 비디오 재생 실패:', e.message);
+                });
+            });
+
+            this.video.addEventListener('error', (e) => {
+                console.error('[FaceTrackingService] 비디오 오류:', e);
+            });
+
+            // 비디오 로드 상태 확인을 위한 타이머
+            const checkVideoState = () => {
+                if (this.video.videoWidth > 0 && this.video.videoHeight > 0) {
+                    console.log('[FaceTrackingService] 비디오 크기 확인됨 (타이머)');
+                    return;
+                }
+
+                if (this.video.readyState >= 1) {
+                    console.log('[FaceTrackingService] 비디오 준비 상태:', this.video.readyState);
+                    return;
+                }
+
+                // 100ms 후 다시 확인
+                setTimeout(checkVideoState, 100);
+            };
+
+            // 즉시 확인 시작
+            checkVideoState();
 
             this.isTracking = true;
             this.startTracking();

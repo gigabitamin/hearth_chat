@@ -98,7 +98,14 @@ class ChatSerializer(serializers.ModelSerializer):
 class UserSettingsSerializer(serializers.ModelSerializer):
     tts_enabled = serializers.BooleanField(required=False)
     voice_recognition_enabled = serializers.BooleanField(required=False)
-    camera_enabled = serializers.BooleanField(required=False)
+    camera_enabled = serializers.SerializerMethodField()
+    face_tracking_enabled = serializers.SerializerMethodField()
+    tracking_sensitivity = serializers.SerializerMethodField()
+    tracking_smoothness = serializers.SerializerMethodField()
+    auto_tracking_enabled = serializers.SerializerMethodField()
+    tracking_camera_index = serializers.SerializerMethodField()
+    
+    # 기존 필드들
     ai_avatar_enabled = serializers.BooleanField(required=False)
     user_avatar_enabled = serializers.BooleanField(required=False)
     auto_send_enabled = serializers.BooleanField(required=False)
@@ -112,10 +119,76 @@ class UserSettingsSerializer(serializers.ModelSerializer):
     # AI 모델 설정 필드들
     ai_provider = serializers.CharField(required=False)
     gemini_model = serializers.CharField(required=False)
-
+    
     class Meta:
         model = UserSettings
         exclude = ['id', 'created_at', 'updated_at']
+    
+    def get_camera_enabled(self, obj):
+        """camera_settings JSON에서 enabled 값 추출"""
+        if obj.camera_settings:
+            try:
+                import json
+                settings = json.loads(obj.camera_settings)
+                return settings.get('enabled', False)
+            except (json.JSONDecodeError, TypeError):
+                return False
+        return False
+    
+    def get_face_tracking_enabled(self, obj):
+        """camera_settings JSON에서 face_tracking_enabled 값 추출"""
+        if obj.camera_settings:
+            try:
+                import json
+                settings = json.loads(obj.camera_settings)
+                return settings.get('face_tracking_enabled', False)
+            except (json.JSONDecodeError, TypeError):
+                return False
+        return False
+    
+    def get_tracking_sensitivity(self, obj):
+        """camera_settings JSON에서 tracking_sensitivity 값 추출"""
+        if obj.camera_settings:
+            try:
+                import json
+                settings = json.loads(obj.camera_settings)
+                return settings.get('tracking_sensitivity', 0.5)
+            except (json.JSONDecodeError, TypeError):
+                return 0.5
+        return 0.5
+    
+    def get_tracking_smoothness(self, obj):
+        """camera_settings JSON에서 tracking_smoothness 값 추출"""
+        if obj.camera_settings:
+            try:
+                import json
+                settings = json.loads(obj.camera_settings)
+                return settings.get('tracking_smoothness', 0.3)
+            except (json.JSONDecodeError, TypeError):
+                return 0.3
+        return 0.3
+    
+    def get_auto_tracking_enabled(self, obj):
+        """camera_settings JSON에서 auto_tracking_enabled 값 추출"""
+        if obj.camera_settings:
+            try:
+                import json
+                settings = json.loads(obj.camera_settings)
+                return settings.get('auto_tracking_enabled', True)
+            except (json.JSONDecodeError, TypeError):
+                return True
+        return True
+    
+    def get_tracking_camera_index(self, obj):
+        """camera_settings JSON에서 tracking_camera_index 값 추출"""
+        if obj.camera_settings:
+            try:
+                import json
+                settings = json.loads(obj.camera_settings)
+                return settings.get('tracking_camera_index', 0)
+            except (json.JSONDecodeError, TypeError):
+                return 0
+        return 0
 
 class VoiceCallSerializer(serializers.ModelSerializer):
     caller = UserSerializer(read_only=True)

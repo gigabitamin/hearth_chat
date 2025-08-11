@@ -274,9 +274,9 @@ class UserSettings(models.Model):
     auto_send_enabled = models.BooleanField(default=True, verbose_name='자동 전송 활성화')
     voice_confidence_threshold = models.FloatField(default=0.7, verbose_name='음성 인식 신뢰도 임계값')
     
-    # 카메라 설정
-    camera_enabled = models.BooleanField(default=False, verbose_name='카메라 활성화')
-    face_tracking_enabled = models.BooleanField(default=False, verbose_name='얼굴 트래킹 활성화')
+    # 카메라 설정 (JSON으로 통합)
+    camera_settings = models.TextField(blank=True, null=True, verbose_name='카메라 설정 (JSON)', 
+                                     default='{"enabled": false, "face_tracking_enabled": false, "tracking_sensitivity": 0.5, "tracking_smoothness": 0.3, "auto_tracking_enabled": true, "tracking_camera_index": 0}')
     
     # 아바타 설정
     ai_avatar_enabled = models.BooleanField(default=True, verbose_name='AI 아바타 활성화')

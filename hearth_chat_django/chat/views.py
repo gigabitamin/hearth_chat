@@ -979,7 +979,40 @@ class UserSettingsView(APIView):
         """사용자 설정 부분 업데이트"""
         try:
             settings, created = UserSettings.objects.get_or_create(user=request.user)
-            serializer = UserSettingsSerializer(settings, data=request.data, partial=True)
+            
+            # 카메라 관련 설정을 JSON으로 처리
+            data = request.data.copy()
+            camera_related_fields = [
+                'camera_enabled', 'face_tracking_enabled', 'tracking_sensitivity',
+                'tracking_smoothness', 'auto_tracking_enabled', 'tracking_camera_index'
+            ]
+            
+            # 기존 camera_settings 가져오기
+            current_camera_settings = {}
+            if settings.camera_settings:
+                try:
+                    current_camera_settings = json.loads(settings.camera_settings)
+                except (json.JSONDecodeError, TypeError):
+                    current_camera_settings = {}
+            
+            # 카메라 관련 필드들을 JSON으로 통합
+            camera_settings_updated = False
+            for field in camera_related_fields:
+                if field in data:
+                    # 필드명을 JSON 키로 변환
+                    json_key = field
+                    if field == 'camera_enabled':
+                        json_key = 'enabled'
+                    
+                    current_camera_settings[json_key] = data[field]
+                    camera_settings_updated = True
+                    del data[field]  # 원본 데이터에서 제거
+            
+            # camera_settings JSON 업데이트
+            if camera_settings_updated:
+                data['camera_settings'] = json.dumps(current_camera_settings)
+            
+            serializer = UserSettingsSerializer(settings, data=data, partial=True)
             if serializer.is_valid():
                 serializer.save()
                 return Response({'settings': serializer.data})
