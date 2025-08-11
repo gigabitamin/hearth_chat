@@ -280,6 +280,8 @@ class UserSettings(models.Model):
     # 아바타 설정
     ai_avatar_enabled = models.BooleanField(default=True, verbose_name='AI 아바타 활성화')
     user_avatar_enabled = models.BooleanField(default=False, verbose_name='사용자 아바타 활성화')
+    ai_avatar_url = models.CharField(max_length=500, blank=True, null=True, verbose_name='AI 아바타 URL')
+    user_avatar_url = models.CharField(max_length=500, blank=True, null=True, verbose_name='사용자 아바타 URL')
     
     # AI 응답 설정
     ai_response_enabled = models.BooleanField(default=True, verbose_name='AI 응답 활성화')

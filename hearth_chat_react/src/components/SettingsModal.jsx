@@ -851,6 +851,28 @@ const SettingsModal = ({
                 />
                 AI 아바타 사용
               </label>
+
+              {userSettings?.ai_avatar_enabled && (
+                <div style={{ marginLeft: 20 }}>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <span style={{ fontSize: '0.9em', fontWeight: '500' }}>AI 아바타 URL:</span>
+                    <input
+                      type="text"
+                      value={userSettings?.ai_avatar_url || ''}
+                      onChange={e => { saveSetting({ ai_avatar_url: e.target.value }); }}
+                      placeholder="AI 아바타 모델 파일 경로 (예: /media/uploads/ai_avatar.vrm)"
+                      style={{
+                        padding: '8px 12px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '0.9em'
+                      }}
+                      disabled={saving}
+                    />
+                  </label>
+                </div>
+              )}
+
               <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <input
                   type="checkbox"
@@ -860,6 +882,27 @@ const SettingsModal = ({
                 />
                 사용자 아바타 사용
               </label>
+
+              {userSettings?.user_avatar_enabled && (
+                <div style={{ marginLeft: 20 }}>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <span style={{ fontSize: '0.9em', fontWeight: '500' }}>사용자 아바타 URL:</span>
+                    <input
+                      type="text"
+                      value={userSettings?.user_avatar_url || ''}
+                      onChange={e => { saveSetting({ user_avatar_url: e.target.value }); }}
+                      placeholder="사용자 아바타 모델 파일 경로 (예: /media/uploads/user_avatar.vrm)"
+                      style={{
+                        padding: '8px 12px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '0.9em'
+                      }}
+                      disabled={saving}
+                    />
+                  </label>
+                </div>
+              )}
             </div>
           )}
           {tab === 'ai' && (

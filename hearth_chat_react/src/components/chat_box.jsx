@@ -752,6 +752,16 @@ const ChatBox = ({
     // 아바타 초기화
     initializeAvatars();
 
+    // 기본 아바타 URL 설정 (userSettings에 없을 경우)
+    if (!aiAvatar && !userSettings?.ai_avatar_url) {
+      setAiAvatar('/media/uploads/test.vrm');
+      console.log('[아바타] 기본 AI 아바타 URL 설정:', '/media/uploads/test.vrm');
+    }
+    if (!userAvatar && !userSettings?.user_avatar_url) {
+      setUserAvatar('/media/uploads/test.vrm');
+      console.log('[아바타] 기본 사용자 아바타 URL 설정:', '/media/uploads/test.vrm');
+    }
+
     // 마이크 권한 상태 확인
     const checkPermissionStatus = async () => {
       if (navigator.permissions && navigator.permissions.query) {
@@ -1344,6 +1354,16 @@ const ChatBox = ({
     if (userSettings.camera_enabled !== undefined) setIsCameraActive(userSettings.camera_enabled);
     if (userSettings.user_avatar_enabled !== undefined) setIsUserAvatarOn(userSettings.user_avatar_enabled);
     if (userSettings.ai_avatar_enabled !== undefined) setIsAiAvatarOn(userSettings.ai_avatar_enabled);
+
+    // 아바타 URL 설정
+    if (userSettings.ai_avatar_url) {
+      setAiAvatar(userSettings.ai_avatar_url);
+      console.log('[아바타] AI 아바타 URL 설정:', userSettings.ai_avatar_url);
+    }
+    if (userSettings.user_avatar_url) {
+      setUserAvatar(userSettings.user_avatar_url);
+      console.log('[아바타] 사용자 아바타 URL 설정:', userSettings.user_avatar_url);
+    }
     // ... 필요시 추가 ...
   }, [userSettings]);
 

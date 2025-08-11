@@ -992,6 +992,10 @@ function RealisticAvatar3D({
             {!avatarUrl && (
                 <div className="avatar-error-message">
                     아바타 URL이 설정되지 않았습니다.
+                    <br />
+                    <small style={{ fontSize: '0.8em', opacity: 0.7 }}>
+                        설정에서 아바타 URL을 입력해주세요.
+                    </small>
                 </div>
             )}
 

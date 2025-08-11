@@ -105,6 +105,10 @@ class UserSettingsSerializer(serializers.ModelSerializer):
     ai_response_enabled = serializers.BooleanField(required=False)
     ai_settings = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     
+    # 아바타 URL 필드들
+    ai_avatar_url = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    user_avatar_url = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    
     # AI 모델 설정 필드들
     ai_provider = serializers.CharField(required=False)
     gemini_model = serializers.CharField(required=False)
