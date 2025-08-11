@@ -84,7 +84,7 @@ const ChatBox = ({
   const [ttsVoice, setTtsVoice] = useState(null);
   const [ttsRate, setTtsRate] = useState(1.5);
   const [ttsPitch, setTtsPitch] = useState(1.5);
-  const [voiceList, setVoiceList] = useState([]);
+  const [voiceList, setVoiceList] = useState(null);
   const [ttsInterrupted, setTtsInterrupted] = useState(false); // TTS 중단 상태 추적
 
   const ws = useRef(null);
@@ -108,7 +108,7 @@ const ChatBox = ({
 
   // 트래킹 관련 상태
   const [isTrackingEnabled, setIsTrackingEnabled] = useState(false);
-  const [trackingStatus, setTrackingStatus] = useState('stopped'); // 'stopped', 'starting', 'running', 'error'
+  const [trackingStatus, setTrackingStatus] = useState('stopped');
   const [faceDetected, setFaceDetected] = useState(false);
 
   // 메시지 강조 관련 상태 (제거됨)
@@ -754,12 +754,12 @@ const ChatBox = ({
 
     // 기본 아바타 URL 설정 (userSettings에 없을 경우)
     if (!aiAvatar && !userSettings?.ai_avatar_url) {
-      setAiAvatar('/media/uploads/test.vrm');
-      console.log('[아바타] 기본 AI 아바타 URL 설정:', '/media/uploads/test.vrm');
+      setAiAvatar('/avatar_vrm/gb_f_v2.vrm');
+      console.log('[아바타] 기본 AI 아바타 URL 설정:', '/avatar_vrm/gb_f_v2.vrm');
     }
     if (!userAvatar && !userSettings?.user_avatar_url) {
-      setUserAvatar('/media/uploads/test.vrm');
-      console.log('[아바타] 기본 사용자 아바타 URL 설정:', '/media/uploads/test.vrm');
+      setUserAvatar('/avatar_vrm/gb_m_v2.vrm');
+      console.log('[아바타] 기본 사용자 아바타 URL 설정:', '/avatar_vrm/gb_m_v2.vrm');
     }
 
     // 마이크 권한 상태 확인
@@ -800,22 +800,21 @@ const ChatBox = ({
     const isLocalhost = host === 'localhost' || host === '127.0.0.1';
     const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}/ws/chat/`;
 
-
     ws.current = new WebSocket(wsUrl);
 
     ws.current.onopen = () => {
-
+      // WebSocket 연결 성공
     };
 
     ws.current.onclose = () => {
-
+      // WebSocket 연결 종료
     };
 
     ws.current.onerror = (error) => {
       console.error('WebSocket 연결 오류:', error);
     };
 
-    // WebSocket 메시지 수신 처리 (재연결 시에도 동일하게)
+    // WebSocket 메시지 수신 처리
     ws.current.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
@@ -826,16 +825,16 @@ const ChatBox = ({
           const isMyMessage = (data.sender === username) || (data.user_id === userId);
 
           const newMessage = {
-            id: Date.now(),
+            id: data.id || `${data.sender}_${data.timestamp}`,
             type: isMyMessage ? 'send' : 'recv',
             text: data.message,
             date: data.timestamp,
             sender: data.sender,
-            sender_type: 'user',
             user_id: data.user_id,
             emotion: data.emotion,
             imageUrl: data.imageUrl || null,
             imageUrls: data.imageUrls || [],
+            pending: false,
           };
 
           setMessages((prev) => {
@@ -846,23 +845,20 @@ const ChatBox = ({
                 ...prev.filter(msg => !(msg.pending && msg.text === data.message)),
                 newMessage
               ];
-
             } else {
               next = [...prev, newMessage];
-
             }
             return next;
           });
         } else if (data.type === 'ai_message' && data.message) {
           const newMessage = {
-            id: Date.now(),
-            type: 'recv',
+            id: data.id || `ai_${data.timestamp}`,
+            type: 'ai',
             text: data.message,
             date: data.timestamp,
-            sender: 'AI',
-            sender_type: 'ai',
+            sender: data.ai_name,
+            ai_name: data.ai_name,
             questioner_username: data.questioner_username,
-            ai_name: data.ai_name, // AI 이름 포함
             emotion: null,
             imageUrl: null,
             imageUrls: data.imageUrls || [],
@@ -870,31 +866,16 @@ const ChatBox = ({
           };
 
           setMessages((prev) => {
-            // 중복 메시지 방지: 동일 timestamp/text/questioner_username/ai_name이 이미 있으면 추가하지 않음
+            // 중복 메시지 방지
             if (prev.some(m => m.type === 'ai' && m.date === data.timestamp && m.text === data.message && m.questioner_username === data.questioner_username && m.ai_name === data.ai_name)) {
               return prev;
             }
-            const newMsg = {
-              id: data.id || `ai_${data.timestamp}`,
-              type: 'ai',
-              text: data.message,
-              date: data.timestamp,
-              sender: data.ai_name, // sender는 항상 ai_name
-              ai_name: data.ai_name,
-              questioner_username: data.questioner_username,
-              imageUrl: null,
-              imageUrls: data.imageUrls || [],
-              pending: false,
-            };
-
-            const arr = [...prev, newMsg];
-
-            return arr;
+            return [...prev, newMessage];
           });
+
           setCurrentAiMessage(data.message);
           setIsAiTalking(true);
           if (isTTSEnabled) {
-            // TTS가 중단된 상태였다면 다시 활성화
             if (ttsInterrupted) {
               setTtsInterrupted(false);
               console.log('[TTS] 중단된 TTS 재활성화됨');
@@ -903,6 +884,7 @@ const ChatBox = ({
           } else {
             setDisplayedAiText(data.message);
           }
+
           const aiEmotionResponse = getAIEmotionResponse(userEmotion, data.message);
           setAiEmotion(aiEmotionResponse.primary);
           setEmotionDisplay(prev => ({ ...prev, ai: aiEmotionResponse.primary }));
@@ -913,12 +895,109 @@ const ChatBox = ({
             setEmotionCaptureStatus(prev => ({ ...prev, ai: false }));
           }, aiEmotionResponse.duration);
         }
-        // 기타 message 타입에서는 setMessages를 호출하지 않음
       } catch (error) {
         console.error('WebSocket 메시지 처리 중 오류:', error);
       }
     };
-  }, [isTTSEnabled]);
+  }, [isTTSEnabled, ttsInterrupted, userEmotion, userSettings]);
+
+  // 트래킹 기능 제어
+  const toggleTracking = async () => {
+    console.log('[트래킹] toggleTracking 호출됨, 현재 상태:', { isTrackingEnabled, trackingStatus });
+
+    try {
+      if (isTrackingEnabled) {
+        // 트래킹 중지
+        console.log('[트래킹] 트래킹 중지 시작...');
+        faceTrackingService.stopCamera();
+        setIsTrackingEnabled(false);
+        setTrackingStatus('stopped');
+        setFaceDetected(false);
+
+        // userSettings 업데이트
+        if (setUserSettings) {
+          setUserSettings(prev => ({
+            ...prev,
+            face_tracking_enabled: false
+          }));
+          console.log('[트래킹] userSettings 업데이트됨: face_tracking_enabled = false');
+        }
+
+        console.log('[트래킹] 트래킹 중지됨');
+      } else {
+        // MediaPipe 준비 상태 확인
+        console.log('[트래킹] MediaPipe 준비 상태 확인:', faceTrackingService.isReady);
+
+        if (!faceTrackingService.isReady) {
+          console.log('[트래킹] MediaPipe 초기화 시작...');
+          await faceTrackingService.initializeMediaPipe();
+
+          // 초기화 후 다시 확인
+          console.log('[트래킹] MediaPipe 초기화 후 상태:', faceTrackingService.isReady);
+          if (!faceTrackingService.isReady) {
+            alert('MediaPipe 초기화 중입니다. 잠시 후 다시 시도해주세요.');
+            return;
+          }
+        }
+
+        // 트래킹 시작
+        setTrackingStatus('starting');
+        console.log('[트래킹] 트래킹 시작 중...');
+
+        // 웹캠 권한 확인
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          console.log('[트래킹] 웹캠 권한 획득 성공');
+          stream.getTracks().forEach(track => track.stop()); // 테스트용으로 즉시 중지
+        } catch (permError) {
+          console.error('[트래킹] 웹캠 권한 오류:', permError);
+          alert('웹캠 권한이 필요합니다. 브라우저 설정에서 카메라 권한을 허용해주세요.');
+          return;
+        }
+
+        const success = await faceTrackingService.startCamera();
+        console.log('[트래킹] startCamera 결과:', success);
+
+        if (success) {
+          setIsTrackingEnabled(true);
+          setTrackingStatus('running');
+
+          // userSettings 업데이트
+          if (setUserSettings) {
+            setUserSettings(prev => ({
+              ...prev,
+              face_tracking_enabled: true
+            }));
+            console.log('[트래킹] userSettings 업데이트됨: face_tracking_enabled = true');
+          }
+
+          console.log('[트래킹] 트래킹 시작됨');
+
+          // 트래킹 이벤트 리스너 설정
+          faceTrackingService.on('faceDetected', () => {
+            setFaceDetected(true);
+            console.log('[트래킹] 얼굴 감지됨');
+          });
+
+          faceTrackingService.on('faceLost', () => {
+            setFaceDetected(false);
+            console.log('[트래킹] 얼굴 감지 안됨');
+          });
+
+          faceTrackingService.on('trackingUpdate', (data) => {
+            console.log('[트래킹] 트래킹 데이터 업데이트:', data);
+          });
+        } else {
+          setTrackingStatus('error');
+          alert('트래킹을 시작할 수 없습니다. 웹캠 권한을 확인해주세요.');
+        }
+      }
+    } catch (error) {
+      console.error('트래킹 토글 실패:', error);
+      setTrackingStatus('error');
+      alert('트래킹 기능을 사용할 수 없습니다: ' + error.message);
+    }
+  };
 
   // 감정 포착 상태 자동 리셋 (3초 후)
   useEffect(() => {
@@ -960,17 +1039,23 @@ const ChatBox = ({
   // 1. TTS 이벤트 리스너 등록 useEffect로 최초 1회만 등록
   useEffect(() => {
     if (!ttsService.isSupported()) return;
-    const handleStart = (text, lipSyncSequence) => {
+
+    // TTS 이벤트 콜백 설정
+    ttsService.setOnSpeakStart((text, lipSyncSequence) => {
+      console.log('[LIP SYNC] TTS 시작 콜백 호출됨 - 텍스트:', text, '립싱크 시퀀스:', lipSyncSequence);
+
       // 
       setIsAiTalking(true);
       setTtsSpeaking(true);
 
       // 립싱크 시퀀스 저장 및 초기화
       if (lipSyncSequence && lipSyncSequence.length > 0) {
+        console.log('[LIP SYNC] 립싱크 시퀀스 설정됨:', lipSyncSequence);
         setLipSyncSequence(lipSyncSequence);
         setCurrentLipSyncIndex(0);
 
       } else {
+        console.warn('[LIP SYNC] 립싱크 시퀀스가 비어있음');
         setLipSyncSequence([]);
         setCurrentLipSyncIndex(0);
       }
@@ -991,8 +1076,9 @@ const ChatBox = ({
       */
       // 한 번에 전체 출력
       setDisplayedAiText(text);
-    };
-    const handleEnd = (text) => {
+    });
+
+    ttsService.setOnSpeakEnd((text) => {
 
       setIsAiTalking(false);
       setTtsSpeaking(false);
@@ -1017,8 +1103,9 @@ const ChatBox = ({
         typingIntervalRef.current = null;
       }
       setDisplayedAiText(text); // 전체 메시지 한 번에 표시
-    };
-    const handleError = (error) => {
+    });
+
+    ttsService.setOnSpeakError((error) => {
 
       setIsAiTalking(false);
       setTtsSpeaking(false);
@@ -1027,14 +1114,30 @@ const ChatBox = ({
         clearInterval(typingIntervalRef.current);
         typingIntervalRef.current = null;
       }
-    };
-    ttsService.on('start', handleStart);
-    ttsService.on('end', handleEnd);
-    ttsService.on('error', handleError);
+    });
+
+    ttsService.setOnStop(() => {
+      setIsAiTalking(false);
+      setTtsSpeaking(false);
+      setMouthTrigger(0);
+      if (typingIntervalRef.current) {
+        clearInterval(typingIntervalRef.current);
+        typingIntervalRef.current = null;
+      }
+    });
+
     return () => {
-      ttsService.off('start', handleStart);
-      ttsService.off('end', handleEnd);
-      ttsService.off('error', handleError);
+      // TTS 이벤트 콜백 제거
+      ttsService.setOnSpeakStart(null);
+      ttsService.setOnSpeakEnd(null);
+      ttsService.setOnSpeakError(null);
+      ttsService.setOnStop(null);
+
+      // TTS 서비스 정리
+      if (ttsService.cleanup) {
+        ttsService.cleanup();
+      }
+
       if (typingIntervalRef.current) {
         clearInterval(typingIntervalRef.current);
         typingIntervalRef.current = null;
@@ -1046,16 +1149,15 @@ const ChatBox = ({
 
   // 3. 고급 립싱크 시스템 (음소 기반)
   useEffect(() => {
-
+    console.log('[LIP SYNC] 립싱크 useEffect 실행 - ttsSpeaking:', ttsSpeaking, 'lipSyncSequence 길이:', lipSyncSequence.length);
 
     if (ttsSpeaking && lipSyncSequence.length > 0) {
-
+      console.log('[LIP SYNC] 립싱크 시퀀스 처리 시작');
 
       // 음소 기반 립싱크
       const totalDuration = lipSyncSequence[lipSyncSequence.length - 1]?.endTime || 5000; // 기본 5초
       const startTime = Date.now();
-
-
+      console.log('[LIP SYNC] 총 지속시간:', totalDuration, 'ms, 시작시간:', startTime);
 
       const interval = setInterval(() => {
         const elapsedTime = Date.now() - startTime;
@@ -1064,16 +1166,9 @@ const ChatBox = ({
         );
 
         if (currentPhoneme) {
-          // 입모양에 따른 mouthTrigger 값 설정
-          const mouthShapeValues = {
-            'closed': 1,
-            'slightly_open': 2,
-            'open': 3,
-            'wide_open': 4,
-            'rounded': 5,
-            'neutral': 0
-          };
-          const triggerValue = mouthShapeValues[currentPhoneme.mouthShape] || 0;
+          // mouthTrigger 값을 직접 사용 (이미 변환되어 있음)
+          const triggerValue = currentPhoneme.mouthTrigger || 0;
+          console.log('[LIP SYNC] 현재 음소:', currentPhoneme.phoneme, 'mouthTrigger:', triggerValue);
           setMouthTrigger(triggerValue);
           setLastLipSyncValue(triggerValue); // 마지막 립싱크 값 저장
 
@@ -1560,6 +1655,45 @@ const ChatBox = ({
     };
   }, []);
 
+  // userSettings 변경 시 아바타 URL 업데이트
+  useEffect(() => {
+    if (userSettings) {
+      // AI 아바타 URL 업데이트
+      if (userSettings.ai_avatar_url) {
+        setAiAvatar(userSettings.ai_avatar_url);
+        console.log('[아바타] AI 아바타 URL 업데이트:', userSettings.ai_avatar_url);
+      } else if (!aiAvatar) {
+        // userSettings에 없고 현재도 설정되지 않은 경우 기본값 설정
+        setAiAvatar('/avatar_vrm/gb_f_v2.vrm');
+        console.log('[아바타] 기본 AI 아바타 URL 설정:', '/avatar_vrm/gb_f_v2.vrm');
+      }
+
+      // 사용자 아바타 URL 업데이트
+      if (userSettings.user_avatar_url) {
+        setUserAvatar(userSettings.user_avatar_url);
+        console.log('[아바타] 사용자 아바타 URL 업데이트:', userSettings.user_avatar_url);
+      } else if (!userAvatar) {
+        // userSettings에 없고 현재도 설정되지 않은 경우 기본값 설정
+        setUserAvatar('/avatar_vrm/gb_m_v2.vrm');
+        console.log('[아바타] 기본 사용자 아바타 URL 설정:', '/avatar_vrm/gb_m_v2.vrm');
+      }
+
+      // 얼굴 트래킹 자동 활성화
+      if (userSettings.face_tracking_enabled && !isTrackingEnabled) {
+        console.log('[트래킹] 설정에서 얼굴 트래킹 자동 활성화');
+        toggleTracking();
+      } else if (!userSettings.face_tracking_enabled && isTrackingEnabled) {
+        console.log('[트래킹] 설정에서 얼굴 트래킹 자동 비활성화');
+        if (faceTrackingService.stopCamera) {
+          faceTrackingService.stopCamera();
+        }
+        setIsTrackingEnabled(false);
+        setTrackingStatus('stopped');
+        setFaceDetected(false);
+      }
+    }
+  }, [userSettings, aiAvatar, userAvatar, isTrackingEnabled]);
+
   return (
     <>
       {/* 이미지 뷰어 모달 */}
@@ -1647,6 +1781,110 @@ const ChatBox = ({
               emotionCaptureStatus={emotionCaptureStatus.user}
               enableTracking={isTrackingEnabled}
             />
+            {/* 트래킹 토글 버튼 */}
+            <div style={{
+              position: 'absolute',
+              top: '10px',
+              right: '10px',
+              zIndex: 10
+            }}>
+              <button
+                onClick={toggleTracking}
+                disabled={trackingStatus === 'starting'}
+                style={{
+                  padding: '8px 12px',
+                  backgroundColor: trackingStatus === 'error' ? '#ff9800' :
+                    isTrackingEnabled ? '#4CAF50' : '#f44336',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: trackingStatus === 'starting' ? 'not-allowed' : 'pointer',
+                  fontSize: '11px',
+                  fontWeight: 'bold',
+                  opacity: trackingStatus === 'starting' ? 0.6 : 1,
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                  minWidth: '80px'
+                }}
+                title={trackingStatus === 'error' ? '트래킹 오류 - 다시 시도해주세요' :
+                  isTrackingEnabled ? '트래킹 중지' : '트래킹 시작'}
+              >
+                {trackingStatus === 'starting' ? '🔄' :
+                  trackingStatus === 'error' ? '⚠️' :
+                    isTrackingEnabled ? '👁️' : '👁️‍🗨️'}
+                {trackingStatus === 'starting' ? ' 시작중...' :
+                  trackingStatus === 'error' ? ' 오류' :
+                    isTrackingEnabled ? ' 트래킹' : ' 트래킹'}
+              </button>
+
+              {/* 카메라 전환 버튼 (트래킹 중일 때만 표시) */}
+              {isTrackingEnabled && (
+                <button
+                  onClick={async () => {
+                    console.log('[트래킹] 카메라 전환 시도');
+                    const success = await faceTrackingService.switchToNextCamera();
+                    if (success) {
+                      console.log('[트래킹] 카메라 전환 성공');
+                    } else {
+                      console.log('[트래킹] 카메라 전환 실패');
+                    }
+                  }}
+                  style={{
+                    padding: '6px 10px',
+                    backgroundColor: '#2196F3',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '10px',
+                    fontWeight: 'bold',
+                    marginTop: '5px',
+                    width: '100%',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                  }}
+                  title="다음 카메라로 전환"
+                >
+                  📷 전환
+                </button>
+              )}
+
+              {/* 트래킹 상태 표시 */}
+              {faceDetected && isTrackingEnabled && (
+                <div style={{
+                  position: 'absolute',
+                  top: '40px',
+                  right: '0px',
+                  backgroundColor: '#4CAF50',
+                  color: 'white',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                }}>
+                  얼굴 감지됨
+                </div>
+              )}
+
+              {/* 트래킹 상태 정보 */}
+              {isTrackingEnabled && (
+                <div style={{
+                  position: 'absolute',
+                  top: '40px',
+                  right: '0px',
+                  backgroundColor: '#2196F3',
+                  color: 'white',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                  display: faceDetected ? 'none' : 'block'
+                }}>
+                  트래킹 중...
+                </div>
+              )}
+            </div>
           </div>
           {/* 카메라 */}
           <div style={getCameraStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn)}>

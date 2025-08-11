@@ -8,31 +8,124 @@ const EmotionCamera = ({ isActive = true, hideControls = false, userAvatar, user
     const [isCameraOn, setIsCameraOn] = useState(false);
     const [error, setError] = useState(null);
 
+    // 카메라 전환 관련 상태
+    const [availableCameras, setAvailableCameras] = useState([]);
+    const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
+    const [isMobile, setIsMobile] = useState(false);
+
+    // 모바일 감지
+    useEffect(() => {
+        const checkMobile = () => {
+            const userAgent = navigator.userAgent.toLowerCase();
+            const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+            setIsMobile(isMobileDevice);
+            console.log('[카메라] 모바일 감지:', isMobileDevice);
+        };
+        checkMobile();
+    }, []);
+
+    // 사용 가능한 카메라 목록 가져오기
+    const getAvailableCameras = useCallback(async () => {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(device => device.kind === 'videoinput');
+
+            // 모바일에서는 후면 카메라를 우선으로 정렬
+            if (isMobile) {
+                videoDevices.sort((a, b) => {
+                    const aIsBack = a.label.toLowerCase().includes('back') || a.label.toLowerCase().includes('후면');
+                    const bIsBack = b.label.toLowerCase().includes('back') || b.label.toLowerCase().includes('후면');
+                    if (aIsBack && !bIsBack) return -1;
+                    if (!aIsBack && bIsBack) return 1;
+                    return 0;
+                });
+            }
+
+            setAvailableCameras(videoDevices);
+            console.log('[카메라] 사용 가능한 카메라 목록:', videoDevices);
+
+            // 모바일에서 후면 카메라가 있으면 기본 선택
+            if (isMobile && videoDevices.length > 0) {
+                const backCameraIndex = videoDevices.findIndex(device =>
+                    device.label.toLowerCase().includes('back') ||
+                    device.label.toLowerCase().includes('후면')
+                );
+                if (backCameraIndex !== -1) {
+                    setCurrentCameraIndex(backCameraIndex);
+                    console.log('[카메라] 모바일 후면 카메라 기본 선택:', backCameraIndex);
+                }
+            }
+        } catch (err) {
+            console.error('[카메라] 카메라 목록 가져오기 실패:', err);
+        }
+    }, [isMobile]);
+
+    // 다음 카메라로 전환
+    const switchToNextCamera = useCallback(async () => {
+        if (availableCameras.length <= 1) {
+            console.log('[카메라] 전환 가능한 카메라가 없음');
+            return;
+        }
+
+        // 현재 카메라 중지
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
+
+        // 다음 카메라 인덱스 계산
+        const nextIndex = (currentCameraIndex + 1) % availableCameras.length;
+        setCurrentCameraIndex(nextIndex);
+
+        console.log('[카메라] 다음 카메라로 전환:', nextIndex, availableCameras[nextIndex]?.label);
+
+        // 새 카메라로 시작
+        await startCamera();
+    }, [availableCameras, currentCameraIndex]);
+
     // 웹캠 시작
     const startCamera = useCallback(async () => {
         try {
             setError(null);
-            // console.log('웹캠 시작 시도...');
+            console.log('[카메라] 웹캠 시작 시도...');
 
-            // 사용 가능한 미디어 디바이스 확인
-            const devices = await navigator.mediaDevices.enumerateDevices();
-            const videoDevices = devices.filter(device => device.kind === 'videoinput');
-            console.log('사용 가능한 비디오 디바이스:', videoDevices);
+            // 사용 가능한 카메라 목록이 없으면 가져오기
+            if (availableCameras.length === 0) {
+                await getAvailableCameras();
+            }
 
-            const stream = await navigator.mediaDevices.getUserMedia({
+            // 현재 선택된 카메라의 deviceId 사용
+            const currentCamera = availableCameras[currentCameraIndex];
+            const constraints = {
                 video: {
                     width: { min: 320, ideal: 640, max: 1280 },
                     height: { min: 240, ideal: 480, max: 720 },
                     frameRate: { ideal: 30 },
-                    facingMode: 'user',
                     aspectRatio: { ideal: 1.333333 }
                 },
                 audio: false
-            });
+            };
 
-            console.log('웹캠 스트림 획득 성공:', {
+            // 특정 카메라가 선택된 경우 deviceId 추가
+            if (currentCamera && currentCamera.deviceId) {
+                constraints.video.deviceId = { exact: currentCamera.deviceId };
+                console.log('[카메라] 선택된 카메라:', currentCamera.label, currentCamera.deviceId);
+            } else {
+                // 모바일에서는 후면 카메라 우선
+                if (isMobile) {
+                    constraints.video.facingMode = 'environment';
+                } else {
+                    constraints.video.facingMode = 'user';
+                }
+                console.log('[카메라] 기본 카메라 설정 (facingMode):', constraints.video.facingMode);
+            }
+
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+            console.log('[카메라] 웹캠 스트림 획득 성공:', {
                 id: stream.id,
                 active: stream.active,
+                cameraLabel: currentCamera?.label || '기본 카메라',
                 tracks: stream.getTracks().map(track => ({
                     kind: track.kind,
                     enabled: track.enabled,
@@ -44,11 +137,11 @@ const EmotionCamera = ({ isActive = true, hideControls = false, userAvatar, user
             setIsCameraOn(true);
 
         } catch (err) {
-            console.error('웹캠 시작 실패:', err);
+            console.error('[카메라] 웹캠 시작 실패:', err);
             setError(`웹캠에 접근할 수 없습니다: ${err.message}`);
             alert(`웹캠에 접근할 수 없습니다: ${err.message}`);
         }
-    }, []);
+    }, [availableCameras, currentCameraIndex, isMobile, getAvailableCameras]);
 
     // 스트림 할당을 위한 useEffect
     useEffect(() => {
@@ -98,6 +191,8 @@ const EmotionCamera = ({ isActive = true, hideControls = false, userAvatar, user
     // 컴포넌트 마운트/언마운트 처리
     useEffect(() => {
         if (isActive) {
+            // 카메라 목록 가져오기
+            getAvailableCameras();
             startCamera();
         } else {
             stopCamera();
@@ -106,13 +201,62 @@ const EmotionCamera = ({ isActive = true, hideControls = false, userAvatar, user
         return () => {
             stopCamera();
         };
-    }, [isActive, startCamera, stopCamera]);
+    }, [isActive, startCamera, stopCamera, getAvailableCameras]);
 
     return (
         <div className="emotion-camera">
             {/* 카메라 제어 버튼 및 공간 완전 삭제 */}
 
             <div className="camera-container" style={{ position: 'relative', width: '100%', height: '100%' }}>
+                {/* 카메라 전환 버튼 */}
+                {availableCameras.length > 1 && (
+                    <div style={{
+                        position: 'absolute',
+                        top: '10px',
+                        right: '10px',
+                        zIndex: 10
+                    }}>
+                        <button
+                            onClick={switchToNextCamera}
+                            style={{
+                                padding: '8px 12px',
+                                backgroundColor: '#2196F3',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontSize: '12px',
+                                fontWeight: 'bold',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                            }}
+                            title={`다음 카메라로 전환 (${currentCameraIndex + 1}/${availableCameras.length})`}
+                        >
+                            📷 {availableCameras[currentCameraIndex]?.label || '카메라'}
+                        </button>
+
+                        {/* 카메라 정보 표시 */}
+                        <div style={{
+                            position: 'absolute',
+                            top: '40px',
+                            right: '0px',
+                            backgroundColor: 'rgba(0,0,0,0.7)',
+                            color: 'white',
+                            padding: '6px 10px',
+                            borderRadius: '4px',
+                            fontSize: '10px',
+                            maxWidth: '150px',
+                            textAlign: 'center'
+                        }}>
+                            {availableCameras[currentCameraIndex]?.label || '기본 카메라'}
+                            <br />
+                            <small>{currentCameraIndex + 1} / {availableCameras.length}</small>
+                        </div>
+                    </div>
+                )}
+
                 <video
                     ref={videoRef}
                     autoPlay

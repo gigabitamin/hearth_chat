@@ -276,6 +276,7 @@ class UserSettings(models.Model):
     
     # 카메라 설정
     camera_enabled = models.BooleanField(default=False, verbose_name='카메라 활성화')
+    face_tracking_enabled = models.BooleanField(default=False, verbose_name='얼굴 트래킹 활성화')
     
     # 아바타 설정
     ai_avatar_enabled = models.BooleanField(default=True, verbose_name='AI 아바타 활성화')

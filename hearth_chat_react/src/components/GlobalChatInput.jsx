@@ -33,8 +33,47 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
     const [crop, setCrop] = useState({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1);
     const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+    const [isMobile, setIsMobile] = useState(false);
     const webcamRef = useRef(null);
 
+    // 모바일 감지
+    useEffect(() => {
+        const checkMobile = () => {
+            const userAgent = navigator.userAgent.toLowerCase();
+            const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+            setIsMobile(isMobileDevice);
+            console.log('[GlobalChatInput] 모바일 감지:', isMobileDevice);
+        };
+        checkMobile();
+    }, []);
+
+    // 모바일에서 기본 카메라 설정 (후면 카메라 우선)
+    const getVideoConstraints = () => {
+        if (isMobile) {
+            return { facingMode: 'environment' }; // 후면 카메라
+        }
+        return { facingMode: 'user' }; // 전면 카메라 (데스크톱)
+    };
+
+    // 카메라 전환 기능
+    const [cameraFacingMode, setCameraFacingMode] = useState('environment'); // 모바일 기본값
+
+    // 모바일에서 카메라 전환
+    const toggleCamera = () => {
+        if (isMobile) {
+            const newMode = cameraFacingMode === 'environment' ? 'user' : 'environment';
+            setCameraFacingMode(newMode);
+            console.log('[GlobalChatInput] 카메라 전환:', newMode === 'environment' ? '후면' : '전면');
+        }
+    };
+
+    // 동적 비디오 제약 조건 생성
+    const getDynamicVideoConstraints = () => {
+        if (isMobile) {
+            return { facingMode: cameraFacingMode };
+        }
+        return { facingMode: 'user' };
+    };
 
 
     // --- 카메라 관련 함수 ---    
@@ -917,12 +956,43 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
             {/* --- 카메라 모달 --- */}
             {showCamera && (
                 <div className="camera-modal" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    {/* 카메라 전환 버튼 (모바일에서만 표시) */}
+                    {isMobile && (
+                        <div style={{
+                            position: 'absolute',
+                            top: '20px',
+                            right: '20px',
+                            zIndex: 10
+                        }}>
+                            <button
+                                onClick={toggleCamera}
+                                style={{
+                                    padding: '12px 16px',
+                                    backgroundColor: '#2196F3',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    fontSize: '14px',
+                                    fontWeight: 'bold',
+                                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px'
+                                }}
+                                title={`${cameraFacingMode === 'environment' ? '전면' : '후면'} 카메라로 전환`}
+                            >
+                                📷 {cameraFacingMode === 'environment' ? '전면' : '후면'} 전환
+                            </button>
+                        </div>
+                    )}
+
                     <Webcam
                         audio={false}
                         ref={webcamRef}
                         screenshotFormat="image/jpeg"
                         width="100%"
-                        videoConstraints={{ facingMode: 'user' }}
+                        videoConstraints={getDynamicVideoConstraints()}
                     />
                     <div style={{ marginTop: '1rem' }}>
                         <button onClick={handleCapture} style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}>사진 찍기</button>

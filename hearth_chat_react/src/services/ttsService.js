@@ -40,8 +40,8 @@ class TTSService {
 
         if (this.isSupported) {
             this.initializeVoice();
-            // 전역 이벤트 리스너 추가
-            this.setupGlobalEventListeners();
+            // 전역 이벤트 리스너 설정 및 정리 함수 저장
+            this._cleanupListeners = this.setupGlobalEventListeners();
         }
     }
 
@@ -352,16 +352,27 @@ class TTSService {
 
     // 립싱크 시퀀스 생성
     generateLipSyncSequence(text, duration) {
-        if (!this.lipSyncSettings.enabled) return [];
+        console.log('[LIP SYNC] 시퀀스 생성 시작 - 텍스트:', text, '지속시간:', duration);
+
+        if (!this.lipSyncSettings.enabled) {
+            console.warn('[LIP SYNC] 립싱크가 비활성화됨');
+            return [];
+        }
 
         const phonemes = this.analyzeKoreanPhonemes(text);
+        console.log('[LIP SYNC] 음소 분석 결과:', phonemes);
+
         const sequence = [];
         const totalPhonemes = phonemes.length;
 
-        if (totalPhonemes === 0) return sequence;
+        if (totalPhonemes === 0) {
+            console.warn('[LIP SYNC] 분석된 음소가 없음');
+            return sequence;
+        }
 
         // 각 음소당 시간 계산 (더 정확한 시간 분배)
         const timePerPhoneme = duration / totalPhonemes;
+        console.log('[LIP SYNC] 음소당 시간:', timePerPhoneme, 'ms');
 
         phonemes.forEach((phoneme, index) => {
             const startTime = index * timePerPhoneme;
@@ -379,18 +390,51 @@ class TTSService {
                 adjustedEndTime = endTime - timePerPhoneme * 0.2;
             }
 
+            // mouthTrigger 값으로 변환 (RealisticAvatar3D.jsx와 일치)
+            const mouthTriggerValue = this.convertMouthShapeToTrigger(phoneme.mouthShape);
+
             sequence.push({
                 startTime: adjustedStartTime,
                 endTime: adjustedEndTime,
-                mouthShape: phoneme.mouthShape,
+                mouthTrigger: mouthTriggerValue,
                 intensity: this.lipSyncSettings.intensity,
                 phoneme: phoneme.char,
                 type: phoneme.type
             });
         });
 
-
+        console.log('[LIP SYNC] 최종 시퀀스:', sequence);
         return sequence;
+    }
+
+    // 입모양 문자열을 mouthTrigger 값으로 변환
+    convertMouthShapeToTrigger(mouthShape) {
+        const shapeToTrigger = {
+            'closed': 1,           // 살짝 열림
+            'slightly_open': 2,    // 조금 열림
+            'open': 3,             // 열림
+            'wide_open': 4,        // 크게 열림
+            'rounded': 5,          // 둥글게 열림
+            'neutral': 0           // 닫힘
+        };
+        return shapeToTrigger[mouthShape] || 0;
+    }
+
+    // TTS 지속 시간 추정 (텍스트 길이와 속도 기반)
+    estimateTTSDuration(text, rate = 1.0) {
+        if (!text) return 1000; // 기본 1초
+
+        // 한국어 기준: 평균적으로 한 글자당 0.3초 (속도 1.0 기준)
+        const baseTimePerChar = 300; // ms
+        const adjustedTimePerChar = baseTimePerChar / rate;
+
+        // 텍스트 길이에 따른 기본 시간 계산
+        let estimatedDuration = text.length * adjustedTimePerChar;
+
+        // 최소/최대 시간 제한
+        estimatedDuration = Math.max(1000, Math.min(estimatedDuration, 30000)); // 1초 ~ 30초
+
+        return estimatedDuration;
     }
 
     // 음성 목록이 준비될 때까지 대기
@@ -443,7 +487,20 @@ class TTSService {
                     // TTS 재생 시작 시 스크롤 안정화
                     this.saveScrollPosition();
                     this.lockScroll();
-                    if (this.onSpeakStart) this.onSpeakStart(text);
+
+                    // 립싱크 시퀀스 생성 및 전달
+                    if (this.onSpeakStart) {
+                        // TTS 지속 시간 계산 (텍스트 길이와 속도 기반)
+                        const estimatedDuration = this.estimateTTSDuration(cleanedText, options.rate || this.voiceSettings.rate);
+                        console.log('[LIP SYNC] TTS 시작, 텍스트:', cleanedText, '예상 지속시간:', estimatedDuration, 'ms');
+
+                        const lipSyncSequence = this.generateLipSyncSequence(cleanedText, estimatedDuration);
+                        console.log('[LIP SYNC] 립싱크 시퀀스 생성됨:', lipSyncSequence);
+
+                        this.onSpeakStart(cleanedText, lipSyncSequence);
+                    } else {
+                        console.warn('[LIP SYNC] onSpeakStart 콜백이 설정되지 않음');
+                    }
                 };
                 this.utterance.onend = () => {
                     this.isSpeaking = false;
@@ -552,75 +609,58 @@ class TTSService {
 
     // 전역 이벤트 리스너 설정
     setupGlobalEventListeners() {
-        if (typeof window === 'undefined') return;
+        if (typeof window !== 'undefined') {
+            const handleBeforeUnload = () => {
+                if (this.isSpeaking) {
+                    this.stop();
+                }
+            };
 
-        const handleBeforeUnload = () => {
+            const handleVisibilityChange = () => {
+                if (document.hidden && this.isSpeaking) {
+                    this.stop();
+                }
+            };
 
-            this.stop();
-        };
+            window.addEventListener('beforeunload', handleBeforeUnload);
+            document.addEventListener('visibilitychange', handleVisibilityChange);
 
-        const handleVisibilityChange = () => {
-            if (document.hidden) {
-
-                this.stop();
-            }
-        };
-
-        // 페이지 언로드 이벤트
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        // 페이지 숨김/보임 이벤트
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-
-        // 이벤트 리스너 정리를 위한 참조 저장
-        this._cleanupListeners = () => {
-            window.removeEventListener('beforeunload', handleBeforeUnload);
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-        };
-    }
-
-    // 이벤트 리스너 설정
-    on(event, callback) {
-        switch (event) {
-            case 'start':
-                this.onSpeakStart = callback;
-                break;
-            case 'end':
-                this.onSpeakEnd = callback;
-                break;
-            case 'pause':
-                this.onSpeakPause = callback;
-                break;
-            case 'resume':
-                this.onSpeakResume = callback;
-                break;
-            case 'error':
-                this.onSpeakError = callback;
-                break;
-            default:
-                console.warn('알 수 없는 TTS 이벤트:', event);
+            // 정리 함수 반환
+            return () => {
+                window.removeEventListener('beforeunload', handleBeforeUnload);
+                document.removeEventListener('visibilitychange', handleVisibilityChange);
+            };
         }
     }
 
-    // 이벤트 리스너 제거
-    off(event, callback) {
-        switch (event) {
-            case 'start':
-                this.onSpeakStart = null;
-                break;
-            case 'end':
-                this.onSpeakEnd = null;
-                break;
-            case 'pause':
-                this.onSpeakPause = null;
-                break;
-            case 'resume':
-                this.onSpeakResume = null;
-                break;
-            case 'error':
-                this.onSpeakError = null;
-                break;
-            default:
-                console.warn('알 수 없는 TTS 이벤트:', event);
+    // TTS 중단 상태 설정 함수
+    setTTSInterrupted(interrupted) {
+        if (this.onStop && typeof this.onStop === 'function') {
+            this.onStop();
+        }
+    }
+
+    // TTS 이벤트 콜백 설정 메서드들
+    setOnSpeakStart(callback) {
+        this.onSpeakStart = callback;
+    }
+
+    setOnSpeakEnd(callback) {
+        this.onSpeakEnd = callback;
+    }
+
+    setOnSpeakError(callback) {
+        this.onSpeakError = callback;
+    }
+
+    setOnStop(callback) {
+        this.onStop = callback;
+    }
+
+    // 전역 이벤트 리스너 정리
+    cleanup() {
+        if (this._cleanupListeners && typeof this._cleanupListeners === 'function') {
+            this._cleanupListeners();
         }
     }
 }

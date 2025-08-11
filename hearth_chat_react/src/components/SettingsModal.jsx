@@ -439,6 +439,7 @@ const SettingsModal = ({
         user_avatar_enabled: 'user_avatar_enabled',
         ai_response_enabled: 'ai_response_enabled',
         ai_settings: 'ai_settings',  // AI 설정 필드 추가
+        face_tracking_enabled: 'face_tracking_enabled',  // 얼굴 트래킹 필드 추가
       };
       // 매핑 적용
       const serverPatch = {};
@@ -860,8 +861,8 @@ const SettingsModal = ({
             </div>
           )}
           {tab === 'camera' && (
-            <div>
-              <label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <input
                   type="checkbox"
                   checked={!!userSettings?.camera_enabled}
@@ -870,6 +871,28 @@ const SettingsModal = ({
                 />
                 카메라 사용
               </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={!!userSettings?.face_tracking_enabled}
+                  onChange={e => {
+                    console.log('[설정] 얼굴 트래킹 체크박스 변경:', e.target.checked);
+                    saveSetting({ face_tracking_enabled: e.target.checked });
+                  }}
+                  disabled={saving}
+                />
+                얼굴 트래킹 사용
+              </label>
+
+              <div style={{ marginLeft: 20, fontSize: '0.9em', color: '#666' }}>
+                <p>얼굴 트래킹을 활성화하면:</p>
+                <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+                  <li>사용자 아바타가 실제 얼굴 움직임을 따라합니다</li>
+                  <li>입 모양, 눈 깜빡임, 고개 회전이 실시간으로 반영됩니다</li>
+                  <li>웹캠 권한이 필요합니다</li>
+                </ul>
+              </div>
             </div>
           )}
           {tab === 'avatar' && (
@@ -892,7 +915,7 @@ const SettingsModal = ({
                       type="text"
                       value={userSettings?.ai_avatar_url || ''}
                       onChange={e => { saveSetting({ ai_avatar_url: e.target.value }); }}
-                      placeholder="AI 아바타 모델 파일 경로 (예: /media/uploads/ai_avatar.vrm)"
+                      placeholder="/avatar_vrm/gb_f_v2.vrm"
                       style={{
                         padding: '8px 12px',
                         border: '1px solid #ddd',
@@ -901,6 +924,9 @@ const SettingsModal = ({
                       }}
                       disabled={saving}
                     />
+                    <small style={{ fontSize: '0.8em', color: '#666' }}>
+                      기본값: /avatar_vrm/gb_f_v2.vrm
+                    </small>
                   </label>
                 </div>
               )}
@@ -923,7 +949,7 @@ const SettingsModal = ({
                       type="text"
                       value={userSettings?.user_avatar_url || ''}
                       onChange={e => { saveSetting({ user_avatar_url: e.target.value }); }}
-                      placeholder="사용자 아바타 모델 파일 경로 (예: /media/uploads/user_avatar.vrm)"
+                      placeholder="/avatar_vrm/gb_m_v2.vrm"
                       style={{
                         padding: '8px 12px',
                         border: '1px solid #ddd',
@@ -932,6 +958,9 @@ const SettingsModal = ({
                       }}
                       disabled={saving}
                     />
+                    <small style={{ fontSize: '0.8em', color: '#666' }}>
+                      기본값: /avatar_vrm/gb_m_v2.vrm
+                    </small>
                   </label>
                 </div>
               )}
