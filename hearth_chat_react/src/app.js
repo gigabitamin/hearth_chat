@@ -253,6 +253,43 @@ function AppContent(props) {
   const [permissionStatus, setPermissionStatus] = useState('prompt');
   const [isCreateNewChatOpen, setIsCreateNewChatOpen] = useState(false);
 
+  // userSettings에서 TTS 설정 로드하여 로컬 상태 동기화
+  useEffect(() => {
+    if (userSettings) {
+      console.log('🔄 AppContent - userSettings 변경됨, TTS 설정 동기화:', userSettings);
+
+      // TTS 설정 동기화
+      if (userSettings.tts_speed !== undefined) {
+        setTtsRate(userSettings.tts_speed);
+        console.log('🎯 TTS 속도 동기화:', userSettings.tts_speed);
+      }
+      if (userSettings.tts_pitch !== undefined) {
+        setTtsPitch(userSettings.tts_pitch);
+        console.log('🎯 TTS 음조 동기화:', userSettings.tts_pitch);
+      }
+      if (userSettings.tts_voice !== undefined) {
+        // voiceList가 로드된 후에 음성 설정
+        if (voiceList) {
+          const selectedVoice = voiceList.find(v => v.name === userSettings.tts_voice);
+          setTtsVoice(selectedVoice);
+          console.log('🎯 TTS 음성 동기화:', userSettings.tts_voice);
+        }
+      }
+      if (userSettings.tts_enabled !== undefined) {
+        setIsTTSEnabled(userSettings.tts_enabled);
+        console.log('🎯 TTS 활성화 동기화:', userSettings.tts_enabled);
+      }
+      if (userSettings.voice_recognition_enabled !== undefined) {
+        setIsVoiceRecognitionEnabled(userSettings.voice_recognition_enabled);
+        console.log('🎯 음성인식 활성화 동기화:', userSettings.voice_recognition_enabled);
+      }
+      if (userSettings.voice_auto_send !== undefined) {
+        setAutoSend(userSettings.voice_auto_send);
+        console.log('🎯 음성 자동전송 동기화:', userSettings.voice_auto_send);
+      }
+    }
+  }, [userSettings, voiceList]);
+
   // 새 대화방 만들기 모달 열기
   const onOpenCreateRoomModal = () => {
     setIsCreateNewChatOpen(true);
@@ -711,7 +748,7 @@ function AppContent(props) {
             setPendingImageUrls={setPendingImageUrls}
           />
         } />
-        
+
         <Route path="/dashboard" element={<AdminPage loginUser={loginUser} loginLoading={loginLoading} checkLoginStatus={checkLoginStatus} />} />
       </Routes>
       {/* 항상 하단에 입력창 렌더링 */}

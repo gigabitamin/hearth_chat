@@ -34,6 +34,10 @@ class TTSService {
             speed: 1.0        // 립싱크 속도 배율
         };
 
+        // 스크롤 안정화 관련
+        this.scrollPosition = { x: 0, y: 0 };
+        this.isScrollLocked = false;
+
         if (this.isSupported) {
             this.initializeVoice();
             // 전역 이벤트 리스너 추가
@@ -142,6 +146,9 @@ class TTSService {
         cleanedText = cleanedText.replace(/\*(.*?)\*/g, '$1');     // *텍스트* -> 텍스트
         cleanedText = cleanedText.replace(/`(.*?)`/g, '$1');       // `텍스트` -> 텍스트
         cleanedText = cleanedText.replace(/~~(.*?)~~/g, '$1');     // ~~텍스트~~ -> 텍스트
+
+        // 1-1. 단독으로 있는 특수문자 제거 (*, #, @, %, &, +, =, |, \, /, <, > 등)
+        cleanedText = cleanedText.replace(/(?<!\w)[*#@%&+=|\\/<>](?!\w)/g, ''); // 단독 특수문자 제거
 
         // 2. 이모티콘 제거 (유니코드 이모티콘 범위)
         const emojiRanges = [
@@ -432,15 +439,27 @@ class TTSService {
                 this.utterance.volume = options.volume || this.voiceSettings.volume;
                 // 이벤트 리스너
                 this.utterance.onstart = () => {
-                    this.isSpeaking = true; if (this.onSpeakStart) this.onSpeakStart(text);
+                    this.isSpeaking = true;
+                    // TTS 재생 시작 시 스크롤 안정화
+                    this.saveScrollPosition();
+                    this.lockScroll();
+                    if (this.onSpeakStart) this.onSpeakStart(text);
                 };
                 this.utterance.onend = () => {
-
-                    this.isSpeaking = false; if (this.onSpeakEnd) this.onSpeakEnd(); resolve();
+                    this.isSpeaking = false;
+                    // TTS 재생 종료 시 스크롤 해제 및 위치 복원
+                    this.unlockScroll();
+                    this.restoreScrollPosition();
+                    if (this.onSpeakEnd) this.onSpeakEnd();
+                    resolve();
                 };
                 this.utterance.onerror = (e) => {
-
-                    this.isSpeaking = false; if (this.onSpeakError) this.onSpeakError(e.error); reject(new Error(`TTS 오류: ${e.error}`));
+                    this.isSpeaking = false;
+                    // TTS 오류 시에도 스크롤 해제 및 위치 복원
+                    this.unlockScroll();
+                    this.restoreScrollPosition();
+                    if (this.onSpeakError) this.onSpeakError(e.error);
+                    reject(new Error(`TTS 오류: ${e.error}`));
                 };
 
                 this.synthesis.speak(this.utterance);
@@ -458,6 +477,10 @@ class TTSService {
             this.synthesis.cancel();
             this.isSpeaking = false;
             this.utterance = null;
+
+            // TTS 중단 시 스크롤 해제 및 위치 복원
+            this.unlockScroll();
+            this.restoreScrollPosition();
 
             // TTS 중단 콜백 호출
             if (this.onStop && typeof this.onStop === 'function') {
@@ -488,6 +511,43 @@ class TTSService {
     // TTS 지원 여부 확인
     isSupported() {
         return typeof window !== 'undefined' && !!window.speechSynthesis;
+    }
+
+    // 스크롤 위치 저장
+    saveScrollPosition() {
+        if (typeof window !== 'undefined') {
+            this.scrollPosition = {
+                x: window.pageXOffset || document.documentElement.scrollLeft,
+                y: window.pageYOffset || document.documentElement.scrollTop
+            };
+            console.log('[TTS] 스크롤 위치 저장:', this.scrollPosition);
+        }
+    }
+
+    // 스크롤 고정
+    lockScroll() {
+        if (typeof window !== 'undefined' && !this.isScrollLocked) {
+            this.isScrollLocked = true;
+            document.body.style.overflow = 'hidden';
+            console.log('[TTS] 스크롤 고정됨');
+        }
+    }
+
+    // 스크롤 해제
+    unlockScroll() {
+        if (typeof window !== 'undefined' && this.isScrollLocked) {
+            this.isScrollLocked = false;
+            document.body.style.overflow = '';
+            console.log('[TTS] 스크롤 해제됨');
+        }
+    }
+
+    // 저장된 스크롤 위치로 복원
+    restoreScrollPosition() {
+        if (typeof window !== 'undefined' && this.scrollPosition) {
+            window.scrollTo(this.scrollPosition.x, this.scrollPosition.y);
+            console.log('[TTS] 스크롤 위치 복원:', this.scrollPosition);
+        }
     }
 
     // 전역 이벤트 리스너 설정

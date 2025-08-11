@@ -4,6 +4,7 @@ import './VirtualizedMessageList.css';
 import { getApiBase, getCookie, csrfFetch } from '../utils/apiConfig';
 import AiMessageRenderer from './AiMessageRenderer';
 import { CopyToClipboard } from 'copy-to-clipboard';
+import ttsService from '../services/ttsService';
 
 // 이미지 URL을 절대 경로로 변환하는 함수
 const getImageUrl = (imageUrl) => {
@@ -44,13 +45,65 @@ const VirtualizedMessageList = ({
     loadingMessages = false, // 메시지 로딩 상태
     firstItemIndex = 0, // 전체 메시지 중 현재 배열의 시작 인덱스
     totalCount = 0, // 전체 메시지 개수    
+    userSettings = null, // TTS 설정을 위한 userSettings
 }) => {
     const virtuosoRef = useRef(null);
     const [emojiPickerMsgId, setEmojiPickerMsgId] = useState(null);
     const [localReactions, setLocalReactions] = useState({}); // {messageId: [reactions]}
     const [pinnedIds, setPinnedIds] = useState([]);
     const [isScrollingUp, setIsScrollingUp] = useState(false); // 위로 스크롤 중인지 상태
+    const [ttsEnabledMessages, setTtsEnabledMessages] = useState(new Set()); // TTS 활성화된 메시지 ID들
+
+    // TTS 서비스 인스턴스 (import된 싱글톤 사용)
+
     // 메시지 강조 기능 제거됨
+
+    // TTS 토글 함수
+    const handleTTSToggle = async (message) => {
+        const messageId = message.id;
+
+        // TTS가 비활성화되어 있으면 실행하지 않음
+        if (userSettings && userSettings.tts_enabled === false) {
+            console.log('[TTS] TTS가 비활성화되어 있어 메시지를 읽지 않습니다.');
+            return;
+        }
+
+        setTtsEnabledMessages(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(messageId)) {
+                newSet.delete(messageId);
+                console.log(`[TTS] 메시지 ${messageId} TTS 비활성화`);
+                // TTS 중지
+                ttsService.stop();
+            } else {
+                newSet.add(messageId);
+                console.log(`[TTS] 메시지 ${messageId} TTS 활성화`);
+
+                // TTS 재생
+                const messageText = message.text || message.content;
+                if (messageText && typeof messageText === 'string' && messageText.trim()) {
+                    // TTS 설정값 준비
+                    const ttsOptions = {};
+                    if (userSettings) {
+                        if (userSettings.tts_speed !== undefined) {
+                            ttsOptions.rate = userSettings.tts_speed;
+                        }
+                        if (userSettings.tts_pitch !== undefined) {
+                            ttsOptions.pitch = userSettings.tts_pitch;
+                        }
+                        if (userSettings.tts_voice !== undefined) {
+                            ttsOptions.voice = userSettings.tts_voice;
+                        }
+                    }
+
+                    ttsService.speak(messageText.trim(), ttsOptions).catch(error => {
+                        console.warn('TTS 재생 실패:', error.message);
+                    });
+                }
+            }
+            return newSet;
+        });
+    };
 
     // deleteMessage 함수
     const deleteMessage = async (messageId) => {
@@ -235,17 +288,17 @@ const VirtualizedMessageList = ({
                             {message.imageUrls && message.imageUrls.length > 0 ? (
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
                                     {message.imageUrls.map((url, idx) => (
-                                    <img
-                                        key={idx}
-                                        src={getImageUrl(url)}
-                                        alt={`첨부 이미지 ${idx + 1}`}
-                                        className="message-image"
-                                        style={{ maxWidth: 200, maxHeight: 200, borderRadius: 4 }}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            if (onImageClick) onImageClick(getImageUrl(url));
-                                        }}
-                                    />
+                                        <img
+                                            key={idx}
+                                            src={getImageUrl(url)}
+                                            alt={`첨부 이미지 ${idx + 1}`}
+                                            className="message-image"
+                                            style={{ maxWidth: 200, maxHeight: 200, borderRadius: 4 }}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (onImageClick) onImageClick(getImageUrl(url));
+                                            }}
+                                        />
                                     ))}
                                 </div>
                             ) : message.imageUrl && (
@@ -268,6 +321,25 @@ const VirtualizedMessageList = ({
                                     message.text || message.content
                                 )} */}
                                 <AiMessageRenderer message={message.text || message.content} />
+                            </div>
+
+                            {/* TTS 토글 버튼 - 메시지 왼쪽 하단에 위치 */}
+                            <div style={{
+                                position: 'absolute',
+                                bottom: '8px',
+                                left: '8px',
+                                zIndex: 10
+                            }}>
+                                <button
+                                    className={`tts-toggle-btn ${ttsEnabledMessages.has(message.id) ? 'active' : ''}`}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleTTSToggle(message);
+                                    }}
+                                    title={ttsEnabledMessages.has(message.id) ? 'TTS 비활성화' : 'TTS 활성화'}
+                                >
+                                    {ttsEnabledMessages.has(message.id) ? '🔊' : '🔇'}
+                                </button>
                             </div>
                             {/* 전체 복사 버튼 */}
                             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>

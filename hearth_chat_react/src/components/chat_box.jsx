@@ -1684,6 +1684,7 @@ const ChatBox = ({
                   firstItemIndex={firstItemIndex}
                   totalCount={totalCount}
                   onMessageClick={handleMessageClick}
+                  userSettings={userSettings}
                 />
               </div>
 

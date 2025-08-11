@@ -468,7 +468,25 @@ export const speakAIMessage = (message, setTtsInterrupted = null, userSettings =
                 if (setTtsInterrupted) {
                     setTtsInterrupted(false);
                 }
-                ttsService.speak(message.trim()).catch(error => {
+
+                // TTS 설정값 준비
+                const ttsOptions = {};
+                if (userSettings) {
+                    if (userSettings.tts_speed !== undefined) {
+                        ttsOptions.rate = userSettings.tts_speed;
+                        console.log('[TTS] 속도 설정 적용:', userSettings.tts_speed);
+                    }
+                    if (userSettings.tts_pitch !== undefined) {
+                        ttsOptions.pitch = userSettings.tts_pitch;
+                        console.log('[TTS] 음조 설정 적용:', userSettings.tts_pitch);
+                    }
+                    if (userSettings.tts_voice !== undefined) {
+                        ttsOptions.voice = userSettings.tts_voice;
+                        console.log('[TTS] 음성 설정 적용:', userSettings.tts_voice);
+                    }
+                }
+
+                ttsService.speak(message.trim(), ttsOptions).catch(error => {
                     console.warn('TTS 재생 실패:', error.message);
                 });
             } else {
