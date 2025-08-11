@@ -261,17 +261,17 @@ function AppContent(props) {
         // ttsService가 지원되는지 확인
         if (ttsService && ttsService.isSupported()) {
           console.log('🎵 음성 목록 로딩 시작...');
-          
+
           // 현재 음성 목록 가져오기
           let voices = ttsService.getVoices();
-          
+
           if (voices.length > 0) {
             console.log('🎵 음성 목록 로드됨:', voices);
             setVoiceList(voices);
           } else {
             // 음성 목록이 아직 로드되지 않은 경우, 이벤트 리스너 설정
             console.log('🎵 음성 목록 로딩 대기 중...');
-            
+
             const handleVoicesChanged = () => {
               const loadedVoices = ttsService.getVoices();
               if (loadedVoices.length > 0) {
@@ -283,17 +283,32 @@ function AppContent(props) {
                 }
               }
             };
-            
+
             // voiceschanged 이벤트 리스너 추가
             if (window.speechSynthesis) {
               window.speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
             }
-            
+
+            // 폴백: 주기적으로 음성 목록 확인 (이벤트가 작동하지 않는 경우)
+            const fallbackInterval = setInterval(() => {
+              const currentVoices = ttsService.getVoices();
+              if (currentVoices.length > 0) {
+                console.log('🎵 음성 목록 로드됨 (폴백):', currentVoices);
+                setVoiceList(currentVoices);
+                clearInterval(fallbackInterval);
+                // 이벤트 리스너도 제거
+                if (window.speechSynthesis) {
+                  window.speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+                }
+              }
+            }, 300);
+
             // 타임아웃 설정 (2초 후 빈 배열로 설정)
             setTimeout(() => {
               setVoiceList(prev => {
                 if (prev === null) {
                   console.warn('🎵 음성 목록 로딩 타임아웃');
+                  clearInterval(fallbackInterval);
                   return [];
                 }
                 return prev;
