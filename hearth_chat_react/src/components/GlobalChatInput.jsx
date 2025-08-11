@@ -64,6 +64,14 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
             const newMode = cameraFacingMode === 'environment' ? 'user' : 'environment';
             setCameraFacingMode(newMode);
             console.log('[GlobalChatInput] 카메라 전환:', newMode === 'environment' ? '후면' : '전면');
+
+            // 카메라가 활성화되어 있다면 새 카메라로 재시작
+            if (showCamera) {
+                setShowCamera(false);
+                setTimeout(() => {
+                    setShowCamera(true);
+                }, 100);
+            }
         }
     };
 
@@ -87,19 +95,33 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
         const imageSrc = webcamRef.current.getScreenshot();
         setCapturedImage(imageSrc);
         setShowCamera(false); // 카메라 모달 닫고, 자르기 모달 열기
+
+        // 자르기 상태 초기화
+        setCrop({ x: 0, y: 0, width: 200, height: 200 });
+        setZoom(1);
+        setCroppedAreaPixels(null);
+        console.log('[자르기] 사진 촬영 후 자르기 상태 초기화');
     }, [webcamRef]);
 
     // 3. 자르기 완료 콜백
     const onCropComplete = useCallback((croppedArea, croppedAreaPixelsValue) => {
-        console.log('[자르기] 자르기 영역 변경:', croppedArea, croppedAreaPixelsValue);
+        console.log('[자르기] 자르기 영역 변경:', {
+            croppedArea,
+            croppedAreaPixels: croppedAreaPixelsValue,
+            currentCrop: crop
+        });
         setCroppedAreaPixels(croppedAreaPixelsValue);
         // crop 상태도 업데이트하여 UI 동기화
-        setCrop(prevCrop => ({
-            ...prevCrop,
-            x: croppedArea.x,
-            y: croppedArea.y
-        }));
-    }, []);
+        setCrop(prevCrop => {
+            const newCrop = {
+                ...prevCrop,
+                x: croppedArea.x,
+                y: croppedArea.y
+            };
+            console.log('[자르기] crop 상태 업데이트:', newCrop);
+            return newCrop;
+        });
+    }, [crop]);
 
     // 4. 자르기 실행 및 이미지 첨부 핸들러
     const handleCropImage = async () => {
@@ -1052,6 +1074,24 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
 
                     {/* 자르기 영역 */}
                     <div style={{ position: 'relative', width: '100%', height: '80%' }}>
+                        {/* 자르기 영역 크기 조절 가이드 */}
+                        <div style={{
+                            position: 'absolute',
+                            top: '10px',
+                            right: '10px',
+                            zIndex: 5,
+                            background: 'rgba(0,0,0,0.7)',
+                            padding: '8px',
+                            borderRadius: '6px',
+                            color: 'white',
+                            fontSize: '12px'
+                        }}>
+                            <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>🔧 크기 조절 방법</div>
+                            <div>• 모서리: 대각선 크기 조절</div>
+                            <div>• 가장자리: 한 방향 크기 조절</div>
+                            <div>• 내부: 영역 이동</div>
+                        </div>
+
                         <Cropper
                             image={capturedImage}
                             crop={crop}
@@ -1089,6 +1129,10 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                             enablePan={true}
                             cropSize={{ width: 200, height: 200 }}
                             minCropSize={{ width: 50, height: 50 }}
+                            maxCropSize={{ width: 800, height: 800 }}
+                            snapToGrid={false}
+                            showImage={true}
+                            cropAreaClassName="custom-crop-area"
                         />
                     </div>
 
