@@ -267,6 +267,7 @@ class UserSettings(models.Model):
     tts_enabled = models.BooleanField(default=True, verbose_name='TTS 활성화')
     tts_voice = models.CharField(max_length=50, default='ko-KR', verbose_name='TTS 음성')
     tts_speed = models.FloatField(default=1.0, verbose_name='TTS 속도')
+    tts_pitch = models.FloatField(default=1.0, verbose_name='TTS 음조')
     
     # 음성 인식 설정
     voice_recognition_enabled = models.BooleanField(default=True, verbose_name='음성 인식 활성화')

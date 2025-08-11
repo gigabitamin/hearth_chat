@@ -435,8 +435,24 @@ const SettingsModal = ({
       if (res.ok) {
         const data = await res.json();
         console.log('💾 SettingsModal - 서버 응답 데이터:', data);
-        setUserSettings(data.settings || { ...userSettings, ...serverPatch });
-        console.log('✅ SettingsModal - 설정 저장 성공');
+
+        // 서버 응답과 로컬 상태 동기화
+        const updatedSettings = data.settings || { ...userSettings, ...serverPatch };
+        setUserSettings(updatedSettings);
+
+        // 로컬 상태도 서버 응답으로 업데이트
+        if (serverPatch.tts_speed !== undefined) {
+          setTtsRate(serverPatch.tts_speed);
+        }
+        if (serverPatch.tts_pitch !== undefined) {
+          setTtsPitch(serverPatch.tts_pitch);
+        }
+        if (serverPatch.tts_voice !== undefined) {
+          const selectedVoice = voiceList.find(v => v.name === serverPatch.tts_voice);
+          setTtsVoice(selectedVoice);
+        }
+
+        console.log('✅ SettingsModal - 설정 저장 성공, 로컬 상태 동기화 완료');
       } else {
         console.error('❌ SettingsModal - 설정 저장 실패:', res.status, res.statusText);
       }
@@ -717,8 +733,13 @@ const SettingsModal = ({
                 <label htmlFor="tts-rate-select-modal">속도: </label>
                 <select
                   id="tts-rate-select-modal"
-                  value={userSettings?.tts_speed || 1.5}
-                  onChange={e => { setTtsRate(parseFloat(e.target.value)); saveSetting({ tts_speed: parseFloat(e.target.value) }); }}
+                  value={ttsRate || userSettings?.tts_speed || 1.5}
+                  onChange={e => {
+                    const newRate = parseFloat(e.target.value);
+                    console.log('🎯 TTS 속도 변경:', newRate);
+                    setTtsRate(newRate);
+                    saveSetting({ tts_speed: newRate });
+                  }}
                   disabled={saving}
                   style={{ width: 80 }}
                 >
@@ -729,8 +750,13 @@ const SettingsModal = ({
                 <label htmlFor="tts-pitch-select-modal">음조: </label>
                 <select
                   id="tts-pitch-select-modal"
-                  value={userSettings?.tts_pitch || 1.5}
-                  onChange={e => { setTtsPitch(parseFloat(e.target.value)); saveSetting({ tts_pitch: parseFloat(e.target.value) }); }}
+                  value={ttsPitch || userSettings?.tts_pitch || 1.5}
+                  onChange={e => {
+                    const newPitch = parseFloat(e.target.value);
+                    console.log('🎯 TTS 음조 변경:', newPitch);
+                    setTtsPitch(newPitch);
+                    saveSetting({ tts_pitch: newPitch });
+                  }}
                   disabled={saving}
                   style={{ width: 80 }}
                 >
@@ -741,11 +767,11 @@ const SettingsModal = ({
                 <label htmlFor="tts-voice-select-modal">음성 선택: </label>
                 <select
                   id="tts-voice-select-modal"
-                  value={ttsVoice ? ttsVoice.name : ''}
+                  value={ttsVoice ? ttsVoice.name : userSettings?.tts_voice || ''}
                   onChange={e => {
                     const selected = voiceList.find(v => v.name === e.target.value);
                     setTtsVoice(selected);
-                    saveSetting({ ttsVoice: selected?.name });
+                    saveSetting({ tts_voice: selected?.name });
                   }}
                   disabled={saving}
                   style={{ width: 180 }}
@@ -792,14 +818,12 @@ const SettingsModal = ({
                 </span>
               </div>
               <div style={{ marginTop: 16 }}>
-                <div style={{ display: 'none' }}>
-                  <VoiceRecognition
-                    ref={voiceRecognitionRef}
-                    enabled={!!userSettings?.voice_recognition_enabled}
-                    continuous={isContinuousRecognition}
-                  // onResult, onInterimResult 등은 상위에서 props로 넘겨야 함
-                  />
-                </div>
+                <VoiceRecognition
+                  ref={voiceRecognitionRef}
+                  enabled={!!userSettings?.voice_recognition_enabled}
+                  continuous={isContinuousRecognition}
+                // onResult, onInterimResult 등은 상위에서 props로 넘겨야 함
+                />
               </div>
             </div>
           )}
