@@ -528,46 +528,38 @@ export const initializeAvatars = () => {
 };
 
 export const getAiAvatarStyle = (isCameraActive, isAiAvatarOn, isUserAvatarOn) => {
-    return {
-        position: 'absolute',
-        top: '10%',
-        left: '10%',
-        width: '120px',
-        height: '120px',
-        borderRadius: '50%',
-        border: '3px solid #4ECDC4',
-        backgroundColor: isAiAvatarOn ? '#4ECDC4' : 'transparent',
-        display: isCameraActive && isAiAvatarOn ? 'block' : 'none',
-        zIndex: 1000
-    };
+    // AI 아바타가 꺼져있으면 숨김
+    if (!isAiAvatarOn) return { display: 'none' };
+    // AI+사용자+카메라: 50% 분할
+    if (isCameraActive && isUserAvatarOn) return { flex: 1, width: '50%', height: '100%', transition: 'all 0.3s' };
+    // AI+카메라: 50% 분할
+    if (isCameraActive) return { flex: 1, width: '50%', height: '100%', transition: 'all 0.3s' };
+    // AI+사용자: 50% 분할
+    if (isUserAvatarOn) return { flex: 1, width: '50%', height: '100%', transition: 'all 0.3s' };
+    // AI만: 전체
+    return { flex: 1, width: '100%', height: '100%', transition: 'all 0.3s' };
 };
 
 export const getUserAvatarStyle = (isCameraActive, isAiAvatarOn, isUserAvatarOn) => {
-    return {
-        position: 'absolute',
-        top: '10%',
-        right: '10%',
-        width: '120px',
-        height: '120px',
-        borderRadius: '50%',
-        border: '3px solid #FF6B6B',
-        backgroundColor: isUserAvatarOn ? '#FF6B6B' : 'transparent',
-        display: isCameraActive && isUserAvatarOn ? 'block' : 'none',
-        zIndex: 1000
-    };
+    if (!isUserAvatarOn) return { display: 'none' };
+    // AI+사용자+카메라: width 0, opacity 0 등으로 숨김(완전 unmount 대신)
+    if (isCameraActive && isAiAvatarOn) return { width: 0, opacity: 0, pointerEvents: 'none', transition: 'all 0.3s' };
+    // AI+사용자: 50% 분할
+    if (isAiAvatarOn) return { flex: 1, width: '50%', height: '100%', transition: 'all 0.3s' };
+    // 카메라+사용자: width 0, opacity 0 등으로 숨김
+    if (isCameraActive) return { width: 0, opacity: 0, pointerEvents: 'none', transition: 'all 0.3s' };
+    // 사용자만: 전체
+    return { flex: 1, width: '100%', height: '100%', transition: 'all 0.3s' };
 };
 
 export const getCameraStyle = (isCameraActive, isAiAvatarOn, isUserAvatarOn) => {
-    return {
-        position: 'absolute',
-        bottom: '10%',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        width: '200px',
-        height: '150px',
-        border: '2px solid #333',
-        borderRadius: '10px',
-        display: isCameraActive ? 'block' : 'none',
-        zIndex: 1000
-    };
+    if (!isCameraActive) return { display: 'none' };
+    // AI+카메라: 50% 분할
+    if (isAiAvatarOn && !isUserAvatarOn) return { flex: 1, width: '50%', height: '100%', transition: 'all 0.3s' };
+    // AI+사용자+카메라: 50% 분할(오버레이)
+    if (isAiAvatarOn && isUserAvatarOn) return { flex: 1, width: '50%', height: '100%', transition: 'all 0.3s', position: 'relative', zIndex: 2 };
+    // 카메라+사용자: 전체(오버레이)
+    if (isUserAvatarOn) return { flex: 1, width: '100%', height: '100%', transition: 'all 0.3s', position: 'relative', zIndex: 2 };
+    // 카메라만: 전체
+    return { flex: 1, width: '100%', height: '100%', transition: 'all 0.3s' };
 }; 
