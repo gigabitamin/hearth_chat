@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './SettingsModal.css';
 import VoiceRecognition from './VoiceRecognition';
-import AISettingsModal from './AISettingsModal';
 import { API_BASE, LILY_API_URL } from '../utils/apiConfig';
 
 const ALLAUTH_BASE = `${API_BASE}/accounts`;
@@ -95,7 +94,6 @@ const SettingsModal = ({
   const [deleteError, setDeleteError] = useState(null);
 
   // AI 설정 관련 상태
-  const [showAISettingsModal, setShowAISettingsModal] = useState(false);
   const [aiSettings, setAiSettings] = useState({
     aiEnabled: !!userSettings?.ai_response_enabled,
     aiProvider: 'lily',
@@ -107,9 +105,35 @@ const SettingsModal = ({
     responseDelay: 1000,
     maxTokens: 1000,
     temperature: 0.7,
+    availableModels: [],
     ...(userSettings?.ai_settings ? JSON.parse(userSettings.ai_settings) : {})
   });
   const [currentActiveModel, setCurrentActiveModel] = useState(null);
+
+  // Lily API 모델 목록 가져오기
+  const fetchLilyModels = async () => {
+    try {
+      const response = await fetch(`${aiSettings.lilyApiUrl}/models`);
+      if (response.ok) {
+        const data = await response.json();
+        setAiSettings(prev => ({ ...prev, availableModels: data.models || [] }));
+
+        // 현재 활성화된 모델 정보 가져오기
+        if (data.current_model) {
+          console.log('🔧 SettingsModal - 현재 활성화된 모델:', data.current_model);
+          setCurrentActiveModel(data.current_model);
+
+          // 현재 활성화된 모델로 설정 업데이트
+          setAiSettings(prev => ({
+            ...prev,
+            lilyModel: data.current_model.model_id || prev.lilyModel
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Lily API 모델 목록 가져오기 실패:', error);
+    }
+  };
 
   // userSettings에서 AI 설정 로드
   useEffect(() => {
@@ -125,7 +149,8 @@ const SettingsModal = ({
         autoRespond: false,
         responseDelay: 1000,
         maxTokens: 1000,
-        temperature: 0.7
+        temperature: 0.7,
+        availableModels: []
       };
 
       // 저장된 AI 설정이 있으면 파싱
@@ -141,6 +166,13 @@ const SettingsModal = ({
 
     }
   }, [userSettings]);
+
+  // AI 제공자가 lily일 때 모델 목록 가져오기
+  useEffect(() => {
+    if (aiSettings.aiProvider === 'lily' && aiSettings.lilyApiUrl) {
+      fetchLilyModels();
+    }
+  }, [aiSettings.aiProvider, aiSettings.lilyApiUrl]);
 
   // 계정 연결 상태 fetch 함수 분리 (JSON API 사용)
   const fetchConnections = () => {
@@ -907,21 +939,372 @@ const SettingsModal = ({
           )}
           {tab === 'ai' && (
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+
+              {/* 응답 설정 */}
+              <div className="setting-group">
+                <label className="setting-label">
+                  <input
+                    type="checkbox"
+                    checked={aiSettings.autoRespond}
+                    onChange={(e) => setAiSettings(prev => ({ ...prev, autoRespond: e.target.checked }))}
+                    disabled={saving}
+                  />
+                  자동 응답 활성화
+                </label>
+              </div>
+
+              {/* AI 활성화 */}
+              {/* <div className="setting-group">
+                <label className="setting-label">
                   <input
                     type="checkbox"
                     checked={aiSettings.aiEnabled}
-                    onChange={e => {
+                    onChange={(e) => {
                       setAiSettings(prev => ({ ...prev, aiEnabled: e.target.checked }));
                       saveSetting({ ai_response_enabled: e.target.checked });
                     }}
                     disabled={saving}
                   />
-                  AI 응답 사용
+                  AI 자동 응답 활성화
                 </label>
+              </div> */}
+
+              {/* AI 제공자 선택 */}
+              <div className="setting-group">
+                <label className="setting-label">AI 제공자:</label>
+                <select
+                  value={aiSettings.aiProvider}
+                  onChange={(e) => setAiSettings(prev => ({ ...prev, aiProvider: e.target.value }))}
+                  disabled={saving}
+                >
+                  <option value="lily">Lily Fast Api</option>
+                  <option value="gemini">Gemini (Google)</option>
+                  {/* <option value="chatgpt">ChatGPT (OpenAI)</option> */}
+                  {/* <option value="huggingface">Lily Gradio</option> */}
+                </select>
+              </div>
+
+              {/* Lily API 설정 */}
+              {aiSettings.aiProvider === 'lily' && (
+                <>
+                  <div className="setting-group">
+                    <label className="setting-label">Lily API URL:</label>
+                    <input
+                      type="text"
+                      value={aiSettings.lilyApiUrl}
+                      onChange={(e) => setAiSettings(prev => ({ ...prev, lilyApiUrl: e.target.value }))}
+                      placeholder="http://localhost:8001"
+                      disabled={saving}
+                      style={{
+                        padding: '8px 12px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '0.9em',
+                        width: '100%'
+                      }}
+                    />
+                  </div>
+
+                  <div className="setting-group">
+                    <label className="setting-label">모델 선택:</label>
+                    <select
+                      value={aiSettings.lilyModel}
+                      onChange={(e) => setAiSettings(prev => ({ ...prev, lilyModel: e.target.value }))}
+                      disabled={saving}
+                      style={{
+                        padding: '8px 12px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '0.9em',
+                        width: '100%'
+                      }}
+                    >
+                      {aiSettings.availableModels?.map(model => (
+                        <option key={model.model_id} value={model.model_id}>
+                          {model.model_id}
+                        </option>
+                      )) || []}
+                    </select>
+
+                    {/* 현재 활성화된 모델 정보 표시 */}
+                    {currentActiveModel && (
+                      <div className="current-model-info" style={{ marginTop: '8px' }}>
+                        <small style={{ color: '#4CAF50', fontWeight: 'bold' }}>
+                          ✅ 현재 활성화된 모델: {currentActiveModel.display_name}
+                        </small>
+                        {currentActiveModel.display_name !== aiSettings.lilyModel && (
+                          <small style={{ color: '#FF9800', display: 'block', marginTop: '4px' }}>
+                            ⚠️ 선택된 모델과 서버의 활성 모델이 다릅니다
+                          </small>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* ChatGPT API 설정 */}
+              {aiSettings.aiProvider === 'chatgpt' && (
+                <div className="setting-group">
+                  <label className="setting-label">OpenAI API Key:</label>
+                  <input
+                    type="password"
+                    value={aiSettings.chatgptApiKey}
+                    onChange={(e) => setAiSettings(prev => ({ ...prev, chatgptApiKey: e.target.value }))}
+                    placeholder="sk-..."
+                    disabled={saving}
+                    style={{
+                      padding: '8px 12px',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      fontSize: '0.9em',
+                      width: '100%'
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Hugging Face 설정 */}
+              {aiSettings.aiProvider === 'huggingface' && (
+                <div className="setting-group">
+                  <label className="setting-label">Hugging Face 스페이스:</label>
+                  <div style={{
+                    padding: '10px',
+                    backgroundColor: '#f5f5f5',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    color: '#666'
+                  }}>
+                    <strong>Kanana LLM (Hugging Face)</strong><br />
+                    <small>스페이스 URL: https://gbrabbit-lily-math-rag.hf.space</small><br />
+                    <small>모델: kanana-1.5-v-3b-instruct</small>
+                  </div>
+                </div>
+              )}
+
+              {/* Gemini API 설정 */}
+              {aiSettings.aiProvider === 'gemini' && (
+                <>
+                  <div className="setting-group">
+                    <label className="setting-label">Gemini API Key:</label>
+                    <input
+                      type="password"
+                      value={aiSettings.geminiApiKey}
+                      onChange={(e) => setAiSettings(prev => ({ ...prev, geminiApiKey: e.target.value }))}
+                      placeholder="AIza..."
+                      disabled={saving}
+                      style={{
+                        padding: '8px 12px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '0.9em',
+                        width: '100%'
+                      }}
+                    />
+                  </div>
+
+                  <div className="setting-group">
+                    <label className="setting-label">Gemini 모델 선택:</label>
+                    <select
+                      value={aiSettings.geminiModel}
+                      onChange={(e) => setAiSettings(prev => ({ ...prev, geminiModel: e.target.value }))}
+                      disabled={saving}
+                      style={{
+                        padding: '8px 12px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '0.9em',
+                        width: '100%'
+                      }}
+                    >
+                      {[
+                        { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', description: '빠르고 다재다능한 멀티모달 모델' },
+                        { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: '고성능 멀티모달 모델 (최대 200만 토큰)' },
+                        { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', description: '최신 2.0 버전의 빠른 모델' },
+                        { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: '최신 2.5 버전의 빠른 모델' },
+                        { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', description: '최신 2.5 버전의 고성능 모델' }
+                      ].map(model => (
+                        <option key={model.id} value={model.id}>
+                          {model.name} - {model.description}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* 선택된 모델 정보 표시 */}
+                    {aiSettings.geminiModel && (
+                      <div className="model-info" style={{ marginTop: '8px' }}>
+                        <small style={{ color: '#4CAF50', fontWeight: 'bold' }}>
+                          ✅ 선택된 모델: {[
+                            { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', description: '빠르고 다재다능한 멀티모달 모델' },
+                            { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: '고성능 멀티모달 모델 (최대 200만 토큰)' },
+                            { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', description: '최신 2.0 버전의 빠른 모델' },
+                            { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: '최신 2.5 버전의 빠른 모델' },
+                            { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', description: '최신 2.5 버전의 고성능 모델' }
+                          ].find(m => m.id === aiSettings.geminiModel)?.name}
+                        </small>
+                        <small style={{ color: '#666', display: 'block', marginTop: '4px' }}>
+                          {[
+                            { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', description: '빠르고 다재다능한 멀티모달 모델' },
+                            { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: '고성능 멀티모달 모델 (최대 200만 토큰)' },
+                            { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', description: '최신 2.0 버전의 빠른 모델' },
+                            { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: '최신 2.5 버전의 빠른 모델' },
+                            { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', description: '최신 2.5 버전의 고성능 모델' }
+                          ].find(m => m.id === aiSettings.geminiModel)?.description}
+                        </small>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              <div className="setting-group">
+                <label className="setting-label">응답 지연 시간 (ms):</label>
+                <input
+                  type="number"
+                  value={aiSettings.responseDelay}
+                  onChange={(e) => setAiSettings(prev => ({ ...prev, responseDelay: parseInt(e.target.value) }))}
+                  min="0"
+                  max="10000"
+                  disabled={saving}
+                  style={{
+                    padding: '8px 12px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    fontSize: '0.9em',
+                    width: '100%'
+                  }}
+                />
+              </div>
+
+              <div className="setting-group">
+                <label className="setting-label">최대 토큰 수:</label>
+                <input
+                  type="number"
+                  value={aiSettings.maxTokens}
+                  onChange={(e) => setAiSettings(prev => ({ ...prev, maxTokens: parseInt(e.target.value) }))}
+                  min="1"
+                  max="4000"
+                  disabled={saving}
+                  style={{
+                    padding: '8px 12px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    fontSize: '0.9em',
+                    width: '100%'
+                  }}
+                />
+              </div>
+
+              <div className="setting-group">
+                <label className="setting-label">창의성 (Temperature):</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="2"
+                  step="0.1"
+                  value={aiSettings.temperature}
+                  onChange={(e) => setAiSettings(prev => ({ ...prev, temperature: parseFloat(e.target.value) }))}
+                  disabled={saving}
+                  style={{ width: '100%' }}
+                />
+                <span>{aiSettings.temperature}</span>
+              </div>
+
+              {/* 연결 테스트 */}
+              <div className="setting-group">
                 <button
-                  onClick={() => setShowAISettingsModal(true)}
+                  className="test-button"
+                  onClick={async () => {
+                    try {
+                      setSaving(true);
+                      let testUrl = '';
+                      let testData = {};
+
+                      switch (aiSettings.aiProvider) {
+                        case 'lily':
+                          testUrl = `${aiSettings.lilyApiUrl}/health`;
+                          break;
+                        case 'huggingface':
+                          testUrl = 'https://gbrabbit-lily-math-rag.hf.space/api/predict';
+                          testData = {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                              data: [
+                                "안녕하세요! 테스트 메시지입니다.",
+                                "kanana-1.5-v-3b-instruct",
+                                50,
+                                0.7,
+                                0.9,
+                                1.0,
+                                true
+                              ]
+                            })
+                          };
+                          break;
+                        case 'chatgpt':
+                          testUrl = 'https://api.openai.com/v1/models';
+                          testData = {
+                            headers: {
+                              'Authorization': `Bearer ${aiSettings.chatgptApiKey}`
+                            }
+                          };
+                          break;
+                        case 'gemini':
+                          testUrl = `https://generativelanguage.googleapis.com/v1beta/models/${aiSettings.geminiModel}:generateContent`;
+                          testData = {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                              'x-goog-api-key': aiSettings.geminiApiKey
+                            },
+                            body: JSON.stringify({
+                              contents: [{
+                                parts: [
+                                  {
+                                    text: "안녕하세요! 테스트 메시지입니다."
+                                  }
+                                ]
+                              }],
+                              generationConfig: {
+                                maxOutputTokens: 50,
+                                temperature: 0.7
+                              }
+                            })
+                          };
+                          break;
+                      }
+
+                      const response = await fetch(testUrl, testData);
+
+                      if (response.ok) {
+                        let resultMessage = `${aiSettings.aiProvider.toUpperCase()} API 연결 성공!`;
+
+                        // 허깅페이스의 경우 응답 내용도 확인
+                        if (aiSettings.aiProvider === 'huggingface') {
+                          try {
+                            const result = await response.json();
+                            if (result.data && result.data[0]) {
+                              resultMessage += `\n테스트 응답: ${result.data[0].substring(0, 100)}...`;
+                            }
+                          } catch (e) {
+                            resultMessage += '\n(응답 파싱 실패)';
+                          }
+                        }
+
+                        alert(resultMessage);
+                      } else {
+                        alert(`${aiSettings.aiProvider.toUpperCase()} API 연결 실패: ${response.status}`);
+                      }
+                    } catch (error) {
+                      alert(`${aiSettings.aiProvider.toUpperCase()} API 연결 오류: ${error.message}`);
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                  disabled={saving}
                   style={{
                     padding: '8px 16px',
                     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -929,40 +1312,54 @@ const SettingsModal = ({
                     border: 'none',
                     borderRadius: '6px',
                     cursor: 'pointer',
-                    fontSize: '0.9em'
+                    fontSize: '0.9em',
+                    width: '100%'
                   }}
                 >
-                  🤖 AI 설정
+                  {saving ? '테스트 중...' : 'API 연결 테스트'}
                 </button>
               </div>
 
-              <div style={{ marginTop: 12, fontSize: '0.9em', color: '#666' }}>
-                AI 응답을 끄면 AI가 메시지에 응답하지 않습니다.
+              {/* 설정 저장 버튼 */}
+              <div className="setting-group" style={{ marginTop: '20px' }}>
+                <button
+                  onClick={async () => {
+                    try {
+                      setSaving(true);
+                      // AI 설정을 서버에 저장
+                      const saveData = {
+                        ai_response_enabled: aiSettings.aiEnabled,
+                        ai_settings: JSON.stringify(aiSettings),
+                        // 서버 DB 필드도 동기화하여 기본 제공자 추론이 어긋나지 않도록 함
+                        ai_provider: aiSettings.aiProvider,
+                        gemini_model: aiSettings.geminiModel,
+                      };
+                      console.log('🔧 SettingsModal - 서버에 저장할 데이터:', saveData);
+                      console.log('🔧 SettingsModal - ai_settings JSON:', JSON.stringify(aiSettings));
+                      await saveSetting(saveData);
+                      alert('AI 설정이 저장되었습니다.');
+                    } catch (error) {
+                      console.error('AI 설정 저장 실패:', error);
+                      alert('AI 설정 저장에 실패했습니다.');
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                  disabled={saving}
+                  style={{
+                    padding: '12px 24px',
+                    background: 'linear-gradient(135deg,rgb(193, 193, 193) 0%,rgb(193, 193, 193) 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '1em',
+                    width: '100%'
+                  }}
+                >
+                  {saving ? '저장 중...' : 'AI 설정 저장'}
+                </button>
               </div>
-
-              {aiSettings.aiEnabled && (
-                <div style={{ marginTop: 16, padding: 12, background: '#f8f9fa', borderRadius: '8px', border: '1px solid #e0e0e0' }}>
-                  <div style={{ fontWeight: '600', marginBottom: '8px' }}>
-                    현재 AI 설정: hi
-                  </div>
-                  <div style={{ fontSize: '0.9em', color: '#666' }}>
-                    <div>• 제공자: {aiSettings.aiProvider === 'lily' ? 'Lily LLM' :
-                      aiSettings.aiProvider === 'chatgpt' ? 'ChatGPT' : 'Gemini'}</div>
-                    {aiSettings.aiProvider === 'lily' && (
-                      <>
-                        <div>• 모델: {aiSettings.lilyModel}</div>
-                        {currentActiveModel && (
-                          <div style={{ color: '#4CAF50', fontWeight: 'bold' }}>
-                            • 서버 활성 모델: {currentActiveModel.display_name}
-                          </div>
-                        )}
-                      </>
-                    )}
-                    <div>• 자동 응답: {aiSettings.autoRespond ? '활성화' : '비활성화'}</div>
-                    <div>• 응답 지연: {aiSettings.responseDelay}ms</div>
-                  </div>
-                </div>
-              )}
             </div>
           )}
           {tab === 'notify' && <div>알림 설정 (예: 소리, 팝업 등)</div>}
@@ -972,33 +1369,6 @@ const SettingsModal = ({
           {tab === 'etc' && <div>기타 설정</div>}
         </div>
       </div>
-
-      {/* AI 설정 모달 */}
-      <AISettingsModal
-        isOpen={showAISettingsModal}
-        onClose={() => {
-          console.log('🔧 SettingsModal - AI 설정 모달 닫기');
-          setShowAISettingsModal(false);
-        }}
-        onSave={(newSettings) => {
-          console.log('🔧 SettingsModal - AI 설정 저장 시작:', newSettings);
-          setAiSettings(newSettings);
-          setShowAISettingsModal(false);
-          // AI 설정을 서버에 저장
-          const saveData = {
-            ai_response_enabled: newSettings.aiEnabled,
-            ai_settings: JSON.stringify(newSettings),
-            // 서버 DB 필드도 동기화하여 기본 제공자 추론이 어긋나지 않도록 함
-            ai_provider: newSettings.aiProvider,
-            gemini_model: newSettings.geminiModel,
-          };
-          console.log('🔧 SettingsModal - 서버에 저장할 데이터:', saveData);
-          console.log('🔧 SettingsModal - ai_settings JSON:', JSON.stringify(newSettings));
-          saveSetting(saveData);
-        }}
-        currentSettings={aiSettings}
-        onActiveModelChange={setCurrentActiveModel}
-      />
     </div>
   );
 };

@@ -248,8 +248,21 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
                 </div>
 
                 <div className="ai-settings-modal-content">
-                    {/* AI 활성화 */}
+
+                    {/* 응답 설정 */}
                     <div className="setting-group">
+                        <label className="setting-label">
+                            <input
+                                type="checkbox"
+                                checked={settings.autoRespond}
+                                onChange={(e) => handleInputChange('autoRespond', e.target.checked)}
+                            />
+                            자동 응답 활성화
+                        </label>
+                    </div>
+
+                    {/* AI 활성화 */}
+                    {/* <div className="setting-group">
                         <label className="setting-label">
                             <input
                                 type="checkbox"
@@ -258,7 +271,7 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
                             />
                             AI 자동 응답 활성화
                         </label>
-                    </div>
+                    </div> */}
 
                     {/* AI 제공자 선택 */}
                     <div className="setting-group">
@@ -393,17 +406,6 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
                         </>
                     )}
 
-                    {/* 응답 설정 */}
-                    <div className="setting-group">
-                        <label className="setting-label">
-                            <input
-                                type="checkbox"
-                                checked={settings.autoRespond}
-                                onChange={(e) => handleInputChange('autoRespond', e.target.checked)}
-                            />
-                            자동 응답 활성화
-                        </label>
-                    </div>
 
                     <div className="setting-group">
                         <label className="setting-label">응답 지연 시간 (ms):</label>
