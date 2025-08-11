@@ -13,6 +13,7 @@ import GlobalChatInput from './components/GlobalChatInput';
 import { getApiBase, csrfFetch, getCookie } from './utils/apiConfig';
 import './App.css';
 import AiMessageRenderer from './components/AiMessageRenderer';
+import ttsService from './services/ttsService';
 
 
 // API_BASE 상수는 utils/apiConfig.js에서 import됨
@@ -252,6 +253,66 @@ function AppContent(props) {
   const voiceRecognitionRef = React.useRef(null);
   const [permissionStatus, setPermissionStatus] = useState('prompt');
   const [isCreateNewChatOpen, setIsCreateNewChatOpen] = useState(false);
+
+  // 음성 목록 로드
+  useEffect(() => {
+    const loadVoiceList = () => {
+      try {
+        // ttsService가 지원되는지 확인
+        if (ttsService && ttsService.isSupported()) {
+          console.log('🎵 음성 목록 로딩 시작...');
+          
+          // 현재 음성 목록 가져오기
+          let voices = ttsService.getVoices();
+          
+          if (voices.length > 0) {
+            console.log('🎵 음성 목록 로드됨:', voices);
+            setVoiceList(voices);
+          } else {
+            // 음성 목록이 아직 로드되지 않은 경우, 이벤트 리스너 설정
+            console.log('🎵 음성 목록 로딩 대기 중...');
+            
+            const handleVoicesChanged = () => {
+              const loadedVoices = ttsService.getVoices();
+              if (loadedVoices.length > 0) {
+                console.log('🎵 음성 목록 로드됨 (이벤트):', loadedVoices);
+                setVoiceList(loadedVoices);
+                // 이벤트 리스너 제거
+                if (window.speechSynthesis) {
+                  window.speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+                }
+              }
+            };
+            
+            // voiceschanged 이벤트 리스너 추가
+            if (window.speechSynthesis) {
+              window.speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
+            }
+            
+            // 타임아웃 설정 (2초 후 빈 배열로 설정)
+            setTimeout(() => {
+              setVoiceList(prev => {
+                if (prev === null) {
+                  console.warn('🎵 음성 목록 로딩 타임아웃');
+                  return [];
+                }
+                return prev;
+              });
+            }, 2000);
+          }
+        } else {
+          console.warn('TTS가 지원되지 않습니다.');
+          setVoiceList([]);
+        }
+      } catch (error) {
+        console.error('음성 목록 로드 실패:', error);
+        setVoiceList([]);
+      }
+    };
+
+    // 컴포넌트 마운트 시 음성 목록 로드
+    loadVoiceList();
+  }, []); // 의존성 배열을 비워서 한 번만 실행
 
   // userSettings에서 TTS 설정 로드하여 로컬 상태 동기화
   useEffect(() => {
@@ -791,7 +852,7 @@ function App() {
   const [roomMessages, setRoomMessages] = useState([]);
   // 추가: 상단 탭/모달 상태
   const [activeTab, setActiveTab] = useState('personal'); // 'personal' | 'open'
-  // 오버레이 탭 상태: 기본값을 'favorite'으로(즐겨찾기)
+  // 오버레이 탭 상태: 기본값을 'favorite'로(즐겨찾기)
   const [overlayTab, setOverlayTab] = useState('favorite');
   const [isNotifyModalOpen, setIsNotifyModalOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
