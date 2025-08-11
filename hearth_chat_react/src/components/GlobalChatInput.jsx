@@ -30,11 +30,12 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
     // --- 카메라 및 자르기 기능 관련 상태 추가 ---
     const [showCamera, setShowCamera] = useState(false);
     const [capturedImage, setCapturedImage] = useState(null);
-    const [crop, setCrop] = useState({ x: 0, y: 0, width: 100, height: 100 });
+    const [crop, setCrop] = useState({ x: 0, y: 0, width: 200, height: 200 });
     const [zoom, setZoom] = useState(1);
     const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
     const [isMobile, setIsMobile] = useState(false);
     const webcamRef = useRef(null);
+    const cropContainerRef = useRef(null);
 
     // 모바일 감지
     useEffect(() => {
@@ -45,6 +46,13 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
             console.log('[GlobalChatInput] 모바일 감지:', isMobileDevice);
         };
         checkMobile();
+
+        // 컴포넌트 언마운트 시 이벤트 리스너 정리
+        return () => {
+            // 모든 전역 마우스 이벤트 리스너 제거
+            document.removeEventListener('mousemove', () => { });
+            document.removeEventListener('mouseup', () => { });
+        };
     }, []);
 
     // 모바일에서 기본 카메라 설정 (후면 카메라 우선)
@@ -110,17 +118,17 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
             croppedAreaPixels: croppedAreaPixelsValue,
             currentCrop: crop
         });
-        setCroppedAreaPixels(croppedAreaPixelsValue);
-        // crop 상태도 업데이트하여 UI 동기화
-        setCrop(prevCrop => {
-            const newCrop = {
-                ...prevCrop,
-                x: croppedArea.x,
-                y: croppedArea.y
-            };
-            console.log('[자르기] crop 상태 업데이트:', newCrop);
-            return newCrop;
+
+        // 새로운 자르기 시스템에서는 crop 상태를 직접 사용
+        // croppedAreaPixels는 나중에 실제 자르기 시 계산
+        setCroppedAreaPixels({
+            x: (crop.x / 100) * 100,
+            y: (crop.y / 100) * 100,
+            width: (crop.width / 100) * 100,
+            height: (crop.height / 100) * 100
         });
+
+        console.log('[자르기] crop 상태 업데이트:', crop);
     }, [crop]);
 
     // 4. 자르기 실행 및 이미지 첨부 핸들러
@@ -1087,53 +1095,161 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                             fontSize: '12px'
                         }}>
                             <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>🔧 크기 조절 방법</div>
-                            <div>• 모서리: 대각선 크기 조절</div>
-                            <div>• 가장자리: 한 방향 크기 조절</div>
-                            <div>• 내부: 영역 이동</div>
+                            <div>• 파란색 박스 내부: 드래그하여 이동</div>
+                            <div>• 파란색 원형 핸들: 드래그하여 크기 조절</div>
+                            <div>• 모서리 핸들: 대각선 크기 조절</div>
+                            <div>• 가장자리 핸들: 한 방향 크기 조절</div>
+                            <div style={{ marginTop: '4px', fontSize: '11px', color: '#90EE90' }}>
+                                📏 현재 크기: {Math.round(crop.width)}% x {Math.round(crop.height)}%
+                            </div>
+                            <div style={{ marginTop: '4px', fontSize: '11px', color: '#87CEEB' }}>
+                                🎯 수동 조절: 하단 📏+ 📏- 버튼 사용
+                            </div>
                         </div>
 
-                        <Cropper
-                            image={capturedImage}
-                            crop={crop}
-                            zoom={zoom}
-                            aspect={undefined} // 자유 비율로 자르기
-                            minZoom={0.5}
-                            maxZoom={3}
-                            onCropChange={setCrop}
-                            onZoomChange={setZoom}
-                            onCropComplete={onCropComplete}
+                        {/* 간단한 Canvas 기반 자르기 */}
+                        <div
+                            ref={cropContainerRef}
                             style={{
-                                containerStyle: {
+                                position: 'relative',
+                                width: '100%',
+                                height: '100%',
+                                overflow: 'hidden',
+                                backgroundColor: '#000'
+                            }}
+                        >
+                            <img
+                                src={capturedImage}
+                                alt="자르기 대상 이미지"
+                                style={{
                                     width: '100%',
                                     height: '100%',
-                                    backgroundColor: '#000'
-                                },
-                                cropAreaStyle: {
+                                    objectFit: 'contain',
+                                    transform: `scale(${zoom})`,
+                                    transformOrigin: 'center'
+                                }}
+                                draggable={false}
+                            />
+
+                            {/* 자르기 박스 */}
+                            <div
+                                style={{
+                                    position: 'absolute',
+                                    left: `${crop.x}%`,
+                                    top: `${crop.y}%`,
+                                    width: `${crop.width}%`,
+                                    height: `${crop.height}%`,
                                     border: '3px solid #2196F3',
                                     boxShadow: '0 0 0 9999px rgba(0,0,0,0.6)',
-                                    color: '#2196F3',
-                                    borderRadius: '2px'
-                                },
-                                mediaStyle: {
-                                    width: '100%',
-                                    height: '100%',
-                                    objectFit: 'contain'
-                                }
-                            }}
-                            showGrid={true}
-                            gridColor="rgba(255,255,255,0.3)"
-                            gridSize={50}
-                            restrictPosition={false}
-                            enableResize={true}
-                            enableZoom={true}
-                            enablePan={true}
-                            cropSize={{ width: 200, height: 200 }}
-                            minCropSize={{ width: 50, height: 50 }}
-                            maxCropSize={{ width: 800, height: 800 }}
-                            snapToGrid={false}
-                            showImage={true}
-                            cropAreaClassName="custom-crop-area"
-                        />
+                                    cursor: 'move',
+                                    boxSizing: 'border-box'
+                                }}
+                                onMouseDown={(e) => {
+                                    if (e.target === e.currentTarget) {
+                                        const startX = e.clientX;
+                                        const startY = e.clientY;
+                                        const startCrop = { ...crop };
+
+                                        const handleMouseMove = (moveEvent) => {
+                                            const deltaX = moveEvent.clientX - startX;
+                                            const deltaY = moveEvent.clientY - startY;
+
+                                            if (!cropContainerRef.current) return;
+
+                                            const containerRect = cropContainerRef.current.getBoundingClientRect();
+                                            const deltaXPercent = (deltaX / containerRect.width) * 100;
+                                            const deltaYPercent = (deltaY / containerRect.height) * 100;
+
+                                            setCrop({
+                                                ...startCrop,
+                                                x: Math.max(0, Math.min(100 - startCrop.width, startCrop.x + deltaXPercent)),
+                                                y: Math.max(0, Math.min(100 - startCrop.height, startCrop.y + deltaYPercent))
+                                            });
+                                        };
+
+                                        const handleMouseUp = () => {
+                                            document.removeEventListener('mousemove', handleMouseMove);
+                                            document.removeEventListener('mouseup', handleMouseUp);
+                                        };
+
+                                        document.addEventListener('mousemove', handleMouseMove);
+                                        document.addEventListener('mouseup', handleMouseUp);
+                                    }
+                                }}
+                            >
+                                {/* 크기 조절 핸들들 */}
+                                {['nw', 'ne', 'sw', 'se', 'n', 's', 'e', 'w'].map((handle) => (
+                                    <div
+                                        key={handle}
+                                        style={{
+                                            position: 'absolute',
+                                            width: '12px',
+                                            height: '12px',
+                                            backgroundColor: '#2196F3',
+                                            border: '2px solid white',
+                                            borderRadius: '50%',
+                                            cursor: `${handle === 'nw' || handle === 'se' ? 'nw-resize' :
+                                                handle === 'ne' || handle === 'sw' ? 'ne-resize' :
+                                                    handle === 'n' || handle === 's' ? 'ns-resize' : 'ew-resize'}`,
+                                            ...(handle === 'nw' ? { top: '-6px', left: '-6px' } :
+                                                handle === 'ne' ? { top: '-6px', right: '-6px' } :
+                                                    handle === 'sw' ? { bottom: '-6px', left: '-6px' } :
+                                                        handle === 'se' ? { bottom: '-6px', right: '-6px' } :
+                                                            handle === 'n' ? { top: '-6px', left: '50%', transform: 'translateX(-50%)' } :
+                                                                handle === 's' ? { bottom: '-6px', left: '50%', transform: 'translateX(-50%)' } :
+                                                                    handle === 'e' ? { right: '-6px', top: '50%', transform: 'translateY(-50%)' } :
+                                                                        { left: '-6px', top: '50%', transform: 'translateY(-50%)' })
+                                        }}
+                                        onMouseDown={(e) => {
+                                            e.stopPropagation();
+                                            const startX = e.clientX;
+                                            const startY = e.clientY;
+                                            const startCrop = { ...crop };
+
+                                            const handleMouseMove = (moveEvent) => {
+                                                const deltaX = moveEvent.clientX - startX;
+                                                const deltaY = moveEvent.clientY - startY;
+
+                                                if (!cropContainerRef.current) return;
+
+                                                const containerRect = cropContainerRef.current.getBoundingClientRect();
+                                                const deltaXPercent = (deltaX / containerRect.width) * 100;
+                                                const deltaYPercent = (deltaY / containerRect.height) * 100;
+
+                                                let newCrop = { ...startCrop };
+
+                                                if (handle.includes('e')) {
+                                                    newCrop.width = Math.max(10, startCrop.width + deltaXPercent);
+                                                }
+                                                if (handle.includes('w')) {
+                                                    const newWidth = Math.max(10, startCrop.width - deltaXPercent);
+                                                    newCrop.x = startCrop.x + (startCrop.width - newWidth);
+                                                    newCrop.width = newWidth;
+                                                }
+                                                if (handle.includes('s')) {
+                                                    newCrop.height = Math.max(10, startCrop.height + deltaYPercent);
+                                                }
+                                                if (handle.includes('n')) {
+                                                    const newHeight = Math.max(10, startCrop.height - deltaYPercent);
+                                                    newCrop.y = startCrop.y + (startCrop.height - newHeight);
+                                                    newCrop.height = newHeight;
+                                                }
+
+                                                setCrop(newCrop);
+                                            };
+
+                                            const handleMouseUp = () => {
+                                                document.removeEventListener('mousemove', handleMouseMove);
+                                                document.removeEventListener('mouseup', handleMouseUp);
+                                            };
+
+                                            document.addEventListener('mousemove', handleMouseMove);
+                                            document.addEventListener('mouseup', handleMouseUp);
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                        </div>
                     </div>
 
                     {/* 하단 컨트롤 */}
@@ -1201,7 +1317,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                             </button>
                             <button
                                 onClick={() => {
-                                    setCrop({ x: 0, y: 0, width: 100, height: 100 });
+                                    setCrop({ x: 0, y: 0, width: 200, height: 200 });
                                     setZoom(1);
                                     setCroppedAreaPixels(null);
                                 }}
@@ -1217,6 +1333,37 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                                 title="자르기 영역 리셋"
                             >
                                 🔄 리셋
+                            </button>
+                            {/* 수동 크기 조절 버튼들 */}
+                            <button
+                                onClick={() => setCrop(prev => ({ ...prev, width: prev.width + 20, height: prev.height + 20 }))}
+                                style={{
+                                    padding: '6px 10px',
+                                    backgroundColor: '#4CAF50',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '12px'
+                                }}
+                                title="자르기 영역 확대"
+                            >
+                                📏+
+                            </button>
+                            <button
+                                onClick={() => setCrop(prev => ({ ...prev, width: Math.max(50, prev.width - 20), height: Math.max(50, prev.height - 20) }))}
+                                style={{
+                                    padding: '6px 10px',
+                                    backgroundColor: '#f44336',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '12px'
+                                }}
+                                title="자르기 영역 축소"
+                            >
+                                📏-
                             </button>
                         </div>
 
