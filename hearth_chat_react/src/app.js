@@ -722,6 +722,7 @@ function AppContent(props) {
         onOpenCreateRoomModal={onOpenCreateRoomModal}
         onImageClick={setViewerImage}
         setPendingImageFile={setPendingImageFile}
+        userSettings={userSettings}
       />
       {/* 이미지 뷰어 모달 */}
       {viewerImage && (

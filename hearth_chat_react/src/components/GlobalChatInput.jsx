@@ -3,10 +3,12 @@ import { getApiBase, getCookie, csrfFetch, LILY_API_URL } from '../utils/apiConf
 import Webcam from 'react-webcam';
 import Cropper from 'react-easy-crop';
 import { getCroppedImg, dataURLtoFile } from './cropUtils';
+import ttsService from '../services/ttsService';
+import VoiceRecognition from './VoiceRecognition';
 
 const EMOJI_LIST = ['👍', '😂', '❤️', '😮', '😢', '👏', '🔥', '😡', '🙏', '🎉'];
 
-const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageClick, setPendingImageFile }) => {
+const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageClick, setPendingImageFile, userSettings }) => {
     // console.log('[DEBUG] GlobalChatInput 컴포넌트 렌더링됨');
     // console.log('[DEBUG] props:', { room, loginUser, ws, onOpenCreateRoomModal, onImageClick });
     // console.log('onOpenCreateRoomModal 프롭:', onOpenCreateRoomModal);
@@ -32,6 +34,8 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
     const [zoom, setZoom] = useState(1);
     const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
     const webcamRef = useRef(null);
+
+
 
     // --- 카메라 관련 함수 ---    
     // 1. 카메라 버튼 클릭 핸들러
@@ -582,6 +586,12 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
     const handleSend = async () => {
         console.log('[DEBUG] handleSend 호출됨, attachedImages:', attachedImages, 'attachedDocuments:', attachedDocuments);
 
+        // TTS가 재생 중이면 중단
+        if (ttsService && ttsService.isCurrentlySpeaking()) {
+            ttsService.stop();
+            console.log('[TTS] 사용자 입력으로 인해 TTS 중단됨');
+        }
+
         // 이미지나 문서가 첨부된 경우
         if (attachedImages.length > 0 || attachedDocuments.length > 0) {
             console.log('[DEBUG] 파일이 첨부되어 있으므로 handleMultipleFilesUploadAndSend 호출');
@@ -746,6 +756,50 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
         }
         setLoading(false);
     };
+
+    // 음성인식 관련 상태 추가
+    const [isVoiceRecognitionEnabled, setIsVoiceRecognitionEnabled] = useState(false);
+    const voiceRecognitionRef = useRef(null);
+
+    // userSettings에서 음성인식 설정 확인
+    useEffect(() => {
+        console.log('[GlobalChatInput] userSettings:', userSettings);
+        if (userSettings && userSettings.voice_recognition_enabled) {
+            console.log('[GlobalChatInput] 음성인식 활성화됨');
+            setIsVoiceRecognitionEnabled(userSettings.voice_recognition_enabled);
+        } else {
+            console.log('[GlobalChatInput] 음성인식 비활성화됨');
+            setIsVoiceRecognitionEnabled(false);
+        }
+    }, [userSettings]);
+
+    // 음성인식 결과 처리
+    const handleVoiceResult = useCallback((finalText) => {
+        if (finalText && finalText.trim()) {
+            setInput(finalText.trim());
+            console.log('[음성인식] 인식된 텍스트를 입력창에 설정:', finalText);
+        }
+    }, []);
+
+    // 음성인식 중간 결과 처리
+    const handleVoiceInterimResult = useCallback((interimText) => {
+        // 중간 결과는 입력창에 표시하지 않고 로그만 출력
+        if (interimText && interimText.trim()) {
+            console.log('[음성인식] 중간 결과:', interimText);
+        }
+    }, []);
+
+    // 음성인식 자동전송 처리
+    const handleVoiceAutoSend = useCallback((finalText) => {
+        if (finalText && finalText.trim()) {
+            setInput(finalText.trim());
+            // 자동전송이 활성화되어 있으면 즉시 전송
+            setTimeout(() => {
+                handleSend();
+            }, 100);
+            console.log('[음성인식] 자동전송:', finalText);
+        }
+    }, [handleSend]);
 
     // 모바일 long-press 핸들러
     const handleTouchStart = () => {
@@ -1182,10 +1236,29 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                                 }}
                             >📸</span>
                         </button>
-                    )
-                    }
+                    )}
                 </div>
             </div>
+
+            {/* 음성인식 컴포넌트 추가 */}
+            {isVoiceRecognitionEnabled && (
+                <div style={{ display: 'none' }}>
+                    <VoiceRecognition
+                        ref={voiceRecognitionRef}
+                        enabled={isVoiceRecognitionEnabled}
+                        continuous={true}
+                        onResult={handleVoiceResult}
+                        onInterimResult={handleVoiceInterimResult}
+                        onAutoSend={handleVoiceAutoSend}
+                        autoSend={userSettings?.voiceAutoSend || false}
+                    />
+                </div>
+            )}
+            {!isVoiceRecognitionEnabled && (
+                <div style={{ display: 'none' }}>
+                    [DEBUG] 음성인식 비활성화됨 - userSettings: {JSON.stringify(userSettings)}
+                </div>
+            )}
         </div>
     );
 };

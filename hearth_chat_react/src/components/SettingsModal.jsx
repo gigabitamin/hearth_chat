@@ -792,12 +792,14 @@ const SettingsModal = ({
                 </span>
               </div>
               <div style={{ marginTop: 16 }}>
-                <VoiceRecognition
-                  ref={voiceRecognitionRef}
-                  enabled={!!userSettings?.voice_recognition_enabled}
-                  continuous={isContinuousRecognition}
-                // onResult, onInterimResult 등은 상위에서 props로 넘겨야 함
-                />
+                <div style={{ display: 'none' }}>
+                  <VoiceRecognition
+                    ref={voiceRecognitionRef}
+                    enabled={!!userSettings?.voice_recognition_enabled}
+                    continuous={isContinuousRecognition}
+                  // onResult, onInterimResult 등은 상위에서 props로 넘겨야 함
+                  />
+                </div>
               </div>
             </div>
           )}
