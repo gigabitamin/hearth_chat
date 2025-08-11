@@ -30,7 +30,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
     // --- 카메라 및 자르기 기능 관련 상태 추가 ---
     const [showCamera, setShowCamera] = useState(false);
     const [capturedImage, setCapturedImage] = useState(null);
-    const [crop, setCrop] = useState({ x: 0, y: 0 });
+    const [crop, setCrop] = useState({ x: 0, y: 0, width: 100, height: 100 });
     const [zoom, setZoom] = useState(1);
     const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
     const [isMobile, setIsMobile] = useState(false);
@@ -91,7 +91,14 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
 
     // 3. 자르기 완료 콜백
     const onCropComplete = useCallback((croppedArea, croppedAreaPixelsValue) => {
+        console.log('[자르기] 자르기 영역 변경:', croppedArea, croppedAreaPixelsValue);
         setCroppedAreaPixels(croppedAreaPixelsValue);
+        // crop 상태도 업데이트하여 UI 동기화
+        setCrop(prevCrop => ({
+            ...prevCrop,
+            x: croppedArea.x,
+            y: croppedArea.y
+        }));
     }, []);
 
     // 4. 자르기 실행 및 이미지 첨부 핸들러
@@ -1004,20 +1011,203 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
             {/* --- 이미지 자르기 모달 --- */}
             {capturedImage && (
                 <div className="crop-modal" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.9)', zIndex: 400, display: 'flex', flexDirection: 'column' }}>
+                    {/* 자르기 가이드 및 컨트롤 */}
+                    <div style={{
+                        position: 'absolute',
+                        top: '20px',
+                        left: '20px',
+                        zIndex: 10,
+                        background: 'rgba(0,0,0,0.7)',
+                        padding: '12px',
+                        borderRadius: '8px',
+                        color: 'white',
+                        maxWidth: '280px'
+                    }}>
+                        <div style={{ marginBottom: '8px', fontWeight: 'bold' }}>📐 자르기 도구</div>
+                        <div style={{ fontSize: '12px', marginBottom: '8px' }}>
+                            • 드래그하여 영역 이동<br />
+                            • 모서리/가장자리 드래그하여 크기 조절<br />
+                            • 휠 또는 핀치로 확대/축소<br />
+                            • 자르기 박스 크기: 최소 50x50px
+                        </div>
+                        <div style={{ fontSize: '12px' }}>
+                            현재 확대: {Math.round(zoom * 100)}%
+                        </div>
+                        {/* 자르기 영역 정보 표시 */}
+                        {croppedAreaPixels && (
+                            <div style={{
+                                fontSize: '11px',
+                                marginTop: '8px',
+                                padding: '6px',
+                                background: 'rgba(255,255,255,0.1)',
+                                borderRadius: '4px',
+                                border: '1px solid rgba(255,255,255,0.2)'
+                            }}>
+                                <div>자르기 영역:</div>
+                                <div>너비: {Math.round(croppedAreaPixels.width)}px</div>
+                                <div>높이: {Math.round(croppedAreaPixels.height)}px</div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* 자르기 영역 */}
                     <div style={{ position: 'relative', width: '100%', height: '80%' }}>
                         <Cropper
                             image={capturedImage}
                             crop={crop}
                             zoom={zoom}
-                            // aspect={1} // 1:1 비율로 자르기, 자유 비율로 자르고 싶을 때는 비활성화
+                            aspect={undefined} // 자유 비율로 자르기
+                            minZoom={0.5}
+                            maxZoom={3}
                             onCropChange={setCrop}
                             onZoomChange={setZoom}
                             onCropComplete={onCropComplete}
+                            style={{
+                                containerStyle: {
+                                    width: '100%',
+                                    height: '100%',
+                                    backgroundColor: '#000'
+                                },
+                                cropAreaStyle: {
+                                    border: '3px solid #2196F3',
+                                    boxShadow: '0 0 0 9999px rgba(0,0,0,0.6)',
+                                    color: '#2196F3',
+                                    borderRadius: '2px'
+                                },
+                                mediaStyle: {
+                                    width: '100%',
+                                    height: '100%',
+                                    objectFit: 'contain'
+                                }
+                            }}
+                            showGrid={true}
+                            gridColor="rgba(255,255,255,0.3)"
+                            gridSize={50}
+                            restrictPosition={false}
+                            enableResize={true}
+                            enableZoom={true}
+                            enablePan={true}
+                            cropSize={{ width: 200, height: 200 }}
+                            minCropSize={{ width: 50, height: 50 }}
                         />
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem' }}>
-                        <button onClick={handleCropImage} style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}>자르기 완료</button>
-                        <button onClick={cancelAll} style={{ marginLeft: '1rem', padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}>취소</button>
+
+                    {/* 하단 컨트롤 */}
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '1rem',
+                        background: 'rgba(0,0,0,0.8)',
+                        borderTop: '1px solid #333'
+                    }}>
+                        {/* 왼쪽: 확대/축소 컨트롤 */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <button
+                                onClick={() => setZoom(Math.max(0.5, zoom - 0.1))}
+                                style={{
+                                    padding: '8px 12px',
+                                    backgroundColor: '#666',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '14px'
+                                }}
+                                title="축소"
+                            >
+                                🔍-
+                            </button>
+                            <span style={{ color: 'white', fontSize: '14px', minWidth: '60px', textAlign: 'center' }}>
+                                {Math.round(zoom * 100)}%
+                            </span>
+                            <button
+                                onClick={() => setZoom(Math.min(3, zoom + 0.1))}
+                                style={{
+                                    padding: '8px 12px',
+                                    backgroundColor: '#666',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '14px'
+                                }}
+                                title="확대"
+                            >
+                                🔍+
+                            </button>
+                        </div>
+
+                        {/* 중앙: 자르기 비율 옵션 */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <button
+                                onClick={() => setZoom(1)}
+                                style={{
+                                    padding: '6px 10px',
+                                    backgroundColor: zoom === 1 ? '#2196F3' : '#666',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '12px'
+                                }}
+                                title="100% 크기로 리셋"
+                            >
+                                100%
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setCrop({ x: 0, y: 0, width: 100, height: 100 });
+                                    setZoom(1);
+                                    setCroppedAreaPixels(null);
+                                }}
+                                style={{
+                                    padding: '6px 10px',
+                                    backgroundColor: '#ff9800',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '12px'
+                                }}
+                                title="자르기 영역 리셋"
+                            >
+                                🔄 리셋
+                            </button>
+                        </div>
+
+                        {/* 오른쪽: 액션 버튼 */}
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <button
+                                onClick={cancelAll}
+                                style={{
+                                    padding: '10px 20px',
+                                    fontSize: '16px',
+                                    cursor: 'pointer',
+                                    backgroundColor: '#666',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '6px'
+                                }}
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={handleCropImage}
+                                style={{
+                                    padding: '10px 20px',
+                                    fontSize: '16px',
+                                    cursor: 'pointer',
+                                    backgroundColor: '#4CAF50',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    fontWeight: 'bold'
+                                }}
+                            >
+                                ✂️ 자르기 완료
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
