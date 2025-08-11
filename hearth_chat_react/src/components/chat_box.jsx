@@ -1675,38 +1675,174 @@ const ChatBox = ({
     }
   }, [userSettings, aiAvatar, userAvatar, isTrackingEnabled]);
 
+  // WebSocket 연결 재설정 함수
+  const reconnectWebSocket = useCallback(() => {
+    if (!selectedRoom || !selectedRoom.id) return;
+
+    console.log('[WebSocket] 설정 변경으로 인한 재연결 시작');
+
+    // 기존 연결 해제
+    if (ws.current) {
+      try {
+        if (ws.current.readyState === 1) {
+          safeWebSocketSend({ type: 'leave_room', roomId: selectedRoomRef.current?.id });
+        }
+        ws.current.close();
+      } catch (error) {
+        console.error('[WebSocket] 기존 연결 해제 중 오류:', error);
+      }
+    }
+
+    // 새 연결 생성
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.hostname;
+    const isLocalhost = host === 'localhost' || host === '127.0.0.1';
+    const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}/ws/chat/`;
+
+    try {
+      ws.current = new window.WebSocket(wsUrl);
+    } catch (error) {
+      console.error('[WebSocket] 재연결 생성 실패:', error);
+      return;
+    }
+
+    // join_room 메시지 전송을 readyState가 1(OPEN)일 때까지 반복 시도
+    let joinSent = false;
+    const joinInterval = setInterval(() => {
+      if (ws.current && ws.current.readyState === 1 && !joinSent) {
+        const joinMessage = { type: 'join_room', roomId: selectedRoom.id };
+        if (safeWebSocketSend(joinMessage)) {
+          joinSent = true;
+          clearInterval(joinInterval);
+          console.log('[WebSocket] 재연결 후 join_room 성공');
+        }
+      }
+    }, 500);
+
+    ws.current.onopen = () => {
+      console.log('[WebSocket] 재연결 성공');
+      // 연결 후 약간의 지연을 두고 join_room 메시지 전송
+      setTimeout(() => {
+        if (!joinSent && ws.current && ws.current.readyState === 1) {
+          const joinMessage = { type: 'join_room', roomId: selectedRoom.id };
+          if (safeWebSocketSend(joinMessage)) {
+            joinSent = true;
+            console.log('[WebSocket] 재연결 후 join_room 성공 (지연)');
+          }
+        }
+      }, 200);
+    };
+
+    ws.current.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+
+        if (data.type === 'user_message' && data.message) {
+          const isMyMessage = (data.sender === loginUserRef.current?.username) || (data.user_id === loginUserRef.current?.id);
+
+          const newMessage = {
+            id: Date.now(),
+            type: isMyMessage ? 'send' : 'recv',
+            text: data.message,
+            date: data.timestamp,
+            sender: data.sender,
+            sender_type: 'user',
+            user_id: data.user_id,
+            emotion: data.emotion,
+            imageUrl: data.imageUrl || null,
+            imageUrls: data.imageUrls || [],
+          };
+
+          setMessages((prev) => {
+            let next;
+            if (isMyMessage) {
+              // echo 메시지라면 pending 메시지 제거
+              next = [
+                ...prev.filter(msg => !(msg.pending && msg.text === data.message)),
+                newMessage
+              ];
+            } else {
+              next = [...prev, newMessage];
+            }
+            return next;
+          });
+        } else if (data.type === 'ai_message' && data.message) {
+          const newMessage = {
+            id: Date.now(),
+            type: 'recv',
+            text: data.message,
+            date: data.timestamp,
+            sender: 'AI',
+            sender_type: 'ai',
+            questioner_username: data.questioner_username,
+            ai_name: data.ai_name,
+            emotion: null,
+            imageUrl: null,
+            imageUrls: data.imageUrls || [],
+          };
+
+          setMessages((prev) => {
+            // 중복 메시지 방지
+            if (prev.some(m => m.type === 'ai' && m.date === data.timestamp && m.text === data.message && m.questioner_username === data.questioner_username && m.ai_name === data.ai_name)) {
+              return prev;
+            }
+            return [...prev, newMessage];
+          });
+        }
+      } catch (error) {
+        console.error('[WebSocket] 메시지 파싱 오류:', error);
+      }
+    };
+
+    ws.current.onclose = () => {
+      console.log('[WebSocket] 재연결된 연결이 닫힘');
+    };
+
+    ws.current.onerror = (error) => {
+      console.error('[WebSocket] 재연결된 연결 오류:', error);
+    };
+  }, [selectedRoom, selectedRoomRef]);
+
   // userSettings 변경 감지 및 AI 서비스 업데이트
   useEffect(() => {
     if (userSettings) {
+      console.log('[ChatBox] userSettings 변경 감지:', userSettings);
 
       // AI 응답 활성화 상태 업데이트
       if (userSettings.ai_response_enabled !== undefined) {
+        console.log('[ChatBox] AI 응답 활성화 상태 업데이트:', userSettings.ai_response_enabled);
       }
 
       // TTS 설정 업데이트
       if (userSettings.tts_enabled !== undefined) {
         setIsTTSEnabled(userSettings.tts_enabled);
+        console.log('[ChatBox] TTS 활성화 상태 업데이트:', userSettings.tts_enabled);
       }
 
       if (userSettings.tts_speed !== undefined) {
         setTtsRate(userSettings.tts_speed);
+        console.log('[ChatBox] TTS 속도 업데이트:', userSettings.tts_speed);
       }
 
       if (userSettings.tts_pitch !== undefined) {
         setTtsPitch(userSettings.tts_pitch);
+        console.log('[ChatBox] TTS 피치 업데이트:', userSettings.tts_pitch);
       }
 
       if (userSettings.tts_voice !== undefined) {
         setTtsVoice(userSettings.tts_voice);
+        console.log('[ChatBox] TTS 음성 업데이트:', userSettings.tts_voice);
       }
 
       // 아바타 URL 업데이트
       if (userSettings.ai_avatar_url !== undefined) {
         setAiAvatar(userSettings.ai_avatar_url);
+        console.log('[ChatBox] AI 아바타 URL 업데이트:', userSettings.ai_avatar_url);
       }
 
       if (userSettings.user_avatar_url !== undefined) {
         setUserAvatar(userSettings.user_avatar_url);
+        console.log('[ChatBox] 사용자 아바타 URL 업데이트:', userSettings.user_avatar_url);
       }
 
       // 카메라 설정 업데이트
@@ -1715,13 +1851,29 @@ const ChatBox = ({
           const cameraSettings = JSON.parse(userSettings.camera_settings);
           if (cameraSettings.face_tracking_enabled !== undefined) {
             setIsTrackingEnabled(cameraSettings.face_tracking_enabled);
+            console.log('[ChatBox] 얼굴 트래킹 상태 업데이트:', cameraSettings.face_tracking_enabled);
           }
         } catch (error) {
           console.error('[ChatBox] 카메라 설정 파싱 오류:', error);
         }
       }
+
+      // 설정 변경 후 WebSocket 재연결 (중요한 설정 변경 시에만)
+      const shouldReconnect = userSettings.tts_enabled !== undefined ||
+        userSettings.ai_response_enabled !== undefined ||
+        userSettings.camera_settings !== undefined;
+
+      if (shouldReconnect && selectedRoom && selectedRoom.id) {
+        console.log('[ChatBox] 중요 설정 변경으로 WebSocket 재연결 시작');
+        // 약간의 지연을 두고 재연결 (설정 저장 완료 후)
+        setTimeout(() => {
+          reconnectWebSocket();
+        }, 500);
+      }
     }
-  }, [userSettings]);
+  }, [userSettings, reconnectWebSocket, selectedRoom]);
+
+  // userSettings 변경 감지 및 AI 서비스 업데이트
 
   return (
     <>
