@@ -110,6 +110,16 @@ const SettingsModal = ({
   });
   const [currentActiveModel, setCurrentActiveModel] = useState(null);
 
+  // AI 설정이 변경될 때마다 aiSettings.aiEnabled 동기화
+  useEffect(() => {
+    if (userSettings) {
+      setAiSettings(prev => ({
+        ...prev,
+        aiEnabled: !!userSettings.ai_response_enabled
+      }));
+    }
+  }, [userSettings?.ai_response_enabled]);
+
   // Lily API 모델 목록 가져오기
   const fetchLilyModels = async () => {
     try {
@@ -135,13 +145,13 @@ const SettingsModal = ({
     }
   };
 
-  // userSettings에서 AI 설정 로드
+  // AI 설정 초기화
   useEffect(() => {
     if (userSettings) {
 
-      let newAiSettings = {
+      let aiSettings = {
         aiEnabled: !!userSettings.ai_response_enabled,
-        aiProvider: 'lily',
+        aiProvider: 'lily', // 기본값
         lilyApiUrl: LILY_API_URL,
         lilyModel: 'kanana-1.5-v-3b-instruct',
         chatgptApiKey: '',
@@ -149,20 +159,19 @@ const SettingsModal = ({
         autoRespond: false,
         responseDelay: 1000,
         maxTokens: 1000,
-        temperature: 0.7,
-        availableModels: []
+        temperature: 0.7
       };
 
       // 저장된 AI 설정이 있으면 파싱
       if (userSettings.ai_settings) {
         try {
           const savedSettings = JSON.parse(userSettings.ai_settings);
-          newAiSettings = { ...newAiSettings, ...savedSettings };
+          aiSettings = { ...aiSettings, ...savedSettings };
         } catch (e) {
           console.error('❌ SettingsModal - AI 설정 파싱 실패:', e);
         }
       }
-      setAiSettings(newAiSettings);
+      setAiSettings(aiSettings);
 
     }
   }, [userSettings]);
@@ -476,6 +485,14 @@ const SettingsModal = ({
         // 서버 응답과 로컬 상태 동기화
         const updatedSettings = data.settings || { ...userSettings, ...serverPatch };
         setUserSettings(updatedSettings);
+
+        // ai_response_enabled가 변경된 경우 aiSettings.aiEnabled도 동기화
+        if (serverPatch.ai_response_enabled !== undefined) {
+          setAiSettings(prev => ({
+            ...prev,
+            aiEnabled: serverPatch.ai_response_enabled
+          }));
+        }
 
         // 로컬 상태도 서버 응답으로 업데이트
         if (serverPatch.tts_speed !== undefined) {
@@ -1047,35 +1064,24 @@ const SettingsModal = ({
           )}
           {tab === 'ai' && (
             <div>
-
-              {/* 응답 설정 */}
+              {/* AI 응답 활성화 */}
               <div className="setting-group">
                 <label className="setting-label">
                   <input
                     type="checkbox"
-                    checked={aiSettings.autoRespond}
-                    onChange={(e) => setAiSettings(prev => ({ ...prev, autoRespond: e.target.checked }))}
-                    disabled={saving}
-                  />
-                  자동 응답 활성화
-                </label>
-              </div>
-
-              {/* AI 활성화 */}
-              {/* <div className="setting-group">
-                <label className="setting-label">
-                  <input
-                    type="checkbox"
-                    checked={aiSettings.aiEnabled}
+                    checked={!!userSettings?.ai_response_enabled}
                     onChange={(e) => {
-                      setAiSettings(prev => ({ ...prev, aiEnabled: e.target.checked }));
+                      console.log('[설정] AI 응답 활성화 체크박스 변경:', e.target.checked);
                       saveSetting({ ai_response_enabled: e.target.checked });
                     }}
                     disabled={saving}
                   />
                   AI 자동 응답 활성화
                 </label>
-              </div> */}
+                <small style={{ fontSize: '0.8em', color: '#666', marginLeft: '24px' }}>
+                  AI 응답을 끄면 AI가 메시지에 응답하지 않습니다.
+                </small>
+              </div>
 
               {/* AI 제공자 선택 */}
               <div className="setting-group">

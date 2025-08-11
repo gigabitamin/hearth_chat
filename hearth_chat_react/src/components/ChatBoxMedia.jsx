@@ -510,10 +510,8 @@ export const setTTSInterrupted = (setTtsInterrupted, interrupted) => {
 
 export const initializeTTSService = () => {
     // TTS 서비스 초기화 - ttsService는 이미 생성자에서 자동 초기화됨
-    if (ttsService && ttsService.isSupported()) {
-        console.log('TTS 서비스가 지원됩니다.');
-    } else {
-        console.warn('TTS 서비스가 지원되지 않습니다.');
+    if (ttsService && ttsService.isSupported()) {        
+    } else {        
     }
 };
 
@@ -521,9 +519,9 @@ export const initializeTTSService = () => {
 export const initializeAvatars = () => {
     // 아바타 초기화 - readyPlayerMeService는 이미 생성자에서 초기화됨
     if (readyPlayerMeService) {
-        console.log('ReadyPlayerMe 서비스가 준비되었습니다.');
+        // console.log('ReadyPlayerMe 서비스가 준비되었습니다.');
     } else {
-        console.warn('ReadyPlayerMe 서비스가 준비되지 않았습니다.');
+        // console.warn('ReadyPlayerMe 서비스가 준비되지 않았습니다.');
     }
 };
 

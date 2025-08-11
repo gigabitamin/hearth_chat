@@ -259,25 +259,21 @@ function AppContent(props) {
     const loadVoiceList = () => {
       try {
         // ttsService가 지원되는지 확인
-        if (ttsService && ttsService.isSupported()) {
-          console.log('🎵 음성 목록 로딩 시작...');
+        if (ttsService && ttsService.isSupported()) {          
 
           // 현재 음성 목록 가져오기
           let voices = ttsService.getVoices();
 
-          if (voices.length > 0) {
-            console.log('🎵 음성 목록 로드됨:', voices);
+          if (voices.length > 0) {            
             setVoiceList(voices);
           } else {
-            // 음성 목록이 아직 로드되지 않은 경우, 이벤트 리스너 설정
-            console.log('🎵 음성 목록 로딩 대기 중...');
+            // 음성 목록이 아직 로드되지 않은 경우, 이벤트 리스너 설정            
 
             let fallbackInterval;
 
             const handleVoicesChanged = () => {
               const loadedVoices = ttsService.getVoices();
-              if (loadedVoices.length > 0) {
-                console.log('🎵 음성 목록 로드됨 (이벤트):', loadedVoices);
+              if (loadedVoices.length > 0) {                
                 setVoiceList(loadedVoices);
                 // 이벤트 리스너 제거
                 if (window.speechSynthesis) {
@@ -339,37 +335,30 @@ function AppContent(props) {
 
   // userSettings에서 TTS 설정 로드하여 로컬 상태 동기화
   useEffect(() => {
-    if (userSettings) {
-      console.log('🔄 AppContent - userSettings 변경됨, TTS 설정 동기화:', userSettings);
+    if (userSettings) {      
 
       // TTS 설정 동기화
       if (userSettings.tts_speed !== undefined) {
-        setTtsRate(userSettings.tts_speed);
-        console.log('🎯 TTS 속도 동기화:', userSettings.tts_speed);
+        setTtsRate(userSettings.tts_speed);        
       }
       if (userSettings.tts_pitch !== undefined) {
-        setTtsPitch(userSettings.tts_pitch);
-        console.log('🎯 TTS 음조 동기화:', userSettings.tts_pitch);
+        setTtsPitch(userSettings.tts_pitch);        
       }
       if (userSettings.tts_voice !== undefined) {
         // voiceList가 로드된 후에 음성 설정
         if (voiceList) {
           const selectedVoice = voiceList.find(v => v.name === userSettings.tts_voice);
-          setTtsVoice(selectedVoice);
-          console.log('🎯 TTS 음성 동기화:', userSettings.tts_voice);
+          setTtsVoice(selectedVoice);          
         }
       }
       if (userSettings.tts_enabled !== undefined) {
-        setIsTTSEnabled(userSettings.tts_enabled);
-        console.log('🎯 TTS 활성화 동기화:', userSettings.tts_enabled);
+        setIsTTSEnabled(userSettings.tts_enabled);        
       }
       if (userSettings.voice_recognition_enabled !== undefined) {
-        setIsVoiceRecognitionEnabled(userSettings.voice_recognition_enabled);
-        console.log('🎯 음성인식 활성화 동기화:', userSettings.voice_recognition_enabled);
+        setIsVoiceRecognitionEnabled(userSettings.voice_recognition_enabled);        
       }
       if (userSettings.voice_auto_send !== undefined) {
-        setAutoSend(userSettings.voice_auto_send);
-        console.log('🎯 음성 자동전송 동기화:', userSettings.voice_auto_send);
+        setAutoSend(userSettings.voice_auto_send);        
       }
     }
   }, [userSettings, voiceList]);

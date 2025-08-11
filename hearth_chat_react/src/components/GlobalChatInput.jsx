@@ -738,13 +738,23 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
             try {
                 // 입력 메시지를 localStorage에 임시 저장
                 localStorage.setItem('pending_auto_message', input);
+
+                // 사용자 설정에 따라 AI 응답 활성화 여부 결정
+                const aiResponseEnabled = userSettings?.ai_response_enabled ?? false;
+
                 const res = await csrfFetch(`${getApiBase()}/api/chat/rooms/`, {
                     method: 'POST',
-                    body: JSON.stringify({ name: title, is_public: false, room_type: 'ai', ai_provider: 1, ai_response_enabled: true }),
+                    body: JSON.stringify({
+                        name: title,
+                        is_public: false,
+                        room_type: 'ai',
+                        ai_provider: 1,
+                        ai_response_enabled: aiResponseEnabled
+                    }),
                 });
                 if (res.ok) {
                     const data = await res.json();
-                    // 방 생성 후 user settings도 자동 ON
+                    // 방 생성 후 user settings도 사용자 설정에 맞춰 설정
                     try {
                         await fetch(`${getApiBase()}/api/chat/user/settings/`, {
                             method: 'PATCH',
@@ -753,7 +763,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                                 'Content-Type': 'application/json',
                                 'X-CSRFToken': getCookie('csrftoken'),
                             },
-                            body: JSON.stringify({ ai_response_enabled: true }),
+                            body: JSON.stringify({ ai_response_enabled: aiResponseEnabled }),
                         });
                     } catch (e) { /* 무시 */ }
                     setTimeout(() => {
@@ -809,14 +819,23 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
         const now = new Date();
         const title = `${input.slice(0, 20)} - ${now.toLocaleString('ko-KR', { hour12: false })}`;
         try {
+            // 사용자 설정에 따라 AI 응답 활성화 여부 결정
+            const aiResponseEnabled = userSettings?.ai_response_enabled ?? false;
+
             // 1. 방을 먼저 생성
             const res = await csrfFetch(`${getApiBase()}/api/chat/rooms/`, {
                 method: 'POST',
-                body: JSON.stringify({ name: title, is_public: false, room_type: 'ai', ai_provider: 1, ai_response_enabled: true }),
+                body: JSON.stringify({
+                    name: title,
+                    is_public: false,
+                    room_type: 'ai',
+                    ai_provider: 1,
+                    ai_response_enabled: aiResponseEnabled
+                }),
             });
             if (res.ok) {
                 const roomData = await res.json();
-                // 방 생성 후 user settings도 자동 ON
+                // 방 생성 후 user settings도 사용자 설정에 맞춰 설정
                 try {
                     await fetch(`${getApiBase()}/api/chat/user/settings/`, {
                         method: 'PATCH',
@@ -825,7 +844,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                             'Content-Type': 'application/json',
                             'X-CSRFToken': getCookie('csrftoken'),
                         },
-                        body: JSON.stringify({ ai_response_enabled: true }),
+                        body: JSON.stringify({ ai_response_enabled: aiResponseEnabled }),
                     });
                 } catch (e) { /* 무시 */ }
                 // 2. 이미지 첨부가 있으면, 해당 roomId로 이미지 업로드 및 localStorage 저장
@@ -893,12 +912,9 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
 
     // userSettings에서 음성인식 설정 확인
     useEffect(() => {
-        console.log('[GlobalChatInput] userSettings:', userSettings);
         if (userSettings && userSettings.voice_recognition_enabled) {
-            console.log('[GlobalChatInput] 음성인식 활성화됨');
             setIsVoiceRecognitionEnabled(userSettings.voice_recognition_enabled);
         } else {
-            console.log('[GlobalChatInput] 음성인식 비활성화됨');
             setIsVoiceRecognitionEnabled(false);
         }
     }, [userSettings]);
@@ -906,8 +922,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
     // 음성인식 결과 처리
     const handleVoiceResult = useCallback((finalText) => {
         if (finalText && finalText.trim()) {
-            setInput(finalText.trim());
-            console.log('[음성인식] 인식된 텍스트를 입력창에 설정:', finalText);
+            setInput(finalText.trim());            
         }
     }, []);
 

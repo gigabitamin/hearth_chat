@@ -371,8 +371,7 @@ class TTSService {
         }
 
         // 각 음소당 시간 계산 (더 정확한 시간 분배)
-        const timePerPhoneme = duration / totalPhonemes;
-        console.log('[LIP SYNC] 음소당 시간:', timePerPhoneme, 'ms');
+        const timePerPhoneme = duration / totalPhonemes;        
 
         phonemes.forEach((phoneme, index) => {
             const startTime = index * timePerPhoneme;
@@ -594,16 +593,14 @@ class TTSService {
     unlockScroll() {
         if (typeof window !== 'undefined' && this.isScrollLocked) {
             this.isScrollLocked = false;
-            document.body.style.overflow = '';
-            console.log('[TTS] 스크롤 해제됨');
+            document.body.style.overflow = '';            
         }
     }
 
     // 저장된 스크롤 위치로 복원
     restoreScrollPosition() {
         if (typeof window !== 'undefined' && this.scrollPosition) {
-            window.scrollTo(this.scrollPosition.x, this.scrollPosition.y);
-            console.log('[TTS] 스크롤 위치 복원:', this.scrollPosition);
+            window.scrollTo(this.scrollPosition.x, this.scrollPosition.y);            
         }
     }
 

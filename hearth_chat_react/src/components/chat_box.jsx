@@ -755,11 +755,9 @@ const ChatBox = ({
     // 기본 아바타 URL 설정 (userSettings에 없을 경우)
     if (!aiAvatar && !userSettings?.ai_avatar_url) {
       setAiAvatar('/avatar_vrm/gb_f_v2.vrm');
-      console.log('[아바타] 기본 AI 아바타 URL 설정:', '/avatar_vrm/gb_f_v2.vrm');
     }
     if (!userAvatar && !userSettings?.user_avatar_url) {
       setUserAvatar('/avatar_vrm/gb_m_v2.vrm');
-      console.log('[아바타] 기본 사용자 아바타 URL 설정:', '/avatar_vrm/gb_m_v2.vrm');
     }
 
     // 마이크 권한 상태 확인
@@ -1042,7 +1040,6 @@ const ChatBox = ({
 
     // TTS 이벤트 콜백 설정
     ttsService.setOnSpeakStart((text, lipSyncSequence) => {
-      console.log('[LIP SYNC] TTS 시작 콜백 호출됨 - 텍스트:', text, '립싱크 시퀀스:', lipSyncSequence);
 
       // 
       setIsAiTalking(true);
@@ -1050,12 +1047,10 @@ const ChatBox = ({
 
       // 립싱크 시퀀스 저장 및 초기화
       if (lipSyncSequence && lipSyncSequence.length > 0) {
-        console.log('[LIP SYNC] 립싱크 시퀀스 설정됨:', lipSyncSequence);
         setLipSyncSequence(lipSyncSequence);
         setCurrentLipSyncIndex(0);
 
       } else {
-        console.warn('[LIP SYNC] 립싱크 시퀀스가 비어있음');
         setLipSyncSequence([]);
         setCurrentLipSyncIndex(0);
       }
@@ -1149,15 +1144,12 @@ const ChatBox = ({
 
   // 3. 고급 립싱크 시스템 (음소 기반)
   useEffect(() => {
-    console.log('[LIP SYNC] 립싱크 useEffect 실행 - ttsSpeaking:', ttsSpeaking, 'lipSyncSequence 길이:', lipSyncSequence.length);
 
     if (ttsSpeaking && lipSyncSequence.length > 0) {
-      console.log('[LIP SYNC] 립싱크 시퀀스 처리 시작');
 
       // 음소 기반 립싱크
       const totalDuration = lipSyncSequence[lipSyncSequence.length - 1]?.endTime || 5000; // 기본 5초
       const startTime = Date.now();
-      console.log('[LIP SYNC] 총 지속시간:', totalDuration, 'ms, 시작시간:', startTime);
 
       const interval = setInterval(() => {
         const elapsedTime = Date.now() - startTime;
@@ -1168,7 +1160,6 @@ const ChatBox = ({
         if (currentPhoneme) {
           // mouthTrigger 값을 직접 사용 (이미 변환되어 있음)
           const triggerValue = currentPhoneme.mouthTrigger || 0;
-          console.log('[LIP SYNC] 현재 음소:', currentPhoneme.phoneme, 'mouthTrigger:', triggerValue);
           setMouthTrigger(triggerValue);
           setLastLipSyncValue(triggerValue); // 마지막 립싱크 값 저장
 
@@ -1453,11 +1444,9 @@ const ChatBox = ({
     // 아바타 URL 설정
     if (userSettings.ai_avatar_url) {
       setAiAvatar(userSettings.ai_avatar_url);
-      console.log('[아바타] AI 아바타 URL 설정:', userSettings.ai_avatar_url);
     }
     if (userSettings.user_avatar_url) {
       setUserAvatar(userSettings.user_avatar_url);
-      console.log('[아바타] 사용자 아바타 URL 설정:', userSettings.user_avatar_url);
     }
     // ... 필요시 추가 ...
   }, [userSettings]);
@@ -1531,7 +1520,6 @@ const ChatBox = ({
   // selectedRoom 변경 시 메시지 로드 (중복 제거를 위해 통합)
   useEffect(() => {
     if (selectedRoom && selectedRoom.id) {
-      console.log('방 변경됨:', selectedRoom.id);
       // 기존 메시지 초기화
       setMessages([]);
       setMessageOffset(0);
@@ -1644,7 +1632,6 @@ const ChatBox = ({
     if (ttsService && ttsService.setOnStopCallback) {
       ttsService.setOnStopCallback(() => {
         setTtsInterrupted(true);
-        console.log('[TTS] TTS 중단됨 - 상태 업데이트');
       });
     }
 
@@ -1661,29 +1648,23 @@ const ChatBox = ({
       // AI 아바타 URL 업데이트
       if (userSettings.ai_avatar_url) {
         setAiAvatar(userSettings.ai_avatar_url);
-        console.log('[아바타] AI 아바타 URL 업데이트:', userSettings.ai_avatar_url);
       } else if (!aiAvatar) {
         // userSettings에 없고 현재도 설정되지 않은 경우 기본값 설정
         setAiAvatar('/avatar_vrm/gb_f_v2.vrm');
-        console.log('[아바타] 기본 AI 아바타 URL 설정:', '/avatar_vrm/gb_f_v2.vrm');
       }
 
       // 사용자 아바타 URL 업데이트
       if (userSettings.user_avatar_url) {
         setUserAvatar(userSettings.user_avatar_url);
-        console.log('[아바타] 사용자 아바타 URL 업데이트:', userSettings.user_avatar_url);
       } else if (!userAvatar) {
         // userSettings에 없고 현재도 설정되지 않은 경우 기본값 설정
         setUserAvatar('/avatar_vrm/gb_m_v2.vrm');
-        console.log('[아바타] 기본 사용자 아바타 URL 설정:', '/avatar_vrm/gb_m_v2.vrm');
       }
 
       // 얼굴 트래킹 자동 활성화
       if (userSettings.face_tracking_enabled && !isTrackingEnabled) {
-        console.log('[트래킹] 설정에서 얼굴 트래킹 자동 활성화');
         toggleTracking();
       } else if (!userSettings.face_tracking_enabled && isTrackingEnabled) {
-        console.log('[트래킹] 설정에서 얼굴 트래킹 자동 비활성화');
         if (faceTrackingService.stopCamera) {
           faceTrackingService.stopCamera();
         }
@@ -1693,6 +1674,54 @@ const ChatBox = ({
       }
     }
   }, [userSettings, aiAvatar, userAvatar, isTrackingEnabled]);
+
+  // userSettings 변경 감지 및 AI 서비스 업데이트
+  useEffect(() => {
+    if (userSettings) {
+
+      // AI 응답 활성화 상태 업데이트
+      if (userSettings.ai_response_enabled !== undefined) {
+      }
+
+      // TTS 설정 업데이트
+      if (userSettings.tts_enabled !== undefined) {
+        setIsTTSEnabled(userSettings.tts_enabled);
+      }
+
+      if (userSettings.tts_speed !== undefined) {
+        setTtsRate(userSettings.tts_speed);
+      }
+
+      if (userSettings.tts_pitch !== undefined) {
+        setTtsPitch(userSettings.tts_pitch);
+      }
+
+      if (userSettings.tts_voice !== undefined) {
+        setTtsVoice(userSettings.tts_voice);
+      }
+
+      // 아바타 URL 업데이트
+      if (userSettings.ai_avatar_url !== undefined) {
+        setAiAvatar(userSettings.ai_avatar_url);
+      }
+
+      if (userSettings.user_avatar_url !== undefined) {
+        setUserAvatar(userSettings.user_avatar_url);
+      }
+
+      // 카메라 설정 업데이트
+      if (userSettings.camera_settings) {
+        try {
+          const cameraSettings = JSON.parse(userSettings.camera_settings);
+          if (cameraSettings.face_tracking_enabled !== undefined) {
+            setIsTrackingEnabled(cameraSettings.face_tracking_enabled);
+          }
+        } catch (error) {
+          console.error('[ChatBox] 카메라 설정 파싱 오류:', error);
+        }
+      }
+    }
+  }, [userSettings]);
 
   return (
     <>
