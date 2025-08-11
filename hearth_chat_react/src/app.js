@@ -271,7 +271,9 @@ function AppContent(props) {
           } else {
             // 음성 목록이 아직 로드되지 않은 경우, 이벤트 리스너 설정
             console.log('🎵 음성 목록 로딩 대기 중...');
-
+            
+            let fallbackInterval;
+            
             const handleVoicesChanged = () => {
               const loadedVoices = ttsService.getVoices();
               if (loadedVoices.length > 0) {
@@ -281,16 +283,20 @@ function AppContent(props) {
                 if (window.speechSynthesis) {
                   window.speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
                 }
+                // 폴백 인터벌 정리
+                if (fallbackInterval) {
+                  clearInterval(fallbackInterval);
+                }
               }
             };
-
+            
             // voiceschanged 이벤트 리스너 추가
             if (window.speechSynthesis) {
               window.speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
             }
-
+            
             // 폴백: 주기적으로 음성 목록 확인 (이벤트가 작동하지 않는 경우)
-            const fallbackInterval = setInterval(() => {
+            fallbackInterval = setInterval(() => {
               const currentVoices = ttsService.getVoices();
               if (currentVoices.length > 0) {
                 console.log('🎵 음성 목록 로드됨 (폴백):', currentVoices);
@@ -301,19 +307,21 @@ function AppContent(props) {
                   window.speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
                 }
               }
-            }, 300);
-
-            // 타임아웃 설정 (2초 후 빈 배열로 설정)
+            }, 500);
+            
+            // 타임아웃 설정 (3초 후 빈 배열로 설정)
             setTimeout(() => {
               setVoiceList(prev => {
                 if (prev === null) {
                   console.warn('🎵 음성 목록 로딩 타임아웃');
-                  clearInterval(fallbackInterval);
+                  if (fallbackInterval) {
+                    clearInterval(fallbackInterval);
+                  }
                   return [];
                 }
                 return prev;
               });
-            }, 2000);
+            }, 3000);
           }
         } else {
           console.warn('TTS가 지원되지 않습니다.');
