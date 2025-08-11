@@ -58,7 +58,7 @@ else:
     # --- 💻 로컬 개발 환경 (Local) 설정 ---
     # print("✅ 로컬 개발 환경(Local) 설정을 시작합니다.")
     DEBUG = True
-    ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+    ALLOWED_HOSTS = ["localhost", "127.0.0.1", '192.168.44.9']
     BASE_URL = "http://localhost:8000"
     LILY_API_URL = "http://localhost:8001"
 
@@ -66,10 +66,12 @@ else:
     CORS_ALLOWED_ORIGINS = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://192.168.44.9:3000",
     ]
     CSRF_TRUSTED_ORIGINS = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://192.168.44.9:3000",
     ]
     
     # 보안 쿠키 설정 (HTTP 환경)

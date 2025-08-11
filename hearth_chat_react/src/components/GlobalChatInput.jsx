@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { getApiBase, getCookie, csrfFetch, LILY_API_URL } from '../utils/apiConfig';
 import Webcam from 'react-webcam';
-import Cropper from 'react-easy-crop';
+import ReactCrop from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 import { getCroppedImg, dataURLtoFile } from './cropUtils';
 import ttsService from '../services/ttsService';
 import VoiceRecognition from './VoiceRecognition';
@@ -30,11 +31,100 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
     // --- 카메라 및 자르기 기능 관련 상태 추가 ---
     const [showCamera, setShowCamera] = useState(false);
     const [capturedImage, setCapturedImage] = useState(null);
-    const [crop, setCrop] = useState({ x: 0, y: 0 });
-    const [zoom, setZoom] = useState(1);
+    const [crop, setCrop] = useState({ x: 0, y: 0, width: 0, height: 0 });
     const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
     const webcamRef = useRef(null);
 
+    // 카메라 전환 관련 상태 추가
+    const [availableCameras, setAvailableCameras] = useState([]);
+    const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
+    const [isMobile, setIsMobile] = useState(false);
+
+    // 모바일 감지 및 카메라 초기화
+    useEffect(() => {
+        const checkMobile = () => {
+            const userAgent = navigator.userAgent.toLowerCase();
+            const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+            setIsMobile(isMobileDevice);
+            return isMobileDevice;
+        };
+
+        const initializeCameras = async () => {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                setAvailableCameras(videoDevices);
+
+                // 모바일에서는 후면카메라를 우선으로 정렬
+                if (checkMobile() && videoDevices.length > 1) {
+                    const backCameraIndex = videoDevices.findIndex(device =>
+                        device.label.toLowerCase().includes('back') ||
+                        device.label.toLowerCase().includes('후면') ||
+                        device.label.toLowerCase().includes('rear')
+                    );
+                    if (backCameraIndex !== -1) {
+                        setCurrentCameraIndex(backCameraIndex);
+                    }
+                }
+            } catch (err) {
+                console.error('[카메라] 카메라 목록 가져오기 실패:', err);
+            }
+        };
+
+        initializeCameras();
+
+        // 컴포넌트 언마운트 시 카메라 스트림 정리
+        return () => {
+            if (webcamRef.current && webcamRef.current.stream) {
+                webcamRef.current.stream.getTracks().forEach(track => track.stop());
+            }
+        };
+    }, []);
+
+    // 다음 카메라로 전환
+    const switchToNextCamera = useCallback(() => {
+        if (availableCameras.length <= 1) {
+            console.log('[카메라] 전환 가능한 카메라가 없음');
+            return;
+        }
+
+        // 현재 카메라 중지
+        if (webcamRef.current && webcamRef.current.stream) {
+            webcamRef.current.stream.getTracks().forEach(track => track.stop());
+        }
+
+        // 다음 카메라 인덱스 계산
+        const nextIndex = (currentCameraIndex + 1) % availableCameras.length;
+        setCurrentCameraIndex(nextIndex);
+        console.log('[카메라] 다음 카메라로 전환:', nextIndex, availableCameras[nextIndex]?.label);
+    }, [availableCameras, currentCameraIndex]);
+
+    // 현재 선택된 카메라의 제약 조건 가져오기
+    const getCurrentCameraConstraints = useCallback(() => {
+        if (availableCameras.length === 0) {
+            return { facingMode: isMobile ? 'environment' : 'user' };
+        }
+
+        const currentCamera = availableCameras[currentCameraIndex];
+        const constraints = {
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+        };
+
+        // 모바일에서는 후면카메라 우선
+        if (isMobile) {
+            constraints.facingMode = 'environment';
+        } else {
+            constraints.facingMode = 'user';
+        }
+
+        // 특정 카메라가 선택된 경우 deviceId 추가
+        if (currentCamera && currentCamera.deviceId) {
+            constraints.deviceId = { exact: currentCamera.deviceId };
+        }
+
+        return constraints;
+    }, [availableCameras, currentCameraIndex, isMobile]);
 
 
     // --- 카메라 관련 함수 ---    
@@ -50,26 +140,59 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
         setShowCamera(false); // 카메라 모달 닫고, 자르기 모달 열기
     }, [webcamRef]);
 
-    // 3. 자르기 완료 콜백
-    const onCropComplete = useCallback((croppedArea, croppedAreaPixelsValue) => {
-        setCroppedAreaPixels(croppedAreaPixelsValue);
-    }, []);
+    // 3. 자르기 완료 콜백 (react-image-crop에서는 불필요)
+    // const onCropComplete = useCallback((croppedArea, croppedAreaPixelsValue) => {
+    //     setCroppedAreaPixels(croppedAreaPixelsValue);
+    // }, []);
 
     // 4. 자르기 실행 및 이미지 첨부 핸들러
     const handleCropImage = async () => {
-        if (!capturedImage || !croppedAreaPixels) return;
+        if (!capturedImage || !croppedAreaPixels || croppedAreaPixels.width === 0 || croppedAreaPixels.height === 0) {
+            console.log('자르기 영역이 선택되지 않았습니다.');
+            return;
+        }
 
         try {
-            const croppedImageBlobUrl = await getCroppedImg(capturedImage, croppedAreaPixels);
-            const croppedImageFile = dataURLtoFile(croppedImageBlobUrl, `capture-${Date.now()}.jpeg`);
+            // react-image-crop의 crop 정보를 사용하여 이미지 자르기
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
 
-            setAttachedImages([croppedImageFile]); // 단일 이미지로 설정
-            setAttachedImagePreviews([URL.createObjectURL(croppedImageFile)]);
+            img.onload = async () => {
+                // 자르기 영역 계산
+                const scaleX = img.naturalWidth / img.width;
+                const scaleY = img.naturalHeight / img.height;
 
-            // 모든 모달 및 임시 상태 초기화
-            setCapturedImage(null);
-            setCroppedAreaPixels(null);
+                canvas.width = croppedAreaPixels.width * scaleX;
+                canvas.height = croppedAreaPixels.height * scaleY;
 
+                ctx.drawImage(
+                    img,
+                    croppedAreaPixels.x * scaleX,
+                    croppedAreaPixels.y * scaleY,
+                    croppedAreaPixels.width * scaleX,
+                    croppedAreaPixels.height * scaleY,
+                    0,
+                    0,
+                    croppedAreaPixels.width * scaleX,
+                    croppedAreaPixels.height * scaleY
+                );
+
+                // 캔버스를 Blob으로 변환
+                canvas.toBlob(async (blob) => {
+                    const croppedImageFile = new File([blob], `capture-${Date.now()}.jpeg`, { type: 'image/jpeg' });
+
+                    setAttachedImages([croppedImageFile]); // 단일 이미지로 설정
+                    setAttachedImagePreviews([URL.createObjectURL(croppedImageFile)]);
+
+                    // 모든 모달 및 임시 상태 초기화
+                    setCapturedImage(null);
+                    setCrop({ x: 0, y: 0, width: 0, height: 0 });
+                    setCroppedAreaPixels(null);
+                }, 'image/jpeg', 0.9);
+            };
+
+            img.src = capturedImage;
         } catch (e) {
             console.error('이미지 자르기에 실패했습니다.', e);
         }
@@ -77,8 +200,15 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
 
     // 5. 카메라/자르기 취소 핸들러
     const cancelAll = () => {
+        // 카메라 스트림 정리
+        if (webcamRef.current && webcamRef.current.stream) {
+            webcamRef.current.stream.getTracks().forEach(track => track.stop());
+        }
+
         setShowCamera(false);
         setCapturedImage(null);
+        setCrop({ x: 0, y: 0, width: 0, height: 0 });
+        setCroppedAreaPixels(null);
     };
 
     // 클립보드 이벤트 리스너 추가
@@ -917,12 +1047,41 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
             {/* --- 카메라 모달 --- */}
             {showCamera && (
                 <div className="camera-modal" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    {/* 카메라 전환 버튼 */}
+                    {availableCameras.length > 1 && (
+                        <div style={{
+                            position: 'absolute',
+                            top: '20px',
+                            right: '20px',
+                            zIndex: 10
+                        }}>
+                            <button
+                                onClick={switchToNextCamera}
+                                style={{
+                                    padding: '8px 12px',
+                                    fontSize: '14px',
+                                    cursor: 'pointer',
+                                    background: 'rgba(0,0,0,0.7)',
+                                    color: 'white',
+                                    border: '1px solid rgba(255,255,255,0.3)',
+                                    borderRadius: '6px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                }}
+                                title={`다음 카메라로 전환 (${currentCameraIndex + 1}/${availableCameras.length})`}
+                            >
+                                📷 {availableCameras[currentCameraIndex]?.label || '카메라'}
+                            </button>
+                        </div>
+                    )}
+
                     <Webcam
                         audio={false}
                         ref={webcamRef}
                         screenshotFormat="image/jpeg"
                         width="100%"
-                        videoConstraints={{ facingMode: 'user' }}
+                        videoConstraints={getCurrentCameraConstraints()}
                     />
                     <div style={{ marginTop: '1rem' }}>
                         <button onClick={handleCapture} style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}>사진 찍기</button>
@@ -935,15 +1094,42 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
             {capturedImage && (
                 <div className="crop-modal" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.9)', zIndex: 400, display: 'flex', flexDirection: 'column' }}>
                     <div style={{ position: 'relative', width: '100%', height: '80%' }}>
-                        <Cropper
-                            image={capturedImage}
+                        <ReactCrop
                             crop={crop}
-                            zoom={zoom}
-                            // aspect={1} // 1:1 비율로 자르기, 자유 비율로 자르고 싶을 때는 비활성화
-                            onCropChange={setCrop}
-                            onZoomChange={setZoom}
-                            onCropComplete={onCropComplete}
-                        />
+                            onChange={(c) => setCrop(c)}
+                            onComplete={(c) => {
+                                // 자르기 영역 정보 저장
+                                setCroppedAreaPixels({
+                                    x: c.x,
+                                    y: c.y,
+                                    width: c.width,
+                                    height: c.height
+                                });
+                            }}
+                            minWidth={50}
+                            minHeight={50}
+                            maxWidth={800}
+                            maxHeight={800}
+                            style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'contain',
+                                background: '#000',
+                                borderRadius: '4px',
+                                border: '1px solid #333'
+                            }}
+                        >
+                            <img
+                                src={capturedImage}
+                                alt="Captured"
+                                style={{
+                                    display: 'block',
+                                    maxWidth: '100%',
+                                    maxHeight: '100%',
+                                    borderRadius: '4px',
+                                }}
+                            />
+                        </ReactCrop>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem' }}>
                         <button onClick={handleCropImage} style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}>자르기 완료</button>
