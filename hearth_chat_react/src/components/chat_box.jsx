@@ -2268,6 +2268,13 @@ const ChatBox = ({
       const pendingImageUrls = localStorage.getItem('pending_image_urls'); // 올바른 키 사용
       const pendingRoomId = localStorage.getItem('pending_room_id');
 
+      console.log('[ChatBox] localStorage 데이터 확인:', {
+        pendingMessage,
+        pendingImageUrls,
+        pendingRoomId,
+        selectedRoomId: selectedRoom?.id
+      });
+
       // 현재 방과 일치하는지 확인
       if (pendingMessage && pendingRoomId === String(selectedRoom.id)) {
         console.log('[ChatBox] 자동 메시지 전송 시작:', {
@@ -2284,6 +2291,23 @@ const ChatBox = ({
             console.log('[ChatBox] 이미지 URL 파싱 성공:', imageUrls);
             console.log('[ChatBox] 이미지 URL 개수:', imageUrls.length);
             console.log('[ChatBox] 첫 번째 이미지 URL:', imageUrls[0]);
+
+            // 이미지 URL 유효성 검증
+            if (!Array.isArray(imageUrls) || imageUrls.length === 0) {
+              console.warn('[ChatBox] 이미지 URL 배열이 비어있거나 유효하지 않음');
+              imageUrls = [];
+            } else {
+              // 각 이미지 URL이 유효한지 확인
+              imageUrls = imageUrls.filter(url => {
+                if (typeof url === 'string' && url.trim() !== '') {
+                  return true;
+                } else {
+                  console.warn('[ChatBox] 유효하지 않은 이미지 URL 제거:', url);
+                  return false;
+                }
+              });
+              console.log('[ChatBox] 유효한 이미지 URL 개수:', imageUrls.length);
+            }
           } catch (error) {
             console.error('[ChatBox] 이미지 URL 파싱 실패:', error);
             imageUrls = [];
@@ -2303,6 +2327,7 @@ const ChatBox = ({
             // 이미지가 있는 경우와 없는 경우를 구분하여 메시지 전송
             let messageData;
             if (imageUrls && imageUrls.length > 0) {
+              // 이미지 URL이 유효한 경우에만 이미지 첨부 메시지로 전송
               messageData = {
                 message: pendingMessage,
                 imageUrls: imageUrls, // 이미지 URL 배열
@@ -2313,15 +2338,18 @@ const ChatBox = ({
               console.log('[ChatBox] 이미지 첨부 메시지 전송:', messageData);
               console.log('[ChatBox] 이미지 URL 배열 길이:', imageUrls.length);
               console.log('[ChatBox] 첫 번째 이미지 URL:', imageUrls[0]);
+              console.log('[ChatBox] 전송할 imageUrls 필드:', imageUrls);
             } else {
+              // 이미지가 없거나 유효하지 않은 경우 일반 텍스트 메시지로 전송
               messageData = {
                 message: pendingMessage,
                 imageUrl: '', // 단일 이미지 (빈 문자열)
+                imageUrls: [], // 빈 배열 명시적 설정
                 roomId: selectedRoom.id,
                 client_id: clientId,
                 type: 'user_message'
               };
-              console.log('[ChatBox] 일반 텍스트 메시지 전송:', messageData);
+              console.log('[ChatBox] 일반 텍스트 메시지 전송 (이미지 없음):', messageData);
             }
 
             ws.current.send(JSON.stringify(messageData));

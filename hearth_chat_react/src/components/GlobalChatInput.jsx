@@ -816,13 +816,62 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
     const handleCreateNewAiRoom = async () => {
         if (!input.trim() && attachedImages.length === 0 && attachedDocuments.length === 0) return;
         setLoading(true);
-        const now = new Date();
-        const title = `${input.slice(0, 20)} - ${now.toLocaleString('ko-KR', { hour12: false })}`;
+
         try {
-            // 사용자 설정에 따라 AI 응답 활성화 여부 결정
+            const now = new Date();
+            const title = `${input.slice(0, 20)} - ${now.toLocaleString('ko-KR', { hour12: false })}`;
+
+            // 1. 이미지 첨부가 있으면 먼저 업로드 (방 생성 전)
+            let uploadedUrls = [];
+            if (attachedImages.length > 0) {
+                console.log('[GlobalChatInput] 이미지 업로드 시작:', attachedImages.length, '개');
+
+                try {
+                    // 모든 이미지를 순차적으로 업로드
+                    for (let i = 0; i < attachedImages.length; i++) {
+                        const imageFile = attachedImages[i];
+                        console.log(`[GlobalChatInput] 이미지 ${i + 1}/${attachedImages.length} 업로드 중:`, imageFile.name);
+
+                        const formData = new FormData();
+                        formData.append('file', imageFile);
+                        formData.append('content', input || '이미지 첨부');
+
+                        const imgRes = await fetch(`${getApiBase()}/api/chat/upload_image/`, {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRFToken': getCookie('csrftoken'),
+                            },
+                            credentials: 'include',
+                            body: formData,
+                        });
+
+                        if (!imgRes.ok) {
+                            throw new Error(`HTTP ${imgRes.status}: ${imgRes.statusText}`);
+                        }
+
+                        const imgData = await imgRes.json();
+                        if (imgData.status === 'success' && imgData.file_url) {
+                            uploadedUrls.push(imgData.file_url);
+                            console.log(`[GlobalChatInput] 이미지 ${i + 1} 업로드 성공:`, imgData.file_url);
+                        } else {
+                            throw new Error(`이미지 업로드 실패: ${imgData.error || '알 수 없는 오류'}`);
+                        }
+                    }
+
+                    console.log('[GlobalChatInput] 모든 이미지 업로드 완료:', uploadedUrls);
+
+                } catch (error) {
+                    console.error('[GlobalChatInput] 이미지 업로드 중 오류:', error);
+                    alert(`이미지 업로드에 실패했습니다: ${error.message}`);
+                    setLoading(false);
+                    return; // 이미지 업로드 실패 시 방 생성 중단
+                }
+            }
+
+            // 2. 방 생성 (이미지 업로드 완료 후)
+            console.log('[GlobalChatInput] 방 생성 시작');
             const aiResponseEnabled = userSettings?.ai_response_enabled ?? false;
 
-            // 1. 방을 먼저 생성
             const res = await csrfFetch(`${getApiBase()}/api/chat/rooms/`, {
                 method: 'POST',
                 body: JSON.stringify({
@@ -833,90 +882,65 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                     ai_response_enabled: aiResponseEnabled
                 }),
             });
-            if (res.ok) {
-                const roomData = await res.json();
-                // 방 생성 후 user settings도 사용자 설정에 맞춰 설정
-                try {
-                    await fetch(`${getApiBase()}/api/chat/user/settings/`, {
-                        method: 'PATCH',
-                        credentials: 'include',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': getCookie('csrftoken'),
-                        },
-                        body: JSON.stringify({ ai_response_enabled: aiResponseEnabled }),
-                    });
-                } catch (e) { /* 무시 */ }
 
-                // 2. 이미지 첨부가 있으면, 해당 roomId로 이미지 업로드 및 localStorage 저장
-                if (attachedImages.length > 0) {
-                    try {
-                        const uploadedUrls = [];
-                        for (let i = 0; i < attachedImages.length; i++) {
-                            const formData = new FormData();
-                            formData.append('file', attachedImages[i]);
-                            formData.append('content', input || '이미지 첨부');
-                            const imgRes = await fetch(`${getApiBase()}/api/chat/upload_image/`, {
-                                method: 'POST',
-                                headers: {
-                                    'X-CSRFToken': getCookie('csrftoken'),
-                                },
-                                credentials: 'include',
-                                body: formData,
-                            });
-                            const imgData = await imgRes.json();
-                            if (imgData.status === 'success') {
-                                uploadedUrls.push(imgData.file_url);
-                                console.log('[GlobalChatInput] 이미지 업로드 성공:', imgData.file_url);
-                            } else {
-                                console.error('[GlobalChatInput] 이미지 업로드 실패:', imgData);
-                            }
-                        }
-
-                        if (uploadedUrls.length > 0) {
-                            // 이미지 URL들을 localStorage에 저장 (chat_box.jsx에서 사용)
-                            localStorage.setItem('pending_auto_message', input || '이미지 첨부');
-                            localStorage.setItem('pending_image_urls', JSON.stringify(uploadedUrls));
-                            localStorage.setItem('pending_room_id', String(roomData.id));
-                            console.log('[GlobalChatInput] localStorage에 이미지 URL 저장됨:', uploadedUrls);
-                        } else {
-                            console.error('[GlobalChatInput] 업로드된 이미지 URL이 없음');
-                        }
-                    } catch (error) {
-                        console.error('[GlobalChatInput] 이미지 업로드 중 오류:', error);
-                        alert('이미지 업로드에 실패했습니다.');
-                    }
-                } else {
-                    // 텍스트만 있을 때도 roomId와 함께 저장
-                    localStorage.setItem('pending_auto_message', input);
-                    localStorage.setItem('pending_room_id', String(roomData.id));
-                    localStorage.removeItem('pending_image_urls');
-                    console.log('[GlobalChatInput] 텍스트만 localStorage에 저장됨:', input);
-                }
-
-                setInput('');
-                handleRemoveAllAttachedImages();
-                setTimeout(() => {
-                    window.location.href = `/room/${roomData.id}`;
-                }, 300);
-            } else {
-                // 방 생성 실패 시 localStorage 정리 및 알림
-                localStorage.removeItem('pending_auto_message');
-                localStorage.removeItem('pending_image_urls');
-                localStorage.removeItem('pending_image_message_content');
-                localStorage.removeItem('pending_room_id');
-                alert('방 생성 실패');
+            if (!res.ok) {
+                throw new Error(`방 생성 실패: HTTP ${res.status}`);
             }
+
+            const roomData = await res.json();
+            console.log('[GlobalChatInput] 방 생성 성공:', roomData.id);
+
+            // 3. user settings 업데이트
+            try {
+                await fetch(`${getApiBase()}/api/chat/user/settings/`, {
+                    method: 'PATCH',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken'),
+                    },
+                    body: JSON.stringify({ ai_response_enabled: aiResponseEnabled }),
+                });
+            } catch (e) {
+                console.warn('[GlobalChatInput] user settings 업데이트 실패:', e);
+            }
+
+            // 4. localStorage에 데이터 저장
+            if (uploadedUrls.length > 0) {
+                // 이미지가 있는 경우
+                localStorage.setItem('pending_auto_message', input || '이미지 첨부');
+                localStorage.setItem('pending_image_urls', JSON.stringify(uploadedUrls));
+                localStorage.setItem('pending_room_id', String(roomData.id));
+                console.log('[GlobalChatInput] localStorage에 이미지 URL 저장됨:', uploadedUrls);
+            } else {
+                // 텍스트만 있는 경우
+                localStorage.setItem('pending_auto_message', input);
+                localStorage.setItem('pending_room_id', String(roomData.id));
+                localStorage.removeItem('pending_image_urls');
+                console.log('[GlobalChatInput] 텍스트만 localStorage에 저장됨:', input);
+            }
+
+            // 5. 상태 정리 및 방 이동
+            setInput('');
+            handleRemoveAllAttachedImages();
+
+            console.log('[GlobalChatInput] 방 이동 시작:', roomData.id);
+            setTimeout(() => {
+                window.location.href = `/room/${roomData.id}`;
+            }, 300);
+
         } catch (error) {
             console.error('[GlobalChatInput] 방 생성 중 오류:', error);
-            // 예외 발생 시 localStorage 정리 및 알림
+
+            // 오류 발생 시 localStorage 정리 및 알림
             localStorage.removeItem('pending_auto_message');
             localStorage.removeItem('pending_image_urls');
-            localStorage.removeItem('pending_image_message_content');
             localStorage.removeItem('pending_room_id');
-            alert('방 생성 오류');
+
+            alert(`방 생성 오류: ${error.message}`);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     // 음성인식 관련 상태 추가
