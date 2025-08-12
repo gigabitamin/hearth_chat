@@ -272,6 +272,22 @@
     background: #138496;
 }
 
+/* 디버그 버튼 스타일 */
+.control-btn.debug-btn {
+    background: #6c757d;
+    border: 2px solid #495057;
+    font-size: 14px;
+}
+
+.control-btn.debug-btn:hover {
+    background: #5a6268;
+    border-color: #343a40;
+}
+
+.control-btn.debug-btn:active {
+    background: #495057;
+}
+
 .control-btn.end-call {
     background: #f44336;
     width: 64px;

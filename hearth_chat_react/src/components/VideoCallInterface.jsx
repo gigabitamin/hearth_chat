@@ -45,22 +45,38 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
             const bluetoothOutputs = audioOutputs.filter(device =>
                 device.label.toLowerCase().includes('bluetooth') ||
                 device.label.toLowerCase().includes('bt') ||
-                device.deviceId.includes('bluetooth')
+                device.deviceId.includes('bluetooth') ||
+                device.label.toLowerCase().includes('wireless') ||
+                device.label.toLowerCase().includes('airpods') ||
+                device.label.toLowerCase().includes('galaxy buds')
             );
 
-            // 블루투스 마이크 입력 장치 확인
+            // 블루투스 마이크 입력 장치 확인 (더 포괄적으로)
             const audioInputs = devices.filter(device => device.kind === 'audioinput');
             const bluetoothInputs = audioInputs.filter(device =>
                 device.label.toLowerCase().includes('bluetooth') ||
                 device.label.toLowerCase().includes('bt') ||
                 device.deviceId.includes('bluetooth') ||
                 device.label.toLowerCase().includes('headset') ||
-                device.label.toLowerCase().includes('earphone')
+                device.label.toLowerCase().includes('earphone') ||
+                device.label.toLowerCase().includes('wireless') ||
+                device.label.toLowerCase().includes('airpods') ||
+                device.label.toLowerCase().includes('galaxy buds') ||
+                device.label.toLowerCase().includes('tws') ||
+                device.label.toLowerCase().includes('earbuds')
             );
 
             const hasBluetoothOutput = bluetoothOutputs.length > 0;
             const hasBluetoothInput = bluetoothInputs.length > 0;
             const hasBluetooth = hasBluetoothOutput || hasBluetoothInput;
+
+            console.log('[화상채팅] 블루투스 장치 감지 결과:', {
+                outputs: bluetoothOutputs.map(d => ({ label: d.label, deviceId: d.deviceId })),
+                inputs: bluetoothInputs.map(d => ({ label: d.label, deviceId: d.deviceId })),
+                hasOutput: hasBluetoothOutput,
+                hasInput: hasBluetoothInput,
+                total: hasBluetooth
+            });
 
             setIsBluetoothConnected(hasBluetooth);
 
@@ -81,6 +97,14 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
                 } else if (hasBluetoothOutput) {
                     setAudioOutput('bluetooth');
                     console.log('[화상채팅] 블루투스 스피커만 연결됨:', bluetoothOutputs);
+
+                    // 스피커만 연결된 경우에도 마이크 전환 시도 (혹시 마이크가 숨겨져 있을 수 있음)
+                    if (localStream) {
+                        setTimeout(() => {
+                            console.log('[화상채팅] 스피커만 연결된 상태에서 마이크 전환 시도');
+                            switchToBluetoothMicrophone();
+                        }, 2000); // 2초 후 시도
+                    }
                 } else if (hasBluetoothInput) {
                     setAudioOutput('bluetooth');
                     console.log('[화상채팅] 블루투스 마이크만 연결됨:', bluetoothInputs);
@@ -166,6 +190,8 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
                 return;
             }
 
+            console.log('[화상채팅] 블루투스 마이크 전환 시작...');
+
             // 블루투스 마이크 장치 찾기
             const devices = await navigator.mediaDevices.enumerateDevices();
             const bluetoothInputs = devices.filter(device =>
@@ -174,34 +200,105 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
                     device.label.toLowerCase().includes('bt') ||
                     device.deviceId.includes('bluetooth') ||
                     device.label.toLowerCase().includes('headset') ||
-                    device.label.toLowerCase().includes('earphone')
+                    device.label.toLowerCase().includes('earphone') ||
+                    device.label.toLowerCase().includes('wireless') ||
+                    device.label.toLowerCase().includes('airpods') ||
+                    device.label.toLowerCase().includes('galaxy buds')
                 )
             );
 
+            console.log('[화상채팅] 발견된 블루투스 마이크:', bluetoothInputs);
+
             if (bluetoothInputs.length === 0) {
-                console.log('[화상채팅] 블루투스 마이크를 찾을 수 없음');
+                console.log('[화상채팅] 블루투스 마이크를 찾을 수 없음, 모든 오디오 입력 장치 확인');
+
+                // 모든 오디오 입력 장치 출력
+                const allAudioInputs = devices.filter(device => device.kind === 'audioinput');
+                console.log('[화상채팅] 사용 가능한 모든 오디오 입력 장치:', allAudioInputs);
+
+                // 블루투스 마이크가 없으면 기본 마이크 사용
+                console.log('[화상채팅] 기본 마이크 사용');
                 return;
             }
 
-            // 블루투스 마이크로 스트림 생성
-            const bluetoothStream = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    deviceId: { exact: bluetoothInputs[0].deviceId },
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true
-                },
-                video: false
-            });
+            // 사용자에게 마이크 권한 요청 (모바일에서 중요)
+            try {
+                const permissionStream = await navigator.mediaDevices.getUserMedia({
+                    audio: true,
+                    video: false
+                });
+                console.log('[화상채팅] 마이크 권한 획득됨');
+                permissionStream.getTracks().forEach(track => track.stop()); // 임시 스트림 정리
+            } catch (permissionError) {
+                console.error('[화상채팅] 마이크 권한 획득 실패:', permissionError);
+                alert('마이크 권한이 필요합니다. 브라우저 설정에서 마이크 권한을 허용해주세요.');
+                return;
+            }
+
+            // 블루투스 마이크로 스트림 생성 (더 유연한 제약 조건)
+            let bluetoothStream;
+            try {
+                // 먼저 정확한 deviceId로 시도
+                bluetoothStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        deviceId: { exact: bluetoothInputs[0].deviceId },
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                        sampleRate: 48000,
+                        channelCount: 1
+                    },
+                    video: false
+                });
+                console.log('[화상채팅] 정확한 deviceId로 블루투스 마이크 연결 성공');
+            } catch (exactError) {
+                console.log('[화상채팅] 정확한 deviceId 연결 실패, 유연한 제약 조건으로 재시도:', exactError);
+
+                try {
+                    // 유연한 제약 조건으로 재시도
+                    bluetoothStream = await navigator.mediaDevices.getUserMedia({
+                        audio: {
+                            deviceId: { ideal: bluetoothInputs[0].deviceId },
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true
+                        },
+                        video: false
+                    });
+                    console.log('[화상채팅] 유연한 제약 조건으로 블루투스 마이크 연결 성공');
+                } catch (flexibleError) {
+                    console.log('[화상채팅] 유연한 제약 조건도 실패, 기본 오디오 설정으로 재시도:', flexibleError);
+
+                    try {
+                        // 기본 오디오 설정으로 재시도
+                        bluetoothStream = await navigator.mediaDevices.getUserMedia({
+                            audio: {
+                                echoCancellation: true,
+                                noiseSuppression: true,
+                                autoGainControl: true
+                            },
+                            video: false
+                        });
+                        console.log('[화상채팅] 기본 오디오 설정으로 연결 성공 (블루투스 마이크일 가능성)');
+                    } catch (basicError) {
+                        console.error('[화상채팅] 모든 마이크 연결 방법 실패:', basicError);
+                        alert('블루투스 마이크 연결에 실패했습니다. 기본 마이크를 사용합니다.');
+                        return;
+                    }
+                }
+            }
 
             // 기존 오디오 트랙을 블루투스 마이크로 교체
-            if (localStream) {
+            if (localStream && bluetoothStream) {
                 const oldAudioTrack = localStream.getAudioTracks()[0];
                 if (oldAudioTrack) {
+                    console.log('[화상채팅] 기존 오디오 트랙 중지:', oldAudioTrack.label);
                     oldAudioTrack.stop(); // 기존 트랙 중지
                 }
 
                 const newAudioTrack = bluetoothStream.getAudioTracks()[0];
+                console.log('[화상채팅] 새로운 오디오 트랙:', newAudioTrack.label);
+
                 localStream.removeTrack(oldAudioTrack);
                 localStream.addTrack(newAudioTrack);
 
@@ -210,10 +307,14 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
                     localVideoRef.current.srcObject = localStream;
                 }
 
-                console.log('[화상채팅] 블루투스 마이크로 전환됨:', bluetoothInputs[0].label);
+                console.log('[화상채팅] 블루투스 마이크로 전환 완료:', newAudioTrack.label);
+
+                // 성공 메시지 표시
+                alert(`블루투스 마이크로 전환되었습니다: ${newAudioTrack.label}`);
             }
         } catch (error) {
             console.error('[화상채팅] 블루투스 마이크 전환 실패:', error);
+            alert('블루투스 마이크 전환에 실패했습니다. 기본 마이크를 사용합니다.');
         }
     };
 
@@ -233,27 +334,69 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
     // 모바일에서 통화 모드 방지 및 음성 설정
     const setupMobileAudio = async () => {
         try {
+            console.log('[화상채팅] 모바일 오디오 설정 시작...');
+
             // 모바일에서 통화 모드 방지
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                const constraints = {
-                    audio: {
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        autoGainControl: true,
-                        // 통화 모드 방지
-                        sampleRate: 48000,
-                        channelCount: 2
-                    },
-                    video: true
-                };
+                // 먼저 마이크 권한 요청 (모바일에서 중요)
+                try {
+                    console.log('[화상채팅] 마이크 권한 요청 중...');
+                    const permissionStream = await navigator.mediaDevices.getUserMedia({
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true,
+                            // 통화 모드 방지
+                            sampleRate: 48000,
+                            channelCount: 2
+                        },
+                        video: false
+                    });
+
+                    console.log('[화상채팅] 마이크 권한 획득됨, 스트림 정보:', {
+                        audioTracks: permissionStream.getAudioTracks().map(track => ({
+                            label: track.label,
+                            enabled: track.enabled,
+                            muted: track.muted,
+                            readyState: track.readyState
+                        }))
+                    });
+
+                    // 임시 스트림 정리
+                    permissionStream.getTracks().forEach(track => track.stop());
+
+                } catch (permissionError) {
+                    console.error('[화상채팅] 마이크 권한 획득 실패:', permissionError);
+                    // 권한 실패 시에도 계속 진행 (사용자가 나중에 허용할 수 있음)
+                }
 
                 // 오디오 컨텍스트 설정 (통화 모드 방지)
                 if (window.AudioContext || window.webkitAudioContext) {
-                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                    if (audioContext.state === 'suspended') {
-                        await audioContext.resume();
+                    try {
+                        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                        if (audioContext.state === 'suspended') {
+                            await audioContext.resume();
+                            console.log('[화상채팅] 오디오 컨텍스트 활성화됨');
+                        } else {
+                            console.log('[화상채팅] 오디오 컨텍스트 이미 활성 상태:', audioContext.state);
+                        }
+                    } catch (audioContextError) {
+                        console.error('[화상채팅] 오디오 컨텍스트 설정 실패:', audioContextError);
                     }
-                    console.log('[화상채팅] 오디오 컨텍스트 활성화됨');
+                }
+
+                // 사용 가능한 모든 오디오 장치 출력
+                try {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const audioInputs = devices.filter(device => device.kind === 'audioinput');
+                    const audioOutputs = devices.filter(device => device.kind === 'audiooutput');
+
+                    console.log('[화상채팅] 사용 가능한 오디오 장치:', {
+                        inputs: audioInputs.map(d => ({ label: d.label, deviceId: d.deviceId })),
+                        outputs: audioOutputs.map(d => ({ label: d.label, deviceId: d.deviceId }))
+                    });
+                } catch (deviceEnumError) {
+                    console.error('[화상채팅] 장치 열거 실패:', deviceEnumError);
                 }
 
                 console.log('[화상채팅] 모바일 오디오 설정 완료');
@@ -781,23 +924,30 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
                             console.log('[화상채팅] 방장이므로 Offer 재생성');
                             try {
                                 await videoCallService.createOffer();
-                                console.log('[화상채팅] 강제 Offer 생성 성공');
+                                console.log('[화상채팅] Offer 재생성 완료');
                             } catch (error) {
-                                console.error('[화상채팅] 강제 Offer 생성 실패:', error);
+                                console.error('[화상채팅] Offer 재생성 실패:', error);
                             }
                         } else {
-                            console.log('[화상채팅] 참가자이므로 Offer 대기 중');
-                            console.log('[화상채팅] 현재 WebRTC 상태:', {
-                                connectionState: videoCallService.peerConnection?.connectionState,
-                                iceConnectionState: videoCallService.peerConnection?.iceConnectionState
-                            });
+                            console.log('[화상채팅] 방장이 아니므로 Offer 재생성 안함');
                         }
                     }}
-                    className="control-btn"
-                    title="연결 테스트"
-                    style={{ background: '#FF9800' }}
+                    className="control-btn debug-btn"
+                    title="강제 연결 테스트"
                 >
                     🔧
+                </button>
+
+                {/* 강제 블루투스 마이크 전환 버튼 */}
+                <button
+                    onClick={async () => {
+                        console.log('[화상채팅] 강제 블루투스 마이크 전환 시작');
+                        await switchToBluetoothMicrophone();
+                    }}
+                    className="control-btn debug-btn"
+                    title="강제 블루투스 마이크 전환"
+                >
+                    🎤🔧
                 </button>
 
                 {/* 강제 Offer 생성 버튼 (모든 사용자) */}
