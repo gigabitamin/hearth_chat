@@ -9,12 +9,14 @@ class VideoCallService {
         this.onRemoteStreamReceived = null;
         this.onConnectionStateChange = null;
         this.onIceConnectionStateChange = null;
+        this.isScreenSharing = false; // 화면공유 상태 추가
+        this.screenShareStream = null; // 화면공유 스트림 추가
     }
 
     async initializeVideoCall(roomId, userId) {
         this.roomId = roomId;
         this.userId = userId;
-        
+
         try {
             // 로컬 미디어 스트림 획득
             this.localStream = await navigator.mediaDevices.getUserMedia({
@@ -79,7 +81,7 @@ class VideoCallService {
         try {
             const offer = await this.peerConnection.createOffer();
             await this.peerConnection.setLocalDescription(offer);
-            
+
             this.sendSignalingMessage({
                 type: 'offer',
                 offer: offer,
@@ -97,7 +99,7 @@ class VideoCallService {
             await this.peerConnection.setRemoteDescription(offer);
             const answer = await this.peerConnection.createAnswer();
             await this.peerConnection.setLocalDescription(answer);
-            
+
             this.sendSignalingMessage({
                 type: 'answer',
                 answer: answer,
@@ -131,7 +133,13 @@ class VideoCallService {
 
     sendSignalingMessage(message) {
         if (this.signalingSocket && this.signalingSocket.readyState === WebSocket.OPEN) {
+            console.log('[VideoCallService] 시그널링 메시지 전송:', message.type);
             this.signalingSocket.send(JSON.stringify(message));
+        } else {
+            console.error('[VideoCallService] 시그널링 소켓이 연결되지 않음:', {
+                hasSocket: !!this.signalingSocket,
+                readyState: this.signalingSocket?.readyState
+            });
         }
     }
 
@@ -189,43 +197,65 @@ class VideoCallService {
     async toggleScreenShare() {
         try {
             if (!this.isScreenSharing) {
+                // 화면공유 시작
                 const screenStream = await navigator.mediaDevices.getDisplayMedia({
                     video: true
                 });
-                
+
                 const videoTrack = screenStream.getVideoTracks()[0];
                 const sender = this.peerConnection
                     .getSenders()
                     .find(s => s.track && s.track.kind === 'video');
-                
+
                 if (sender) {
                     sender.replaceTrack(videoTrack);
                 }
-                
+
                 this.isScreenSharing = true;
-                return true;
+                this.screenShareStream = screenStream; // 화면공유 스트림 저장
+
+                // 화면공유 스트림 반환
+                return screenStream;
             } else {
                 // 원래 카메라로 복원
                 const cameraStream = await navigator.mediaDevices.getUserMedia({
                     video: true
                 });
-                
+
                 const videoTrack = cameraStream.getVideoTracks()[0];
                 const sender = this.peerConnection
                     .getSenders()
                     .find(s => s.track && s.track.kind === 'video');
-                
+
                 if (sender) {
                     sender.replaceTrack(videoTrack);
                 }
-                
+
+                // 기존 화면공유 스트림 정리
+                if (this.screenShareStream) {
+                    this.screenShareStream.getTracks().forEach(track => track.stop());
+                    this.screenShareStream = null;
+                }
+
                 this.isScreenSharing = false;
-                return false;
+
+                // 카메라 스트림 반환
+                return cameraStream;
             }
         } catch (error) {
             console.error('화면 공유 전환 실패:', error);
             throw error;
         }
+    }
+
+    // 화면공유 상태 확인
+    getScreenSharingState() {
+        return this.isScreenSharing;
+    }
+
+    // 화면공유 스트림 가져오기
+    getScreenShareStream() {
+        return this.screenShareStream;
     }
 }
 

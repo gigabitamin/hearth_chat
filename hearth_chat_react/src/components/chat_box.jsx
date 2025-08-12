@@ -312,6 +312,9 @@ const ChatBox = ({
     ws.current.onopen = () => {
       console.log('[WebSocket] 연결 성공');
 
+      // WebSocket을 전역으로 노출 (화상채팅에서 사용)
+      window.chatWebSocket = ws.current;
+
       // WebSocket 연결 완료 상태 설정
       setWsConnectionReady(true);
 
