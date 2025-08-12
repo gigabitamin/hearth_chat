@@ -335,7 +335,7 @@
 
 /* TTS 토글 버튼 스타일 */
 .tts-toggle-btn {
-    background: rgba(188, 188, 190, 0.242) !important;
+    background: rgba(188, 188, 190, 0.188) !important;
     border: none !important;
     border-radius: 50% !important;
     width: 24px !important;
@@ -344,7 +344,7 @@
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    color: #fff !important;
+    color: #cccccc83 !important;
     font-size: 16px !important;
     transition: all 0.2s ease !important;
     /* box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important; */
@@ -353,7 +353,7 @@
 
 .tts-toggle-btn:hover {
     transform: scale(1.1) !important;
-    box-shadow: 0 4px 8px rgba(137, 137, 137, 0.763).3).3).3).3) !important;
+    box-shadow: 0 4px 8px rgba(99, 99, 173, 0.868) !important;
 }
 
 .tts-toggle-btn.active {

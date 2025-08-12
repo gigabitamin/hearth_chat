@@ -167,6 +167,14 @@ const ChatBox = ({
     setMessages([]);
   }, [selectedRoom?.id]);
 
+  // selectedRoom 변경 시 WebSocket 연결 상태 리셋
+  useEffect(() => {
+    setWsConnectionReady(false);
+    setAutoMessageSent(false);
+    setIsReconnecting(false); // 재연결 상태도 리셋
+    setLastProcessedSettings(null); // 마지막 처리된 설정도 리셋
+  }, [selectedRoom?.id]);
+
   // 안전한 WebSocket 메시지 전송 함수
   const safeWebSocketSend = (message) => {
     if (!ws.current || ws.current.readyState !== 1) {
@@ -221,14 +229,90 @@ const ChatBox = ({
         const joinMessage = { type: 'join_room', roomId: selectedRoom.id };
         if (safeWebSocketSend(joinMessage)) {
           joinSent = true;
-
+          console.log('[WebSocket] join_room 메시지 전송 성공 (setInterval)');
           clearInterval(joinInterval);
+
+          // join_room 성공 후 자동 메시지 전송 시도
+          setTimeout(() => {
+            if (!autoMessageSent) {
+              const autoMsg = localStorage.getItem('pending_auto_message');
+              const autoImg = localStorage.getItem('pending_image_url');
+              if (autoMsg || autoImg) {
+                console.log('[ChatBox] setInterval join_room 후 자동 메시지 전송 시도');
+                const clientId = `${Date.now()}_${Math.random()}`;
+
+                // 먼저 pending 메시지로 화면에 표시
+                const pendingMessage = {
+                  id: `pending_${clientId}`,
+                  type: 'send',
+                  text: autoMsg || '[이미지 첨부]',
+                  date: new Date().toISOString(),
+                  sender: loginUser?.username || '사용자',
+                  user_id: loginUser?.id,
+                  pending: true,
+                  client_id: clientId,
+                  imageUrl: autoImg || null,
+                  imageUrls: autoImg ? [autoImg] : [],
+                };
+
+                console.log('[ChatBox] setInterval pending 메시지 생성:', pendingMessage);
+                console.log('[ChatBox] setInterval 현재 messages 상태:', messages);
+
+                // 테스트: 간단한 메시지 먼저 추가해보기
+                setMessages(prev => {
+                  const testMessage = {
+                    id: `test_${Date.now()}`,
+                    type: 'send',
+                    text: '테스트 메시지',
+                    date: new Date().toISOString(),
+                    sender: '테스트',
+                    pending: false,
+                  };
+                  const newMessages = [...prev, testMessage];
+                  console.log('[ChatBox] 테스트 메시지 추가 후 messages:', newMessages);
+                  return newMessages;
+                });
+
+                // 실제 pending 메시지 추가
+                setTimeout(() => {
+                  setMessages(prev => {
+                    const newMessages = [...prev, pendingMessage];
+                    console.log('[ChatBox] setInterval pending 메시지 추가 후 messages:', newMessages);
+                    return newMessages;
+                  });
+                }, 100);
+
+                console.log('[ChatBox] setInterval 자동 메시지 pending 상태로 추가됨:', pendingMessage);
+
+                const messageData = {
+                  message: autoMsg || '[이미지 첨부]',
+                  imageUrl: autoImg || '',
+                  roomId: selectedRoom.id,
+                  client_id: clientId,
+                  type: 'user_message',
+                };
+
+                try {
+                  ws.current.send(JSON.stringify(messageData));
+                  console.log('[ChatBox] setInterval join_room 후 자동 메시지 전송 성공:', messageData);
+                  localStorage.removeItem('pending_auto_message');
+                  localStorage.removeItem('pending_image_url');
+                  setAutoMessageSent(true);
+                } catch (error) {
+                  console.error('[ChatBox] setInterval join_room 후 자동 메시지 전송 실패:', error);
+                }
+              }
+            }
+          }, 100);
         }
       }
     }, 500); // 500ms 간격으로 안전하게 처리
 
     ws.current.onopen = () => {
+      console.log('[WebSocket] 연결 성공');
 
+      // WebSocket 연결 완료 상태 설정
+      setWsConnectionReady(true);
 
       // 연결 후 약간의 지연을 두고 join_room 메시지 전송
       setTimeout(() => {
@@ -236,21 +320,76 @@ const ChatBox = ({
           const joinMessage = { type: 'join_room', roomId: selectedRoom.id };
           if (safeWebSocketSend(joinMessage)) {
             joinSent = true;
+            console.log('[WebSocket] join_room 메시지 전송 성공');
 
+            // join_room 성공 후 자동 메시지 전송 시도
+            setTimeout(() => {
+              if (!autoMessageSent) {
+                const autoMsg = localStorage.getItem('pending_auto_message');
+                const autoImg = localStorage.getItem('pending_image_url');
+                if (autoMsg || autoImg) {
+                  console.log('[ChatBox] join_room 후 자동 메시지 전송 시도');
+                  const clientId = `${Date.now()}_${Math.random()}`;
+
+                  // 먼저 pending 메시지로 화면에 표시
+                  const pendingMessage = {
+                    id: `pending_${clientId}`,
+                    type: 'send',
+                    text: autoMsg || '[이미지 첨부]',
+                    date: new Date().toISOString(),
+                    sender: loginUser?.username || '사용자',
+                    user_id: loginUser?.id,
+                    pending: true,
+                    client_id: clientId,
+                    imageUrl: autoImg || null,
+                    imageUrls: autoImg ? [autoImg] : [],
+                  };
+
+                  console.log('[ChatBox] pending 메시지 생성:', pendingMessage);
+                  console.log('[ChatBox] 현재 messages 상태:', messages);
+
+                  setMessages(prev => {
+                    const newMessages = [...prev, pendingMessage];
+                    console.log('[ChatBox] pending 메시지 추가 후 messages:', newMessages);
+                    return newMessages;
+                  });
+
+                  console.log('[ChatBox] 자동 메시지 pending 상태로 추가됨:', pendingMessage);
+
+                  const messageData = {
+                    message: autoMsg || '[이미지 첨부]',
+                    imageUrl: autoImg || '',
+                    roomId: selectedRoom.id,
+                    client_id: clientId,
+                    type: 'user_message', // 메시지 타입 명시
+                  };
+
+                  try {
+                    ws.current.send(JSON.stringify(messageData));
+                    console.log('[ChatBox] join_room 후 자동 메시지 전송 성공:', messageData);
+                    localStorage.removeItem('pending_auto_message');
+                    localStorage.removeItem('pending_image_url');
+                    setAutoMessageSent(true);
+                  } catch (error) {
+                    console.error('[ChatBox] join_room 후 자동 메시지 전송 실패:', error);
+                  }
+                }
+              }
+            }, 100); // 100ms 지연으로 빠른 전송
           }
         }
       }, 200); // 100ms에서 200ms로 증가하여 더 안전하게 처리
     };
     ws.current.onmessage = (e) => {
-
       try {
         const data = JSON.parse(e.data);
+        console.log('[WebSocket] 메시지 수신:', data);
 
         if (data.type === 'user_message' && data.message) {
           const isMyMessage = (data.sender === loginUserRef.current?.username) || (data.user_id === loginUserRef.current?.id);
 
           const newMessage = {
-            id: Date.now(),
+            id: data.id || Date.now(),
             type: isMyMessage ? 'send' : 'recv',
             text: data.message,
             date: data.timestamp,
@@ -260,60 +399,61 @@ const ChatBox = ({
             emotion: data.emotion,
             imageUrl: data.imageUrl || null,      // 단일 이미지(호환성)
             imageUrls: data.imageUrls || [],       // 다중 이미지 배열 추가
+            pending: false,
           };
 
           setMessages((prev) => {
             let next;
             if (isMyMessage) {
-              // echo 메시지라면 pending 메시지 제거
-              next = [
-                ...prev.filter(msg => !(msg.pending && msg.text === data.message)),
-                newMessage
-              ];
-
+              // echo 메시지라면 pending 메시지 제거 (client_id로 매칭)
+              if (data.client_id) {
+                next = [
+                  ...prev.filter(msg => !(msg.pending && msg.client_id === data.client_id)),
+                  newMessage
+                ];
+              } else {
+                // fallback: text + timestamp로 매칭
+                next = [
+                  ...prev.filter(msg => !(msg.pending && msg.text === data.message &&
+                    Math.abs(new Date(msg.date).getTime() - new Date(data.timestamp).getTime()) < 2000)),
+                  newMessage
+                ];
+              }
             } else {
               next = [...prev, newMessage];
-
             }
+
+            console.log('[WebSocket] 사용자 메시지 추가됨:', newMessage, '총 메시지 수:', next.length);
             return next;
           });
+
         } else if (data.type === 'ai_message' && data.message) {
           const newMessage = {
-            id: Date.now(),
-            type: 'recv',
+            id: data.id || `ai_${data.timestamp}`,
+            type: 'ai',
             text: data.message,
             date: data.timestamp,
-            sender: 'AI',
-            sender_type: 'ai',
+            sender: data.ai_name || 'AI',
+            ai_name: data.ai_name,
             questioner_username: data.questioner_username,
-            ai_name: data.ai_name, // AI 이름 포함
-            emotion: null,
+            pending: false,
             imageUrl: null,
-            imageUrls: data.imageUrls || [],  // AI 메시지에 첨부된 이미지 URL 배열
+            imageUrls: data.imageUrls || [],
           };
 
           setMessages((prev) => {
-            // 중복 메시지 방지: 동일 timestamp/text/questioner_username/ai_name이 이미 있으면 추가하지 않음
-            if (prev.some(m => m.type === 'ai' && m.date === data.timestamp && m.text === data.message && m.questioner_username === data.questioner_username && m.ai_name === data.ai_name)) {
+            // 중복 메시지 방지
+            if (prev.some(m => m.type === 'ai' && m.date === data.timestamp && m.text === data.message &&
+              m.questioner_username === data.questioner_username && m.ai_name === data.ai_name)) {
+              console.log('[WebSocket] 중복 AI 메시지 무시:', data.message);
               return prev;
             }
-            const newMsg = {
-              id: data.id || `ai_${data.timestamp}`,
-              type: 'ai',
-              text: data.message,
-              date: data.timestamp,
-              sender: data.ai_name, // sender는 항상 ai_name
-              ai_name: data.ai_name,
-              questioner_username: data.questioner_username,
-              pending: false,
-              imageUrl: null,
-              imageUrls: data.imageUrls || [],
-            };
 
-            const arr = [...prev, newMsg];
-
-            return arr;
+            const next = [...prev, newMessage];
+            console.log('[WebSocket] AI 메시지 추가됨:', newMessage, '총 메시지 수:', next.length);
+            return next;
           });
+
           setCurrentAiMessage(data.message);
           setIsAiTalking(true);
           if (isTTSEnabled) {
@@ -330,19 +470,26 @@ const ChatBox = ({
           setAiEmotion(aiEmotionResponse.primary);
           setEmotionDisplay(prev => ({ ...prev, ai: aiEmotionResponse.primary }));
           setEmotionCaptureStatus(prev => ({ ...prev, ai: true }));
-          setTimeout(() => {
-            setAiEmotion('neutral');
-            setEmotionDisplay(prev => ({ ...prev, ai: 'neutral' }));
-            setEmotionCaptureStatus(prev => ({ ...prev, ai: false }));
-          }, aiEmotionResponse.duration);
+
+        } else if (data.type === 'join_room_success') {
+          console.log('[WebSocket] 방 입장 성공:', data);
+
+        } else if (data.type === 'leave_room_success') {
+          console.log('[WebSocket] 방 나가기 성공:', data);
+
+        } else {
+          console.log('[WebSocket] 알 수 없는 메시지 타입:', data.type, data);
         }
-        // 기타 message 타입에서는 setMessages를 호출하지 않음
+
       } catch (error) {
-        console.error('WebSocket 메시지 처리 중 오류:', error);
+        console.error('[WebSocket onmessage] 파싱 오류:', error, e.data);
       }
     };
     ws.current.onclose = () => {
+      console.log('[WebSocket] 연결이 끊어짐');
 
+      // WebSocket 연결 상태 리셋
+      setWsConnectionReady(false);
 
       // 연결이 끊어지면 3초 후 재연결 시도 (단, 컴포넌트가 마운트된 상태일 때만)
       setTimeout(() => {
@@ -353,6 +500,9 @@ const ChatBox = ({
     };
     ws.current.onerror = (error) => {
       console.error('[WebSocket] 연결 오류:', error);
+
+      // 오류 발생 시 연결 상태 리셋
+      setWsConnectionReady(false);
     };
     // 방 나갈 때 leave_room 및 연결 해제
     return () => {
@@ -367,6 +517,8 @@ const ChatBox = ({
           console.error('[WebSocket] 연결 해제 중 오류:', error);
         }
       }
+      // 연결 상태 리셋
+      setWsConnectionReady(false);
     };
   }, [selectedRoom?.id, loginUser?.username]);
 
@@ -671,80 +823,7 @@ const ChatBox = ({
       console.error('WebSocket 연결 오류:', error);
     };
 
-    // WebSocket 메시지 수신 처리 (재연결 시에도 동일하게)
-    ws.current.onmessage = (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        const username = loginUserRef.current?.username;
-        const userId = loginUserRef.current?.id;
-        if (data.type === 'user_message' && data.message) {
-          const isMyMessage = (data.sender === username) || (data.user_id === userId);
-          // 서버 echo 메시지에 client_id가 있으면, 해당 pending 메시지 제거
-          setMessages((prev) => {
-            let arr = prev;
-            // 1. client_id로 매칭 제거(가장 정확)
-            if (data.client_id) {
-              arr = arr.filter(
-                (msg) => !(msg.pending && msg.client_id === data.client_id)
-              );
-            } else {
-              // 2. fallback: text+timestamp+sender로 매칭
-              arr = arr.filter(
-                (msg) =>
-                  !(
-                    msg.pending &&
-                    msg.text === data.message &&
-                    msg.sender === data.sender &&
-                    Math.abs(new Date(msg.date).getTime() - new Date(data.timestamp).getTime()) < 2000
-                  )
-              );
-            }
-            // 서버 메시지 추가
-            const newMsg = {
-              id: data.id || `${data.sender}_${data.timestamp}`,
-              type: isMyMessage ? 'send' : 'recv',
-              text: data.message,
-              date: data.timestamp,
-              sender: data.sender,
-              user_id: data.user_id,
-              emotion: data.emotion,
-              imageUrl: data.imageUrl || null,  // 단일 이미지 (호환성 유지)
-              imageUrls: data.imageUrls || [],  // 다중 이미지 배열              
-              pending: false,
-            };
-
-            const result = [...arr, newMsg];
-
-            return result;
-          });
-        } else if (data.type === 'ai_message' && data.message) {
-          setMessages((prev) => {
-            // 중복 메시지 방지: 동일 timestamp/text/questioner_username/ai_name이 이미 있으면 추가하지 않음
-            if (prev.some(m => m.type === 'ai' && m.date === data.timestamp && m.text === data.message && m.questioner_username === data.questioner_username && m.ai_name === data.ai_name)) {
-              return prev;
-            }
-            const newMsg = {
-              id: data.id || `ai_${data.timestamp}`,
-              type: 'ai',
-              text: data.message,
-              date: data.timestamp,
-              sender: data.ai_name, // sender는 항상 ai_name
-              ai_name: data.ai_name,
-              questioner_username: data.questioner_username,
-              imageUrl: null,
-              imageUrls: data.imageUrls || [],  // AI 메시지는 이미지 없음
-              pending: false,
-            };
-
-            const arr = [...prev, newMsg];
-
-            return arr;
-          });
-        }
-      } catch (err) {
-        console.error('[WebSocket onmessage] 파싱 오류:', err, e.data);
-      }
-    };
+    // 중복된 onmessage 핸들러 제거됨 - 첫 번째 핸들러가 모든 메시지를 처리함
 
     // TTS 서비스 초기화
     initializeTTSService();
@@ -1553,30 +1632,86 @@ const ChatBox = ({
 
   // 메시지 즐겨찾기 토글 - ChatBoxCore에서 import됨
 
+  // WebSocket 연결 상태 모니터링
+  const [wsConnectionReady, setWsConnectionReady] = useState(false);
+  const [autoMessageSent, setAutoMessageSent] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false); // 재연결 중복 방지
+
+  // WebSocket 상태 디버깅을 위한 로깅
   useEffect(() => {
-    // 채팅방 입장 시 자동 메시지 전송 및 AI 응답 활성화
-    if (selectedRoom && selectedRoom.id) {
+    console.log('[ChatBox] WebSocket 상태 변화:', {
+      wsConnectionReady,
+      autoMessageSent,
+      selectedRoomId: selectedRoom?.id,
+      wsExists: !!ws.current,
+      wsReadyState: ws.current?.readyState,
+      isReconnecting
+    });
+  }, [wsConnectionReady, autoMessageSent, selectedRoom?.id, isReconnecting]);
+
+  // WebSocket 연결 완료 후 자동 메시지 전송
+  useEffect(() => {
+    if (wsConnectionReady && selectedRoom && selectedRoom.id && !autoMessageSent) {
       const autoMsg = localStorage.getItem('pending_auto_message');
       const autoImg = localStorage.getItem('pending_image_url');
+
       if (autoMsg || autoImg) {
-        setTimeout(() => {
+        console.log('[ChatBox] WebSocket 연결 완료, 자동 메시지 전송 시작:', { autoMsg, autoImg, roomId: selectedRoom.id });
+
+        const sendAutoMessage = (retryCount = 0) => {
+          // WebSocket 연결 상태를 더 정확하게 체크
           if (ws.current && ws.current.readyState === 1) {
+            console.log('[ChatBox] 자동 메시지 전송 시도, WebSocket 상태:', ws.current.readyState);
             const clientId = `${Date.now()}_${Math.random()}`;
             const messageData = {
               message: autoMsg || '[이미지 첨부]',
               imageUrl: autoImg || '',
               roomId: selectedRoom.id,
               client_id: clientId,
+              type: 'user_message', // 메시지 타입 명시
             };
-            ws.current.send(JSON.stringify(messageData));
-            // localStorage 정리
-            localStorage.removeItem('pending_auto_message');
-            localStorage.removeItem('pending_image_url');
+
+            try {
+              ws.current.send(JSON.stringify(messageData));
+              console.log('[ChatBox] 자동 메시지 전송 성공:', messageData);
+              // localStorage 정리
+              localStorage.removeItem('pending_auto_message');
+              localStorage.removeItem('pending_image_url');
+              // 자동 메시지 전송 완료 플래그 설정
+              setAutoMessageSent(true);
+            } catch (error) {
+              console.error('[ChatBox] 자동 메시지 전송 실패:', error);
+              if (retryCount < 2) { // 재시도 횟수 줄임
+                console.log(`[ChatBox] 재시도 ${retryCount + 1}/2`);
+                setTimeout(() => sendAutoMessage(retryCount + 1), 200); // 지연 시간 줄임
+              }
+            }
+          } else {
+            console.log('[ChatBox] WebSocket 연결 대기 중...', {
+              wsExists: !!ws.current,
+              readyState: ws.current?.readyState,
+              retryCount
+            });
+
+            if (retryCount < 3) { // 최대 3번까지 재시도 (줄임)
+              console.log(`[ChatBox] WebSocket 연결 대기 재시도 ${retryCount + 1}/3`);
+              setTimeout(() => sendAutoMessage(retryCount + 1), 200); // 지연 시간 줄임
+            } else {
+              console.error('[ChatBox] WebSocket 연결 실패로 자동 메시지 전송 포기');
+              // localStorage 정리
+              localStorage.removeItem('pending_auto_message');
+              localStorage.removeItem('pending_image_url');
+            }
           }
-        }, 500);
+        };
+
+        // 즉시 전송 시도 (지연 없음)
+        sendAutoMessage(0);
       }
     }
-  }, [selectedRoom]);
+  }, [wsConnectionReady, selectedRoom, autoMessageSent]);
+
+
 
   // 메시지 삭제 함수 - ChatBoxCore에서 import됨
 
@@ -1679,7 +1814,26 @@ const ChatBox = ({
   const reconnectWebSocket = useCallback(() => {
     if (!selectedRoom || !selectedRoom.id) return;
 
+    // 이미 재연결 중이면 중복 실행 방지
+    if (isReconnecting) {
+      console.log('[WebSocket] 이미 재연결 중입니다. 중복 실행 방지');
+      return;
+    }
+
     console.log('[WebSocket] 설정 변경으로 인한 재연결 시작');
+    setIsReconnecting(true);
+
+    // 안전장치: 10초 후에도 재연결 상태가 리셋되지 않으면 강제 리셋
+    const safetyTimeout = setTimeout(() => {
+      if (isReconnecting) {
+        console.warn('[WebSocket] 재연결 타임아웃, 강제로 상태 리셋');
+        setIsReconnecting(false);
+        setWsConnectionReady(false);
+      }
+    }, 10000);
+
+    // 자동 메시지 전송 상태 보존 (재연결 중에도 중단되지 않도록)
+    const wasAutoMessageSent = autoMessageSent;
 
     // 기존 연결 해제
     if (ws.current) {
@@ -1721,6 +1875,22 @@ const ChatBox = ({
 
     ws.current.onopen = () => {
       console.log('[WebSocket] 재연결 성공');
+
+      // 안전장치 타임아웃 정리
+      clearTimeout(safetyTimeout);
+
+      // WebSocket 연결 완료 상태 설정
+      setWsConnectionReady(true);
+
+      // 재연결 상태 리셋 (즉시)
+      setIsReconnecting(false);
+      console.log('[WebSocket] 재연결 상태 리셋됨: isReconnecting = false');
+
+      // 자동 메시지 전송 상태 복원
+      if (wasAutoMessageSent) {
+        setAutoMessageSent(true);
+      }
+
       // 연결 후 약간의 지연을 두고 join_room 메시지 전송
       setTimeout(() => {
         if (!joinSent && ws.current && ws.current.readyState === 1) {
@@ -1728,152 +1898,427 @@ const ChatBox = ({
           if (safeWebSocketSend(joinMessage)) {
             joinSent = true;
             console.log('[WebSocket] 재연결 후 join_room 성공 (지연)');
+
+            // join_room 성공 후 자동 메시지 전송 시도 (재연결 시에도)
+            setTimeout(() => {
+              if (!wasAutoMessageSent && !autoMessageSent) {
+                const autoMsg = localStorage.getItem('pending_auto_message');
+                const autoImg = localStorage.getItem('pending_image_url');
+                if (autoMsg || autoImg) {
+                  console.log('[ChatBox] 재연결 후 join_room 성공, 자동 메시지 전송 시도');
+                  const clientId = `${Date.now()}_${Math.random()}`;
+
+                  // 먼저 pending 메시지로 화면에 표시
+                  const pendingMessage = {
+                    id: `pending_${clientId}`,
+                    type: 'send',
+                    text: autoMsg || '[이미지 첨부]',
+                    date: new Date().toISOString(),
+                    sender: loginUser?.username || '사용자',
+                    user_id: loginUser?.id,
+                    pending: true,
+                    client_id: clientId,
+                    imageUrl: autoImg || null,
+                    imageUrls: autoImg ? [autoImg] : [],
+                  };
+
+                  console.log('[ChatBox] 재연결 후 pending 메시지 생성:', pendingMessage);
+                  console.log('[ChatBox] 재연결 후 현재 messages 상태:', messages);
+
+                  setMessages(prev => {
+                    const newMessages = [...prev, pendingMessage];
+                    console.log('[ChatBox] 재연결 후 pending 메시지 추가 후 messages:', newMessages);
+                    return newMessages;
+                  });
+
+                  console.log('[ChatBox] 재연결 후 자동 메시지 pending 상태로 추가됨:', pendingMessage);
+
+                  const messageData = {
+                    message: autoMsg || '[이미지 첨부]',
+                    imageUrl: autoImg || '',
+                    roomId: selectedRoom.id,
+                    client_id: clientId,
+                    type: 'user_message', // 메시지 타입 명시
+                  };
+
+                  try {
+                    ws.current.send(JSON.stringify(messageData));
+                    console.log('[ChatBox] 재연결 후 자동 메시지 전송 성공:', messageData);
+                    localStorage.removeItem('pending_image_url');
+                    localStorage.removeItem('pending_auto_message');
+                    setAutoMessageSent(true);
+                  } catch (error) {
+                    console.error('[ChatBox] 재연결 후 자동 메시지 전송 실패:', error);
+                  }
+                }
+              }
+            }, 100); // 100ms 지연으로 빠른 전송
           }
         }
       }, 200);
     };
 
+    // 재연결된 WebSocket의 메시지 핸들러 추가
     ws.current.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
+        console.log('[WebSocket 재연결] 메시지 수신:', data);
+
+        const username = loginUserRef.current?.username;
+        const userId = loginUserRef.current?.id;
 
         if (data.type === 'user_message' && data.message) {
-          const isMyMessage = (data.sender === loginUserRef.current?.username) || (data.user_id === loginUserRef.current?.id);
+          const isMyMessage = (data.sender === username) || (data.user_id === userId);
 
-          const newMessage = {
-            id: Date.now(),
-            type: isMyMessage ? 'send' : 'recv',
-            text: data.message,
-            date: data.timestamp,
-            sender: data.sender,
-            sender_type: 'user',
-            user_id: data.user_id,
-            emotion: data.emotion,
-            imageUrl: data.imageUrl || null,
-            imageUrls: data.imageUrls || [],
-          };
-
+          // 서버 echo 메시지에 client_id가 있으면, 해당 pending 메시지 제거
           setMessages((prev) => {
-            let next;
-            if (isMyMessage) {
-              // echo 메시지라면 pending 메시지 제거
-              next = [
-                ...prev.filter(msg => !(msg.pending && msg.text === data.message)),
-                newMessage
-              ];
+            let arr = prev;
+
+            // 1. client_id로 매칭 제거(가장 정확)
+            if (data.client_id) {
+              arr = arr.filter(
+                (msg) => !(msg.pending && msg.client_id === data.client_id)
+              );
             } else {
-              next = [...prev, newMessage];
+              // 2. fallback: text+timestamp+sender로 매칭
+              arr = arr.filter(
+                (msg) =>
+                  !(
+                    msg.pending &&
+                    msg.text === data.message &&
+                    msg.sender === data.sender &&
+                    Math.abs(new Date(msg.date).getTime() - new Date(data.timestamp).getTime()) < 2000
+                  )
+              );
             }
-            return next;
-          });
-        } else if (data.type === 'ai_message' && data.message) {
-          const newMessage = {
-            id: Date.now(),
-            type: 'recv',
-            text: data.message,
-            date: data.timestamp,
-            sender: 'AI',
-            sender_type: 'ai',
-            questioner_username: data.questioner_username,
-            ai_name: data.ai_name,
-            emotion: null,
-            imageUrl: null,
-            imageUrls: data.imageUrls || [],
-          };
 
+            // 서버 메시지 추가
+            const newMsg = {
+              id: data.id || `${data.sender}_${data.timestamp}`,
+              type: isMyMessage ? 'send' : 'recv',
+              text: data.message,
+              date: data.timestamp,
+              sender: data.sender,
+              user_id: data.user_id,
+              emotion: data.emotion,
+              imageUrl: data.imageUrl || null,  // 단일 이미지 (호환성 유지)
+              imageUrls: data.imageUrls || [],  // 다중 이미지 배열              
+              pending: false,
+            };
+
+            const result = [...arr, newMsg];
+            console.log('[WebSocket 재연결] 사용자 메시지 추가됨:', newMsg, '총 메시지 수:', result.length);
+            return result;
+          });
+
+        } else if (data.type === 'ai_message' && data.message) {
           setMessages((prev) => {
-            // 중복 메시지 방지
+            // 중복 메시지 방지: 동일 timestamp/text/questioner_username/ai_name이 이미 있으면 추가하지 않음
             if (prev.some(m => m.type === 'ai' && m.date === data.timestamp && m.text === data.message && m.questioner_username === data.questioner_username && m.ai_name === data.ai_name)) {
+              console.log('[WebSocket 재연결] 중복 AI 메시지 무시:', data.message);
               return prev;
             }
-            return [...prev, newMessage];
+
+            const newMsg = {
+              id: data.id || `ai_${data.timestamp}`,
+              type: 'ai',
+              text: data.message,
+              date: data.timestamp,
+              sender: data.ai_name, // sender는 항상 ai_name
+              ai_name: data.ai_name,
+              questioner_username: data.questioner_username,
+              imageUrl: null,
+              imageUrls: data.imageUrls || [],  // AI 메시지는 이미지 없음
+              pending: false,
+            };
+
+            const arr = [...prev, newMsg];
+            console.log('[WebSocket 재연결] AI 메시지 추가됨:', newMsg, '총 메시지 수:', arr.length);
+            return arr;
           });
+
+          // AI 메시지 관련 상태 업데이트
+          setCurrentAiMessage(data.message);
+          setIsAiTalking(true);
+
+          if (isTTSEnabled) {
+            // TTS가 중단된 상태였다면 다시 활성화
+            if (ttsInterrupted) {
+              setTtsInterrupted(false);
+              console.log('[TTS] 중단된 TTS 재활성화됨');
+            }
+            speakAIMessage(data.message, setTtsInterrupted, userSettings);
+          } else {
+            setDisplayedAiText(data.message);
+          }
+
+          const aiEmotionResponse = getAIEmotionResponse(userEmotion, data.message);
+          setAiEmotion(aiEmotionResponse.primary);
+          setEmotionDisplay(prev => ({ ...prev, ai: aiEmotionResponse.primary }));
+          setEmotionCaptureStatus(prev => ({ ...prev, ai: true }));
+
+        } else if (data.type === 'join_room_success') {
+          console.log('[WebSocket 재연결] 방 입장 성공:', data);
+
+        } else if (data.type === 'leave_room_success') {
+          console.log('[WebSocket 재연결] 방 나가기 성공:', data);
+
+        } else {
+          console.log('[WebSocket 재연결] 알 수 없는 메시지 타입:', data.type, data);
         }
-      } catch (error) {
-        console.error('[WebSocket] 메시지 파싱 오류:', error);
+
+      } catch (err) {
+        console.error('[WebSocket 재연결 onmessage] 파싱 오류:', err, e.data);
       }
     };
 
     ws.current.onclose = () => {
       console.log('[WebSocket] 재연결된 연결이 닫힘');
+
+      // 안전장치 타임아웃 정리
+      clearTimeout(safetyTimeout);
+
+      // WebSocket 연결 상태 리셋
+      setWsConnectionReady(false);
+
+      // 재연결 상태도 리셋 (연결이 닫힌 경우)
+      setIsReconnecting(false);
+      console.log('[WebSocket] 연결 닫힘으로 재연결 상태 리셋됨: isReconnecting = false');
     };
 
     ws.current.onerror = (error) => {
       console.error('[WebSocket] 재연결된 연결 오류:', error);
+
+      // 안전장치 타임아웃 정리
+      clearTimeout(safetyTimeout);
+
+      // 오류 발생 시 연결 상태 리셋
+      setWsConnectionReady(false);
+
+      // 재연결 상태도 리셋 (오류 발생 시)
+      setIsReconnecting(false);
+      console.log('[WebSocket] 오류 발생으로 재연결 상태 리셋됨: isReconnecting = false');
     };
-  }, [selectedRoom, selectedRoomRef]);
+  }, [selectedRoom, selectedRoomRef, autoMessageSent]);
 
   // userSettings 변경 감지 및 AI 서비스 업데이트
+  const [lastProcessedSettings, setLastProcessedSettings] = useState(null); // 마지막 처리된 설정 추적
+
   useEffect(() => {
     if (userSettings) {
-      console.log('[ChatBox] userSettings 변경 감지:', userSettings);
+      // 실제로 변경된 값이 있는지 확인
+      let hasActualChange = false;
+      let hasImportantChange = false;
 
-      // AI 응답 활성화 상태 업데이트
-      if (userSettings.ai_response_enabled !== undefined) {
-        console.log('[ChatBox] AI 응답 활성화 상태 업데이트:', userSettings.ai_response_enabled);
-      }
-
-      // TTS 설정 업데이트
-      if (userSettings.tts_enabled !== undefined) {
-        setIsTTSEnabled(userSettings.tts_enabled);
-        console.log('[ChatBox] TTS 활성화 상태 업데이트:', userSettings.tts_enabled);
-      }
-
-      if (userSettings.tts_speed !== undefined) {
-        setTtsRate(userSettings.tts_speed);
-        console.log('[ChatBox] TTS 속도 업데이트:', userSettings.tts_speed);
-      }
-
-      if (userSettings.tts_pitch !== undefined) {
-        setTtsPitch(userSettings.tts_pitch);
-        console.log('[ChatBox] TTS 피치 업데이트:', userSettings.tts_pitch);
-      }
-
-      if (userSettings.tts_voice !== undefined) {
-        setTtsVoice(userSettings.tts_voice);
-        console.log('[ChatBox] TTS 음성 업데이트:', userSettings.tts_voice);
-      }
-
-      // 아바타 URL 업데이트
-      if (userSettings.ai_avatar_url !== undefined) {
-        setAiAvatar(userSettings.ai_avatar_url);
-        console.log('[ChatBox] AI 아바타 URL 업데이트:', userSettings.ai_avatar_url);
-      }
-
-      if (userSettings.user_avatar_url !== undefined) {
-        setUserAvatar(userSettings.user_avatar_url);
-        console.log('[ChatBox] 사용자 아바타 URL 업데이트:', userSettings.user_avatar_url);
-      }
-
-      // 카메라 설정 업데이트
-      if (userSettings.camera_settings) {
-        try {
-          const cameraSettings = JSON.parse(userSettings.camera_settings);
-          if (cameraSettings.face_tracking_enabled !== undefined) {
-            setIsTrackingEnabled(cameraSettings.face_tracking_enabled);
-            console.log('[ChatBox] 얼굴 트래킹 상태 업데이트:', cameraSettings.face_tracking_enabled);
+      if (lastProcessedSettings) {
+        console.log('[ChatBox] 설정 비교 중...', {
+          current: {
+            tts_enabled: userSettings.tts_enabled,
+            ai_response_enabled: userSettings.ai_response_enabled,
+            camera_settings: userSettings.camera_settings
+          },
+          previous: {
+            tts_enabled: lastProcessedSettings.tts_enabled,
+            ai_response_enabled: lastProcessedSettings.ai_response_enabled,
+            camera_settings: lastProcessedSettings.camera_settings
           }
-        } catch (error) {
-          console.error('[ChatBox] 카메라 설정 파싱 오류:', error);
+        });
+
+        // TTS 설정 변경 확인
+        if (userSettings.tts_enabled !== lastProcessedSettings.tts_enabled) {
+          console.log('[ChatBox] TTS 활성화 상태 변경:', lastProcessedSettings.tts_enabled, '→', userSettings.tts_enabled);
+          hasActualChange = true;
+          hasImportantChange = true;
         }
+
+        // AI 응답 설정 변경 확인
+        if (userSettings.ai_response_enabled !== lastProcessedSettings.ai_response_enabled) {
+          console.log('[ChatBox] AI 응답 활성화 상태 변경:', lastProcessedSettings.ai_response_enabled, '→', userSettings.ai_response_enabled);
+          hasActualChange = true;
+          hasImportantChange = true;
+        }
+
+        // 카메라 설정 변경 확인 (JSON 문자열 비교)
+        if (userSettings.camera_settings !== lastProcessedSettings.camera_settings) {
+          console.log('[ChatBox] 카메라 설정 변경 감지');
+          hasActualChange = true;
+          hasImportantChange = true;
+        }
+
+        // 아바타 설정 변경 확인 (WebSocket 재연결 필요)
+        if (userSettings.ai_avatar_enabled !== lastProcessedSettings.ai_avatar_enabled) {
+          console.log('[ChatBox] AI 아바타 활성화 상태 변경:', lastProcessedSettings.ai_avatar_enabled, '→', userSettings.ai_avatar_enabled);
+          hasActualChange = true;
+          hasImportantChange = true;
+        }
+
+        if (userSettings.user_avatar_enabled !== lastProcessedSettings.user_avatar_enabled) {
+          console.log('[ChatBox] 사용자 아바타 활성화 상태 변경:', lastProcessedSettings.user_avatar_enabled, '→', userSettings.user_avatar_enabled);
+          hasActualChange = true;
+          hasImportantChange = true;
+        }
+
+        // 아바타 URL 변경 확인 (WebSocket 재연결 필요)
+        if (userSettings.ai_avatar_url !== lastProcessedSettings.ai_avatar_url) {
+          console.log('[ChatBox] AI 아바타 URL 변경:', lastProcessedSettings.ai_avatar_url, '→', userSettings.ai_avatar_url);
+          hasActualChange = true;
+          hasImportantChange = true;
+        }
+
+        if (userSettings.user_avatar_url !== lastProcessedSettings.user_avatar_url) {
+          console.log('[ChatBox] 사용자 아바타 URL 변경:', lastProcessedSettings.user_avatar_url, '→', userSettings.user_avatar_url);
+          hasActualChange = true;
+          hasImportantChange = true;
+        }
+
+        // 음성인식 설정 변경 확인 (WebSocket 재연결 필요)
+        if (userSettings.voice_recognition_enabled !== lastProcessedSettings.voice_recognition_enabled) {
+          console.log('[ChatBox] 음성인식 활성화 상태 변경:', lastProcessedSettings.voice_recognition_enabled, '→', userSettings.voice_recognition_enabled);
+          hasActualChange = true;
+          hasImportantChange = true;
+        }
+
+        if (userSettings.voice_auto_send !== lastProcessedSettings.voice_auto_send) {
+          console.log('[ChatBox] 음성 자동 전송 상태 변경:', lastProcessedSettings.voice_auto_send, '→', userSettings.voice_auto_send);
+          hasActualChange = true;
+          hasImportantChange = true;
+        }
+
+        // 추가 설정 변경 확인 (디버깅용)
+        if (userSettings.tts_speed !== lastProcessedSettings.tts_speed) {
+          console.log('[ChatBox] TTS 속도 변경:', lastProcessedSettings.tts_speed, '→', userSettings.tts_speed);
+          hasActualChange = true;
+        }
+
+        if (userSettings.tts_pitch !== lastProcessedSettings.tts_pitch) {
+          console.log('[ChatBox] TTS 피치 변경:', lastProcessedSettings.tts_pitch, '→', userSettings.tts_pitch);
+          hasActualChange = true;
+        }
+
+        if (userSettings.tts_voice !== lastProcessedSettings.tts_voice) {
+          console.log('[ChatBox] TTS 음성 변경:', lastProcessedSettings.tts_voice, '→', userSettings.tts_voice);
+          hasActualChange = true;
+        }
+
+        // 기타 설정 변경 확인 (fallback)
+        const currentKeys = Object.keys(userSettings);
+        const previousKeys = Object.keys(lastProcessedSettings);
+
+        // 새로운 키가 추가되었거나 값이 변경된 경우 확인
+        for (const key of currentKeys) {
+          if (userSettings[key] !== lastProcessedSettings[key]) {
+            // 이미 처리된 주요 설정은 제외
+            if (!['tts_enabled', 'ai_response_enabled', 'camera_settings', 'ai_avatar_enabled',
+              'user_avatar_enabled', 'ai_avatar_url', 'user_avatar_url', 'voice_recognition_enabled',
+              'voice_auto_send', 'tts_speed', 'tts_pitch', 'tts_voice'].includes(key)) {
+              console.log(`[ChatBox] 기타 설정 변경 감지: ${key}:`, lastProcessedSettings[key], '→', userSettings[key]);
+              hasActualChange = true;
+              // 기타 설정도 중요할 수 있으므로 재연결 트리거
+              hasImportantChange = true;
+            }
+          }
+        }
+      } else {
+        // 첫 번째 로드 시에는 변경으로 간주하지 않음
+        console.log('[ChatBox] 초기 userSettings 로드, 변경으로 간주하지 않음');
       }
 
-      // 설정 변경 후 WebSocket 재연결 (중요한 설정 변경 시에만)
-      const shouldReconnect = userSettings.tts_enabled !== undefined ||
-        userSettings.ai_response_enabled !== undefined ||
-        userSettings.camera_settings !== undefined;
+      // 실제 변경이 있을 때만 처리
+      if (hasActualChange) {
+        console.log('[ChatBox] 실제 설정 변경 감지됨, 처리 시작');
 
-      if (shouldReconnect && selectedRoom && selectedRoom.id) {
-        console.log('[ChatBox] 중요 설정 변경으로 WebSocket 재연결 시작');
-        // 약간의 지연을 두고 재연결 (설정 저장 완료 후)
-        setTimeout(() => {
-          reconnectWebSocket();
-        }, 500);
+        // AI 응답 활성화 상태 업데이트
+        if (userSettings.ai_response_enabled !== undefined) {
+          console.log('[ChatBox] AI 응답 활성화 상태 업데이트:', userSettings.ai_response_enabled);
+        }
+
+        // TTS 설정 업데이트
+        if (userSettings.tts_enabled !== undefined) {
+          setIsTTSEnabled(userSettings.tts_enabled);
+        }
+
+        if (userSettings.tts_speed !== undefined) {
+          setTtsRate(userSettings.tts_speed);
+        }
+
+        if (userSettings.tts_pitch !== undefined) {
+          setTtsPitch(userSettings.tts_pitch);
+        }
+
+        if (userSettings.tts_voice !== undefined) {
+          setTtsVoice(userSettings.tts_voice);
+        }
+
+        // 아바타 URL 업데이트
+        if (userSettings.ai_avatar_url !== undefined) {
+          setAiAvatar(userSettings.ai_avatar_url);
+        }
+
+        if (userSettings.user_avatar_url !== undefined) {
+          setUserAvatar(userSettings.user_avatar_url);
+        }
+
+        // 카메라 설정 업데이트
+        if (userSettings.camera_settings) {
+          try {
+            const cameraSettings = JSON.parse(userSettings.camera_settings);
+            if (cameraSettings.face_tracking_enabled !== undefined) {
+              setIsTrackingEnabled(cameraSettings.face_tracking_enabled);
+            }
+          } catch (error) {
+            console.error('[ChatBox] 카메라 설정 파싱 오류:', error);
+          }
+        }
+
+        // 설정 변경 후 WebSocket 재연결 (중요한 설정 변경 시에만)
+        if (hasImportantChange && !isReconnecting && selectedRoom && selectedRoom.id) {
+          console.log('[ChatBox] 중요 설정 변경으로 WebSocket 재연결 시작', {
+            hasImportantChange,
+            isReconnecting,
+            selectedRoomId: selectedRoom.id,
+            wsExists: !!ws.current,
+            wsReadyState: ws.current?.readyState
+          });
+          // 약간의 지연을 두고 재연결 (설정 저장 완료 후)
+          setTimeout(() => {
+            console.log('[ChatBox] 재연결 함수 호출 시작');
+            reconnectWebSocket();
+          }, 500);
+        } else {
+          console.log('[ChatBox] WebSocket 재연결 조건 불충족:', {
+            hasImportantChange,
+            isReconnecting,
+            selectedRoomExists: !!selectedRoom,
+            selectedRoomId: selectedRoom?.id
+          });
+        }
+      } else {
+        console.log('[ChatBox] 실제 변경사항 없음, 재연결하지 않음');
       }
+
+      // 현재 설정을 마지막 처리된 설정으로 저장
+      setLastProcessedSettings(userSettings);
     }
-  }, [userSettings, reconnectWebSocket, selectedRoom]);
+  }, [userSettings, reconnectWebSocket, selectedRoom, isReconnecting, lastProcessedSettings]);
 
-  // userSettings 변경 감지 및 AI 서비스 업데이트
+  // messages 상태 변화 모니터링 (디버깅용)
+  useEffect(() => {
+    console.log('[ChatBox] messages 상태 변화:', {
+      messageCount: messages.length,
+      lastMessage: messages[messages.length - 1],
+      allMessages: messages
+    });
+  }, [messages]);
+
+  // 디버깅용: 수동 WebSocket 재연결 테스트
+  const testReconnect = () => {
+    console.log('[ChatBox] 수동 재연결 테스트 시작');
+    if (selectedRoom && selectedRoom.id) {
+      reconnectWebSocket();
+    } else {
+      console.log('[ChatBox] 재연결 테스트 실패: selectedRoom 없음');
+    }
+  };
 
   return (
     <>
