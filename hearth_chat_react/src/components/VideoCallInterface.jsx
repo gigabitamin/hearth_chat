@@ -125,44 +125,123 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
         }
     };
 
-    // 음성 출력 전환 (이어폰 <-> 통화 스피커)
+    // 음성 출력 전환 (이어폰 <-> 통화 스피커 <-> 블루투스 이어폰)
     const toggleAudioOutput = async () => {
         try {
+            console.log('[화상채팅] 음성 출력 전환 시작, 현재 상태:', audioOutput);
+
             if (audioOutput === 'earpiece') {
                 // 이어폰 -> 통화 스피커
                 if (navigator.mediaDevices && navigator.mediaDevices.setAudioOutput) {
                     await navigator.mediaDevices.setAudioOutput('speaker');
                     setAudioOutput('speaker');
                     setIsSpeakerEnabled(true);
-                    console.log('[화상채팅] 통화 스피커로 전환됨');
+                    console.log('[화상채팅] 이어폰 -> 통화 스피커로 전환됨');
                 } else {
                     // iOS Safari 대응
                     if (window.webkit && window.webkit.messageHandlers) {
                         window.webkit.messageHandlers.audioOutput.postMessage('speaker');
                         setAudioOutput('speaker');
                         setIsSpeakerEnabled(true);
-                        console.log('[화상채팅] iOS 통화 스피커로 전환됨');
+                        console.log('[화상채팅] iOS 이어폰 -> 통화 스피커로 전환됨');
                     }
                 }
-            } else {
-                // 통화 스피커 -> 이어폰
+            } else if (audioOutput === 'speaker') {
+                // 통화 스피커 -> 블루투스 이어폰 (연결된 경우) 또는 이어폰
+                if (isBluetoothConnected) {
+                    // 블루투스 이어폰으로 전환
+                    if (navigator.mediaDevices && navigator.mediaDevices.setAudioOutput) {
+                        try {
+                            // 블루투스 오디오 출력 장치 찾기
+                            const devices = await navigator.mediaDevices.enumerateDevices();
+                            const bluetoothOutputs = devices.filter(device =>
+                                device.kind === 'audiooutput' && (
+                                    device.label.toLowerCase().includes('bluetooth') ||
+                                    device.label.toLowerCase().includes('bt') ||
+                                    device.deviceId.includes('bluetooth') ||
+                                    device.label.toLowerCase().includes('wireless') ||
+                                    device.label.toLowerCase().includes('airpods') ||
+                                    device.label.toLowerCase().includes('galaxy buds')
+                                )
+                            );
+
+                            if (bluetoothOutputs.length > 0) {
+                                // 블루투스 장치로 전환 시도
+                                await navigator.mediaDevices.setAudioOutput(bluetoothOutputs[0].deviceId);
+                                setAudioOutput('bluetooth');
+                                setIsSpeakerEnabled(false);
+                                console.log('[화상채팅] 통화 스피커 -> 블루투스 이어폰으로 전환됨:', bluetoothOutputs[0].label);
+                            } else {
+                                // 블루투스 장치를 찾을 수 없으면 이어폰으로 전환
+                                await navigator.mediaDevices.setAudioOutput('earpiece');
+                                setAudioOutput('earpiece');
+                                setIsSpeakerEnabled(false);
+                                console.log('[화상채팅] 통화 스피커 -> 이어폰으로 전환됨 (블루투스 장치 없음)');
+                            }
+                        } catch (bluetoothError) {
+                            console.log('[화상채팅] 블루투스 전환 실패, 이어폰으로 전환:', bluetoothError);
+                            await navigator.mediaDevices.setAudioOutput('earpiece');
+                            setAudioOutput('earpiece');
+                            setIsSpeakerEnabled(false);
+                        }
+                    } else {
+                        // iOS Safari 대응
+                        if (window.webkit && window.webkit.messageHandlers) {
+                            window.webkit.messageHandlers.audioOutput.postMessage('bluetooth');
+                            setAudioOutput('bluetooth');
+                            setIsSpeakerEnabled(false);
+                            console.log('[화상채팅] iOS 통화 스피커 -> 블루투스 이어폰으로 전환됨');
+                        }
+                    }
+                } else {
+                    // 블루투스가 연결되지 않은 경우 이어폰으로 전환
+                    if (navigator.mediaDevices && navigator.mediaDevices.setAudioOutput) {
+                        await navigator.mediaDevices.setAudioOutput('earpiece');
+                        setAudioOutput('earpiece');
+                        setIsSpeakerEnabled(false);
+                        console.log('[화상채팅] 통화 스피커 -> 이어폰으로 전환됨 (블루투스 없음)');
+                    } else {
+                        // iOS Safari 대응
+                        if (window.webkit && window.webkit.messageHandlers) {
+                            window.webkit.messageHandlers.audioOutput.postMessage('earpiece');
+                            setAudioOutput('earpiece');
+                            setIsSpeakerEnabled(false);
+                            console.log('[화상채팅] iOS 통화 스피커 -> 이어폰으로 전환됨');
+                        }
+                    }
+                }
+            } else if (audioOutput === 'bluetooth') {
+                // 블루투스 이어폰 -> 이어폰
                 if (navigator.mediaDevices && navigator.mediaDevices.setAudioOutput) {
                     await navigator.mediaDevices.setAudioOutput('earpiece');
                     setAudioOutput('earpiece');
                     setIsSpeakerEnabled(false);
-                    console.log('[화상채팅] 이어폰으로 전환됨');
+                    console.log('[화상채팅] 블루투스 이어폰 -> 이어폰으로 전환됨');
                 } else {
                     // iOS Safari 대응
                     if (window.webkit && window.webkit.messageHandlers) {
                         window.webkit.messageHandlers.audioOutput.postMessage('earpiece');
                         setAudioOutput('earpiece');
                         setIsSpeakerEnabled(false);
-                        console.log('[화상채팅] iOS 이어폰으로 전환됨');
+                        console.log('[화상채팅] iOS 블루투스 이어폰 -> 이어폰으로 전환됨');
                     }
                 }
             }
+
+            console.log('[화상채팅] 음성 출력 전환 완료, 새로운 상태:', audioOutput);
         } catch (error) {
             console.error('[화상채팅] 음성 출력 전환 실패:', error);
+            // 오류 발생 시 이어폰으로 복구
+            try {
+                if (navigator.mediaDevices && navigator.mediaDevices.setAudioOutput) {
+                    await navigator.mediaDevices.setAudioOutput('earpiece');
+                    setAudioOutput('earpiece');
+                    setIsSpeakerEnabled(false);
+                    console.log('[화상채팅] 오류 복구: 이어폰으로 전환됨');
+                }
+            } catch (recoveryError) {
+                console.error('[화상채팅] 오류 복구 실패:', recoveryError);
+            }
         }
     };
 
@@ -881,11 +960,11 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
                     🔊
                 </button>
 
-                {/* 음성 출력 전환 버튼 (이어폰 <-> 통화 스피커) */}
+                {/* 음성 출력 전환 버튼 (이어폰 <-> 통화 스피커 <-> 블루투스 이어폰) */}
                 <button
                     onClick={toggleAudioOutput}
                     className={`control-btn ${isSpeakerEnabled ? 'active' : ''}`}
-                    title={`현재: ${audioOutput === 'earpiece' ? '이어폰' : audioOutput === 'speaker' ? '통화 스피커' : '블루투스'}. 클릭하여 전환`}
+                    title={`현재: ${audioOutput === 'earpiece' ? '이어폰' : audioOutput === 'speaker' ? '통화 스피커' : '블루투스 이어폰'}. 클릭하여 다음으로 전환`}
                 >
                     {audioOutput === 'earpiece' ? '👂' : audioOutput === 'speaker' ? '📢' : '🎧'}
                 </button>
@@ -896,6 +975,16 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
                         🎧
                     </div>
                 )}
+
+                {/* 현재 음성 출력 상태 표시 */}
+                <div className="audio-status-display" title="현재 음성 출력 상태">
+                    <span className="audio-status-icon">
+                        {audioOutput === 'earpiece' ? '👂' : audioOutput === 'speaker' ? '📢' : '🎧'}
+                    </span>
+                    <span className="audio-status-text">
+                        {audioOutput === 'earpiece' ? '이어폰' : audioOutput === 'speaker' ? '통화 스피커' : '블루투스'}
+                    </span>
+                </div>
 
                 <button
                     onClick={toggleVideo}
@@ -948,6 +1037,20 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
                     title="강제 블루투스 마이크 전환"
                 >
                     🎤🔧
+                </button>
+
+                {/* 강제 음성 출력 전환 버튼 */}
+                <button
+                    onClick={async () => {
+                        console.log('[화상채팅] 강제 음성 출력 전환 시작');
+                        console.log('[화상채팅] 현재 상태:', audioOutput);
+                        await toggleAudioOutput();
+                        console.log('[화상채팅] 전환 후 상태:', audioOutput);
+                    }}
+                    className="control-btn debug-btn"
+                    title="강제 음성 출력 전환"
+                >
+                    🔊🔧
                 </button>
 
                 {/* 강제 Offer 생성 버튼 (모든 사용자) */}
