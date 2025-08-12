@@ -847,6 +847,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                         body: JSON.stringify({ ai_response_enabled: aiResponseEnabled }),
                     });
                 } catch (e) { /* 무시 */ }
+
                 // 2. 이미지 첨부가 있으면, 해당 roomId로 이미지 업로드 및 localStorage 저장
                 if (attachedImages.length > 0) {
                     try {
@@ -866,14 +867,23 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                             const imgData = await imgRes.json();
                             if (imgData.status === 'success') {
                                 uploadedUrls.push(imgData.file_url);
+                                console.log('[GlobalChatInput] 이미지 업로드 성공:', imgData.file_url);
+                            } else {
+                                console.error('[GlobalChatInput] 이미지 업로드 실패:', imgData);
                             }
                         }
+
                         if (uploadedUrls.length > 0) {
+                            // 이미지 URL들을 localStorage에 저장 (chat_box.jsx에서 사용)
                             localStorage.setItem('pending_auto_message', input || '이미지 첨부');
                             localStorage.setItem('pending_image_urls', JSON.stringify(uploadedUrls));
                             localStorage.setItem('pending_room_id', String(roomData.id));
+                            console.log('[GlobalChatInput] localStorage에 이미지 URL 저장됨:', uploadedUrls);
+                        } else {
+                            console.error('[GlobalChatInput] 업로드된 이미지 URL이 없음');
                         }
-                    } catch {
+                    } catch (error) {
+                        console.error('[GlobalChatInput] 이미지 업로드 중 오류:', error);
                         alert('이미지 업로드에 실패했습니다.');
                     }
                 } else {
@@ -881,7 +891,9 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                     localStorage.setItem('pending_auto_message', input);
                     localStorage.setItem('pending_room_id', String(roomData.id));
                     localStorage.removeItem('pending_image_urls');
+                    console.log('[GlobalChatInput] 텍스트만 localStorage에 저장됨:', input);
                 }
+
                 setInput('');
                 handleRemoveAllAttachedImages();
                 setTimeout(() => {
@@ -895,7 +907,8 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                 localStorage.removeItem('pending_room_id');
                 alert('방 생성 실패');
             }
-        } catch {
+        } catch (error) {
+            console.error('[GlobalChatInput] 방 생성 중 오류:', error);
             // 예외 발생 시 localStorage 정리 및 알림
             localStorage.removeItem('pending_auto_message');
             localStorage.removeItem('pending_image_urls');
@@ -922,7 +935,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
     // 음성인식 결과 처리
     const handleVoiceResult = useCallback((finalText) => {
         if (finalText && finalText.trim()) {
-            setInput(finalText.trim());            
+            setInput(finalText.trim());
         }
     }, []);
 
@@ -1061,7 +1074,21 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
 
             {/* --- 카메라 모달 --- */}
             {showCamera && (
-                <div className="camera-modal" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="camera-modal" style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0,0,0,0.9)',
+                    zIndex: 300,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '20px',
+                    boxSizing: 'border-box'
+                }}>
                     {/* 카메라 전환 버튼 */}
                     {availableCameras.length > 1 && (
                         <div style={{
@@ -1091,64 +1118,197 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                         </div>
                     )}
 
-                    <Webcam
-                        audio={false}
-                        ref={webcamRef}
-                        screenshotFormat="image/jpeg"
-                        width="100%"
-                        videoConstraints={getCurrentCameraConstraints()}
-                    />
-                    <div style={{ marginTop: '1rem' }}>
-                        <button onClick={handleCapture} style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}>사진 찍기</button>
-                        <button onClick={cancelAll} style={{ marginLeft: '1rem', padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}>취소</button>
+                    {/* 카메라 영역 - 화면 크기에 맞게 조정 */}
+                    <div style={{
+                        width: '100%',
+                        maxWidth: '100vw',
+                        maxHeight: '70vh',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                    }}>
+                        <Webcam
+                            audio={false}
+                            ref={webcamRef}
+                            screenshotFormat="image/jpeg"
+                            width="100%"
+                            height="auto"
+                            style={{
+                                maxWidth: '100%',
+                                maxHeight: '60vh',
+                                objectFit: 'contain'
+                            }}
+                            videoConstraints={getCurrentCameraConstraints()}
+                        />
+                    </div>
+
+                    {/* 버튼 영역 - 항상 화면 하단에 고정 */}
+                    <div style={{
+                        position: 'absolute',
+                        bottom: '20px',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        display: 'flex',
+                        gap: '10px',
+                        zIndex: 10
+                    }}>
+                        <button
+                            onClick={handleCapture}
+                            style={{
+                                padding: '12px 24px',
+                                fontSize: '16px',
+                                cursor: 'pointer',
+                                background: '#007bff',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                fontWeight: 'bold'
+                            }}
+                        >
+                            사진 찍기
+                        </button>
+                        <button
+                            onClick={cancelAll}
+                            style={{
+                                padding: '12px 24px',
+                                fontSize: '16px',
+                                cursor: 'pointer',
+                                background: '#6c757d',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                fontWeight: 'bold'
+                            }}
+                        >
+                            취소
+                        </button>
                     </div>
                 </div>
             )}
 
             {/* --- 이미지 자르기 모달 --- */}
             {capturedImage && (
-                <div className="crop-modal" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.9)', zIndex: 400, display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ position: 'relative', width: '100%', height: '80%' }}>
-                        <ReactCrop
-                            crop={crop}
-                            onChange={(c) => setCrop(c)}
-                            onComplete={(c) => {
-                                // 자르기 영역 정보 저장
-                                setCroppedAreaPixels({
-                                    x: c.x,
-                                    y: c.y,
-                                    width: c.width,
-                                    height: c.height
-                                });
-                            }}
-                            minWidth={50}
-                            minHeight={50}
-                            maxWidth={800}
-                            maxHeight={800}
-                            style={{
-                                width: '100%',
-                                height: '100%',
-                                objectFit: 'contain',
-                                background: '#000',
-                                borderRadius: '4px',
-                                border: '1px solid #333'
-                            }}
-                        >
-                            <img
-                                src={capturedImage}
-                                alt="Captured"
+                <div className="crop-modal" style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0,0,0,0.95)',
+                    zIndex: 400,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    padding: '20px',
+                    boxSizing: 'border-box'
+                }}>
+                    {/* 자르기 영역 - 화면 크기에 맞게 조정 */}
+                    <div style={{
+                        flex: 1,
+                        width: '100%',
+                        maxHeight: '80vh',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginBottom: '20px'
+                    }}>
+                        <div style={{
+                            width: '100%',
+                            height: '100%',
+                            maxWidth: '100vw',
+                            maxHeight: '70vh',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}>
+                            <ReactCrop
+                                crop={crop}
+                                onChange={(c) => setCrop(c)}
+                                onComplete={(c) => {
+                                    // 자르기 영역 정보 저장
+                                    setCroppedAreaPixels({
+                                        x: c.x,
+                                        y: c.y,
+                                        width: c.width,
+                                        height: c.height
+                                    });
+                                }}
+                                minWidth={50}
+                                minHeight={50}
+                                maxWidth={800}
+                                maxHeight={800}
                                 style={{
-                                    display: 'block',
+                                    width: '100%',
+                                    height: '100%',
                                     maxWidth: '100%',
                                     maxHeight: '100%',
-                                    borderRadius: '4px',
+                                    objectFit: 'contain',
+                                    background: '#000',
+                                    borderRadius: '8px',
+                                    border: '1px solid #333'
                                 }}
-                            />
-                        </ReactCrop>
+                            >
+                                <img
+                                    src={capturedImage}
+                                    alt="Captured"
+                                    style={{
+                                        display: 'block',
+                                        width: '100%',
+                                        height: '100%',
+                                        maxWidth: '100%',
+                                        maxHeight: '100%',
+                                        objectFit: 'contain',
+                                        borderRadius: '8px',
+                                    }}
+                                />
+                            </ReactCrop>
+                        </div>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem' }}>
-                        <button onClick={handleCropImage} style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}>자르기 완료</button>
-                        <button onClick={cancelAll} style={{ marginLeft: '1rem', padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}>취소</button>
+
+                    {/* 버튼 영역 - 항상 화면 하단에 고정 */}
+                    <div style={{
+                        position: 'absolute',
+                        bottom: '20px',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        display: 'flex',
+                        gap: '10px',
+                        zIndex: 10,
+                        width: 'auto',
+                        justifyContent: 'center'
+                    }}>
+                        <button
+                            onClick={handleCropImage}
+                            style={{
+                                padding: '12px 24px',
+                                fontSize: '16px',
+                                cursor: 'pointer',
+                                background: '#28a745',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                fontWeight: 'bold',
+                                minWidth: '120px'
+                            }}
+                        >
+                            자르기 완료
+                        </button>
+                        <button
+                            onClick={cancelAll}
+                            style={{
+                                padding: '12px 24px',
+                                fontSize: '16px',
+                                cursor: 'pointer',
+                                background: '#dc3545',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                fontWeight: 'bold',
+                                minWidth: '120px'
+                            }}
+                        >
+                            취소
+                        </button>
                     </div>
                 </div>
             )}
@@ -1322,7 +1482,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                     </button>
                     <textarea
                         ref={inputRef}
-                        placeholder={room ? '안녕하세요' : 'Shot/Long Click 방제 입력 후 새 대화방을 만드세요'}
+                        placeholder={room ? '안녕하세요' : '안녕하세요'}
                         value={input}
                         onChange={e => setInput(e.target.value)}
                         onKeyDown={e => {
@@ -1349,7 +1509,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                         }}
                         disabled={loading}
                     />
-                    {room && (
+                    {(room || !room) && (
                         <button
                             className="global-chat-input-send-btn"
                             onClick={async () => {
@@ -1387,7 +1547,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                         </button>
                     )
                     }
-                    {room && (
+                    {(room || !room) && (
                         <button
                             type="button"
                             className="file-upload-btn-side"
@@ -1421,7 +1581,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                     }
 
                     {/* --- 카메라 버튼 추가 --- */}
-                    {room && (
+                    {(room || !room) && (
                         <button
                             onClick={handleCameraButtonClick}
                             style={{

@@ -1649,67 +1649,7 @@ const ChatBox = ({
     });
   }, [wsConnectionReady, autoMessageSent, selectedRoom?.id, isReconnecting]);
 
-  // WebSocket 연결 완료 후 자동 메시지 전송
-  useEffect(() => {
-    if (wsConnectionReady && selectedRoom && selectedRoom.id && !autoMessageSent) {
-      const autoMsg = localStorage.getItem('pending_auto_message');
-      const autoImg = localStorage.getItem('pending_image_url');
-
-      if (autoMsg || autoImg) {
-        console.log('[ChatBox] WebSocket 연결 완료, 자동 메시지 전송 시작:', { autoMsg, autoImg, roomId: selectedRoom.id });
-
-        const sendAutoMessage = (retryCount = 0) => {
-          // WebSocket 연결 상태를 더 정확하게 체크
-          if (ws.current && ws.current.readyState === 1) {
-            console.log('[ChatBox] 자동 메시지 전송 시도, WebSocket 상태:', ws.current.readyState);
-            const clientId = `${Date.now()}_${Math.random()}`;
-            const messageData = {
-              message: autoMsg || '[이미지 첨부]',
-              imageUrl: autoImg || '',
-              roomId: selectedRoom.id,
-              client_id: clientId,
-              type: 'user_message', // 메시지 타입 명시
-            };
-
-            try {
-              ws.current.send(JSON.stringify(messageData));
-              console.log('[ChatBox] 자동 메시지 전송 성공:', messageData);
-              // localStorage 정리
-              localStorage.removeItem('pending_auto_message');
-              localStorage.removeItem('pending_image_url');
-              // 자동 메시지 전송 완료 플래그 설정
-              setAutoMessageSent(true);
-            } catch (error) {
-              console.error('[ChatBox] 자동 메시지 전송 실패:', error);
-              if (retryCount < 2) { // 재시도 횟수 줄임
-                console.log(`[ChatBox] 재시도 ${retryCount + 1}/2`);
-                setTimeout(() => sendAutoMessage(retryCount + 1), 200); // 지연 시간 줄임
-              }
-            }
-          } else {
-            console.log('[ChatBox] WebSocket 연결 대기 중...', {
-              wsExists: !!ws.current,
-              readyState: ws.current?.readyState,
-              retryCount
-            });
-
-            if (retryCount < 3) { // 최대 3번까지 재시도 (줄임)
-              console.log(`[ChatBox] WebSocket 연결 대기 재시도 ${retryCount + 1}/3`);
-              setTimeout(() => sendAutoMessage(retryCount + 1), 200); // 지연 시간 줄임
-            } else {
-              console.error('[ChatBox] WebSocket 연결 실패로 자동 메시지 전송 포기');
-              // localStorage 정리
-              localStorage.removeItem('pending_auto_message');
-              localStorage.removeItem('pending_image_url');
-            }
-          }
-        };
-
-        // 즉시 전송 시도 (지연 없음)
-        sendAutoMessage(0);
-      }
-    }
-  }, [wsConnectionReady, selectedRoom, autoMessageSent]);
+  // 기존 자동 메시지 전송 로직 제거 (새로운 로직으로 대체됨)
 
 
 
@@ -2319,6 +2259,105 @@ const ChatBox = ({
       console.log('[ChatBox] 재연결 테스트 실패: selectedRoom 없음');
     }
   };
+
+  // 자동 메시지 전송 (방 생성 후 자동으로 입력된 텍스트를 메시지로 전송)
+  useEffect(() => {
+    if (wsConnectionReady && !autoMessageSent && selectedRoom && selectedRoom.id) {
+      // localStorage에서 pending 메시지 확인
+      const pendingMessage = localStorage.getItem('pending_auto_message');
+      const pendingImageUrls = localStorage.getItem('pending_image_urls'); // 올바른 키 사용
+      const pendingRoomId = localStorage.getItem('pending_room_id');
+
+      // 현재 방과 일치하는지 확인
+      if (pendingMessage && pendingRoomId === String(selectedRoom.id)) {
+        console.log('[ChatBox] 자동 메시지 전송 시작:', {
+          autoMsg: pendingMessage,
+          autoImg: pendingImageUrls ? JSON.parse(pendingImageUrls) : null,
+          roomId: selectedRoom.id
+        });
+
+        // 이미지 URL이 있으면 배열로, 없으면 빈 배열로 설정
+        let imageUrls = [];
+        if (pendingImageUrls) {
+          try {
+            imageUrls = JSON.parse(pendingImageUrls);
+            console.log('[ChatBox] 이미지 URL 파싱 성공:', imageUrls);
+            console.log('[ChatBox] 이미지 URL 개수:', imageUrls.length);
+            console.log('[ChatBox] 첫 번째 이미지 URL:', imageUrls[0]);
+          } catch (error) {
+            console.error('[ChatBox] 이미지 URL 파싱 실패:', error);
+            imageUrls = [];
+          }
+        } else {
+          console.log('[ChatBox] pending_image_urls가 localStorage에 없음');
+        }
+
+        // WebSocket 연결 상태 확인 및 재시도 로직
+        let retryCount = 0;
+        const maxRetries = 3;
+
+        const attemptSend = () => {
+          if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+            const clientId = `${Date.now()}_${Math.random()}`;
+
+            // 이미지가 있는 경우와 없는 경우를 구분하여 메시지 전송
+            let messageData;
+            if (imageUrls && imageUrls.length > 0) {
+              messageData = {
+                message: pendingMessage,
+                imageUrls: imageUrls, // 이미지 URL 배열
+                roomId: selectedRoom.id,
+                client_id: clientId,
+                type: 'user_message'
+              };
+              console.log('[ChatBox] 이미지 첨부 메시지 전송:', messageData);
+              console.log('[ChatBox] 이미지 URL 배열 길이:', imageUrls.length);
+              console.log('[ChatBox] 첫 번째 이미지 URL:', imageUrls[0]);
+            } else {
+              messageData = {
+                message: pendingMessage,
+                imageUrl: '', // 단일 이미지 (빈 문자열)
+                roomId: selectedRoom.id,
+                client_id: clientId,
+                type: 'user_message'
+              };
+              console.log('[ChatBox] 일반 텍스트 메시지 전송:', messageData);
+            }
+
+            ws.current.send(JSON.stringify(messageData));
+
+            // localStorage 정리
+            localStorage.removeItem('pending_auto_message');
+            localStorage.removeItem('pending_image_urls');
+            localStorage.removeItem('pending_room_id');
+
+            console.log('[ChatBox] localStorage 정리 완료');
+            console.log('[ChatBox] 정리 후 pending_auto_message:', localStorage.getItem('pending_auto_message'));
+            console.log('[ChatBox] 정리 후 pending_image_urls:', localStorage.getItem('pending_image_urls'));
+            console.log('[ChatBox] 정리 후 pending_room_id:', localStorage.getItem('pending_room_id'));
+
+            setAutoMessageSent(true);
+            console.log('[ChatBox] 자동 메시지 전송 성공:', messageData);
+          } else if (retryCount < maxRetries) {
+            retryCount++;
+            console.log('[ChatBox] WebSocket 연결 대기 중...', {
+              wsExists: !!ws.current,
+              readyState: ws.current?.readyState,
+              retryCount
+            });
+            setTimeout(() => {
+              console.log('[ChatBox] WebSocket 연결 대기 재시도', retryCount, '/', maxRetries);
+              attemptSend();
+            }, 200);
+          } else {
+            console.error('[ChatBox] 자동 메시지 전송 실패: WebSocket 연결 불가');
+          }
+        };
+
+        attemptSend();
+      }
+    }
+  }, [wsConnectionReady, autoMessageSent, selectedRoom]);
 
   return (
     <>
