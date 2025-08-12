@@ -32,6 +32,43 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
+    - name: Check project structure
+      run: |
+        echo "📁 프로젝트 구조 확인"
+        echo "======================"
+        echo "현재 디렉토리: $(pwd)"
+        echo ""
+        echo "📂 루트 디렉토리 내용:"
+        ls -la
+        echo ""
+        echo "📂 hearth_chat_django 디렉토리 내용:"
+        ls -la hearth_chat_django/
+        echo ""
+        echo "📂 hearth_chat_react 디렉토리 내용:"
+        ls -la hearth_chat_react/
+        echo ""
+        echo "📄 requirements.txt 파일 확인:"
+        if [ -f "requirements.txt" ]; then
+          echo "✅ 루트에 requirements.txt 존재"
+          echo "파일 크기: $(wc -l < requirements.txt) 줄"
+        else
+          echo "❌ 루트에 requirements.txt 없음"
+        fi
+        echo ""
+        echo "📄 Django requirements.txt 파일 확인:"
+        if [ -f "hearth_chat_django/requirements.txt" ]; then
+          echo "✅ Django 폴더에 requirements.txt 존재"
+        else
+          echo "❌ Django 폴더에 requirements.txt 없음"
+        fi
+        echo ""
+        echo "📄 React package.json 파일 확인:"
+        if [ -f "hearth_chat_react/package.json" ]; then
+          echo "✅ React 폴더에 package.json 존재"
+        else
+          echo "❌ React 폴더에 package.json 없음"
+        fi
+      
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
@@ -46,24 +83,69 @@ jobs:
         
     - name: Install Python dependencies
       run: |
-        cd hearth_chat_django
-        pip install -r requirements.txt
+        echo "🐍 Python 의존성 설치 시작"
+        echo "=========================="
+        
+        # 루트 디렉토리에서 requirements.txt 사용
+        if [ -f "requirements.txt" ]; then
+          echo "✅ 루트 requirements.txt 사용"
+          pip install -r requirements.txt
+        elif [ -f "hearth_chat_django/requirements.txt" ]; then
+          echo "✅ Django 폴더 requirements.txt 사용"
+          pip install -r hearth_chat_django/requirements.txt
+        else
+          echo "❌ requirements.txt 파일을 찾을 수 없음"
+          echo "사용 가능한 requirements 파일들:"
+          find . -name "requirements*.txt" -type f
+          exit 1
+        fi
+        
+        echo "✅ Python 의존성 설치 완료"
         
     - name: Install Node.js dependencies
       run: |
-        cd hearth_chat_react
-        npm ci
+        echo "📦 Node.js 의존성 설치 시작"
+        echo "============================"
+        
+        if [ -f "hearth_chat_react/package.json" ]; then
+          cd hearth_chat_react
+          npm ci
+          cd ..
+          echo "✅ Node.js 의존성 설치 완료"
+        else
+          echo "❌ package.json 파일을 찾을 수 없음"
+          exit 1
+        fi
         
     - name: Build React app
       run: |
-        cd hearth_chat_react
-        npm run build
-        echo "React build completed"
+        echo "🔨 React 앱 빌드 시작"
+        echo "======================"
+        
+        if [ -f "hearth_chat_react/package.json" ]; then
+          cd hearth_chat_react
+          npm run build
+          cd ..
+          echo "✅ React 빌드 완료"
+        else
+          echo "❌ package.json 파일을 찾을 수 없음"
+          exit 1
+        fi
         
     - name: Run tests (optional)
       run: |
-        cd hearth_chat_django
-        python manage.py test --verbosity=2
+        echo "🧪 Django 테스트 실행"
+        echo "====================="
+        
+        if [ -f "hearth_chat_django/manage.py" ]; then
+          cd hearth_chat_django
+          python manage.py test --verbosity=2
+          cd ..
+          echo "✅ Django 테스트 완료"
+        else
+          echo "❌ manage.py 파일을 찾을 수 없음"
+          exit 1
+        fi
         
     - name: Deploy to Render via API
       run: |

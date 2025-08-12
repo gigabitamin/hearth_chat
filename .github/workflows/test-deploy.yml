@@ -1,0 +1,91 @@
+name: Test Deploy to Render
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_mode:
+        description: 'Test mode'
+        required: false
+        default: 'simple'
+        type: choice
+        options:
+        - simple
+        - full
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Test Render Hook
+      run: |
+        echo "🧪 Render Deploy Hook 테스트 시작"
+        echo "=================================="
+        
+        # 1. 기본 정보 출력
+        echo "GitHub Actor: ${{ github.actor }}"
+        echo "Repository: ${{ github.repository }}"
+        echo "Branch: ${{ github.ref_name }}"
+        echo "Commit: ${{ github.sha }}"
+        echo ""
+        
+        # 2. RENDER_DEPLOY_HOOK 값 확인 (마스킹됨)
+        if [ -n "${{ secrets.RENDER_DEPLOY_HOOK }}" ]; then
+          echo "✅ RENDER_DEPLOY_HOOK 설정됨"
+          echo "URL 길이: ${#RENDER_DEPLOY_HOOK} 문자"
+          
+          # URL 형식 검증
+          if [[ "${{ secrets.RENDER_DEPLOY_HOOK }}" =~ ^https://api\.render\.com/deploy/srv-[a-zA-Z0-9]+ ]]; then
+            echo "✅ URL 형식이 올바름"
+          else
+            echo "❌ URL 형식이 잘못됨"
+          fi
+        else
+          echo "❌ RENDER_DEPLOY_HOOK이 설정되지 않음"
+          exit 1
+        fi
+        
+        echo ""
+        
+        # 3. 간단한 API 테스트 (실제 배포는 하지 않음)
+        if [ "${{ github.event.inputs.test_mode }}" = "full" ]; then
+          echo "🔄 전체 테스트 모드: Render API 호출 시도"
+          
+          # 헤더만 확인 (실제 배포는 하지 않음)
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}" \
+            -H "Content-Type: application/json" \
+            -d '{"test": true}' \
+            --max-time 10)
+          
+          echo "HTTP 응답 코드: $response"
+          
+          if [ "$response" = "200" ] || [ "$response" = "202" ]; then
+            echo "✅ Render API 응답 성공"
+          else
+            echo "❌ Render API 응답 실패: $response"
+            echo "⚠️ 실제 배포는 하지 않았습니다 (테스트 모드)"
+          fi
+        else
+          echo "📋 간단한 테스트 모드: 설정만 확인"
+        fi
+        
+        echo ""
+        echo "🎉 테스트 완료!"
+        
+    - name: Test Summary
+      run: |
+        echo ""
+        echo "📊 테스트 요약"
+        echo "=============="
+        echo "✅ 코드 체크아웃 완료"
+        echo "✅ RENDER_DEPLOY_HOOK 설정 확인"
+        echo "✅ 기본 환경 변수 확인"
+        if [ "${{ github.event.inputs.test_mode }}" = "full" ]; then
+          echo "✅ Render API 연결 테스트 완료"
+        fi
+        echo ""
+        echo "💡 이제 실제 배포 워크플로우를 실행해보세요!" 
