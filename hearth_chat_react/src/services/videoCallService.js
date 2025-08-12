@@ -13,21 +13,19 @@ class VideoCallService {
         this.screenShareStream = null; // 화면공유 스트림 추가
     }
 
-    async initializeVideoCall(roomId, userId, constraints = { video: true, audio: true }) {
+    async initializeVideoCall(roomId, userId) {
         this.roomId = roomId;
         this.userId = userId;
 
         try {
-            console.log('[VideoCallService] 화상채팅 초기화 시작 (제약조건:', constraints, ')');
+            console.log('[VideoCallService] 화상채팅 초기화 시작');
 
-            // 로컬 미디어 스트림 획득 (제약조건에 따라)
-            this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
-            console.log('[VideoCallService] 로컬 스트림 획득 성공:', this.localStream.getTracks().length, '개 트랙');
-
-            // 트랙별 정보 로깅
-            this.localStream.getTracks().forEach(track => {
-                console.log('[VideoCallService] 트랙 정보:', track.kind, 'enabled:', track.enabled);
+            // 로컬 미디어 스트림 획득
+            this.localStream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: true
             });
+            console.log('[VideoCallService] 로컬 스트림 획득 성공:', this.localStream.getTracks().length, '개 트랙');
 
             // WebRTC 연결 설정
             this.peerConnection = new RTCPeerConnection({
@@ -226,58 +224,15 @@ class VideoCallService {
     }
 
     stopVideoCall() {
-        console.log('[VideoCallService] 화상채팅 중지 및 정리 시작');
-
-        try {
-            // 로컬 스트림 정리
-            if (this.localStream) {
-                this.localStream.getTracks().forEach(track => {
-                    track.stop();
-                    console.log('[VideoCallService] 로컬 트랙 정리됨:', track.kind);
-                });
-                this.localStream = null;
-            }
-
-            // 화면 공유 스트림 정리
-            if (this.screenShareStream) {
-                this.screenShareStream.getTracks().forEach(track => {
-                    track.stop();
-                    console.log('[VideoCallService] 화면 공유 트랙 정리됨:', track.kind);
-                });
-                this.screenShareStream = null;
-                this.isScreenSharing = false;
-            }
-
-            // 원격 스트림 정리
-            if (this.remoteStream) {
-                this.remoteStream.getTracks().forEach(track => {
-                    track.stop();
-                    console.log('[VideoCallService] 원격 트랙 정리됨:', track.kind);
-                });
-                this.remoteStream = null;
-            }
-
-            // PeerConnection 정리
-            if (this.peerConnection) {
-                // 모든 트랙 제거
-                this.peerConnection.getSenders().forEach(sender => {
-                    if (sender.track) {
-                        sender.track.stop();
-                        console.log('[VideoCallService] PeerConnection 트랙 정리됨:', sender.track.kind);
-                    }
-                });
-
-                this.peerConnection.close();
-                this.peerConnection = null;
-            }
-
-            // 시그널링 소켓 참조 제거
-            this.signalingSocket = null;
-
-            console.log('[VideoCallService] 모든 미디어 스트림 및 연결 정리 완료');
-        } catch (error) {
-            console.error('[VideoCallService] 정리 중 오류 발생:', error);
+        if (this.localStream) {
+            this.localStream.getTracks().forEach(track => track.stop());
         }
+        if (this.peerConnection) {
+            this.peerConnection.close();
+        }
+        this.localStream = null;
+        this.remoteStream = null;
+        this.peerConnection = null;
     }
 
     // 카메라/마이크 제어
