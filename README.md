@@ -4,8 +4,40 @@
 
 ==========================================
 
-## 250812 v0.99
+## 250813 v0.99.1
+- **수동 배포 시스템 도입**: 렌더 무료 분량 절약을 위한 GitHub Actions 자동 배포 우회
 - camera 목록 출력, 기존 webcam 외에 가상카메라나 아바타 화면 등 출력 가능, globalinput 입력창 카메라 촬영 후 자르기 선택 박스 수정(react-easy-crop -> react-image-crop)
+
+### 🚀 배포 시스템 (2025.08.13 업데이트)
+
+#### **자동 배포 → 수동 배포 전환**
+- **이유**: 렌더 무료 분량 소진으로 인한 비용 절약
+- **방법**: GitHub Actions `workflow_dispatch` (수동 트리거) 사용
+- **장점**: 무료 분량 절약, 배포 시점 제어, 안전한 배포
+
+#### **배포 방법**
+1. **GitHub Actions 수동 트리거** (권장)
+   - `Actions` 탭 → `Manual Deploy to Render` 워크플로우
+   - `Run workflow` → 환경 선택 → 실행
+
+2. **Render 대시보드 직접 배포**
+   - https://dashboard.render.com → 서비스 선택
+   - `Manual Deploy` → `Deploy latest commit`
+
+#### **배포 스크립트**
+```bash
+# Windows PowerShell
+.\deploy.ps1 [environment] [force_rebuild]
+
+# Linux/Mac
+./deploy.sh [environment] [force_rebuild]
+```
+
+#### **상세 가이드**
+- 📖 [수동 배포 가이드](MANUAL_DEPLOY_GUIDE.md)
+- 🔧 [GitHub Actions 워크플로우](.github/workflows/deploy.yml)
+
+---
 
 ### Hearth Chat 패키지 구조 개요
 

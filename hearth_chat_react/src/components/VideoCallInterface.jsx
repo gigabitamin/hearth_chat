@@ -198,7 +198,7 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
             initializeVideoCall();
             getAvailableCameras(); // 카메라 목록 가져오기
             checkBluetoothConnection(); // 블루투스 연결 상태 확인
-            // initializeCameraOff(); // 카메라 OFF 상태로 초기화
+            initializeCameraOff(); // 카메라 OFF 상태로 초기화
         }, 100);
 
         return () => {

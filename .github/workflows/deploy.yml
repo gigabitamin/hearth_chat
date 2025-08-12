@@ -1,0 +1,117 @@
+name: Manual Deploy to Render
+
+on:
+  # 자동 트리거 비활성화
+  # push:
+  #   branches: [ main, develop ]
+  # pull_request:
+  #   branches: [ main, develop ]
+  
+  # 수동 트리거만 활성화
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deploy to environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
+      force_rebuild:
+        description: 'Force rebuild'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: hearth_chat_react/package-lock.json
+        
+    - name: Install Python dependencies
+      run: |
+        cd hearth_chat_django
+        pip install -r requirements.txt
+        
+    - name: Install Node.js dependencies
+      run: |
+        cd hearth_chat_react
+        npm ci
+        
+    - name: Build React app
+      run: |
+        cd hearth_chat_react
+        npm run build
+        echo "React build completed"
+        
+    - name: Run tests (optional)
+      run: |
+        cd hearth_chat_django
+        python manage.py test --verbosity=2
+        
+    - name: Deploy to Render via API
+      run: |
+        echo "🚀 Render API를 통한 배포 시작!"
+        echo "Environment: ${{ github.event.inputs.environment }}"
+        echo "Force rebuild: ${{ github.event.inputs.force_rebuild }}"
+        echo ""
+        
+        # Render Deploy Hook 호출
+        if [ "${{ github.event.inputs.force_rebuild }}" = "true" ]; then
+          echo "🔄 강제 재빌드 모드로 배포 중..."
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}" \
+            -H "Content-Type: application/json" \
+            -d '{"force": true}' \
+            -w "\nHTTP Status: %{http_code}\n"
+        else
+          echo "📦 일반 배포 모드로 배포 중..."
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}" \
+            -H "Content-Type: application/json" \
+            -w "\nHTTP Status: %{http_code}\n"
+        fi
+        
+        echo ""
+        echo "✅ Render 배포 요청 완료!"
+        echo "📊 배포 상태는 Render 대시보드에서 확인하세요:"
+        echo "   https://dashboard.render.com"
+        
+    - name: Wait for deployment (optional)
+      if: github.event.inputs.environment == 'production'
+      run: |
+        echo "⏳ 프로덕션 배포 완료 대기 중..."
+        echo "일반적으로 2-5분 정도 소요됩니다."
+        echo "Render 대시보드에서 실시간 진행 상황을 확인하세요."
+        
+    - name: Deployment Summary
+      run: |
+        echo ""
+        echo "🎉 배포 프로세스 완료!"
+        echo "=================================="
+        echo "📋 배포 요약:"
+        echo "   • 환경: ${{ github.event.inputs.environment }}"
+        echo "   • 강제 재빌드: ${{ github.event.inputs.force_rebuild }}"
+        echo "   • 커밋: ${{ github.sha }}"
+        echo "   • 브랜치: ${{ github.ref_name }}"
+        echo "   • 실행자: ${{ github.actor }}"
+        echo ""
+        echo "🔗 다음 링크에서 확인하세요:"
+        echo "   • Render 대시보드: https://dashboard.render.com"
+        echo "   • GitHub Actions: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        echo ""
+        echo "💡 이 워크플로우는 수동 트리거로만 실행되어 렌더 무료 분량을 절약합니다." 
