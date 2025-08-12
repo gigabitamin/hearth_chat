@@ -124,37 +124,59 @@ class VideoCallService {
 
     async handleOffer(offer, remoteUserId) {
         try {
-            await this.peerConnection.setRemoteDescription(offer);
-            const answer = await this.peerConnection.createAnswer();
-            await this.peerConnection.setLocalDescription(answer);
+            console.log('[VideoCallService] Offer 처리 시작:', remoteUserId);
+            console.log('[VideoCallService] Offer SDP:', offer.sdp.substring(0, 100) + '...');
 
-            this.sendSignalingMessage({
+            await this.peerConnection.setRemoteDescription(offer);
+            console.log('[VideoCallService] 원격 설명 설정 완료');
+
+            const answer = await this.peerConnection.createAnswer();
+            console.log('[VideoCallService] Answer 생성됨:', answer.type);
+
+            await this.peerConnection.setLocalDescription(answer);
+            console.log('[VideoCallService] 로컬 Answer 설명 설정 완료');
+
+            const message = {
                 type: 'answer',
                 answer: answer,
                 roomId: this.roomId,
                 userId: this.userId,
                 targetUserId: remoteUserId
-            });
+            };
+
+            console.log('[VideoCallService] Answer 메시지 전송 시도:', message);
+            this.sendSignalingMessage(message);
+            console.log('[VideoCallService] Answer 전송 완료');
+
         } catch (error) {
-            console.error('Offer 처리 실패:', error);
+            console.error('[VideoCallService] Offer 처리 실패:', error);
             throw error;
         }
     }
 
     async handleAnswer(answer) {
         try {
+            console.log('[VideoCallService] Answer 처리 시작');
+            console.log('[VideoCallService] Answer SDP:', answer.sdp.substring(0, 100) + '...');
+
             await this.peerConnection.setRemoteDescription(answer);
+            console.log('[VideoCallService] 원격 Answer 설명 설정 완료');
+
         } catch (error) {
-            console.error('Answer 처리 실패:', error);
+            console.error('[VideoCallService] Answer 처리 실패:', error);
             throw error;
         }
     }
 
     async handleIceCandidate(candidate) {
         try {
+            console.log('[VideoCallService] ICE 후보 처리 시작:', candidate.candidate.substring(0, 50) + '...');
+
             await this.peerConnection.addIceCandidate(candidate);
+            console.log('[VideoCallService] ICE 후보 추가 완료');
+
         } catch (error) {
-            console.error('ICE 후보 처리 실패:', error);
+            console.error('[VideoCallService] ICE 후보 처리 실패:', error);
             throw error;
         }
     }

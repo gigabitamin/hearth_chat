@@ -128,7 +128,7 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
 
                         if (data.type && ['offer', 'answer', 'ice_candidate', 'screen_share_start', 'screen_share_stop'].includes(data.type)) {
                             console.log('[화상채팅] WebRTC 시그널링 메시지 감지됨:', data.type);
-                            handleWebRTCMessage(data);
+                            processWebRTCMessage(data);
                         }
                     } catch (error) {
                         // 일반 채팅 메시지는 무시
@@ -280,13 +280,18 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
     };
 
     // WebRTC 시그널링 메시지 처리
-    const handleWebRTCMessage = async (data) => {
+    const processWebRTCMessage = async (data) => {
         try {
+            console.log('[화상채팅] WebRTC 메시지 처리 시작:', data.type, 'from User ID:', data.userId, 'my User ID:', userId);
+
             switch (data.type) {
                 case 'offer':
                     if (data.userId !== userId) {
                         console.log('[화상채팅] Offer 수신됨, Answer 생성 시작');
                         await videoCallService.handleOffer(data.offer, data.userId);
+                        console.log('[화상채팅] Answer 생성 및 전송 완료');
+                    } else {
+                        console.log('[화상채팅] 자신이 보낸 Offer는 무시');
                     }
                     break;
 
@@ -294,6 +299,9 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
                     if (data.userId !== userId) {
                         console.log('[화상채팅] Answer 수신됨');
                         await videoCallService.handleAnswer(data.answer);
+                        console.log('[화상채팅] Answer 처리 완료');
+                    } else {
+                        console.log('[화상채팅] 자신이 보낸 Answer는 무시');
                     }
                     break;
 
@@ -301,6 +309,9 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
                     if (data.userId !== userId) {
                         console.log('[화상채팅] ICE 후보 수신됨');
                         await videoCallService.handleIceCandidate(data.candidate);
+                        console.log('[화상채팅] ICE 후보 처리 완료');
+                    } else {
+                        console.log('[화상채팅] 자신이 보낸 ICE 후보는 무시');
                     }
                     break;
 
@@ -308,6 +319,8 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
                     if (data.userId !== userId) {
                         console.log('[화상채팅] 상대방 화면공유 시작됨');
                         // 상대방 화면공유 상태 표시 (UI 업데이트)
+                    } else {
+                        console.log('[화상채팅] 자신이 보낸 화면공유 시작 메시지는 무시');
                     }
                     break;
 
@@ -315,10 +328,13 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
                     if (data.userId !== userId) {
                         console.log('[화상채팅] 상대방 화면공유 중지됨');
                         // 상대방 화면공유 상태 해제 (UI 업데이트)
+                    } else {
+                        console.log('[화상채팅] 자신이 보낸 화면공유 중지 메시지는 무시');
                     }
                     break;
 
                 default:
+                    console.log('[화상채팅] 알 수 없는 WebRTC 메시지 타입:', data.type);
                     break;
             }
         } catch (error) {
