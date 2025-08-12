@@ -14,10 +14,10 @@ echo "--- 데이터베이스 마이그레이션 실행... ---"
 python manage.py migrate --noinput
 
 echo "--- 초기 Site 객체 생성... ---"
-python manage.py createinitialsite 2>&1 | tee /tmp/createinitialsite.log || {
-    echo "[WARNING] Site creation failed. See /tmp/createinitialsite.log below:"
-    cat /tmp/createinitialsite.log
-}
+# python manage.py createinitialsite 2>&1 | tee /tmp/createinitialsite.log || {
+#     echo "[WARNING] Site creation failed. See /tmp/createinitialsite.log below:"
+#     cat /tmp/createinitialsite.log
+# }
 
 echo "--- 정적 파일 수집 실행... ---"
 # 커스텀 명령을 사용하여 안전하게 정적 파일 수집
@@ -30,10 +30,10 @@ echo ">>> /app/staticfiles_collected 폴더 내용:"
 ls -laR /app/staticfiles_collected || echo "staticfiles_collected 폴더를 찾을 수 없습니다."
 
 # echo "Ensuring superuser exists..."
-python manage.py createinitialsuperuser 2>&1 | tee /tmp/createinitialsuperuser.log || {
-    echo "[ERROR] Superuser creation failed. See /tmp/createinitialsuperuser.log below:"
-    cat /tmp/createinitialsuperuser.log
-}
+# python manage.py createinitialsuperuser 2>&1 | tee /tmp/createinitialsuperuser.log || {
+#     echo "[ERROR] Superuser creation failed. See /tmp/createinitialsuperuser.log below:"
+#     cat /tmp/createinitialsuperuser.log
+# }
 
 echo "--- 로그인 문제 디버깅 정보 수집... ---"
 python manage.py debug_login 2>&1 | tee /tmp/debug_login.log || {
