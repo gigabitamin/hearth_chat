@@ -485,9 +485,9 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                                     </div>
                                                     {/* 가운데: 방 정보 */}
                                                     <div className="room-item-center-room" style={{ flex: 1, minWidth: 0 }}>
-                                                        <div style={{ fontWeight: 700, color: '#fff', fontSize: 15, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{room.name}</div>
+                                                        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{room.name}</div>
                                                         <div style={{
-                                                            color: '#bbb',
+                                                            color: '#333',
                                                             fontSize: 13,
                                                             marginBottom: 2,
                                                             wordBreak: 'break-all',

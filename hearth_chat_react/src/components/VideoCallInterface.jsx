@@ -167,9 +167,23 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
     // 초기화 시 카메라 OFF 상태로 설정
     const initializeCameraOff = () => {
         setIsVideoEnabled(false);
+
+        // 실제 카메라 스트림도 중지
+        if (localVideoRef.current && localVideoRef.current.srcObject) {
+            const stream = localVideoRef.current.srcObject;
+            if (stream) {
+                stream.getTracks().forEach(track => {
+                    if (track.kind === 'video') {
+                        track.enabled = false;
+                        console.log('[화상채팅] 비디오 트랙 비활성화됨');
+                    }
+                });
+            }
+        }
+
         console.log('[화상채팅] 초기화 시 카메라 OFF 상태로 설정됨');
     };
-    
+
     useEffect(() => {
         // userId가 없으면 초기화하지 않음
         if (!userId) {
