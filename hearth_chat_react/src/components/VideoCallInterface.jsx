@@ -182,7 +182,10 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
 
         return () => {
             clearTimeout(timer);
-            videoCallService.stopVideoCall();
+            console.log('[화상채팅] 컴포넌트 언마운트 - 정리 시작');
+            cleanupMediaStreams(); // 모든 미디어 스트림 정리
+            videoCallService.stopVideoCall(); // WebRTC 연결 정리
+            console.log('[화상채팅] 컴포넌트 정리 완료');
         };
     }, [userId]); // userId가 변경될 때마다 실행
 
@@ -198,6 +201,20 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
             clearInterval(bluetoothCheckInterval);
         };
     }, [userId]);
+
+    // roomId가 변경될 때 미디어 스트림 정리
+    useEffect(() => {
+        if (!roomId) return;
+
+        console.log('[화상채팅] 방 변경 감지 - 이전 미디어 스트림 정리');
+        cleanupMediaStreams();
+
+        return () => {
+            // 방을 벗어날 때 정리
+            console.log('[화상채팅] 방을 벗어남 - 미디어 스트림 정리');
+            cleanupMediaStreams();
+        };
+    }, [roomId]);
 
     // userId prop 확인 및 디버깅
     console.log('[화상채팅] VideoCallInterface props 확인:', { roomId, userId });
@@ -544,6 +561,60 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
             }
         } catch (error) {
             console.error('[화상채팅] WebRTC 메시지 처리 실패:', error);
+        }
+    };
+
+    // 방을 벗어날 때 모든 미디어 스트림 정리
+    const cleanupMediaStreams = () => {
+        try {
+            console.log('[화상채팅] 미디어 스트림 정리 시작');
+
+            // 로컬 스트림 정리
+            if (localStream) {
+                localStream.getTracks().forEach(track => {
+                    track.stop();
+                    console.log('[화상채팅] 로컬 트랙 정리됨:', track.kind);
+                });
+                setLocalStream(null);
+            }
+
+            // 화면 공유 스트림 정리
+            if (screenShareStream) {
+                screenShareStream.getTracks().forEach(track => {
+                    track.stop();
+                    console.log('[화상채팅] 화면 공유 트랙 정리됨:', track.kind);
+                });
+                setScreenShareStream(null);
+            }
+
+            // 원격 스트림 정리
+            if (remoteStream) {
+                remoteStream.getTracks().forEach(track => {
+                    track.stop();
+                    console.log('[화상채팅] 원격 트랙 정리됨:', track.kind);
+                });
+                setRemoteStream(null);
+            }
+
+            // 비디오 요소 정리
+            if (localVideoRef.current) {
+                localVideoRef.current.srcObject = null;
+            }
+            if (remoteVideoRef.current) {
+                remoteVideoRef.current.srcObject = null;
+            }
+
+            // 상태 초기화
+            setIsCallActive(false);
+            setIsMuted(false);
+            setIsVideoEnabled(true);
+            setIsScreenSharing(false);
+            setConnectionState('new');
+            setIceConnectionState('new');
+
+            console.log('[화상채팅] 모든 미디어 스트림 정리 완료');
+        } catch (error) {
+            console.error('[화상채팅] 미디어 스트림 정리 실패:', error);
         }
     };
 
