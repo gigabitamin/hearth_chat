@@ -152,7 +152,7 @@ export default function HeaderBar({
                             style={{
                                 maxWidth: 140,                                
                                 fontWeight: 600,
-                                color: '#23242a',
+                                // color: '#888888',
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
@@ -175,7 +175,7 @@ export default function HeaderBar({
                                     handleFavoriteToggle(room, e);
                                     onToggleFavoriteRoom && onToggleFavoriteRoom();
                                 }}
-                                style={{ marginRight: 6, background: 'none', border: 'none', fontSize: 16, color: '#FFD600', cursor: 'pointer', paddingRight: 10, paddingLeft: 0}}
+                                style={{ marginRight: 6, background: 'none', border: 'none', fontSize: 16, color: '#FFD600', cursor: 'pointer', paddingRight: 10, paddingLeft: 0, display: 'inline-block'}}
                             >
                                 <div style={{ background: 'none', border: 'none', fontSize: 16, color: '#FFD600', cursor: 'pointer'}}>{isFavoriteRoom ? '★' : '☆'}</div>
                             </button>                            
