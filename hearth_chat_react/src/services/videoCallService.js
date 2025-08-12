@@ -13,19 +13,21 @@ class VideoCallService {
         this.screenShareStream = null; // 화면공유 스트림 추가
     }
 
-    async initializeVideoCall(roomId, userId) {
+    async initializeVideoCall(roomId, userId, constraints = { video: true, audio: true }) {
         this.roomId = roomId;
         this.userId = userId;
 
         try {
-            console.log('[VideoCallService] 화상채팅 초기화 시작');
+            console.log('[VideoCallService] 화상채팅 초기화 시작 (제약조건:', constraints, ')');
 
-            // 로컬 미디어 스트림 획득
-            this.localStream = await navigator.mediaDevices.getUserMedia({
-                video: true,
-                audio: true
-            });
+            // 로컬 미디어 스트림 획득 (제약조건에 따라)
+            this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
             console.log('[VideoCallService] 로컬 스트림 획득 성공:', this.localStream.getTracks().length, '개 트랙');
+
+            // 트랙별 정보 로깅
+            this.localStream.getTracks().forEach(track => {
+                console.log('[VideoCallService] 트랙 정보:', track.kind, 'enabled:', track.enabled);
+            });
 
             // WebRTC 연결 설정
             this.peerConnection = new RTCPeerConnection({

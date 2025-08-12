@@ -7,8 +7,8 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
     const [localStream, setLocalStream] = useState(null);
     const [remoteStream, setRemoteStream] = useState(null);
     const [isCallActive, setIsCallActive] = useState(false);
-    const [isMuted, setIsMuted] = useState(false);
-    const [isVideoEnabled, setIsVideoEnabled] = useState(true);
+    const [isMuted, setIsMuted] = useState(false); // 마이크 활성화 (기본값)
+    const [isVideoEnabled, setIsVideoEnabled] = useState(false); // 카메라 비활성화 (기본값)
     const [isScreenSharing, setIsScreenSharing] = useState(false);
     const [connectionState, setConnectionState] = useState('new');
     const [iceConnectionState, setIceConnectionState] = useState('new');
@@ -310,11 +310,12 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
     const initializeVideoCall = async () => {
         try {
             console.log('[화상채팅] 초기화 시작 - Room ID:', roomId, 'User ID:', userId);
-            console.log('[화상채팅] 초기화 단계 1: VideoCallService 초기화');
+            console.log('[화상채팅] 초기화 단계 1: VideoCallService 초기화 (마이크만)');
 
-            const stream = await videoCallService.initializeVideoCall(roomId, userId);
+            // 마이크만으로 초기화 (비디오 없이)
+            const stream = await videoCallService.initializeVideoCall(roomId, userId, { video: false, audio: true });
             setLocalStream(stream);
-            console.log('[화상채팅] 초기화 단계 1 완료: 로컬 스트림 설정됨');
+            console.log('[화상채팅] 초기화 단계 1 완료: 마이크만 스트림 설정됨');
 
             // DOM 요소가 준비될 때까지 대기
             console.log('[화상채팅] DOM 요소 준비 대기 시작');
@@ -326,8 +327,9 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
             }
 
             if (localVideoRef.current) {
-                localVideoRef.current.srcObject = stream;
-                console.log('[화상채팅] 초기화 단계 2: 로컬 비디오 요소에 스트림 설정됨');
+                // 마이크만 있으므로 비디오 요소는 숨김 처리
+                localVideoRef.current.style.display = 'none';
+                console.log('[화상채팅] 초기화 단계 2: 마이크만 스트림 설정됨 (비디오 숨김)');
             } else {
                 console.error('[화상채팅] DOM 요소를 찾을 수 없음, 초기화 중단');
                 return;
@@ -440,9 +442,87 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
         return result;
     };
 
-    const toggleVideo = () => {
-        const newVideoState = videoCallService.toggleVideo();
-        setIsVideoEnabled(newVideoState);
+    const toggleVideo = async () => {
+        try {
+            if (isVideoEnabled) {
+                // 카메라 끄기
+                console.log('[화상채팅] 카메라 비활성화 시작');
+
+                if (localStream) {
+                    const videoTrack = localStream.getVideoTracks()[0];
+                    if (videoTrack) {
+                        videoTrack.stop();
+                        console.log('[화상채팅] 비디오 트랙 정리됨');
+                    }
+                }
+
+                // 비디오 요소 숨김 및 스트림 제거
+                if (localVideoRef.current) {
+                    localVideoRef.current.style.display = 'none';
+                    localVideoRef.current.srcObject = null;
+                    console.log('[화상채팅] 비디오 요소 숨김 및 스트림 제거됨');
+                }
+
+                setIsVideoEnabled(false);
+                console.log('[화상채팅] 카메라 상태: 비활성화');
+            } else {
+                // 카메라 켜기
+                console.log('[화상채팅] 카메라 활성화 시작');
+
+                try {
+                    // 비디오 스트림 추가 요청
+                    const videoStream = await navigator.mediaDevices.getUserMedia({
+                        video: true,
+                        audio: false
+                    });
+
+                    if (localStream) {
+                        // 기존 스트림에 비디오 트랙 추가
+                        videoStream.getVideoTracks().forEach(track => {
+                            localStream.addTrack(track);
+                        });
+
+                        // VideoCallService에도 비디오 트랙 추가
+                        if (videoCallService.peerConnection) {
+                            const sender = videoCallService.peerConnection
+                                .getSenders()
+                                .find(s => s.track && s.track.kind === 'video');
+
+                            if (sender) {
+                                sender.replaceTrack(videoStream.getVideoTracks()[0]);
+                            } else {
+                                // 비디오 트랙이 없으면 새로 추가
+                                videoCallService.peerConnection.addTrack(
+                                    videoStream.getVideoTracks()[0],
+                                    localStream
+                                );
+                            }
+                        }
+
+                        // 비디오 요소 표시 및 스트림 설정
+                        if (localVideoRef.current) {
+                            localVideoRef.current.style.display = 'block';
+                            // 새로운 비디오 스트림을 직접 설정
+                            localVideoRef.current.srcObject = videoStream;
+                            console.log('[화상채팅] 비디오 요소에 스트림 설정됨:', videoStream);
+                            console.log('[화상채팅] 비디오 요소 상태:', {
+                                display: localVideoRef.current.style.display,
+                                srcObject: localVideoRef.current.srcObject,
+                                videoWidth: localVideoRef.current.videoWidth,
+                                videoHeight: localVideoRef.current.videoHeight
+                            });
+                        }
+
+                        setIsVideoEnabled(true);
+                        console.log('[화상채팅] 카메라 상태: 활성화 (비디오 트랙 추가됨)');
+                    }
+                } catch (error) {
+                    console.error('[화상채팅] 카메라 활성화 실패:', error);
+                }
+            }
+        } catch (error) {
+            console.error('[화상채팅] 카메라 토글 실패:', error);
+        }
     };
 
     const toggleScreenShare = async () => {
@@ -606,8 +686,8 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
 
             // 상태 초기화
             setIsCallActive(false);
-            setIsMuted(false);
-            setIsVideoEnabled(true);
+            setIsMuted(false); // 마이크 활성화 (기본값)
+            setIsVideoEnabled(false); // 카메라 비활성화 (기본값)
             setIsScreenSharing(false);
             setConnectionState('new');
             setIceConnectionState('new');
@@ -671,7 +751,33 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
                         playsInline
                         muted
                         className="local-video"
+                        style={{ display: isVideoEnabled ? 'block' : 'none' }}
+                        onLoadedMetadata={() => {
+                            if (localVideoRef.current) {
+                                console.log('[화상채팅] 비디오 메타데이터 로드됨:', {
+                                    videoWidth: localVideoRef.current.videoWidth,
+                                    videoHeight: localVideoRef.current.videoHeight,
+                                    readyState: localVideoRef.current.readyState
+                                });
+                            }
+                        }}
+                        onCanPlay={() => {
+                            console.log('[화상채팅] 비디오 재생 가능 상태');
+                        }}
+                        onError={(e) => {
+                            console.error('[화상채팅] 비디오 로드 오류:', e);
+                        }}
                     />
+
+                    {/* 카메라가 꺼진 상태일 때 표시할 오버레이 */}
+                    {!isVideoEnabled && (
+                        <div className="camera-off-overlay">
+                            <div className="camera-off-icon">📷❌</div>
+                            <div className="camera-off-text">카메라 꺼짐</div>
+                            <div className="camera-off-hint">카메라 버튼을 눌러 켜세요</div>
+                        </div>
+                    )}
+
                     <div className="local-video-overlay">
                         <span className="local-user-label">
                             {isScreenSharing ? '화면공유' : '나'}
@@ -720,7 +826,7 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
                     className={`control-btn ${!isVideoEnabled ? 'disabled' : ''}`}
                     title={isVideoEnabled ? '카메라 끄기' : '카메라 켜기'}
                 >
-                    {isVideoEnabled ? '📹' : '🚫'}
+                    {isVideoEnabled ? '📹' : '📷❌'}
                 </button>
 
                 <button
