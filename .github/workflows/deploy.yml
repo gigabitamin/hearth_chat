@@ -124,7 +124,17 @@ jobs:
         
         if [ -f "hearth_chat_react/package.json" ]; then
           cd hearth_chat_react
-          npm run build
+          
+          # CI 빌드 스크립트 사용
+          if [ -f "build-ci.sh" ]; then
+            echo "📜 CI 빌드 스크립트 사용"
+            chmod +x build-ci.sh
+            ./build-ci.sh
+          else
+            echo "📜 기본 빌드 사용 (CI=false)"
+            CI=false npm run build
+          fi
+          
           cd ..
           echo "✅ React 빌드 완료"
         else
