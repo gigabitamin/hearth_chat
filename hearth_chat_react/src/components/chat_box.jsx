@@ -388,6 +388,14 @@ const ChatBox = ({
         if (data.type === 'user_message' && data.message) {
           const isMyMessage = (data.sender === loginUserRef.current?.username) || (data.user_id === loginUserRef.current?.id);
 
+          console.log('[WebSocket] 사용자 메시지 처리:', {
+            isMyMessage,
+            sender: data.sender,
+            loginUser: loginUserRef.current?.username,
+            client_id: data.client_id,
+            message: data.message
+          });
+
           const newMessage = {
             id: data.id || Date.now(),
             type: isMyMessage ? 'send' : 'recv',
@@ -407,23 +415,35 @@ const ChatBox = ({
             if (isMyMessage) {
               // echo 메시지라면 pending 메시지 제거 (client_id로 매칭)
               if (data.client_id) {
-                next = [
-                  ...prev.filter(msg => !(msg.pending && msg.client_id === data.client_id)),
-                  newMessage
-                ];
+                console.log('[WebSocket] client_id로 pending 메시지 제거 시도:', data.client_id);
+                const filteredPrev = prev.filter(msg => !(msg.pending && msg.client_id === data.client_id));
+                console.log('[WebSocket] pending 메시지 제거 후:', {
+                  beforeCount: prev.length,
+                  afterCount: filteredPrev.length,
+                  removedCount: prev.length - filteredPrev.length
+                });
+                next = [...filteredPrev, newMessage];
               } else {
                 // fallback: text + timestamp로 매칭
-                next = [
-                  ...prev.filter(msg => !(msg.pending && msg.text === data.message &&
-                    Math.abs(new Date(msg.date).getTime() - new Date(data.timestamp).getTime()) < 2000)),
-                  newMessage
-                ];
+                console.log('[WebSocket] fallback 매칭으로 pending 메시지 제거 시도');
+                const filteredPrev = prev.filter(msg => !(msg.pending && msg.text === data.message &&
+                  Math.abs(new Date(msg.date).getTime() - new Date(data.timestamp).getTime()) < 2000));
+                console.log('[WebSocket] fallback 매칭 후 pending 메시지 제거:', {
+                  beforeCount: prev.length,
+                  afterCount: filteredPrev.length,
+                  removedCount: prev.length - filteredPrev.length
+                });
+                next = [...filteredPrev, newMessage];
               }
             } else {
               next = [...prev, newMessage];
             }
 
-            console.log('[WebSocket] 사용자 메시지 추가됨:', newMessage, '총 메시지 수:', next.length);
+            console.log('[WebSocket] 사용자 메시지 추가됨:', {
+              newMessage,
+              totalCount: next.length,
+              messageType: isMyMessage ? 'echo' : 'new'
+            });
             return next;
           });
 
@@ -450,7 +470,10 @@ const ChatBox = ({
             }
 
             const next = [...prev, newMessage];
-            console.log('[WebSocket] AI 메시지 추가됨:', newMessage, '총 메시지 수:', next.length);
+            console.log('[WebSocket] AI 메시지 추가됨:', {
+              newMessage,
+              totalCount: next.length
+            });
             return next;
           });
 
@@ -1910,17 +1933,35 @@ const ChatBox = ({
         if (data.type === 'user_message' && data.message) {
           const isMyMessage = (data.sender === username) || (data.user_id === userId);
 
+          console.log('[WebSocket 재연결] 사용자 메시지 처리:', {
+            isMyMessage,
+            sender: data.sender,
+            loginUser: username,
+            client_id: data.client_id,
+            message: data.message
+          });
+
           // 서버 echo 메시지에 client_id가 있으면, 해당 pending 메시지 제거
           setMessages((prev) => {
             let arr = prev;
 
             // 1. client_id로 매칭 제거(가장 정확)
             if (data.client_id) {
+              console.log('[WebSocket 재연결] client_id로 pending 메시지 제거 시도:', data.client_id);
+              const beforeCount = arr.length;
               arr = arr.filter(
                 (msg) => !(msg.pending && msg.client_id === data.client_id)
               );
+              const afterCount = arr.length;
+              console.log('[WebSocket 재연결] pending 메시지 제거 후:', {
+                beforeCount,
+                afterCount,
+                removedCount: beforeCount - afterCount
+              });
             } else {
               // 2. fallback: text+timestamp+sender로 매칭
+              console.log('[WebSocket 재연결] fallback 매칭으로 pending 메시지 제거 시도');
+              const beforeCount = arr.length;
               arr = arr.filter(
                 (msg) =>
                   !(
@@ -1930,6 +1971,12 @@ const ChatBox = ({
                     Math.abs(new Date(msg.date).getTime() - new Date(data.timestamp).getTime()) < 2000
                   )
               );
+              const afterCount = arr.length;
+              console.log('[WebSocket 재연결] fallback 매칭 후 pending 메시지 제거:', {
+                beforeCount,
+                afterCount,
+                removedCount: beforeCount - afterCount
+              });
             }
 
             // 서버 메시지 추가
@@ -1947,7 +1994,11 @@ const ChatBox = ({
             };
 
             const result = [...arr, newMsg];
-            console.log('[WebSocket 재연결] 사용자 메시지 추가됨:', newMsg, '총 메시지 수:', result.length);
+            console.log('[WebSocket 재연결] 사용자 메시지 추가됨:', {
+              newMsg,
+              totalCount: result.length,
+              messageType: isMyMessage ? 'echo' : 'new'
+            });
             return result;
           });
 
@@ -1973,7 +2024,10 @@ const ChatBox = ({
             };
 
             const arr = [...prev, newMsg];
-            console.log('[WebSocket 재연결] AI 메시지 추가됨:', newMsg, '총 메시지 수:', arr.length);
+            console.log('[WebSocket 재연결] AI 메시지 추가됨:', {
+              newMsg,
+              totalCount: arr.length
+            });
             return arr;
           });
 
@@ -2316,14 +2370,36 @@ const ChatBox = ({
           console.log('[ChatBox] pending_image_urls가 localStorage에 없음');
         }
 
+        // 먼저 pending 메시지를 화면에 표시
+        const clientId = `${Date.now()}_${Math.random()}`;
+        const pendingMessageObj = {
+          id: `pending_${clientId}`,
+          type: 'send',
+          text: pendingMessage,
+          date: new Date().toISOString(),
+          sender: loginUser?.username || '사용자',
+          user_id: loginUser?.id,
+          pending: true,
+          client_id: clientId,
+          imageUrl: imageUrls.length > 0 ? imageUrls[0] : null,
+          imageUrls: imageUrls,
+        };
+
+        console.log('[ChatBox] pending 메시지 생성:', pendingMessageObj);
+
+        // pending 메시지를 즉시 화면에 추가
+        setMessages(prev => {
+          const newMessages = [...prev, pendingMessageObj];
+          console.log('[ChatBox] pending 메시지 추가 후 messages 상태:', newMessages);
+          return newMessages;
+        });
+
         // WebSocket 연결 상태 확인 및 재시도 로직
         let retryCount = 0;
         const maxRetries = 3;
 
         const attemptSend = () => {
           if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-            const clientId = `${Date.now()}_${Math.random()}`;
-
             // 이미지가 있는 경우와 없는 경우를 구분하여 메시지 전송
             let messageData;
             if (imageUrls && imageUrls.length > 0) {
@@ -2385,7 +2461,7 @@ const ChatBox = ({
         attemptSend();
       }
     }
-  }, [wsConnectionReady, autoMessageSent, selectedRoom]);
+  }, [wsConnectionReady, autoMessageSent, selectedRoom, loginUser]);
 
   return (
     <>
