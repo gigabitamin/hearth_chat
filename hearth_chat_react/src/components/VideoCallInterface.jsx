@@ -18,6 +18,11 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
     const [availableCameras, setAvailableCameras] = useState([]);
     const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
 
+    // 모바일 음성 관련 상태 추가
+    const [isSpeakerEnabled, setIsSpeakerEnabled] = useState(false); // 통화 스피커 활성화 여부
+    const [isBluetoothConnected, setIsBluetoothConnected] = useState(false); // 블루투스 이어폰 연결 여부
+    const [audioOutput, setAudioOutput] = useState('earpiece'); // 'earpiece' | 'speaker' | 'bluetooth'
+
     const localVideoRef = useRef(null);
     const remoteVideoRef = useRef(null);
 
@@ -30,6 +35,135 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
         return null;
     };
 
+    // 블루투스 이어폰 연결 상태 확인
+    const checkBluetoothConnection = async () => {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const audioOutputs = devices.filter(device => device.kind === 'audiooutput');
+            const bluetoothDevices = audioOutputs.filter(device =>
+                device.label.toLowerCase().includes('bluetooth') ||
+                device.label.toLowerCase().includes('bt') ||
+                device.deviceId.includes('bluetooth')
+            );
+
+            const hasBluetooth = bluetoothDevices.length > 0;
+            setIsBluetoothConnected(hasBluetooth);
+
+            if (hasBluetooth) {
+                setAudioOutput('bluetooth');
+                console.log('[화상채팅] 블루투스 이어폰 연결됨:', bluetoothDevices);
+            } else {
+                setAudioOutput('earpiece');
+                console.log('[화상채팅] 블루투스 이어폰 연결 안됨, 이어폰 사용');
+            }
+        } catch (error) {
+            console.error('[화상채팅] 블루투스 연결 상태 확인 실패:', error);
+        }
+    };
+
+    // 음성 출력 전환 (이어폰 <-> 통화 스피커)
+    const toggleAudioOutput = async () => {
+        try {
+            if (audioOutput === 'earpiece') {
+                // 이어폰 -> 통화 스피커
+                if (navigator.mediaDevices && navigator.mediaDevices.setAudioOutput) {
+                    await navigator.mediaDevices.setAudioOutput('speaker');
+                    setAudioOutput('speaker');
+                    setIsSpeakerEnabled(true);
+                    console.log('[화상채팅] 통화 스피커로 전환됨');
+                } else {
+                    // iOS Safari 대응
+                    if (window.webkit && window.webkit.messageHandlers) {
+                        window.webkit.messageHandlers.audioOutput.postMessage('speaker');
+                        setAudioOutput('speaker');
+                        setIsSpeakerEnabled(true);
+                        console.log('[화상채팅] iOS 통화 스피커로 전환됨');
+                    }
+                }
+            } else {
+                // 통화 스피커 -> 이어폰
+                if (navigator.mediaDevices && navigator.mediaDevices.setAudioOutput) {
+                    await navigator.mediaDevices.setAudioOutput('earpiece');
+                    setAudioOutput('earpiece');
+                    setIsSpeakerEnabled(false);
+                    console.log('[화상채팅] 이어폰으로 전환됨');
+                } else {
+                    // iOS Safari 대응
+                    if (window.webkit && window.webkit.messageHandlers) {
+                        window.webkit.messageHandlers.audioOutput.postMessage('earpiece');
+                        setAudioOutput('earpiece');
+                        setIsSpeakerEnabled(false);
+                        console.log('[화상채팅] iOS 이어폰으로 전환됨');
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('[화상채팅] 음성 출력 전환 실패:', error);
+        }
+    };
+
+    // 마이크 음소거 토글
+    const toggleMute = async () => {
+        try {
+            if (localStream) {
+                const audioTrack = localStream.getAudioTracks()[0];
+                if (audioTrack) {
+                    audioTrack.enabled = !audioTrack.enabled;
+                    setIsMuted(!audioTrack.enabled);
+                    console.log('[화상채팅] 마이크 음소거:', !audioTrack.enabled);
+                }
+            }
+        } catch (error) {
+            console.error('[화상채팅] 마이크 음소거 토글 실패:', error);
+        }
+    };
+
+    // 스피커 음소거 토글 (원격 오디오)
+    const toggleSpeakerMute = async () => {
+        try {
+            if (remoteVideoRef.current) {
+                const isMuted = remoteVideoRef.current.muted;
+                remoteVideoRef.current.muted = !isMuted;
+                console.log('[화상채팅] 스피커 음소거:', !isMuted);
+            }
+        } catch (error) {
+            console.error('[화상채팅] 스피커 음소거 토글 실패:', error);
+        }
+    };
+
+    // 모바일에서 통화 모드 방지 및 음성 설정
+    const setupMobileAudio = async () => {
+        try {
+            // 모바일에서 통화 모드 방지
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                const constraints = {
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                        // 통화 모드 방지
+                        sampleRate: 48000,
+                        channelCount: 2
+                    },
+                    video: true
+                };
+
+                // 오디오 컨텍스트 설정 (통화 모드 방지)
+                if (window.AudioContext || window.webkitAudioContext) {
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    if (audioContext.state === 'suspended') {
+                        await audioContext.resume();
+                    }
+                    console.log('[화상채팅] 오디오 컨텍스트 활성화됨');
+                }
+
+                console.log('[화상채팅] 모바일 오디오 설정 완료');
+            }
+        } catch (error) {
+            console.error('[화상채팅] 모바일 오디오 설정 실패:', error);
+        }
+    };
+
     useEffect(() => {
         // userId가 없으면 초기화하지 않음
         if (!userId) {
@@ -40,8 +174,10 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
         // 컴포넌트가 마운트된 후 초기화 실행
         const timer = setTimeout(() => {
             console.log('[화상채팅] useEffect 실행 - 초기화 시작');
+            setupMobileAudio(); // 모바일 오디오 설정
             initializeVideoCall();
             getAvailableCameras(); // 카메라 목록 가져오기
+            checkBluetoothConnection(); // 블루투스 연결 상태 확인
         }, 100);
 
         return () => {
@@ -49,6 +185,19 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
             videoCallService.stopVideoCall();
         };
     }, [userId]); // userId가 변경될 때마다 실행
+
+    // 블루투스 연결 상태 주기적 확인 (모바일 대응)
+    useEffect(() => {
+        if (!userId) return;
+
+        const bluetoothCheckInterval = setInterval(() => {
+            checkBluetoothConnection();
+        }, 5000); // 5초마다 확인
+
+        return () => {
+            clearInterval(bluetoothCheckInterval);
+        };
+    }, [userId]);
 
     // userId prop 확인 및 디버깅
     console.log('[화상채팅] VideoCallInterface props 확인:', { roomId, userId });
@@ -274,11 +423,6 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
         return result;
     };
 
-    const toggleMute = () => {
-        const newMuteState = videoCallService.toggleMute();
-        setIsMuted(newMuteState);
-    };
-
     const toggleVideo = () => {
         const newVideoState = videoCallService.toggleVideo();
         setIsVideoEnabled(newVideoState);
@@ -286,53 +430,22 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
 
     const toggleScreenShare = async () => {
         try {
-            if (!isScreenSharing) {
-                // 화면공유 시작
-                const stream = await videoCallService.toggleScreenShare();
-                if (stream) {
-                    setScreenShareStream(stream);
-                    setIsScreenSharing(true);
-
-                    // 로컬 비디오에 화면공유 표시
-                    if (localVideoRef.current) {
-                        localVideoRef.current.srcObject = stream;
-                    }
-
-                    // 화면공유 상태를 상대방에게 알림
-                    const ws = getWebSocket();
-                    if (ws) {
-                        videoCallService.sendSignalingMessage({
-                            type: 'screen_share_start',
-                            roomId: roomId,
-                            userId: userId
-                        });
-                    }
+            const newStream = await videoCallService.toggleScreenShare();
+            if (newStream) {
+                setScreenShareStream(newStream);
+                setIsScreenSharing(true);
+                if (localVideoRef.current) {
+                    localVideoRef.current.srcObject = newStream;
                 }
             } else {
-                // 화면공유 중지
-                const stream = await videoCallService.toggleScreenShare();
-                if (stream) {
-                    setScreenShareStream(null);
-                    setIsScreenSharing(false);
-
-                    // 원래 카메라 스트림으로 복원
-                    if (localVideoRef.current && localStream) {
-                        localVideoRef.current.srcObject = localStream;
-                    }
-
-                    // 화면공유 중지를 상대방에게 알림
-                    const ws = getWebSocket();
-                    if (ws) {
-                        videoCallService.sendSignalingMessage({
-                            type: 'screen_share_stop',
-                            roomId: roomId,
-                            userId: userId
-                        });
-                    }
+                setScreenShareStream(null);
+                setIsScreenSharing(false);
+                if (localVideoRef.current && localStream) {
+                    localVideoRef.current.srcObject = localStream;
                 }
             }
         } catch (error) {
-            console.error('화면 공유 전환 실패:', error);
+            console.error('[화상채팅] 화면 공유 토글 실패:', error);
         }
     };
 
@@ -497,13 +610,39 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
             </div>
 
             <div className="video-controls">
+                {/* 마이크 음소거 버튼 */}
                 <button
                     onClick={toggleMute}
                     className={`control-btn ${isMuted ? 'muted' : ''}`}
-                    title={isMuted ? '음소거 해제' : '음소거'}
+                    title={isMuted ? '마이크 음소거 해제' : '마이크 음소거'}
                 >
-                    {isMuted ? '🔇' : '🔊'}
+                    {isMuted ? '🎤❌' : '🎤'}
                 </button>
+
+                {/* 스피커 음소거 버튼 */}
+                <button
+                    onClick={toggleSpeakerMute}
+                    className="control-btn"
+                    title="스피커 음소거 토글"
+                >
+                    🔊
+                </button>
+
+                {/* 음성 출력 전환 버튼 (이어폰 <-> 통화 스피커) */}
+                <button
+                    onClick={toggleAudioOutput}
+                    className={`control-btn ${isSpeakerEnabled ? 'active' : ''}`}
+                    title={`현재: ${audioOutput === 'earpiece' ? '이어폰' : audioOutput === 'speaker' ? '통화 스피커' : '블루투스'}. 클릭하여 전환`}
+                >
+                    {audioOutput === 'earpiece' ? '👂' : audioOutput === 'speaker' ? '📢' : '🎧'}
+                </button>
+
+                {/* 블루투스 연결 상태 표시 */}
+                {isBluetoothConnected && (
+                    <div className="bluetooth-indicator" title="블루투스 이어폰 연결됨">
+                        🎧
+                    </div>
+                )}
 
                 <button
                     onClick={toggleVideo}
