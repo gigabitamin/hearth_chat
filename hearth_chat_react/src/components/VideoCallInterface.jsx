@@ -164,6 +164,12 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
         }
     };
 
+    // 초기화 시 카메라 OFF 상태로 설정
+    const initializeCameraOff = () => {
+        setIsVideoEnabled(false);
+        console.log('[화상채팅] 초기화 시 카메라 OFF 상태로 설정됨');
+    };
+
     useEffect(() => {
         // userId가 없으면 초기화하지 않음
         if (!userId) {
@@ -178,6 +184,7 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
             initializeVideoCall();
             getAvailableCameras(); // 카메라 목록 가져오기
             checkBluetoothConnection(); // 블루투스 연결 상태 확인
+            initializeCameraOff(); // 카메라 OFF 상태로 초기화
         }, 100);
 
         return () => {
