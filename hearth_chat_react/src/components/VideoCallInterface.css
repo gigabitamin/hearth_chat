@@ -257,6 +257,21 @@
     background: #6f42c1;
 }
 
+/* 블루투스 마이크 버튼 스타일 */
+.control-btn.bluetooth-mic {
+    background: #20c997;
+    border: 2px solid #28a745;
+}
+
+.control-btn.bluetooth-mic:hover {
+    background: #1ea085;
+    border-color: #218838;
+}
+
+.control-btn.bluetooth-mic:active {
+    background: #138496;
+}
+
 .control-btn.end-call {
     background: #f44336;
     width: 64px;

@@ -39,19 +39,59 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
     const checkBluetoothConnection = async () => {
         try {
             const devices = await navigator.mediaDevices.enumerateDevices();
+
+            // 블루투스 오디오 출력 장치 확인
             const audioOutputs = devices.filter(device => device.kind === 'audiooutput');
-            const bluetoothDevices = audioOutputs.filter(device =>
+            const bluetoothOutputs = audioOutputs.filter(device =>
                 device.label.toLowerCase().includes('bluetooth') ||
                 device.label.toLowerCase().includes('bt') ||
                 device.deviceId.includes('bluetooth')
             );
 
-            const hasBluetooth = bluetoothDevices.length > 0;
+            // 블루투스 마이크 입력 장치 확인
+            const audioInputs = devices.filter(device => device.kind === 'audioinput');
+            const bluetoothInputs = audioInputs.filter(device =>
+                device.label.toLowerCase().includes('bluetooth') ||
+                device.label.toLowerCase().includes('bt') ||
+                device.deviceId.includes('bluetooth') ||
+                device.label.toLowerCase().includes('headset') ||
+                device.label.toLowerCase().includes('earphone')
+            );
+
+            const hasBluetoothOutput = bluetoothOutputs.length > 0;
+            const hasBluetoothInput = bluetoothInputs.length > 0;
+            const hasBluetooth = hasBluetoothOutput || hasBluetoothInput;
+
             setIsBluetoothConnected(hasBluetooth);
 
             if (hasBluetooth) {
-                setAudioOutput('bluetooth');
-                console.log('[화상채팅] 블루투스 이어폰 연결됨:', bluetoothDevices);
+                if (hasBluetoothInput && hasBluetoothOutput) {
+                    setAudioOutput('bluetooth');
+                    console.log('[화상채팅] 블루투스 이어폰 완전 연결됨 (마이크+스피커):', {
+                        outputs: bluetoothOutputs,
+                        inputs: bluetoothInputs
+                    });
+
+                    // 블루투스 마이크가 연결된 경우 자동으로 마이크 전환
+                    if (localStream && hasBluetoothInput) {
+                        setTimeout(() => {
+                            switchToBluetoothMicrophone();
+                        }, 1000); // 1초 후 자동 전환
+                    }
+                } else if (hasBluetoothOutput) {
+                    setAudioOutput('bluetooth');
+                    console.log('[화상채팅] 블루투스 스피커만 연결됨:', bluetoothOutputs);
+                } else if (hasBluetoothInput) {
+                    setAudioOutput('bluetooth');
+                    console.log('[화상채팅] 블루투스 마이크만 연결됨:', bluetoothInputs);
+
+                    // 블루투스 마이크만 연결된 경우에도 자동 전환
+                    if (localStream) {
+                        setTimeout(() => {
+                            switchToBluetoothMicrophone();
+                        }, 1000); // 1초 후 자동 전환
+                    }
+                }
             } else {
                 setAudioOutput('earpiece');
                 console.log('[화상채팅] 블루투스 이어폰 연결 안됨, 이어폰 사용');
@@ -115,6 +155,65 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
             }
         } catch (error) {
             console.error('[화상채팅] 마이크 음소거 토글 실패:', error);
+        }
+    };
+
+    // 블루투스 마이크로 전환
+    const switchToBluetoothMicrophone = async () => {
+        try {
+            if (!isBluetoothConnected) {
+                console.log('[화상채팅] 블루투스 이어폰이 연결되지 않음');
+                return;
+            }
+
+            // 블루투스 마이크 장치 찾기
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const bluetoothInputs = devices.filter(device =>
+                device.kind === 'audioinput' && (
+                    device.label.toLowerCase().includes('bluetooth') ||
+                    device.label.toLowerCase().includes('bt') ||
+                    device.deviceId.includes('bluetooth') ||
+                    device.label.toLowerCase().includes('headset') ||
+                    device.label.toLowerCase().includes('earphone')
+                )
+            );
+
+            if (bluetoothInputs.length === 0) {
+                console.log('[화상채팅] 블루투스 마이크를 찾을 수 없음');
+                return;
+            }
+
+            // 블루투스 마이크로 스트림 생성
+            const bluetoothStream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    deviceId: { exact: bluetoothInputs[0].deviceId },
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                },
+                video: false
+            });
+
+            // 기존 오디오 트랙을 블루투스 마이크로 교체
+            if (localStream) {
+                const oldAudioTrack = localStream.getAudioTracks()[0];
+                if (oldAudioTrack) {
+                    oldAudioTrack.stop(); // 기존 트랙 중지
+                }
+
+                const newAudioTrack = bluetoothStream.getAudioTracks()[0];
+                localStream.removeTrack(oldAudioTrack);
+                localStream.addTrack(newAudioTrack);
+
+                // 비디오 컨테이너에 새로운 스트림 적용
+                if (localVideoRef.current) {
+                    localVideoRef.current.srcObject = localStream;
+                }
+
+                console.log('[화상채팅] 블루투스 마이크로 전환됨:', bluetoothInputs[0].label);
+            }
+        } catch (error) {
+            console.error('[화상채팅] 블루투스 마이크 전환 실패:', error);
         }
     };
 
@@ -618,6 +717,17 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
                 >
                     {isMuted ? '🎤❌' : '🎤'}
                 </button>
+
+                {/* 블루투스 마이크 전환 버튼 */}
+                {isBluetoothConnected && (
+                    <button
+                        onClick={switchToBluetoothMicrophone}
+                        className="control-btn bluetooth-mic"
+                        title="블루투스 마이크로 전환"
+                    >
+                        🎤🎧
+                    </button>
+                )}
 
                 {/* 스피커 음소거 버튼 */}
                 <button
