@@ -382,6 +382,15 @@ SOCIALACCOUNT_PROVIDERS = {
         'SCOPE': ['openid', 'profile', 'email'],
         'AUTH_PARAMS': {'access_type': 'online'}
     },
+    'github': {
+        'SCOPE': ['user:email'],
+    },
+    'kakao': {
+        'SCOPE': ['profile_nickname', 'account_email'],
+    },
+    'naver': {
+        'SCOPE': ['email', 'name'],
+    },
 }
 
 MIDDLEWARE = [
@@ -525,14 +534,49 @@ else:
     print(f"🔍 로컬 환경 - MEDIA_ROOT: {MEDIA_ROOT}")
     print(f"🔍 로컬 환경 - MEDIA_URL: {MEDIA_URL}")
 
+# ❗️❗️❗️ 서버 오류 해결을 위한 유일한 변경점 ❗️❗️❗️
+
+# 로깅 설정 추가
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
-    'handlers': {'console': {'class': 'logging.StreamHandler'}},
-    'root': {'handlers': ['console'], 'level': 'INFO'},
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': 'django.log',
+            'formatter': 'verbose',
+        },
+    },
     'loggers': {
-        'django': {'handlers': ['console'], 'level': 'DEBUG', 'propagate': False},
-        'allauth': {'handlers': ['console'], 'level': 'DEBUG', 'propagate': False},
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'allauth': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'hearth_chat.adapters': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
     },
 }
 

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import RealisticAvatar3D from './RealisticAvatar3D';
 import EmotionCamera from './EmotionCamera';
 import VoiceRecognition from './VoiceRecognition';
+import VideoCallInterface from './VideoCallInterface';
 import ttsService from '../services/ttsService';
 import readyPlayerMeService from '../services/readyPlayerMe';
 import faceTrackingService from '../services/faceTrackingService';
@@ -2675,46 +2676,58 @@ const ChatBox = ({
           <div className="chat-section" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%', width: '100%', maxWidth: '100vw', minWidth: 0, boxSizing: 'border-box', overflowX: 'hidden' }}>
             <div className="chat-container" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%', width: '100%', maxWidth: '100vw', minWidth: 0, boxSizing: 'border-box', overflowX: 'hidden' }}>
               <div style={{ flex: 1, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
-                <VirtualizedMessageList
-                  messages={messages}
-                  loginUser={loginUser}
-                  highlightMessageId={highlightMessageId}
-                  getSenderColor={getSenderColor}
-                  onReply={msg => setReplyTo(msg)}
-                  // onMessageClick={msg => { }} // 메시지 강조 기능 제거
-                  // onReplyQuoteClick={id => { }} // 메시지 강조 기능 제거
-                  onImageClick={setViewerImage}
-                  favoriteMessages={favoriteMessages}
-                  onToggleFavorite={handleToggleFavorite}
-                  scrollToMessageId={scrollToMessageId}
-                  onMessageDelete={() => {
-                    if (selectedRoom && selectedRoom.id) {
-                      fetchMessages(selectedRoom.id, 0, 20, false, false);
-                    }
-                  }}
-                  onLoadMore={(isPrepending) => {
-                    if (!loadingMessages && hasMore && selectedRoom && selectedRoom.id) {
-                      if (isPrepending) {
-                        // 위로 스크롤: 현재 첫 번째 메시지 기준으로 이전 20개 fetch
-                        const newOffset = Math.max(0, firstItemIndex - 20);
-                        fetchMessages(selectedRoom.id, newOffset, 20, true, false);
-                      } else {
-                        // 아래로 스크롤: 현재 마지막 메시지 기준으로 다음 20개 fetch
-                        const newOffset = firstItemIndex + messages.length;
-                        fetchMessages(selectedRoom.id, newOffset, 20, false, false);
+                {/* 화상채팅 방인 경우 VideoCallInterface 표시 */}
+                {selectedRoom && selectedRoom.room_type === 'video_call' ? (
+                  <VideoCallInterface
+                    roomId={selectedRoom.id}
+                    userId={loginUser?.id}
+                    onCallEnd={() => {
+                      // 화상채팅 종료 시 처리
+                      console.log('화상채팅 종료');
+                    }}
+                  />
+                ) : (
+                  /* 일반 채팅 방인 경우 메시지 목록 표시 */
+                  <VirtualizedMessageList
+                    messages={messages}
+                    loginUser={loginUser}
+                    highlightMessageId={highlightMessageId}
+                    getSenderColor={getSenderColor}
+                    onReply={msg => setReplyTo(msg)}
+                    // onMessageClick={msg => { }} // 메시지 강조 기능 제거
+                    // onReplyQuoteClick={id => { }} // 메시지 강조 기능 제거
+                    onImageClick={setViewerImage}
+                    favoriteMessages={favoriteMessages}
+                    onToggleFavorite={handleToggleFavorite}
+                    scrollToMessageId={scrollToMessageId}
+                    onMessageDelete={() => {
+                      if (selectedRoom && selectedRoom.id) {
+                        fetchMessages(selectedRoom.id, 0, 20, false, false);
                       }
-                    }
-                  }}
-                  hasMore={hasMore}
-                  selectedRoomId={selectedRoom?.id}
-                  loadingMessages={loadingMessages}
-                  firstItemIndex={firstItemIndex}
-                  totalCount={totalCount}
-                  onMessageClick={handleMessageClick}
-                  userSettings={userSettings}
-                />
+                    }}
+                    onLoadMore={(isPrepending) => {
+                      if (!loadingMessages && hasMore && selectedRoom && selectedRoom.id) {
+                        if (isPrepending) {
+                          // 위로 스크롤: 현재 첫 번째 메시지 기준으로 이전 20개 fetch
+                          const newOffset = Math.max(0, firstItemIndex - 20);
+                          fetchMessages(selectedRoom.id, newOffset, 20, true, false);
+                        } else {
+                          // 아래로 스크롤: 현재 마지막 메시지 기준으로 다음 20개 fetch
+                          const newOffset = firstItemIndex + messages.length;
+                          fetchMessages(selectedRoom.id, newOffset, 20, false, false);
+                        }
+                      }
+                    }}
+                    hasMore={hasMore}
+                    selectedRoomId={selectedRoom?.id}
+                    loadingMessages={loadingMessages}
+                    firstItemIndex={firstItemIndex}
+                    totalCount={totalCount}
+                    onMessageClick={handleMessageClick}
+                    userSettings={userSettings}
+                  />
+                )}
               </div>
-
             </div>
           </div>
         </div>

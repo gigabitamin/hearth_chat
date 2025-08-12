@@ -17,6 +17,7 @@ const CreateRoomModal = ({ open, onClose, onSuccess, defaultMaxMembers = 4 }) =>
     const [creating, setCreating] = useState(false);
     const [createError, setCreateError] = useState(null);
     const [aiResponseEnabled, setAiResponseEnabled] = useState(false); // user 타입이므로 기본값 false
+    const [videoCallEnabled, setVideoCallEnabled] = useState(false);
 
     useEffect(() => {
         setCreateMaxMembers(defaultMaxMembers);
@@ -25,8 +26,15 @@ const CreateRoomModal = ({ open, onClose, onSuccess, defaultMaxMembers = 4 }) =>
     // 대화방 타입 변경 시 AI 응답 옵션 기본값 자동 설정
     useEffect(() => {
         if (createType === 'ai') setAiResponseEnabled(true);
-        else setAiResponseEnabled(false);
-    }, [createType]);
+        else if (createType === 'video_call') {
+            setVideoCallEnabled(true);
+            setCreateMaxMembers(2); // 화상채팅은 2명으로 고정
+        } else {
+            setAiResponseEnabled(false);
+            setVideoCallEnabled(false);
+            setCreateMaxMembers(defaultMaxMembers);
+        }
+    }, [createType, defaultMaxMembers]);
 
     if (!open) return null;
 
@@ -116,6 +124,7 @@ const CreateRoomModal = ({ open, onClose, onSuccess, defaultMaxMembers = 4 }) =>
                             <option value="ai">AI 채팅</option>
                             <option value="user">1:N 채팅</option>
                             <option value="group">그룹 채팅</option>
+                            <option value="video_call">1:1 화상채팅</option>
                         </select>
                     </div>
                     {createType === 'ai' && (
@@ -128,13 +137,33 @@ const CreateRoomModal = ({ open, onClose, onSuccess, defaultMaxMembers = 4 }) =>
                             </select>
                         </div>
                     )}
+                    {createType === 'video_call' && (
+                        <div className="form-group">
+                            <label>화상채팅 설정</label>
+                            <div className="video-call-options">
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        checked={videoCallEnabled}
+                                        onChange={e => setVideoCallEnabled(e.target.checked)}
+                                        disabled
+                                    />
+                                    화상채팅 활성화 (자동 활성화)
+                                </label>
+                                <small style={{ display: 'block', marginTop: '8px', color: '#888' }}>
+                                    화상채팅 방은 자동으로 2명으로 제한됩니다.
+                                </small>
+                            </div>
+                        </div>
+                    )}
                     <div className="form-group">
                         <label>대화방 이름</label>
                         <input
                             type="text"
                             value={createName}
                             onChange={e => setCreateName(e.target.value)}
-                            placeholder={createType === 'ai' ? `${createAI}와의 대화` : '대화방 이름'}
+                            placeholder={createType === 'ai' ? `${createAI}와의 대화` : 
+                                       createType === 'video_call' ? '화상채팅방' : '대화방 이름'}
                         />
                     </div>
                     <div className="form-group">
@@ -168,10 +197,16 @@ const CreateRoomModal = ({ open, onClose, onSuccess, defaultMaxMembers = 4 }) =>
                             type="number"
                             min={2}
                             max={20}
-                            value={createMaxMembers}
+                            value={createType === 'video_call' ? 2 : createMaxMembers}
                             onChange={e => setCreateMaxMembers(Math.max(2, Math.min(20, Number(e.target.value))))}
+                            disabled={createType === 'video_call'}
                         />
-                        <small>2~20명 사이로 설정 (기본 4명)</small>
+                        <small>
+                            {createType === 'video_call' 
+                                ? '화상채팅은 2명으로 고정됩니다.' 
+                                : '2~20명 사이로 설정 (기본 4명)'
+                            }
+                        </small>
                     </div>
                     <div className="form-group">
                         <label>AI 응답</label>

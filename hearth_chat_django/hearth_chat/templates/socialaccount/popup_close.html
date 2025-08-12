@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>로그인 완료</title>
+</head>
+
+<body>
+    <script>
+        console.log('[DEBUG] popup_close.html 로드됨');
+        console.log('[DEBUG] window.opener 상태:', window.opener);
+        console.log('[DEBUG] window.name:', window.name);
+
+        setTimeout(() => {
+            console.log('[DEBUG] window.close() 실행 시도');
+            try {
+                window.close();
+                console.log('[DEBUG] window.close() 성공');
+            } catch (e) {
+                console.error('[DEBUG] window.close() 실패:', e);
+            }
+        }, 300);
+    </script>
+    <p>로그인 완료! 창이 자동으로 닫힙니다.</p>
+</body>
+
+</html>

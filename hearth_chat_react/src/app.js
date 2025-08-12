@@ -259,12 +259,12 @@ function AppContent(props) {
     const loadVoiceList = () => {
       try {
         // ttsService가 지원되는지 확인
-        if (ttsService && ttsService.isSupported()) {          
+        if (ttsService && ttsService.isSupported()) {
 
           // 현재 음성 목록 가져오기
           let voices = ttsService.getVoices();
 
-          if (voices.length > 0) {            
+          if (voices.length > 0) {
             setVoiceList(voices);
           } else {
             // 음성 목록이 아직 로드되지 않은 경우, 이벤트 리스너 설정            
@@ -273,7 +273,7 @@ function AppContent(props) {
 
             const handleVoicesChanged = () => {
               const loadedVoices = ttsService.getVoices();
-              if (loadedVoices.length > 0) {                
+              if (loadedVoices.length > 0) {
                 setVoiceList(loadedVoices);
                 // 이벤트 리스너 제거
                 if (window.speechSynthesis) {
@@ -335,30 +335,30 @@ function AppContent(props) {
 
   // userSettings에서 TTS 설정 로드하여 로컬 상태 동기화
   useEffect(() => {
-    if (userSettings) {      
+    if (userSettings) {
 
       // TTS 설정 동기화
       if (userSettings.tts_speed !== undefined) {
-        setTtsRate(userSettings.tts_speed);        
+        setTtsRate(userSettings.tts_speed);
       }
       if (userSettings.tts_pitch !== undefined) {
-        setTtsPitch(userSettings.tts_pitch);        
+        setTtsPitch(userSettings.tts_pitch);
       }
       if (userSettings.tts_voice !== undefined) {
         // voiceList가 로드된 후에 음성 설정
         if (voiceList) {
           const selectedVoice = voiceList.find(v => v.name === userSettings.tts_voice);
-          setTtsVoice(selectedVoice);          
+          setTtsVoice(selectedVoice);
         }
       }
       if (userSettings.tts_enabled !== undefined) {
-        setIsTTSEnabled(userSettings.tts_enabled);        
+        setIsTTSEnabled(userSettings.tts_enabled);
       }
       if (userSettings.voice_recognition_enabled !== undefined) {
-        setIsVoiceRecognitionEnabled(userSettings.voice_recognition_enabled);        
+        setIsVoiceRecognitionEnabled(userSettings.voice_recognition_enabled);
       }
       if (userSettings.voice_auto_send !== undefined) {
-        setAutoSend(userSettings.voice_auto_send);        
+        setAutoSend(userSettings.voice_auto_send);
       }
     }
   }, [userSettings, voiceList]);
@@ -602,23 +602,98 @@ function AppContent(props) {
         isOpen={isLoginModalOpen}
         onClose={() => { setIsLoginModalOpen(false); }}
         onSocialLogin={(url) => {
+          console.log('[DEBUG] 소셜 로그인 시작:', url);
           const popupWidth = 480;
           const popupHeight = 600;
           const left = window.screenX + (window.outerWidth - popupWidth) / 2;
           const top = window.screenY + (window.outerHeight - popupHeight) / 2;
           const popupFeatures = `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes,menubar=no,toolbar=no,location=no`;
+
           const popup = window.open(url, 'social_login', popupFeatures);
+          console.log('[DEBUG] 팝업 열기 결과:', popup);
 
           if (popup) {
+            console.log('[DEBUG] 팝업 감시 시작');
             const checkClosed = setInterval(() => {
+              console.log('[DEBUG] 팝업 상태 확인 중... closed:', popup.closed);
               if (popup.closed) {
+                console.log('[DEBUG] 팝업 닫힘 감지! 모달 닫기 및 페이지 갱신 시작');
                 clearInterval(checkClosed);
-                setIsLoginModalOpen(false); // 팝업이 닫힐 때만 모달 닫기
+
+                // 1. 로그인 모달 닫기
+                setIsLoginModalOpen(false);
+                console.log('[DEBUG] 로그인 모달 닫힘');
+
+                // 2. 소셜 로그인 완료 후 세션 업데이트 대기
+                console.log('[DEBUG] 소셜 로그인 세션 업데이트 대기 시작');
+
+                // 3. 세션 업데이트 확인을 위한 재시도 로직
+                let retryCount = 0;
+                const maxRetries = 10; // 최대 10회 시도
+
+                const checkSessionUpdate = async () => {
+                  try {
+                    console.log(`[DEBUG] 세션 확인 시도 ${retryCount + 1}/${maxRetries}`);
+                    const response = await csrfFetch(`${getApiBase()}/api/chat/user/settings/`, {
+                      credentials: 'include',
+                      headers: {
+                        'X-CSRFToken': getCookie('csrftoken'),
+                      },
+                    });
+
+                    if (response.ok) {
+                      console.log('[DEBUG] 세션 업데이트 확인됨! 로그인 성공');
+                      const data = await response.json();
+
+                      // 4. 페이지 갱신
+                      console.log('[DEBUG] 페이지 갱신 실행');
+                      setTimeout(() => {
+                        console.log('[DEBUG] window.location.reload() 실행');
+                        window.location.reload();
+                      }, 500);
+                      return;
+                    } else {
+                      console.log(`[DEBUG] 세션 아직 업데이트 안됨 (${response.status}), 재시도...`);
+                      retryCount++;
+
+                      if (retryCount < maxRetries) {
+                        // 1초 후 재시도
+                        setTimeout(checkSessionUpdate, 1000);
+                      } else {
+                        console.log('[DEBUG] 최대 재시도 횟수 도달, 강제 페이지 갱신');
+                        window.location.reload();
+                      }
+                    }
+                  } catch (error) {
+                    console.error('[DEBUG] 세션 확인 중 오류:', error);
+                    retryCount++;
+
+                    if (retryCount < maxRetries) {
+                      setTimeout(checkSessionUpdate, 1000);
+                    } else {
+                      console.log('[DEBUG] 최대 재시도 횟수 도달, 강제 페이지 갱신');
+                      window.location.reload();
+                    }
+                  }
+                };
+
+                // 첫 번째 세션 확인 시작
+                checkSessionUpdate();
+              }
+            }, 200); // 500ms에서 200ms로 단축
+
+            // 백업 타이머: 10초 후에도 팝업이 닫히지 않으면 강제로 처리
+            setTimeout(() => {
+              if (!popup.closed) {
+                console.log('[DEBUG] 백업 타이머: 팝업이 10초 후에도 열려있음, 강제 처리');
+                clearInterval(checkClosed);
+                setIsLoginModalOpen(false);
                 checkLoginStatus();
                 window.location.reload();
               }
-            }, 500);
+            }, 10000);
           } else {
+            console.error('[DEBUG] 팝업창 열기 실패');
             alert('팝업창이 차단되었습니다. 브라우저 설정에서 팝업을 허용해주세요.');
           }
         }}
@@ -1015,6 +1090,7 @@ function App() {
   }, []);
 
   const checkLoginStatus = async () => {
+    console.log('[DEBUG] checkLoginStatus 시작');
     try {
       const response = await csrfFetch(`${getApiBase()}/api/chat/user/settings/`, {
         credentials: 'include',
@@ -1022,19 +1098,26 @@ function App() {
           'X-CSRFToken': getCookie('csrftoken'),
         },
       });
+      console.log('[DEBUG] API 응답 상태:', response.status);
+
       if (response.ok) {
         const data = await response.json();
+        console.log('[DEBUG] 로그인된 사용자 정보:', data.user);
+        console.log('[DEBUG] 사용자 설정:', data.settings);
         setLoginUser(data.user);
         setUserSettings(data.settings || null);
       } else {
+        console.log('[DEBUG] 로그인되지 않음 (응답 실패)');
         setLoginUser(null);
         setUserSettings(null);
       }
-    } catch {
+    } catch (error) {
+      console.error('[DEBUG] checkLoginStatus 오류:', error);
       setLoginUser(null);
       setUserSettings(null);
     } finally {
       setLoginLoading(false);
+      console.log('[DEBUG] checkLoginStatus 완료');
     }
   };
 
@@ -1131,15 +1214,8 @@ function App() {
   }, []);
 
   const ws = useRef(null);
-  useEffect(() => {
-    function handleSocialLoginMessage(e) {
-      if (e.data && e.data.type === "SOCIAL_LOGIN_SUCCESS") {
-        window.location.reload();
-      }
-    }
-    window.addEventListener("message", handleSocialLoginMessage);
-    return () => window.removeEventListener("message", handleSocialLoginMessage);
-  }, []);
+
+  // postMessage 이벤트 리스너 제거 - setInterval 방식만 사용
   return <AppContent
     loginUser={loginUser}
     loginLoading={loginLoading}

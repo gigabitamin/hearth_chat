@@ -13,6 +13,7 @@ class ChatRoom(models.Model):
         ('group', '그룹 채팅'),
         ('public', '공개 오픈 채팅'),
         ('voice', '음성 통화'),
+        ('video_call', '1:1 화상채팅'),  # 추가
     ]
     
     name = models.CharField(max_length=100, verbose_name='대화방 이름', unique=True)
@@ -32,6 +33,19 @@ class ChatRoom(models.Model):
     is_active = models.BooleanField(default=True, verbose_name='활성 상태')
     is_voice_call = models.BooleanField(default=False, verbose_name='음성 통화 여부')
     max_members = models.PositiveIntegerField(default=4, verbose_name='최대 인원수')
+    
+    # 화상채팅 관련 필드 추가
+    is_video_call = models.BooleanField(default=False, verbose_name='화상채팅 여부')
+    video_call_status = models.CharField(
+        max_length=20, 
+        choices=[
+            ('waiting', '대기 중'),
+            ('active', '통화 중'),
+            ('ended', '통화 종료')
+        ],
+        default='waiting',
+        verbose_name='화상채팅 상태'
+    )
     
     # 즐겨찾기 사용자
     favorite_users = models.ManyToManyField(User, related_name='favorite_rooms', blank=True)
@@ -96,6 +110,22 @@ class ChatRoom(models.Model):
         )
         # 생성자를 참여자로 추가
         ChatRoomParticipant.objects.create(room=room, user=creator, is_owner=True)
+        return room
+
+    @classmethod
+    def create_video_call_room(cls, user1, user2):
+        """1:1 화상채팅방 생성"""
+        room_name = f"{user1.username}와 {user2.username}의 화상채팅"
+        room = cls.objects.create(
+            name=room_name,
+            room_type='video_call',
+            is_public=False,
+            is_video_call=True,
+            max_members=2
+        )
+        # 두 사용자를 참여자로 추가
+        ChatRoomParticipant.objects.create(room=room, user=user1, is_owner=True)
+        ChatRoomParticipant.objects.create(room=room, user=user2)
         return room
 
 class ChatRoomParticipant(models.Model):

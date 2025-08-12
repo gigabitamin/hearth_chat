@@ -232,7 +232,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             alert('즐겨찾기 처리 실패: ' + err.message);
         }
     };
-    
+
     // 방 클릭 시 스크롤 위치 저장 (미리보기/입장 모두)
     const handleRoomClick = (room) => {
         if (listRef.current) {
@@ -446,7 +446,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
 
     // HOME 버튼: 오버레이(사이드바)에서만, 최상단 오른쪽 끝에 고정
     // const isOverlay = overlayKey === 'overlay'; // 더 이상 사용하지 않음
-    
+
     return (
         <div className="chat-room-list" style={{ height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
             {loading ? (
@@ -522,7 +522,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                                             className="enter-room-btn"
                                                             style={{ fontSize: 14, color: '#1976d2', background: 'none', border: '1px solid #1976d2', borderRadius: 4, padding: '2px 10px', cursor: 'pointer' }}
                                                             title="입장"
-                                                            onClick={e => { e.stopPropagation(); navigate(`/room/${room.id}`); } }
+                                                            onClick={e => { e.stopPropagation(); navigate(`/room/${room.id}`); }}
                                                         >입장</button>
                                                     </div>
                                                 </div>
@@ -532,7 +532,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                 )}
                             </div>
                             {/* 즐겨찾기 메시지 50% */}
-                            <div className="favorite-message-section" style={{ flex: 1, height: '50%', overflowY: 'auto', minWidth: 0}}>
+                            <div className="favorite-message-section" style={{ flex: 1, height: '50%', overflowY: 'auto', minWidth: 0 }}>
                                 <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8, padding: '8px 0 8px 8px' }}>★ 즐겨찾기 메시지</div>
                                 {favoriteMessagesLoading ? (
                                     <div>로딩 중...</div>
@@ -550,18 +550,18 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                                 {/* 왼쪽: 프로필/종류 (메시지의 방 타입/AI 여부 등은 room_id로 rooms에서 찾아서 표시) */}
                                                 <div className="room-item-left" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 48, minWidth: 48, marginRight: 8 }}>
                                                     <div className="room-icon" style={{ fontSize: 24 }}>
-                                                        {(() => {                                                        
+                                                        {(() => {
                                                             const room = rooms.find(r => r.id === msg.room_id);
                                                             return getRoomIcon(room?.room_type, room?.ai_provider);
                                                         })()}
                                                     </div>
                                                 </div>
-                                                {/* 가운데: 메시지 정보 msg 560 */}                                                
+                                                {/* 가운데: 메시지 정보 msg 560 */}
                                                 <div className="room-item-center-message" style={{ flex: 1, minWidth: 0 }}>
                                                     <div style={{ fontWeight: 700, color: '#fff', fontSize: 15, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                         <span style={{ fontSize: 18, fontWeight: 600, backgroundColor: '#f0f0f0', padding: '4px 4px', borderRadius: 4 }}>
                                                             {msg.sender || 'Unknown'}
-                                                        </span> 
+                                                        </span>
                                                         <span style={{ color: '#bbb', fontSize: 12, marginLeft: 8 }}>
                                                             {msg.room_name ? `방 #${msg.room_name}` : ''}
                                                         </span>
@@ -570,7 +570,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
                                                         <AiMessageRenderer message={msg.content} />
                                                     </div>
                                                     <div style={{ color: '#bbb', fontSize: 11, marginTop: 2 }}>
-                                                        {msg.timestamp ? new Date(msg.timestamp).toLocaleString('ko-KR', { year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : ''}                                                        
+                                                        {msg.timestamp ? new Date(msg.timestamp).toLocaleString('ko-KR', { year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : ''}
                                                     </div>
                                                 </div>
                                                 {/* 오른쪽: 메시지 즐겨찾기, 입장 버튼 */}

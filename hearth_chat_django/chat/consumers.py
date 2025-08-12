@@ -85,7 +85,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         
         # WebRTC 시그널링 메시지 처리
         message_type = data.get("type", "")
-        if message_type in ["offer", "answer", "candidate", "participants_update"]:
+        if message_type in ["offer", "answer", "ice_candidate", "participants_update"]:
             await self.handle_webrtc_signaling(data)
             return
         
@@ -240,45 +240,28 @@ class ChatConsumer(AsyncWebsocketConsumer):
             if len(self.conversation_context) > 10:
                 self.conversation_context = self.conversation_context[-10:]
             
-            # AI 응답을 방의 모든 참여자에게 브로드캐스트
+            # AI 응답 전송 준비
             # print(f"📤 AI 응답 전송 준비: {ai_response[:50]}...")
             # print(f"📤 방 ID: {room_id}")
             # print(f"📤 AI 이름: {ai_name}")
             
-            try:
-                debug_event = {
-                    'type': 'ai_message',
-                    'message': ai_response,
-                    'roomId': room_id,
-                    'timestamp': ai_message_obj.timestamp.isoformat() if ai_message_obj and hasattr(ai_message_obj, 'timestamp') else None,
-                    'questioner_username': (
-                        ai_message_obj.question_message.username if ai_message_obj and ai_message_obj.question_message else None
-                    ),
-                    'ai_name': ai_message_obj.ai_name if ai_message_obj else 'AI',
-                    'sender': ai_message_obj.ai_name if ai_message_obj else 'AI',
-                }                
-                # print(f"📤 디버그 이벤트: {debug_event}")
-            except Exception as e:
-                print(f"[DEBUG][group_send][ai_message] event 출력 오류: {e}")
+            # AI 응답을 클라이언트에게 전송
+            response_data = {
+                'type': 'ai_message',
+                'message': ai_response,
+                'ai_name': ai_name,
+                'timestamp': datetime.now().isoformat(),
+                'questioner_username': (
+                    ai_message_obj.question_message.username if ai_message_obj and ai_message_obj.question_message else None
+                ),
+                'imageUrls': image_urls_json
+            }
             
-            # WebSocket을 통해 AI 응답 전송
-            await self.channel_layer.group_send(
-                f'chat_room_{room_id}',
-                {
-                    'type': 'ai_message',
-                    'sender_type': ai_message_obj.sender_type if hasattr(ai_message_obj, 'sender_type') else 'ai',
-                    'message': ai_response,
-                    'roomId': room_id,
-                    'timestamp': ai_message_obj.timestamp.isoformat(),
-                    'questioner_username': (
-                        ai_message_obj.question_message.username if ai_message_obj and ai_message_obj.question_message else None
-                    ),
-                    'ai_name': ai_message_obj.ai_name if ai_message_obj else 'AI',
-                    'sender': ai_message_obj.ai_name if ai_message_obj else 'AI',
-                    'imageUrls': image_urls  # 원본 이미지 URL 배열 추가
-                }
-            )
-            # print(f"✅ AI 응답 WebSocket 전송 완료")
+            # 디버그 이벤트 전송 (필요시)
+            # print(f"📤 디버그 이벤트: {debug_event}")
+            
+            await self.send(text_data=json.dumps(response_data))
+            # print(f"✅ AI 메시지 클라이언트 전송 완료")
         except Exception as e:            
             error_message = f"AI 오류: {str(e)}"
             await self.save_ai_message(error_message, room_id, image_urls_json=json.dumps(image_urls) if image_urls else None)
@@ -339,24 +322,25 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def handle_webrtc_signaling(self, data):
         """WebRTC 시그널링 메시지 처리"""
         message_type = data.get("type", "")
-        target_user = data.get("targetUser", "")
-        sender_user = data.get("senderUser", "")                
+        room_id = data.get("roomId", "")
+        user_id = data.get("userId", "")
         
-        # 시그널링 메시지를 해당 사용자에게 전달
-        if target_user and target_user != sender_user:
-            # 실제 구현에서는 사용자별 WebSocket 연결을 관리해야 함
-            # 현재는 모든 연결된 클라이언트에게 브로드캐스트
-            await self.send(text_data=json.dumps({
-                "type": message_type,
-                "senderUser": sender_user,
-                "targetUser": target_user,
-                "data": data.get("data", {}),
-                "candidate": data.get("candidate", {}),
-                "sdp": data.get("sdp", "")
-            }))
-        else:
-            # 참가자 목록 업데이트 등 전체 브로드캐스트
+        if message_type in ["offer", "answer", "ice_candidate"]:
+            # 해당 방의 다른 참여자들에게 시그널링 메시지 전달
+            await self.channel_layer.group_send(
+                f'chat_room_{room_id}',
+                {
+                    'type': 'webrtc_signaling',
+                    'message': data
+                }
+            )
+        elif message_type == "participants_update":
+            # 참가자 목록 업데이트
             await self.send(text_data=json.dumps(data))
+    
+    async def webrtc_signaling(self, event):
+        """WebRTC 시그널링 메시지 전송"""
+        await self.send(text_data=json.dumps(event['message']))
 
     def update_emotion_history(self, current_emotion):
         """감정 변화 추적"""
@@ -553,13 +537,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 
                 # 문서가 있는 경우 RAG 처리
                 if documents and len(documents) > 0:
-                    print(f"📄 문서 처리 시작: {len(documents)}개 문서")
+                    # print(f"📄 문서 처리 시작: {len(documents)}개 문서")
                     
                     try:
                         # 첫 번째 문서로 RAG 쿼리 실행
                         document_id = documents[0].get('document_id')
                         if document_id:
-                            print(f"🔍 RAG 쿼리 실행: document_id={document_id}")
+                            # print(f"[RAG] 쿼리 실행: document_id={document_id}")
                             
                             # RAG API 호출
                             lily_max_len = max(1, min(int(ai_settings.get('maxTokens', 20)) if ai_settings else 20, 128))
@@ -571,7 +555,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                 'temperature': 0.7
                             }
                             
-                            print(f"📤 RAG 요청 데이터: {rag_data}")
+                            # print(f"[RAG] 요청 데이터: {rag_data}")
                             # OAuth 헤더 추가 (HF Private Space 대응)
                             hf_token = os.getenv('HF_TOKEN') or os.getenv('HUGGING_FACE_TOKEN')
                             headers = {"Authorization": f"Bearer {hf_token}"} if hf_token else {}
@@ -584,7 +568,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             
                             if response.status_code == 200:
                                 result = response.json()
-                                print(f"✅ RAG API 응답 성공: {result.get('response', '')[:100]}...")
+                                # print(f"[RAG] API 응답 성공: {result.get('response', '')[:100]}...")
                                 return {
                                     "response": result.get('response', ''),
                                     "provider": "lily",
@@ -592,19 +576,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                     "ai_type": "local"
                                 }
                             else:
-                                print(f"❌ RAG API 오류: {response.status_code} - {response.text}")
+                                # print(f"[RAG] API 오류: {response.status_code} - {response.text}")
                                 raise Exception(f"RAG API 오류: {response.status_code}")
                         else:
-                            print("❌ 문서 ID가 없음")
+                            # print("[RAG] 문서 ID가 없음")
                             raise Exception("문서 ID가 없습니다")
                             
                     except Exception as e:
-                        print(f"❌ RAG API 호출 중 오류: {e}")
+                        # print(f"[RAG] API 호출 중 오류: {e}")
                         raise e
                 
                 # 이미지가 있는 경우 멀티모달 처리
                 elif image_urls and len(image_urls) > 0:
-                    print(f"🖼️ 다중 이미지 처리 시작: {len(image_urls)}개 이미지")
+                    # print(f"🖼️ 다중 이미지 처리 시작: {len(image_urls)}개 이미지")
                     
                     # 이미지 파일들을 HTTP로 가져와서 바이트로 변환
                     image_data_list = []
@@ -619,27 +603,30 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             else:
                                 absolute_url = image_url
                             
-                            print(f"🌐 이미지 URL {i+1}: {absolute_url}")
+                            # print(f"🌐 이미지 URL {i+1}: {absolute_url}")
                             
                             # HTTP 요청으로 이미지 가져오기
                             image_response = requests.get(absolute_url, timeout=1200)
                             if image_response.status_code == 200:
                                 image_bytes = image_response.content
-                                print(f"✅ 이미지 {i+1} 다운로드 성공: {len(image_bytes)} bytes")
+                                # print(f"✅ 이미지 {i+1} 다운로드 성공: {len(image_bytes)} bytes")
                                 image_data_list.append(image_bytes)
                             else:
-                                print(f"❌ 이미지 {i+1} 다운로드 실패: {image_response.status_code}")
+                                # print(f"❌ 이미지 {i+1} 다운로드 실패: {image_response.status_code}")
+                                raise Exception(f"이미지 다운로드 실패: {image_response.status_code}")
                         except Exception as e:
-                            print(f"❌ 이미지 {i+1} 읽기 오류: {e}")
+                            # print(f"❌ 이미지 {i+1} 읽기 오류: {e}")
+                            raise e
                         except Exception as e:
-                            print(f"❌ 이미지 {i+1} 읽기 오류: {e}")
+                            # print(f"❌ 이미지 {i+1} 읽기 오류: {e}")
+                            raise e
                     
                     if image_data_list:
-                        print(f"🔄 멀티모달 요청 준비 완료 ({len(image_data_list)}개 이미지 포함)")
+                        # print(f"🔄 멀티모달 요청 준비 완료 ({len(image_data_list)}개 이미지 포함)")
                         
                         # Lily LLM API 호출
                         try:
-                            print(f"🚀 Lily API 호출 시작: {lily_api_url}/generate")
+                            # print(f"🚀 Lily API 호출 시작: {lily_api_url}/generate")
                             
                             # Form data 구성 (간결 프롬프트)
                             # max_tokens(=max_length) 동적 적용: 사용자 설정 > 기본값(20) > 상한 128
@@ -655,15 +642,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             for i, image_bytes in enumerate(image_data_list):
                                 files[f'image{i+1}'] = (f'image{i+1}.png', image_bytes, 'image/png')
                             
-                            print(f"📤 요청 데이터: {data}")
-                            print(f"📁 파일 포함 여부: {bool(files)}")
+                            # print(f"📤 요청 데이터: {data}")
+                            # print(f"📁 파일 포함 여부: {bool(files)}")
                             
                             # OAuth 헤더 추가 (HF Private Space 대응)
                             hf_token = os.getenv('HF_TOKEN') or os.getenv('HUGGING_FACE_TOKEN')
                             headers = {"Authorization": f"Bearer {hf_token}"} if hf_token else {}
 
                             # API 호출
-                            print(f"🔄 멀티모달 요청 전송 (이미지 포함)")
+                            # print(f"🔄 멀티모달 요청 전송 (이미지 포함)")
                             response = requests.post(
                                 f"{lily_api_url}/generate",
                                 data=data,
@@ -674,7 +661,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             
                             if response.status_code == 200:
                                 result = response.json()
-                                print(f"✅ Lily API 응답 성공: {result.get('generated_text', '')[:100]}...")
+                                # print(f"✅ Lily API 응답 성공: {result.get('generated_text', '')[:100]}...")
                                 return {
                                     "response": result.get('generated_text', ''),
                                     "provider": "lily",
@@ -682,18 +669,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                     "ai_type": "local"
                                 }
                             else:
-                                print(f"❌ Lily API 오류: {response.status_code} - {response.text}")
+                                # print(f"❌ Lily API 오류: {response.status_code} - {response.text}")
                                 raise Exception(f"Lily API 오류: {response.status_code}")
                                 
                         except Exception as e:
-                            print(f"❌ Lily API 호출 중 오류: {e}")
+                            # print(f"❌ Lily API 호출 중 오류: {e}")
                             raise e
                     else:
-                        print("❌ 처리할 이미지가 없음")
+                        # print("❌ 처리할 이미지가 없음")
                         raise Exception("이미지 처리 실패")
                 else:
                     # 텍스트만 있는 경우
-                    print("📝 텍스트 전용 요청")
+                    # print("📝 텍스트 전용 요청")
                     
                     try:
                         # Form data 구성 (간결 프롬프트, max_tokens 동적 적용)
@@ -704,15 +691,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             'temperature': 0.7
                         }
                         
-                        print(f"📤 요청 데이터: {data}")
-                        print(f"📁 파일 포함 여부: False")
+                        # print(f"📤 요청 데이터: {data}")
+                        # print(f" 파일 포함 여부: False")
                         
                         # OAuth 헤더 추가 (HF Private Space 대응)
                         hf_token = os.getenv('HF_TOKEN') or os.getenv('HUGGING_FACE_TOKEN')
                         headers = {"Authorization": f"Bearer {hf_token}"} if hf_token else {}
 
                         # API 호출
-                        print(f"🔄 텍스트 전용 요청 전송")
+                        # print(f"🔄 텍스트 전용 요청 전송")
                         response = requests.post(
                             f"{lily_api_url}/generate",
                             data=data,
@@ -722,7 +709,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         
                         if response.status_code == 200:
                             result = response.json()
-                            print(f"✅ Lily API 응답 성공: {result.get('generated_text', '')[:100]}...")
+                            # print(f"✅ Lily API 응답 성공: {result.get('generated_text', '')[:100]}...")
                             return {
                                 "response": result.get('generated_text', ''),
                                 "provider": "lily",
@@ -730,15 +717,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                 "ai_type": "local"
                             }
                         else:
-                            print(f"❌ Lily API 오류: {response.status_code} - {response.text}")
+                            # print(f"❌ Lily API 오류: {response.status_code} - {response.text}")
                             raise Exception(f"Lily API 오류: {response.status_code}")
                             
                     except Exception as e:
-                        print(f"❌ Lily API 호출 중 오류: {e}")
+                        # print(f"❌ Lily API 호출 중 오류: {e}")
                         raise e
                         
             except Exception as e:
-                print(f"❌ Lily API 호출 중 오류: {e}")
+                # print(f"❌ Lily API 호출 중 오류: {e}")
                 raise e
 
         @sync_to_async
@@ -772,7 +759,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             
             # 문서가 있는 경우 (Gemini는 문서 처리 제한적)
             if documents and len(documents) > 0:
-                print(f"📄 문서 처리 (Gemini): {len(documents)}개 문서")
+                # print(f"📄 문서 처리 (Gemini): {len(documents)}개 문서")
                 # Gemini는 문서 처리에 제한이 있으므로 기본 응답
                 return {
                     "response": f"{emotion_prompt}\n\n문서를 첨부해주셨네요. 현재 Gemini는 문서 분석에 제한이 있습니다. Lily LLM을 사용하시면 더 정확한 문서 분석이 가능합니다.",
@@ -783,7 +770,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             
             # 이미지가 있는 경우 멀티모달 처리
             elif image_urls and len(image_urls) > 0:
-                print(f"🖼️ 이미지 처리 (Gemini): {len(image_urls)}개 이미지")
+                # print(f"🖼️ 이미지 처리 (Gemini): {len(image_urls)}개 이미지")
                 
                 # Gemini는 첫 번째 이미지만 처리
                 first_image_url = image_urls[0]
@@ -855,11 +842,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         raise Exception(f"Gemini API 오류: {response.status_code} - {response.text}")
                         
                 except Exception as e:
-                    print(f"❌ Gemini API 호출 중 오류: {e}")
+                    # print(f"❌ Gemini API 호출 중 오류: {e}")
                     raise e
             else:
                 # 텍스트만 있는 경우
-                print("📝 텍스트 전용 요청 (Gemini)")
+                # print("📝 텍스트 전용 요청 (Gemini)")
                 
                 try:
                     # Gemini API 직접 호출
@@ -904,7 +891,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         raise Exception(f"Gemini API 오류: {response.status_code} - {response.text}")
                     
                 except Exception as e:
-                    print(f"❌ Gemini API 호출 중 오류: {e}")
+                    # print(f"❌ Gemini API 호출 중 오류: {e}")
                     raise e
 
         @sync_to_async
@@ -957,8 +944,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     ]
                 }
                 
-                print(f"🌐 Hugging Face 스페이스 API 호출: {hf_space_url}")
-                print(f"📤 요청 데이터: {api_data}")
+                # print(f"🌐 Hugging Face 스페이스 API 호출: {hf_space_url}")
+                # print(f"📤 요청 데이터: {api_data}")
                 
                 response = requests.post(
                     f"{hf_space_url}/api/predict",
@@ -969,7 +956,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 
                 if response.status_code == 200:
                     result = response.json()
-                    print(f"✅ Hugging Face 스페이스 API 응답 성공")
+                    # print(f"✅ Hugging Face 스페이스 API 응답 성공")
                     
                     # Gradio API 응답 형식에서 텍스트 추출
                     if 'data' in result and len(result['data']) > 0:
@@ -986,7 +973,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     raise Exception(f"Hugging Face API 오류: {response.status_code} - {response.text}")
                     
             except Exception as e:
-                print(f"❌ Hugging Face 스페이스 API 호출 중 오류: {e}")
+                # print(f"❌ Hugging Face 스페이스 API 호출 중 오류: {e}")
                 raise e
 
         # 사용자의 AI 설정에 따라 적절한 API 호출
@@ -994,31 +981,32 @@ class ChatConsumer(AsyncWebsocketConsumer):
         ai_settings = None
         if user and hasattr(user, 'is_authenticated') and user.is_authenticated:
             ai_settings = await self.get_user_ai_settings(user)
-            print(f"🔍 사용자 AI 설정(DB): {ai_settings}")
+            # print(f"🔍 사용자 AI 설정(DB): {ai_settings}")
         else:
-            print(f"🔍 사용자 인증되지 않음 (DB 설정을 사용할 수 없음)")
+            # print(f"🔍 사용자 인증되지 않음 (DB 설정을 사용할 수 없음)")
+            pass
 
         # 클라이언트에서 넘어온 설정이 있으면 DB 설정보다 우선 적용
         if client_ai_settings:
-            print(f"🔧 클라이언트 AI 설정 적용: {client_ai_settings}")
+            # print(f"🔧 클라이언트 AI 설정 적용: {client_ai_settings}")
             if not ai_settings:
                 ai_settings = {}
             # 안전 병합 (클라이언트 값이 우선)
             for key, value in client_ai_settings.items():
                 if value not in (None, ""):
                     ai_settings[key] = value
-            print(f"🔧 병합 후 최종 AI 설정: {ai_settings}")
+            # print(f"🔧 병합 후 최종 AI 설정: {ai_settings}")
         
         ai_provider = ai_settings.get('aiProvider', 'gemini') if ai_settings else 'gemini'
         gemini_model = ai_settings.get('geminiModel', 'gemini-1.5-flash') if ai_settings else 'gemini-1.5-flash'
-        print(f"🔍 최종 결정된 제공자: {ai_provider}")
+        # print(f"🔍 최종 결정된 제공자: {ai_provider}")
         
-        print(f"🔍 AI 제공자: {ai_provider}")
-        print(f"🔍 Gemini 모델: {gemini_model}")
+        # print(f"🔍 AI 제공자: {ai_provider}")
+        # print(f"🔍 Gemini 모델: {gemini_model}")
         
         try:
             if ai_provider == 'lily':
-                print("🚀 Lily LLM API 호출")
+                # print("🚀 Lily LLM API 호출")
                 result = await call_lily_api(user_message, user_emotion, image_urls, documents)
                 return {
                     'response': result.get('response', ''),
@@ -1027,7 +1015,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'ai_type': result.get('ai_type', 'local')
                 }
             elif ai_provider == 'huggingface':
-                print("🚀 Hugging Face 스페이스 API 호출")
+                # print("🚀 Hugging Face 스페이스 API 호출")
                 result = await call_huggingface_space(user_message, user_emotion, image_urls, documents)
                 return {
                     'response': result.get('response', ''),
@@ -1036,7 +1024,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'ai_type': result.get('ai_type', 'huggingface')
                 }
             else:
-                print("🚀 Gemini API 호출")
+                # print("🚀 Gemini API 호출")
                 result = await call_gemini(user_message, user_emotion, image_urls, documents, gemini_model)
                 return {
                     'response': result.get('response', ''),
@@ -1045,7 +1033,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'ai_type': result.get('ai_type', 'google')
                 }
         except Exception as e:
-            print(f"❌ {ai_provider} API 호출 실패: {e}")
+            # print(f"❌ {ai_provider} API 호출 실패: {e}")
             # 실패 시 사용자에게 명확한 메시지 제공
             if ai_provider == 'lily':
                 error_message = f"Lily LLM 서버에 연결할 수 없습니다. (오류: {str(e)[:100]})\n\n허깅페이스 스페이스 상태를 확인해주세요: https://huggingface.co/spaces/gbrabbit/lily_fast_api\n\nGemini로 전환하시겠습니까?"

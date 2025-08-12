@@ -322,7 +322,16 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         # 공개/비공개 설정 처리
         is_public = serializer.validated_data.get('is_public', False)
         ai_response_enabled = serializer.validated_data.get('ai_response_enabled', False)
-        room = serializer.save(is_public=is_public, ai_response_enabled=ai_response_enabled)
+        room_type = serializer.validated_data.get('room_type', 'user')
+        
+        # 화상채팅 방인 경우 자동으로 설정
+        is_video_call = (room_type == 'video_call')
+        
+        room = serializer.save(
+            is_public=is_public, 
+            ai_response_enabled=ai_response_enabled,
+            is_video_call=is_video_call
+        )
         
         # 대화방 생성자 자동 참여 (방장으로 설정)
         ChatRoomParticipant.objects.get_or_create(
@@ -343,7 +352,9 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
                         'room_id': room.id,
                         'room_name': room.name,
                         'creator': self.request.user.username,
-                        'is_public': room.is_public
+                        'is_public': room.is_public,
+                        'room_type': room.room_type,
+                        'is_video_call': room.is_video_call
                     }
                 }
             )
