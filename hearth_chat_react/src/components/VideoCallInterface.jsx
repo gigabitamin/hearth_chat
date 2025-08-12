@@ -30,9 +30,15 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
     };
 
     useEffect(() => {
-        initializeVideoCall();
-        getAvailableCameras(); // 카메라 목록 가져오기
+        // 컴포넌트가 마운트된 후 초기화 실행
+        const timer = setTimeout(() => {
+            console.log('[화상채팅] useEffect 실행 - 초기화 시작');
+            initializeVideoCall();
+            getAvailableCameras(); // 카메라 목록 가져오기
+        }, 100);
+
         return () => {
+            clearTimeout(timer);
             videoCallService.stopVideoCall();
         };
     }, []);
@@ -106,15 +112,31 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
     const initializeVideoCall = async () => {
         try {
             console.log('[화상채팅] 초기화 시작 - Room ID:', roomId, 'User ID:', userId);
+            console.log('[화상채팅] 초기화 단계 1: VideoCallService 초기화');
 
             const stream = await videoCallService.initializeVideoCall(roomId, userId);
             setLocalStream(stream);
+            console.log('[화상채팅] 초기화 단계 1 완료: 로컬 스트림 설정됨');
+
+            // DOM 요소가 준비될 때까지 대기
+            console.log('[화상채팅] DOM 요소 준비 대기 시작');
+            let retryCount = 0;
+            while (!localVideoRef.current && retryCount < 50) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                retryCount++;
+                console.log('[화상채팅] DOM 요소 대기 중...', retryCount);
+            }
 
             if (localVideoRef.current) {
                 localVideoRef.current.srcObject = stream;
+                console.log('[화상채팅] 초기화 단계 2: 로컬 비디오 요소에 스트림 설정됨');
+            } else {
+                console.error('[화상채팅] DOM 요소를 찾을 수 없음, 초기화 중단');
+                return;
             }
 
             // 기존 WebSocket을 시그널링 소켓으로 사용
+            console.log('[화상채팅] 초기화 단계 3: WebSocket 설정 시작');
             const ws = getWebSocket();
             if (ws) {
                 videoCallService.setSignalingSocket(ws);
@@ -136,41 +158,67 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
                 };
 
                 ws.addEventListener('message', handleWebRTCMessageEvent);
-
-                // 클린업 함수 반환
-                return () => {
-                    ws.removeEventListener('message', handleWebRTCMessageEvent);
-                };
+                console.log('[화상채팅] WebRTC 시그널링 메시지 리스너 추가됨');
             } else {
                 console.error('[화상채팅] WebSocket을 찾을 수 없음');
+                return;
             }
 
             // 콜백 설정
+            console.log('[화상채팅] 초기화 단계 4: 콜백 설정 시작');
             videoCallService.setCallbacks({
                 onRemoteStreamReceived: (stream) => {
                     console.log('[화상채팅] 원격 스트림 수신됨:', stream);
                     setRemoteStream(stream);
                     if (remoteVideoRef.current) {
                         remoteVideoRef.current.srcObject = stream;
+                        console.log('[화상채팅] 원격 비디오 요소에 스트림 설정됨');
                     }
                 },
                 onConnectionStateChange: (state) => {
-                    console.log('[화상채팅] WebRTC 연결 상태 변경:', state);
+                    console.log('[화상채팅] WebRTC 연결 상태 변경:', state, 'User ID:', userId);
                     setConnectionState(state);
+
+                    if (state === 'connected') {
+                        console.log('[화상채팅] WebRTC 연결 성공!');
+                    } else if (state === 'failed') {
+                        console.error('[화상채팅] WebRTC 연결 실패!');
+                    }
                 },
                 onIceConnectionStateChange: (state) => {
-                    console.log('[화상채팅] ICE 연결 상태 변경:', state);
+                    console.log('[화상채팅] ICE 연결 상태 변경:', state, 'User ID:', userId);
                     setIceConnectionState(state);
+
+                    if (state === 'connected') {
+                        console.log('[화상채팅] ICE 연결 성공!');
+                    } else if (state === 'failed') {
+                        console.error('[화상채팅] ICE 연결 실패!');
+                    }
                 }
             });
+            console.log('[화상채팅] 초기화 단계 4 완료: 콜백 설정됨');
 
-            // Offer 생성 (방장인 경우)
-            if (isRoomOwner()) {
-                console.log('[화상채팅] 방장이므로 Offer 생성 시작');
-                await videoCallService.createOffer();
+            // Offer 생성 (방장인 경우) - 강제로 실행
+            console.log('[화상채팅] 초기화 단계 5: 방장 판별 및 Offer 생성 시작');
+            console.log('[화상채팅] 방장 판별 시작 - User ID:', userId);
+            const roomOwnerStatus = isRoomOwner();
+            console.log('[화상채팅] 방장 여부:', roomOwnerStatus);
+
+            if (roomOwnerStatus) {
+                console.log('[화상채팅] 방장이므로 Offer 생성 시작 - User ID:', userId);
+                try {
+                    await videoCallService.createOffer();
+                    console.log('[화상채팅] Offer 생성 및 전송 완료');
+                } catch (error) {
+                    console.error('[화상채팅] Offer 생성 실패:', error);
+                }
             } else {
-                console.log('[화상채팅] 참가자이므로 Offer 대기 중');
+                console.log('[화상채팅] 참가자이므로 Offer 대기 중 - User ID:', userId);
             }
+
+            console.log('[화상채팅] 초기화 단계 5 완료: Offer 생성/대기 완료');
+            console.log('[화상채팅] 전체 초기화 완료!');
+
         } catch (error) {
             console.error('[화상채팅] 초기화 실패:', error);
         }
@@ -179,7 +227,18 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
     const isRoomOwner = () => {
         // 방장 여부 확인 로직 - 먼저 입장한 사용자가 방장
         // 실제로는 서버에서 방장 정보를 받아와야 함
-        return userId === 1; // 임시로 User ID 1을 방장으로 설정
+        // 임시로 User ID가 작은 사용자를 방장으로 설정 (1 < 10)
+        const minUserId = Math.min(...[1, 10]);
+        const result = userId === minUserId;
+
+        console.log('[화상채팅] 방장 판별 함수 실행:', {
+            userId: userId,
+            minUserId: minUserId,
+            result: result,
+            comparison: `${userId} === ${minUserId}`
+        });
+
+        return result; // User ID 1이 방장
     };
 
     const toggleMute = () => {
@@ -433,11 +492,23 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
                 <button
                     onClick={async () => {
                         console.log('[화상채팅] 강제 연결 테스트 시작');
+                        console.log('[화상채팅] 현재 User ID:', userId);
+                        console.log('[화상채팅] 방장 여부:', isRoomOwner());
+
                         if (isRoomOwner()) {
                             console.log('[화상채팅] 방장이므로 Offer 재생성');
-                            await videoCallService.createOffer();
+                            try {
+                                await videoCallService.createOffer();
+                                console.log('[화상채팅] 강제 Offer 생성 성공');
+                            } catch (error) {
+                                console.error('[화상채팅] 강제 Offer 생성 실패:', error);
+                            }
                         } else {
                             console.log('[화상채팅] 참가자이므로 Offer 대기 중');
+                            console.log('[화상채팅] 현재 WebRTC 상태:', {
+                                connectionState: videoCallService.peerConnection?.connectionState,
+                                iceConnectionState: videoCallService.peerConnection?.iceConnectionState
+                            });
                         }
                     }}
                     className="control-btn"
@@ -445,6 +516,64 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
                     style={{ background: '#FF9800' }}
                 >
                     🔧
+                </button>
+
+                {/* 강제 Offer 생성 버튼 (User ID 1 전용) */}
+                {userId === 1 && (
+                    <button
+                        onClick={async () => {
+                            console.log('[화상채팅] 강제 Offer 생성 시작 (User ID 1)');
+                            try {
+                                await videoCallService.createOffer();
+                                console.log('[화상채팅] 강제 Offer 생성 성공');
+                            } catch (error) {
+                                console.error('[화상채팅] 강제 Offer 생성 실패:', error);
+                            }
+                        }}
+                        className="control-btn"
+                        title="강제 Offer 생성"
+                        style={{ background: '#FF5722' }}
+                    >
+                        🚀
+                    </button>
+                )}
+
+                {/* 강제 Offer 생성 버튼 (User ID 10 전용) */}
+                {userId === 10 && (
+                    <button
+                        onClick={async () => {
+                            console.log('[화상채팅] 강제 Offer 생성 시작 (User ID 10)');
+                            try {
+                                await videoCallService.createOffer();
+                                console.log('[화상채팅] 강제 Offer 생성 성공');
+                            } catch (error) {
+                                console.error('[화상채팅] 강제 Offer 생성 실패:', error);
+                            }
+                        }}
+                        className="control-btn"
+                        title="강제 Offer 생성 (User 10)"
+                        style={{ background: '#E91E63' }}
+                    >
+                        🚀
+                    </button>
+                )}
+
+                {/* 강제 초기화 버튼 */}
+                <button
+                    onClick={async () => {
+                        console.log('[화상채팅] 강제 초기화 시작');
+                        try {
+                            await initializeVideoCall();
+                            console.log('[화상채팅] 강제 초기화 완료');
+                        } catch (error) {
+                            console.error('[화상채팅] 강제 초기화 실패:', error);
+                        }
+                    }}
+                    className="control-btn"
+                    title="강제 초기화"
+                    style={{ background: '#9C27B0' }}
+                >
+                    🔄
                 </button>
 
                 <button
