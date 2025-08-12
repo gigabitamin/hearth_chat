@@ -119,13 +119,13 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
             if (ws) {
                 videoCallService.setSignalingSocket(ws);
                 console.log('[화상채팅] WebSocket을 시그널링 소켓으로 설정됨:', ws.readyState);
-                
+
                 // WebRTC 시그널링 메시지 리스너 추가
                 const handleWebRTCMessageEvent = (event) => {
                     try {
                         const data = JSON.parse(event.data);
                         console.log('[화상채팅] WebSocket 메시지 수신:', data);
-                        
+
                         if (data.type && ['offer', 'answer', 'ice_candidate', 'screen_share_start', 'screen_share_stop'].includes(data.type)) {
                             console.log('[화상채팅] WebRTC 시그널링 메시지 감지됨:', data.type);
                             handleWebRTCMessage(data);
@@ -134,9 +134,9 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
                         // 일반 채팅 메시지는 무시
                     }
                 };
-                
+
                 ws.addEventListener('message', handleWebRTCMessageEvent);
-                
+
                 // 클린업 함수 반환
                 return () => {
                     ws.removeEventListener('message', handleWebRTCMessageEvent);
@@ -407,4 +407,57 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
 
                 <button
                     onClick={toggleScreenShare}
-                    className={`
+                    className={`control-btn ${isScreenSharing ? 'active' : ''}`}
+                    title={isScreenSharing ? '화면 공유 중지' : '화면 공유'}
+                >
+                    {isScreenSharing ? '🖥️' : '💻'}
+                </button>
+
+                {/* 디버깅용 강제 연결 테스트 버튼 */}
+                <button
+                    onClick={async () => {
+                        console.log('[화상채팅] 강제 연결 테스트 시작');
+                        if (isRoomOwner()) {
+                            console.log('[화상채팅] 방장이므로 Offer 재생성');
+                            await videoCallService.createOffer();
+                        } else {
+                            console.log('[화상채팅] 참가자이므로 Offer 대기 중');
+                        }
+                    }}
+                    className="control-btn"
+                    title="연결 테스트"
+                    style={{ background: '#FF9800' }}
+                >
+                    🔧
+                </button>
+
+                <button
+                    onClick={endCall}
+                    className="control-btn end-call"
+                    title="통화 종료"
+                >
+                    📞
+                </button>
+            </div>
+
+            <div className="call-info">
+                <div className="room-info">
+                    <span>방 ID: {roomId}</span>
+                    <span>사용자 ID: {userId}</span>
+                </div>
+                <div className="connection-info">
+                    <span>WebRTC: {getConnectionStatusText()}</span>
+                    <span>ICE: {getIceStatusText()}</span>
+                </div>
+                {availableCameras.length > 1 && (
+                    <div className="camera-info-display">
+                        <span>카메라: {currentCameraIndex + 1}/{availableCameras.length}</span>
+                        <span>{availableCameras[currentCameraIndex]?.label || '기본 카메라'}</span>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+export default VideoCallInterface;

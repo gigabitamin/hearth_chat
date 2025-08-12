@@ -18,11 +18,14 @@ class VideoCallService {
         this.userId = userId;
 
         try {
+            console.log('[VideoCallService] 화상채팅 초기화 시작');
+
             // 로컬 미디어 스트림 획득
             this.localStream = await navigator.mediaDevices.getUserMedia({
                 video: true,
                 audio: true
             });
+            console.log('[VideoCallService] 로컬 스트림 획득 성공:', this.localStream.getTracks().length, '개 트랙');
 
             // WebRTC 연결 설정
             this.peerConnection = new RTCPeerConnection({
@@ -31,14 +34,17 @@ class VideoCallService {
                     { urls: 'stun:stun1.l.google.com:19302' }
                 ]
             });
+            console.log('[VideoCallService] RTCPeerConnection 생성됨');
 
             // 로컬 스트림 추가
             this.localStream.getTracks().forEach(track => {
                 this.peerConnection.addTrack(track, this.localStream);
+                console.log('[VideoCallService] 트랙 추가됨:', track.kind);
             });
 
             // 원격 스트림 처리
             this.peerConnection.ontrack = (event) => {
+                console.log('[VideoCallService] 원격 스트림 수신됨:', event.streams.length, '개 스트림');
                 this.remoteStream = event.streams[0];
                 if (this.onRemoteStreamReceived) {
                     this.onRemoteStreamReceived(this.remoteStream);
@@ -48,6 +54,7 @@ class VideoCallService {
             // ICE 후보 처리
             this.peerConnection.onicecandidate = (event) => {
                 if (event.candidate) {
+                    console.log('[VideoCallService] ICE 후보 생성됨');
                     this.sendSignalingMessage({
                         type: 'ice_candidate',
                         candidate: event.candidate,
@@ -59,37 +66,58 @@ class VideoCallService {
 
             // 연결 상태 변화 모니터링
             this.peerConnection.onconnectionstatechange = () => {
+                const state = this.peerConnection.connectionState;
+                console.log('[VideoCallService] WebRTC 연결 상태 변경:', state);
                 if (this.onConnectionStateChange) {
-                    this.onConnectionStateChange(this.peerConnection.connectionState);
+                    this.onConnectionStateChange(state);
                 }
             };
 
             this.peerConnection.oniceconnectionstatechange = () => {
+                const state = this.peerConnection.iceConnectionState;
+                console.log('[VideoCallService] ICE 연결 상태 변경:', state);
                 if (this.onIceConnectionStateChange) {
-                    this.onIceConnectionStateChange(this.peerConnection.iceConnectionState);
+                    this.onIceConnectionStateChange(state);
                 }
             };
 
+            // 초기 상태 설정
+            if (this.onConnectionStateChange) {
+                this.onConnectionStateChange(this.peerConnection.connectionState);
+            }
+            if (this.onIceConnectionStateChange) {
+                this.onIceConnectionStateChange(this.peerConnection.iceConnectionState);
+            }
+
+            console.log('[VideoCallService] 화상채팅 초기화 완료');
             return this.localStream;
         } catch (error) {
-            console.error('화상채팅 초기화 실패:', error);
+            console.error('[VideoCallService] 화상채팅 초기화 실패:', error);
             throw error;
         }
     }
 
     async createOffer() {
         try {
+            console.log('[VideoCallService] Offer 생성 시작');
             const offer = await this.peerConnection.createOffer();
-            await this.peerConnection.setLocalDescription(offer);
+            console.log('[VideoCallService] Offer 생성됨:', offer.type);
 
-            this.sendSignalingMessage({
+            await this.peerConnection.setLocalDescription(offer);
+            console.log('[VideoCallService] 로컬 설명 설정됨');
+
+            const message = {
                 type: 'offer',
                 offer: offer,
                 roomId: this.roomId,
                 userId: this.userId
-            });
+            };
+
+            console.log('[VideoCallService] Offer 메시지 전송 시도:', message);
+            this.sendSignalingMessage(message);
+
         } catch (error) {
-            console.error('Offer 생성 실패:', error);
+            console.error('[VideoCallService] Offer 생성 실패:', error);
             throw error;
         }
     }
@@ -132,13 +160,27 @@ class VideoCallService {
     }
 
     sendSignalingMessage(message) {
+        console.log('[VideoCallService] 시그널링 메시지 전송 시도:', {
+            type: message.type,
+            hasSocket: !!this.signalingSocket,
+            readyState: this.signalingSocket?.readyState,
+            message: message
+        });
+
         if (this.signalingSocket && this.signalingSocket.readyState === WebSocket.OPEN) {
-            console.log('[VideoCallService] 시그널링 메시지 전송:', message.type);
-            this.signalingSocket.send(JSON.stringify(message));
+            try {
+                const messageStr = JSON.stringify(message);
+                console.log('[VideoCallService] 메시지 직렬화됨:', messageStr);
+                this.signalingSocket.send(messageStr);
+                console.log('[VideoCallService] 시그널링 메시지 전송 성공:', message.type);
+            } catch (error) {
+                console.error('[VideoCallService] 메시지 전송 중 오류:', error);
+            }
         } else {
             console.error('[VideoCallService] 시그널링 소켓이 연결되지 않음:', {
                 hasSocket: !!this.signalingSocket,
-                readyState: this.signalingSocket?.readyState
+                readyState: this.signalingSocket?.readyState,
+                expectedState: WebSocket.OPEN
             });
         }
     }
