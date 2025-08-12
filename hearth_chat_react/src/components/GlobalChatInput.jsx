@@ -1156,7 +1156,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                         <button
                             onClick={handleCapture}
                             style={{
-                                padding: '12px 24px',
+                                padding: '10px 20px',
                                 fontSize: '16px',
                                 cursor: 'pointer',
                                 background: '#007bff',
@@ -1166,12 +1166,12 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                                 fontWeight: 'bold'
                             }}
                         >
-                            사진 찍기
+                            촬영
                         </button>
                         <button
                             onClick={cancelAll}
                             style={{
-                                padding: '12px 24px',
+                                padding: '10px 20px',
                                 fontSize: '16px',
                                 cursor: 'pointer',
                                 background: '#6c757d',
@@ -1280,10 +1280,10 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                         <button
                             onClick={handleCropImage}
                             style={{
-                                padding: '12px 24px',
+                                padding: '10px 20px',
                                 fontSize: '16px',
                                 cursor: 'pointer',
-                                background: '#28a745',
+                                background: '#aaaaaa',
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: '8px',
@@ -1291,15 +1291,15 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                                 minWidth: '120px'
                             }}
                         >
-                            자르기 완료
+                            완료
                         </button>
                         <button
                             onClick={cancelAll}
                             style={{
-                                padding: '12px 24px',
+                                padding: '10px 20px',
                                 fontSize: '16px',
                                 cursor: 'pointer',
-                                background: '#dc3545',
+                                background: '#aaaaaa',
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: '8px',
