@@ -3,6 +3,7 @@ import videoCallService from '../services/videoCallService';
 import './VideoCallInterface.css';
 
 const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
+    // React Hooks는 조건문 이전에 호출되어야 함
     const [localStream, setLocalStream] = useState(null);
     const [remoteStream, setRemoteStream] = useState(null);
     const [isCallActive, setIsCallActive] = useState(false);
@@ -30,6 +31,12 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
     };
 
     useEffect(() => {
+        // userId가 없으면 초기화하지 않음
+        if (!userId) {
+            console.log('[화상채팅] userId가 없어서 초기화 대기 중...');
+            return;
+        }
+
         // 컴포넌트가 마운트된 후 초기화 실행
         const timer = setTimeout(() => {
             console.log('[화상채팅] useEffect 실행 - 초기화 시작');
@@ -41,7 +48,32 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
             clearTimeout(timer);
             videoCallService.stopVideoCall();
         };
-    }, []);
+    }, [userId]); // userId가 변경될 때마다 실행
+
+    // userId prop 확인 및 디버깅
+    console.log('[화상채팅] VideoCallInterface props 확인:', { roomId, userId });
+
+    // userId가 없으면 초기화하지 않음
+    if (!userId) {
+        console.error('[화상채팅] userId가 없어서 초기화할 수 없음');
+        return (
+            <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                height: '100%',
+                color: '#666',
+                fontSize: '16px',
+                flexDirection: 'column',
+                gap: '10px'
+            }}>
+                <div>사용자 정보를 불러오는 중...</div>
+                <div style={{ fontSize: '14px', color: '#999' }}>
+                    잠시만 기다려주세요
+                </div>
+            </div>
+        );
+    }
 
     // 사용 가능한 카메라 목록 가져오기
     const getAvailableCameras = async () => {
@@ -160,8 +192,7 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
                 ws.addEventListener('message', handleWebRTCMessageEvent);
                 console.log('[화상채팅] WebRTC 시그널링 메시지 리스너 추가됨');
             } else {
-                console.error('[화상채팅] WebSocket을 찾을 수 없음');
-                return;
+                console.error('[화상채팅] WebSocket을 찾을 수 없음 - 계속 진행');
             }
 
             // 콜백 설정
@@ -198,7 +229,7 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
             });
             console.log('[화상채팅] 초기화 단계 4 완료: 콜백 설정됨');
 
-            // Offer 생성 (방장인 경우) - 강제로 실행
+            // Offer 생성 (방장인 경우)
             console.log('[화상채팅] 초기화 단계 5: 방장 판별 및 Offer 생성 시작');
             console.log('[화상채팅] 방장 판별 시작 - User ID:', userId);
             const roomOwnerStatus = isRoomOwner();
@@ -227,18 +258,20 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
     const isRoomOwner = () => {
         // 방장 여부 확인 로직 - 먼저 입장한 사용자가 방장
         // 실제로는 서버에서 방장 정보를 받아와야 함
-        // 임시로 User ID가 작은 사용자를 방장으로 설정 (1 < 10)
-        const minUserId = Math.min(...[1, 10]);
-        const result = userId === minUserId;
+        // TODO: 서버에서 방장 정보를 받아와서 처리하도록 수정 필요
+        // TODO: 방 생성 시점에 방장을 설정하고, 이후 입장하는 사용자는 참가자로 처리
+        // TODO: 방장이 나가면 다음 사용자를 방장으로 승격하는 로직 필요
+
+        // 현재는 User ID가 1인 경우만 방장으로 설정 (임시)
+        const result = userId === 1;
 
         console.log('[화상채팅] 방장 판별 함수 실행:', {
             userId: userId,
-            minUserId: minUserId,
             result: result,
-            comparison: `${userId} === ${minUserId}`
+            note: '임시로 User ID 1을 방장으로 설정'
         });
 
-        return result; // User ID 1이 방장
+        return result;
     };
 
     const toggleMute = () => {
@@ -518,45 +551,23 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {
                     🔧
                 </button>
 
-                {/* 강제 Offer 생성 버튼 (User ID 1 전용) */}
-                {userId === 1 && (
-                    <button
-                        onClick={async () => {
-                            console.log('[화상채팅] 강제 Offer 생성 시작 (User ID 1)');
-                            try {
-                                await videoCallService.createOffer();
-                                console.log('[화상채팅] 강제 Offer 생성 성공');
-                            } catch (error) {
-                                console.error('[화상채팅] 강제 Offer 생성 실패:', error);
-                            }
-                        }}
-                        className="control-btn"
-                        title="강제 Offer 생성"
-                        style={{ background: '#FF5722' }}
-                    >
-                        🚀
-                    </button>
-                )}
-
-                {/* 강제 Offer 생성 버튼 (User ID 10 전용) */}
-                {userId === 10 && (
-                    <button
-                        onClick={async () => {
-                            console.log('[화상채팅] 강제 Offer 생성 시작 (User ID 10)');
-                            try {
-                                await videoCallService.createOffer();
-                                console.log('[화상채팅] 강제 Offer 생성 성공');
-                            } catch (error) {
-                                console.error('[화상채팅] 강제 Offer 생성 실패:', error);
-                            }
-                        }}
-                        className="control-btn"
-                        title="강제 Offer 생성 (User 10)"
-                        style={{ background: '#E91E63' }}
-                    >
-                        🚀
-                    </button>
-                )}
+                {/* 강제 Offer 생성 버튼 (모든 사용자) */}
+                <button
+                    onClick={async () => {
+                        console.log('[화상채팅] 강제 Offer 생성 시작 (User ID:', userId, ')');
+                        try {
+                            await videoCallService.createOffer();
+                            console.log('[화상채팅] 강제 Offer 생성 성공');
+                        } catch (error) {
+                            console.error('[화상채팅] 강제 Offer 생성 실패:', error);
+                        }
+                    }}
+                    className="control-btn"
+                    title="강제 Offer 생성"
+                    style={{ background: '#FF5722' }}
+                >
+                    🚀
+                </button>
 
                 {/* 강제 초기화 버튼 */}
                 <button

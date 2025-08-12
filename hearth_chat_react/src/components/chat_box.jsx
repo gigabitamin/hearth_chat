@@ -2681,14 +2681,23 @@ const ChatBox = ({
               <div style={{ flex: 1, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
                 {/* 화상채팅 방인 경우 VideoCallInterface 표시 */}
                 {selectedRoom && selectedRoom.room_type === 'video_call' ? (
-                  <VideoCallInterface
-                    roomId={selectedRoom.id}
-                    userId={loginUser?.id}
-                    onCallEnd={() => {
-                      // 화상채팅 종료 시 처리
-                      console.log('화상채팅 종료');
-                    }}
-                  />
+                  (() => {
+                    console.log('[ChatBox] VideoCallInterface 렌더링:', {
+                      selectedRoom: selectedRoom,
+                      loginUser: loginUser,
+                      userId: loginUser?.id
+                    });
+                    return (
+                      <VideoCallInterface
+                        roomId={selectedRoom.id}
+                        userId={loginUser?.id}
+                        onCallEnd={() => {
+                          // 화상채팅 종료 시 처리
+                          console.log('화상채팅 종료');
+                        }}
+                      />
+                    );
+                  })()
                 ) : (
                   /* 일반 채팅 방인 경우 메시지 목록 표시 */
                   <VirtualizedMessageList
