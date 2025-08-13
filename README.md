@@ -37,7 +37,7 @@
 - 📖 [수동 배포 가이드](MANUAL_DEPLOY_GUIDE.md)
 - 🔧 [GitHub Actions 워크플로우](.github/workflows/deploy.yml)
 
----
+--- 
 
 ### Hearth Chat 패키지 구조 개요
 
