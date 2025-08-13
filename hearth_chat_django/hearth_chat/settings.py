@@ -35,7 +35,7 @@ if IS_PRODUCTION:
     # --- 🏢 운영 환경 (Production) 설정 ---
     # print("✅ 운영 환경(Production) 설정을 시작합니다.")
     DEBUG = False
-    ALLOWED_HOSTS = ['hearth-chat.onrender.com']
+    ALLOWED_HOSTS = ['hearth-chat-latest.onrender.com']
     if IS_RAILWAY_DEPLOY:
         ALLOWED_HOSTS.append("hearthchat-production.up.railway.app")
 
@@ -304,7 +304,7 @@ elif os.environ.get("RENDER") == 'true':
             except ObjectDoesNotExist:
                 site, created = Site.objects.get_or_create(
                     id=2,
-                    defaults={'domain': 'hearth-chat.onrender.com', 'name': 'HearthChat Production'}
+                    defaults={'domain': 'hearth-chat-latest.onrender.com', 'name': 'HearthChat Production'}
                 )
                 return site
         
@@ -317,7 +317,7 @@ elif os.environ.get("RENDER") == 'true':
             except ObjectDoesNotExist:
                 site, created = Site.objects.get_or_create(
                     id=SITE_ID,
-                    defaults={'domain': 'hearth-chat.onrender.com', 'name': 'HearthChat Production'}
+                    defaults={'domain': 'hearth-chat-latest.onrender.com', 'name': 'HearthChat Production'}
                 )
                 return site
         

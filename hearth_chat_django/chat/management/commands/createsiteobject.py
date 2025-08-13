@@ -9,7 +9,7 @@ IS_PRODUCTION = IS_RAILWAY_DEPLOY or IS_RENDER_DEPLOY
 
 # --- 2. 환경별 주요 설정 분기 ---
 if IS_PRODUCTION:    
-    domain = 'hearth-chat.onrender.com'
+    domain = 'hearth-chat-latest.onrender.com'
     if IS_RAILWAY_DEPLOY:
         domain = "hearthchat-production.up.railway.app"
 

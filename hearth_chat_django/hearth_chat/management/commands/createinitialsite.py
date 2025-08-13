@@ -13,10 +13,10 @@ if IS_PRODUCTION:
         domain = "hearthchat-production.up.railway.app"
         site_id = 1
     elif IS_RENDER_DEPLOY:
-        domain = 'hearth-chat.onrender.com'
+        domain = 'hearth-chat-latest.onrender.com'
         site_id = 2
     else:
-        domain = 'hearth-chat.onrender.com'
+        domain = 'hearth-chat-latest.onrender.com'
         site_id = 2
 else:
     domain = 'localhost:8000'
