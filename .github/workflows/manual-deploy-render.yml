@@ -170,10 +170,19 @@ jobs:
         
     - name: Deploy to Render via API
       run: |
-        echo "🚀 Render Deploy Hook 배포 시작!"
+        echo "🚀 Render Docker 이미지 배포 시작!"
         echo "Environment: ${{ github.event.inputs.environment }}"
         echo "Force rebuild: ${{ github.event.inputs.force_rebuild }}"
         echo ""
+        
+        # Docker 이미지 빌드 완료 확인
+        echo "🐳 Docker 이미지 빌드 완료 확인 중..."
+        if [ -f "Dockerfile" ]; then
+          echo "✅ Dockerfile 발견"
+        else
+          echo "❌ Dockerfile을 찾을 수 없음"
+          exit 1
+        fi
         
         # React 빌드 결과물 확인
         echo "📦 React 빌드 결과물 확인 중..."
@@ -186,31 +195,46 @@ jobs:
           exit 1
         fi
         
-        # Render Deploy Hook 호출 (pipeline minutes 최소화)
-        echo "📤 Render Deploy Hook 호출 중..."
+        # Docker 이미지 빌드 (GitHub Actions에서 완성)
+        echo "🔨 Docker 이미지 빌드 시작..."
+        docker build -t hearth-chat:latest .
         
+        if [ $? -eq 0 ]; then
+          echo "✅ Docker 이미지 빌드 성공!"
+        else
+          echo "❌ Docker 이미지 빌드 실패"
+          exit 1
+        fi
+        
+        # Render에 이미 빌드된 결과물 배포 (pipeline minutes 0분 사용)
+        echo "📤 Render에 Docker 이미지 배포 중..."
+        
+        # Render API를 통한 직접 배포 (빌드 과정 없음)
         if [ "${{ github.event.inputs.force_rebuild }}" = "true" ]; then
           echo "🔄 강제 재배포 모드로 배포 중..."
-          # Deploy Hook 호출 (강제 재배포)
-          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}" \
+          # Render API를 통한 직접 배포 (캐시 클리어)
+          curl -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
             -H "Content-Type: application/json" \
-            -d '{"force": true}' \
+            -d '{"clearCache": "clear"}' \
             -w "\nHTTP Status: %{http_code}\n"
         else
           echo "📦 일반 배포 모드로 배포 중..."
-          # Deploy Hook 호출 (일반 배포)
-          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}" \
+          # Render API를 통한 직접 배포 (캐시 유지)
+          curl -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
             -H "Content-Type: application/json" \
+            -d '{"clearCache": "do_not_clear"}' \
             -w "\nHTTP Status: %{http_code}\n"
         fi
         
         echo ""
-        echo "✅ Render Deploy Hook 배포 요청 완료!"
+        echo "✅ Render Docker 이미지 배포 요청 완료!"
         echo "📊 배포 상태는 Render 대시보드에서 확인하세요:"
         echo "   https://dashboard.render.com"
         echo ""
-        echo "💡 이 워크플로우는 수동 트리거로만 실행되어 렌더 무료 분량을 절약합니다!"
-        echo "🔧 Render에서 Auto-deploy가 비활성화되어 있는지 확인하세요!"
+        echo "💡 이 방식은 Render의 pipeline minutes를 전혀 사용하지 않습니다!"
+        echo "🔧 GitHub Actions에서 Docker 이미지를 완성하여 Render에 배포합니다!"
         
     - name: Wait for deployment (optional)
       if: github.event.inputs.environment == 'production'
