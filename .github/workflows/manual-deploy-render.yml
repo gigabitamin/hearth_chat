@@ -1,4 +1,4 @@
-name: Manual Deploy to Render 2
+name: Manual Deploy to Render 1
 
 on:
   # 자동 트리거 비활성화
