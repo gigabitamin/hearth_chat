@@ -12,7 +12,7 @@ class Command(BaseCommand):
         User = get_user_model()
         username = 'gigabitamin'
         email = 'gigabitamin@gmail.com'
-        password = 'password'
+        password = 'windmill4u@'
         
         self.stdout.write(f'🔧 슈퍼유저 생성/업데이트 시작...')
         self.stdout.write(f'  - Username: {username}')
