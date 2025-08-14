@@ -15,6 +15,7 @@ class Command(BaseCommand):
         self.stdout.write(f'  - DEBUG: {settings.DEBUG}')
         self.stdout.write(f'  - IS_RAILWAY_DEPLOY: {"RAILWAY_ENVIRONMENT" in os.environ}')
         self.stdout.write(f'  - IS_RENDER_DEPLOY: {os.environ.get("RENDER") == "true"}')
+        self.stdout.write(f'  - IS_FLY_DEPLOY: {os.getenv("IS_FLY_DEPLOY", "false").lower() == "true"}')
         self.stdout.write(f'  - SITE_ID: {getattr(settings, "SITE_ID", "Not Set")}')
         self.stdout.write(f'  - ALLOWED_HOSTS: {settings.ALLOWED_HOSTS}')
         self.stdout.write(f'  - CORS_ALLOWED_ORIGINS: {getattr(settings, "CORS_ALLOWED_ORIGINS", [])}')
