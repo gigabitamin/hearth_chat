@@ -143,6 +143,12 @@ CSRF_COOKIE_HTTPONLY = False
 CSRF_HEADER_NAME = "HTTP_X_CSRFTOKEN"
 CORS_ALLOW_CREDENTIALS = True
 
+# --- 4. 공통 세션 설정 ---
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+SESSION_COOKIE_AGE = 1209600  # 14일
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_SAVE_EVERY_REQUEST = True # 세션 문제 해결을 위해 추가해볼 만한 설정
+
 # ==============================================================================
 
 # DATABASES 설정을 완전히 안전하게 구성
@@ -411,7 +417,6 @@ INSTALLED_APPS = [
     'hearth_chat.apps.HearthChatConfig',
     'rest_framework',
 ]
-SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 
 SITE_ID = 2 # 소셜 로그인 설정을 위한 필수 설정 (1: railway, 2: 로컬)
 
@@ -656,10 +661,6 @@ ACCOUNT_RATE_LIMITS = {'confirm_email': '1/m'}
 # 로그인 시도 제한 설정
 ACCOUNT_LOGIN_ATTEMPTS_LIMIT = 5
 ACCOUNT_LOGIN_ATTEMPTS_TIMEOUT = 300
-
-# 세션 설정
-SESSION_COOKIE_AGE = 1209600  # 14일
-SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 
 # 로그인 관련 추가 설정
 ACCOUNT_AUTHENTICATION_METHOD = 'username_email'  # username 또는 email로 로그인 가능
