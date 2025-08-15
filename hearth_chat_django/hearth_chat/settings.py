@@ -96,10 +96,24 @@ if IS_PRODUCTION:
     LILY_API_URL = "https://gbrabbit-lily-fast-api.hf.space"
 
     # CORS & CSRF 설정
-    CORS_ALLOWED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS]
+    # CORS_ALLOWED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS]
+    # CSRF_TRUSTED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS]
+    # CORS_ALLOWED_ORIGINS.append(LILY_API_URL)
+    # CSRF_TRUSTED_ORIGINS.append(LILY_API_URL)
+
+    # CORS & CSRF 설정
+    # 와일드카드를 지원하는 정규표현식(Regex) 방식으로 변경
+    CORS_ALLOWED_ORIGIN_REGEXES = [
+        r"^https://hearth-chat\.fly\.dev$",
+        r"^https://.+\.fly\.dev$", # *.fly.dev 와일드카드에 해당
+    ]
+    # CSRF_TRUSTED_ORIGINS는 와일드카드 패턴을 그대로 사용해도 괜찮습니다.
     CSRF_TRUSTED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS]
-    CORS_ALLOWED_ORIGINS.append(LILY_API_URL)
-    CSRF_TRUSTED_ORIGINS.append(LILY_API_URL)
+    
+    # Lily API URL을 CORS와 CSRF에 각각 추가
+    CORS_ALLOWED_ORIGIN_REGEXES.append(r"^https://gbrabbit-lily-fast-api\.hf\.space$")
+    CSRF_TRUSTED_ORIGINS.append(LILY_API_URL)    
+    
     
     # 보안 쿠키 설정
     SESSION_COOKIE_SECURE = True
