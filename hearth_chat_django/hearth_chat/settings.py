@@ -914,15 +914,15 @@ REST_FRAMEWORK = {
 # Fly.io 환경에서 Redis URL 동적 구성
 if IS_FLY_DEPLOY:
 #     # Fly.io 환경에서 Redis 비밀번호를 환경변수에서 가져와서 URL 구성
-#     redis_password = os.environ.get('REDIS_PASSWORD', '')
+    # redis_password = os.environ.get('REDIS_PASSWORD', '')
 #     if redis_password:
-#         REDIS_URL = f"redis://:{redis_password}@hearth-redis.flycast:6379"
-#         print(f"✅ Fly.io Redis URL 동적 구성: redis://:***@hearth-redis.flycast:6379")
+        # REDIS_URL = f"redis://:{redis_password}@hearth-redis.flycast:6379"
+        # print(f"✅ Fly.io Redis URL 동적 구성: redis://:***@hearth-redis.flycast:6379")
 #     else:
 #         # REDIS_PASSWORD가 없으면 기본 URL 사용 (비밀번호 없음)
-#         REDIS_URL = "redis://hearth-redis.flycast:6379"
+    REDIS_URL = "redis://hearth-redis.flycast:6379"
 #         print("⚠️ Fly.io Redis 비밀번호 없음, 기본 URL 사용")
-# else:
+else:
 #     # 로컬/개발 환경에서는 기존 REDIS_URL 환경변수 사용
     REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
 
