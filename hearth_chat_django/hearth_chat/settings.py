@@ -910,7 +910,21 @@ REST_FRAMEWORK = {
 # redis 설정 (운영/배포/로컬 모두 환경변수 REDIS_URL 기반)
 # 실서비스(운영/배포)에서는 반드시 channels_redis.core.RedisChannelLayer만 사용
 # (메모리 채널(InMemoryChannelLayer)은 실시간 채팅, 알림 등에서 서버가 여러 대일 때 절대 동작하지 않음)
-REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
+
+# Fly.io 환경에서 Redis URL 동적 구성
+if IS_FLY_DEPLOY:
+    # Fly.io 환경에서 Redis 비밀번호를 환경변수에서 가져와서 URL 구성
+    redis_password = os.environ.get('REDIS_PASSWORD', '')
+    if redis_password:
+        REDIS_URL = f"redis://:{redis_password}@hearth-redis.flycast:6379"
+        print(f"✅ Fly.io Redis URL 동적 구성: redis://:***@hearth-redis.flycast:6379")
+    else:
+        # REDIS_PASSWORD가 없으면 기본 URL 사용 (비밀번호 없음)
+        REDIS_URL = "redis://hearth-redis.flycast:6379"
+        print("⚠️ Fly.io Redis 비밀번호 없음, 기본 URL 사용")
+else:
+    # 로컬/개발 환경에서는 기존 REDIS_URL 환경변수 사용
+    REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
 
 # Fly.io 환경에서 Redis 연결 최적화
 if IS_FLY_DEPLOY:

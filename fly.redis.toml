@@ -1,0 +1,56 @@
+# fly.redis.toml app configuration file for redis-hearth-chat
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'hearth-redis'
+primary_region = 'nrt'
+
+[experimental]
+  enable_consul = true
+
+[build]
+  image = 'redis:7-alpine'
+
+[deploy]
+  strategy = 'immediate'
+  
+  auto_scale = false
+  max_memory = 256
+  max_cpus = 1
+
+[env]
+  REDIS_PORT = '6379'
+  FLY_DISABLE_AUTO_SCALE = 'true'
+  FLY_FORCE_1X = 'true'  
+  FLY_MAX_MEMORY = '256'
+  FLY_MAX_CPUS = '1'
+  REDIS_MAXMEMORY = '200mb'
+  REDIS_MAXMEMORY_POLICY = 'allkeys-lru'
+  REDIS_TIMEOUT = '300'
+  REDIS_TCP_KEEPALIVE = '300'
+
+[processes]
+  redis = "redis-server --requirepass ${REDIS_PASSWORD} --port 6379 --appendonly yes --save 900 1 --save 300 10 --save 60 10000"
+
+[[services]]
+  protocol = 'tcp'
+  internal_port = 6379
+  processes = ['redis']
+
+  [[services.ports]]
+    port = 6379
+    handlers = ['tls']
+
+  [services.concurrency]
+    type = 'connections'
+    hard_limit = 100
+    soft_limit = 80
+
+  [[services.tcp_checks]]
+    interval = '15s'
+    timeout = '2s'
+    grace_period = '1s'
+
+[machines]
+  redis = { size = "shared-cpu-1x" } 
