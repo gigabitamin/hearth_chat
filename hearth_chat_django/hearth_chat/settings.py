@@ -74,7 +74,7 @@ if IS_PRODUCTION:
                     '*.flycast',
                     '*.internal'
                 ])
-                print(f"✅ Fly.io 환경 - 기본 ALLOWED_HOSTS 사용: {ALLOWED_HOSTS}")
+                print(f"✅ Fly.io 환경 - 기본 ALLOWED_HOSTS 사용: {ALLOWED_HOSTS}")                                
         else:
             # 기본 Fly.io 호스트 추가
             ALLOWED_HOSTS.extend([
@@ -84,6 +84,11 @@ if IS_PRODUCTION:
                 '*.internal'
             ])
             print(f"✅ Fly.io 환경 - 기본 ALLOWED_HOSTS 사용: {ALLOWED_HOSTS}")
+            
+        CORS_ALLOWED_ORIGINS = [
+            "https://hearth-chat.fly.dev",
+            "https://gbrabbit-lily-fast-api.hf.space",   
+        ]            
         
     if IS_RENDER_DEPLOY:
         # ALLOWED_HOSTS.append('hearth-chat.onrender.com')
