@@ -6,6 +6,7 @@
 
 # 250815 v0.99.2
 - fly io migrations, redis 서버 분리, 4개 서버 각각 환경별 테스트
+- redis tls off test -> success
 
 # 250814
 - render github ci/cd 에서 배포방식 테스트(github actions, dockerhub image import), fly.io 서버 이전

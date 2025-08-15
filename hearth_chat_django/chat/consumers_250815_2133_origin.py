@@ -56,32 +56,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
         return self._force_utf8mb4_connection()
 
     async def connect(self):
-        # self.scope['user']는 Channels의 AuthMiddlewareStack에 의해 자동으로 채워짐
-        user = self.scope['user']
-
-        # 사용자가 인증되었는지 먼저 확인
-        if user.is_authenticated:
-            # 인증된 사용자일 경우에만 연결을 수락
-            await self.accept()
-            print(f"✅ 인증된 사용자 '{user.username}'의 연결을 수락했습니다.")
-
-            # 세션 ID 생성
-            self.session_id = str(uuid.uuid4())
-
-            # 대화방 목록 업데이트 그룹에 참여
-            await self.channel_layer.group_add(
-                'chat_room_list',
-                self.channel_name
-            )
-
-            # MySQL 연결 설정 (필요 시)
-            await self._force_utf8mb4_connection_async()
+        await self.accept()
+        # 세션 ID 생성
+        self.session_id = str(uuid.uuid4())        
         
-        else:
-            # 인증되지 않은 사용자는 연결을 즉시 거부
-            await self.close()
-            print("❌ 비인증 사용자의 웹소켓 연결을 거부했습니다.")
-
+        # 대화방 목록 업데이트 그룹에 참여
+        await self.channel_layer.group_add(
+            'chat_room_list',
+            self.channel_name
+        )
+        
+        # MySQL 연결을 강제로 utf8mb4로 설정 (async context에서 안전하게)
+        await self._force_utf8mb4_connection_async()
 
     async def disconnect(self, close_code):        
         

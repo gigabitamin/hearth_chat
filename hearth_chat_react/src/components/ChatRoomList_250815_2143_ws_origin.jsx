@@ -71,8 +71,6 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
         }, 1000);
     };
 
-    const retryCountRef = useRef(0);
-
     const connectWebSocket = () => {
         try {
             // 환경에 따라 WebSocket URL 설정
@@ -88,8 +86,6 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
 
             ws.onopen = () => {
                 setWsConnected && setWsConnected(true);
-                // 연결에 성공하면 재시도 횟수를 초기화
-                retryCountRef.current = 0;
             };
 
             ws.onmessage = (event) => {
@@ -103,24 +99,12 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
 
             ws.onclose = () => {
                 setWsConnected && setWsConnected(false);
-                
-                // --- 🔽 Exponential Backoff 재연결 로직 🔽 ---
-                // 재시도 횟수에 따라 대기 시간 계산 (1s, 2s, 4s, 8s, ...)
-                const waitTime = Math.pow(2, retryCountRef.current) * 1000;
-                // 최대 30초까지만 대기
-                const maxWaitTime = 30000;
-                const finalWaitTime = Math.min(waitTime, maxWaitTime);
-
-                console.log(`[ChatRoomList] WebSocket 연결 끊김. ${finalWaitTime / 1000}초 후에 재연결합니다...`);
-
+                // 재연결 시도
                 setTimeout(() => {
-                    // ref가 변경되지 않았을 때만 재연결 시도
                     if (wsRef.current === ws) {
-                        retryCountRef.current += 1; // 재시도 횟수 증가
                         connectWebSocket();
                     }
-                }, finalWaitTime);
-                // --- Exponential Backoff 재연결 로직 ---
+                }, 3000);
             };
 
             ws.onerror = (error) => {

@@ -1162,12 +1162,7 @@ function App() {
         : `${protocol}//${host}/ws/chat/`;
       wsInstance = new window.WebSocket(wsUrl);
       ws.current = wsInstance;
-      
-      wsInstance.onopen = () => {
-          // 연결 성공 시 재시도 횟수 초기화
-          appWsRetryCountRef.current = 0;
-      };
-
+      wsInstance.onopen = () => { };
       wsInstance.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
@@ -1176,37 +1171,12 @@ function App() {
           }
         } catch (e) { console.error('[App] WebSocket onmessage 파싱 오류', e); }
       };
-
-      wsInstance.onclose = () => {
-          // Exponential Backoff 재연결 로직
-          const waitTime = Math.pow(2, appWsRetryCountRef.current) * 1000;
-          const maxWaitTime = 30000;
-          const finalWaitTime = Math.min(waitTime, maxWaitTime);
-
-          console.log(`[App.js] WebSocket 연결 끊김. ${finalWaitTime / 1000}초 후에 재연결합니다...`);
-
-          setTimeout(() => {
-              appWsRetryCountRef.current += 1;
-              connect();
-          }, finalWaitTime);
-      };
-
-      wsInstance.onerror = () => { 
-        // onerror 시 바로 onclose가 호출되므로, close만 호출해도 재연결 로직이 실행됩니다.
-        wsInstance.close(); 
-      };
+      wsInstance.onclose = () => { setTimeout(connect, 3000); };
+      wsInstance.onerror = () => { wsInstance.close(); };
     };
     connect();
-
-    return () => { 
-      if (wsInstance) {
-        // 컴포넌트 언마운트 시 재연결 로직이 실행되지 않도록 onclose를 null로 설정
-        wsInstance.onclose = null;
-        wsInstance.close(); 
-      }
-    };
-  }, []); // 의존성 배열은 비워두어 한 번만 실행되도록 유지
-  
+    return () => { if (wsInstance) wsInstance.close(); };
+  }, []);
   // 현재 페이지가 /room/:roomId로 시작하면 room 상태를 업데이트하는 useEffect 추가
   useEffect(() => {
     // /room/:roomId 패턴 매칭
@@ -1244,7 +1214,6 @@ function App() {
   }, []);
 
   const ws = useRef(null);
-  const appWsRetryCountRef = useRef(0); // App.js 전용 재시도 카운터 추가
 
   // postMessage 이벤트 리스너 제거 - setInterval 방식만 사용
   return <AppContent
