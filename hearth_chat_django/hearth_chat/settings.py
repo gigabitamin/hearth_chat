@@ -52,6 +52,11 @@ if IS_PRODUCTION:
     DEBUG = False
     ALLOWED_HOSTS = []
 
+   # [추가] Fly.io 프록시를 신뢰하도록 설정
+    # Fly.io의 프록시가 보내주는 X-Forwarded-Proto 헤더를 보고
+    # 현재 연결이 안전한 HTTPS 연결임을 Django에게 알려줌
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')    
+
     if IS_FLY_DEPLOY:
         # Fly.io 환경변수에서 ALLOWED_HOSTS 가져오기
         fly_allowed_hosts = os.getenv('ALLOWED_HOSTS', '')
