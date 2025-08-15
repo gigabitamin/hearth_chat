@@ -11,13 +11,20 @@ except ImportError:
     print("Warning: dj_database_url not found. Using default database configuration.")
     dj_database_url = None
 
-# 환경변수 로드 (Fly.io 환경에서는 제한)
-if os.getenv('IS_FLY_DEPLOY', 'false').lower() == 'true':
-    # Fly.io 환경에서는 .env 파일 로드하지 않음 (환경변수 충돌 방지)
-    print("🔧 Fly.io 환경 - .env 파일 로드 건너뜀 (환경변수 충돌 방지)")
-else:
-    # 로컬/개발 환경에서만 .env 파일 로드
-    load_dotenv()
+# 환경변수 로드 (항상 .env 파일 우선 로드)
+load_dotenv()
+
+# 환경 감지 (환경변수 로드 후)
+IS_FLY_DEPLOY = os.getenv('IS_FLY_DEPLOY', 'false').lower() == 'true'
+IS_RAILWAY_DEPLOY = 'RAILWAY_ENVIRONMENT' in os.environ
+IS_RENDER_DEPLOY = os.environ.get('RENDER') == 'true'
+IS_PRODUCTION = IS_RAILWAY_DEPLOY or IS_RENDER_DEPLOY or IS_FLY_DEPLOY
+
+print(f"🔍 환경 감지 결과:")
+print(f"  - IS_FLY_DEPLOY: {IS_FLY_DEPLOY}")
+print(f"  - IS_RAILWAY_DEPLOY: {IS_RAILWAY_DEPLOY}")
+print(f"  - IS_RENDER_DEPLOY: {IS_RENDER_DEPLOY}")
+print(f"  - IS_PRODUCTION: {IS_PRODUCTION}")
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -32,11 +39,7 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "your-default-secret-key")
 # ==============================================================================
 
 # --- 1. 환경 변수 및 플랫폼 감지 ---
-# Fly.io 환경 감지 개선
-IS_FLY_DEPLOY = os.getenv('IS_FLY_DEPLOY', 'false').lower() == 'true'
-IS_RAILWAY_DEPLOY = 'RAILWAY_ENVIRONMENT' in os.environ
-IS_RENDER_DEPLOY = os.environ.get('RENDER') == 'true'
-IS_PRODUCTION = IS_RAILWAY_DEPLOY or IS_RENDER_DEPLOY or IS_FLY_DEPLOY
+# 환경 감지 (이미 위에서 정의됨)
 
 # Fly.io 환경에서 추가 정보 출력
 if IS_FLY_DEPLOY:
@@ -145,164 +148,63 @@ CORS_ALLOW_CREDENTIALS = True
 
 # ==============================================================================
 
-# DATABASES 설정을 완전히 안전하게 구성
-# Fly.io 환경에서는 개별 환경변수 사용, 다른 환경에서는 기본 SQLite 설정을 사용
+# DATABASES 설정 - 환경별로 분기
 if IS_FLY_DEPLOY:
-    # Fly.io 환경에서는 dj_database_url.config() 완전히 우회하고 직접 설정
-    print("🔧 Fly.io 환경 - 직접 데이터베이스 설정 구성")
+    # Fly.io 환경: PostgreSQL 사용
+    print("🔧 Fly.io 환경 - PostgreSQL 데이터베이스 설정")
     
-    try:
-        # 개별 환경변수에서 데이터베이스 정보 가져오기 (os.environ 직접 사용)
-        # 환경변수 읽기에 문제가 있을 경우를 대비해 하드코딩된 값도 시도
-        try:
-            db_host = os.environ.get('DB_HOST', '')
-            db_port = os.environ.get('DB_PORT', '')
-            db_name = os.environ.get('DB_NAME', '')
-            db_user = os.environ.get('DB_USER', '')
-            db_password = os.environ.get('DB_PASSWORD', '')
-            
-            # 환경변수가 비어있으면 하드코딩된 값 사용
-            if not all([db_host, db_port, db_name, db_user, db_password]):
-                print("⚠️ 환경변수가 비어있음, 하드코딩된 값 사용")
-                raise ValueError("환경변수가 비어있음")
-                
-        except Exception as env_error:
-            print(f"⚠️ 환경변수 읽기 실패, 하드코딩된 값 사용: {env_error}")
-            # 하드코딩된 값으로 폴백 (특수 문자 검증)
-            db_host = 'hearth-postgres.flycast'
-            db_port = 5432
-            db_name = 'hearth_chat'
-            db_user = 'hearth_chat'
-            db_password = 'seGGPftNA0v5OEu'
-            
-            # 값 검증 및 디버깅
-            print(f"🔍 하드코딩된 값 검증:")
-            print(f"  - 호스트: '{db_host}' (길이: {len(db_host)})")
-            print(f"  - 포트: {db_port} (타입: {type(db_port)})")
-            print(f"  - 데이터베이스: '{db_name}' (길이: {len(db_name)})")
-            print(f"  - 사용자: '{db_user}' (길이: {len(db_user)})")
-            print(f"  - 비밀번호: '{db_password}' (길이: {len(db_password)})")
-            
-            # 특수 문자 검증
-            import re
-            special_chars = re.findall(r'[^\w\-\.]', f"{db_host}{db_name}{db_user}{db_password}")
-            if special_chars:
-                print(f"⚠️ 특수 문자 발견: {special_chars}")
-            else:
-                print("✅ 특수 문자 없음")
-        
-        # 환경변수가 제대로 설정되었는지 확인
-        if not all([db_host, db_port, db_name, db_user, db_password]):
-            missing_vars = []
-            if not db_host: missing_vars.append('DB_HOST')
-            if not db_port: missing_vars.append('DB_PORT')
-            if not db_name: missing_vars.append('DB_NAME')
-            if not db_user: missing_vars.append('DB_USER')
-            if not db_password: missing_vars.append('DB_PASSWORD')
-            raise ValueError(f"필수 환경변수가 누락되었습니다: {', '.join(missing_vars)}")
-        
-        print(f"🔍 개별 환경변수에서 데이터베이스 정보 가져옴:")
-        print(f"  - 호스트: {db_host}")
-        print(f"  - 포트: {db_port}")
-        print(f"  - 데이터베이스: {db_name}")
-        print(f"  - 사용자: {db_user}")
-        print(f"  - 비밀번호: {'***' if db_password else '설정되지 않음'}")
-        
-        DATABASES = {
-            "default": {
-                "ENGINE": "django.db.backends.postgresql",
-                "NAME": db_name,
-                "USER": db_user,
-                "PASSWORD": db_password,
-                "HOST": db_host,
-                "PORT": db_port,
-                "OPTIONS": {
-                    # PostgreSQL 연결 문자열에서 지원하는 안전한 옵션만 설정
-                    'sslmode': 'disable',  # Fly.io 내부 네트워크는 SSL 불필요
-                },
-                "CONN_MAX_AGE": 600,
-            }
+    # 환경변수에서 데이터베이스 정보 가져오기
+    db_host = os.getenv('DB_HOST', 'hearth-postgres.flycast')
+    db_port = int(os.getenv('DB_PORT', '5432'))
+    db_name = os.getenv('DB_NAME', 'hearth_chat')
+    db_user = os.getenv('DB_USER', 'hearth_chat')
+    db_password = os.getenv('DB_PASSWORD', 'seGGPftNA0v5OEu')
+    
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": db_name,
+            "USER": db_user,
+            "PASSWORD": db_password,
+            "HOST": db_host,
+            "PORT": db_port,
+            "OPTIONS": {
+                'sslmode': 'disable',
+            },
+            "CONN_MAX_AGE": 600,
         }
-        
-        # 복잡한 백엔드 패치 제거 - RecursionError 방지
-        print("✅ Fly.io PostgreSQL 설정 완료 (백엔드 패치 없음)")
-        
-        # PostgreSQL 연결 테스트 (연결 실패 시 SQLite로 전환)
-        try:
-            import psycopg2
-            test_conn = psycopg2.connect(
-                host=db_host,
-                port=db_port,
-                database=db_name,
-                user=db_user,
-                password=db_password,
-                sslmode='disable'
-            )
-            test_conn.close()
-            print("✅ PostgreSQL 연결 테스트 성공")
-        except Exception as conn_test_error:
-            print(f"❌ PostgreSQL 연결 테스트 실패: {conn_test_error}")
-            print("🔄 SQLite로 전환...")
-            DATABASES = {
-                "default": {
-                    "ENGINE": "django.db.backends.sqlite3",
-                    "NAME": BASE_DIR / "fly_io_fallback.db",
-                }
-            }
-            print("✅ SQLite로 전환 완료")
+    }
+    print("✅ Fly.io PostgreSQL 설정 완료")
     
-    except Exception as fly_db_error:
-        print(f"❌ Fly.io 데이터베이스 설정 실패: {fly_db_error}")
-        # 최후 수단: 기본 SQLite 설정
-        DATABASES = {
-            "default": {
-                "ENGINE": "django.db.backends.sqlite3",
-                "NAME": BASE_DIR / "db.sqlite3",
-            }
-        }
-        print("⚠️  최후 수단: 기본 SQLite 설정으로 폴백")
+else:
+    # 로컬/개발 환경: SQLite 사용
+    print("🔧 로컬 환경 - SQLite 데이터베이스 설정")
     
-    # PostgreSQL 옵션을 안전하게 설정
+    # if dj_database_url:
+    DATABASES = {
+        "default": dj_database_url.config(
+            conn_max_age=600, 
+            ssl_require=False
+        )
+    }
+    # else:
+        # dj_database_url이 없을 때 기본 설정
+        # DATABASES = {
+        #     "default": {
+        #         "ENGINE": "django.db.backends.sqlite3",
+        #         "NAME": BASE_DIR / "db.sqlite3",
+        #     }
+        # }
+    print("✅ 로컬 SQLite 설정 완료")
+    
+    # PostgreSQL 옵션 설정
     if DATABASES["default"].get("ENGINE", "").endswith("postgresql"):
-        # 기존 OPTIONS가 있으면 유지, 없으면 새로 생성
         if "OPTIONS" not in DATABASES["default"]:
             DATABASES["default"]["OPTIONS"] = {}
-        
-        # PostgreSQL 연결 문자열에서 지원하는 안전한 옵션만 설정
-        # connect_timeout, application_name 등은 연결 후 SQL로 설정
         DATABASES["default"]["OPTIONS"].update({
-            'sslmode': 'disable',  # Fly.io 내부 네트워크는 SSL 불필요
+            'sslmode': 'disable',
         })
-    
-    print("✅ Fly.io PostgreSQL 연결 설정 적용됨")
-else:
-    # Fly.io가 아닌 환경에서는 dj_database_url 또는 MySQL 강제 사용
-    if dj_database_url:
-        # dj_database_url이 있으면 사용
-        DATABASES = {
-            "default": dj_database_url.config(
-                conn_max_age=600, 
-                ssl_require=False
-            )
-        }
-        print("✅ dj_database_url을 사용한 데이터베이스 설정")
-    else:
-        # dj_database_url이 없으면 로컬 MySQL 강제 사용
-        DATABASES = {
-            "default": {
-                "ENGINE": "django.db.backends.mysql",
-                "NAME": "hearth_chat",
-                "USER": "root",
-                "PASSWORD": "1234",
-                "HOST": "localhost",
-                "PORT": "3306",
-                "OPTIONS": {
-                    "charset": "utf8mb4",
-                    "init_command": "SET character_set_connection=utf8mb4; SET collation_connection=utf8mb4_unicode_ci;"
-                }
-            }
-        }
-        print("✅ 로컬 MySQL 강제 설정 (dj_database_url 없음)")
+        print("✅ Fly.io PostgreSQL SSL 설정 적용됨")
 
 # Fly.io 환경에서 PostgreSQL SSL 설정
 if IS_FLY_DEPLOY and DATABASES["default"].get("ENGINE", "").endswith("postgresql"):

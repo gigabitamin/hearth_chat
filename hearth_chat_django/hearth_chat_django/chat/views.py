@@ -507,21 +507,9 @@ class ChatViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], url_path='my_favorites')
     def my_favorites(self, request):
         """내 즐겨찾기 메시지 목록"""
-        # 세션 디버그 정보 출력
-        print("🔍 my_favorites API 호출 - 세션 정보:")
-        print(f"  - 요청 사용자: {request.user}")
-        print(f"  - 인증 상태: {request.user.is_authenticated}")
-        print(f"  - 세션 키: {request.session.session_key}")
-        print(f"  - 세션 데이터: {dict(request.session)}")
-        print(f"  - 쿠키: {request.COOKIES}")
-        print(f"  - 헤더: {dict(request.headers)}")
-        
         user = request.user
         if not user.is_authenticated:
-            print("❌ 사용자 인증 실패")
             return Response({'error': '로그인이 필요합니다.'}, status=401)
-        
-        print("✅ 사용자 인증 성공")
         
         favorites = MessageFavorite.objects.filter(user=user).select_related('message').order_by('-created_at')
         data = [

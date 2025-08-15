@@ -28,22 +28,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
             
             cursor = connection.cursor()
             
-            # MySQL 환경에서만 utf8mb4 강제 설정
-            if connection.vendor == 'mysql':
-                utf8mb4_commands = [
-                    "SET character_set_client=utf8mb4",
-                    "SET character_set_connection=utf8mb4",
-                    "SET character_set_results=utf8mb4", 
-                    "SET collation_connection=utf8mb4_unicode_ci",
-                    "SET NAMES utf8mb4",
-                    "SET sql_mode='STRICT_TRANS_TABLES'"
-                ]
-                
-                for command in utf8mb4_commands:
-                    cursor.execute(command)
-                print("✅ MySQL utf8mb4 설정 완료")
-            else:
-                print(f"ℹ️ MySQL 환경이 아님 (현재: {connection.vendor})")
+            # utf8mb4 강제 설정
+            utf8mb4_commands = [
+                "SET character_set_client=utf8mb4",
+                "SET character_set_connection=utf8mb4",
+                "SET character_set_results=utf8mb4", 
+                "SET collation_connection=utf8mb4_unicode_ci",
+                "SET NAMES utf8mb4",
+                "SET sql_mode='STRICT_TRANS_TABLES'"
+            ]
+            
+            for command in utf8mb4_commands:
+                cursor.execute(command)
             
             cursor.close()            
             

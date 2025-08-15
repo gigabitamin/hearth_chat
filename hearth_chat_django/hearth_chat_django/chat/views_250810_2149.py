@@ -272,24 +272,16 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        # 인증되지 않은 사용자는 공개방만 볼 수 있음
-        if user.is_authenticated:
-            # 공개방은 모두, 비공개방은 참여자만
-            return ChatRoom.objects.filter(
-                models.Q(is_public=True) | models.Q(chatroomparticipant__user=user)
-            ).distinct()
-        else:
-            # 인증되지 않은 사용자는 공개방만
-            return ChatRoom.objects.filter(is_public=True)
+        # 공개방은 모두, 비공개방은 참여자만
+        return ChatRoom.objects.filter(
+            models.Q(is_public=True) | models.Q(chatroomparticipant__user=user)
+        ).distinct()
     
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         # 공개방은 누구나, 비공개방은 참여자만
-        if not instance.is_public:
-            if not request.user.is_authenticated:
-                return Response({'error': '비공개 방입니다. 로그인이 필요합니다.'}, status=403)
-            elif not instance.participants.filter(id=request.user.id).exists():
-                return Response({'error': '비공개 방입니다.'}, status=403)
+        if not instance.is_public and not instance.participants.filter(id=request.user.id).exists():
+            return Response({'error': '비공개 방입니다.'}, status=403)
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 
@@ -300,7 +292,7 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
     
-    @action(detail=True, methods=['post'], permission_classes=[AllowAny])
+    @action(detail=True, methods=['post'])
     def join(self, request, pk=None):
         """공개방 입장"""
         room = self.get_object()
@@ -322,16 +314,7 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         # 공개/비공개 설정 처리
         is_public = serializer.validated_data.get('is_public', False)
         ai_response_enabled = serializer.validated_data.get('ai_response_enabled', False)
-        room_type = serializer.validated_data.get('room_type', 'user')
-        
-        # 화상채팅 방인 경우 자동으로 설정
-        is_video_call = (room_type == 'video_call')
-        
-        room = serializer.save(
-            is_public=is_public, 
-            ai_response_enabled=ai_response_enabled,
-            is_video_call=is_video_call
-        )
+        room = serializer.save(is_public=is_public, ai_response_enabled=ai_response_enabled)
         
         # 대화방 생성자 자동 참여 (방장으로 설정)
         ChatRoomParticipant.objects.get_or_create(
@@ -352,9 +335,7 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
                         'room_id': room.id,
                         'room_name': room.name,
                         'creator': self.request.user.username,
-                        'is_public': room.is_public,
-                        'room_type': room.room_type,
-                        'is_video_call': room.is_video_call
+                        'is_public': room.is_public
                     }
                 }
             )
@@ -468,9 +449,6 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def my_favorites(self, request):
         user = request.user
-        if not user.is_authenticated:
-            return Response({'error': '로그인이 필요합니다.'}, status=401)
-        
         rooms = ChatRoom.objects.filter(favorite_users=user)
         page = self.paginate_queryset(rooms)
         if page is not None:
@@ -502,27 +480,13 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
 class ChatViewSet(viewsets.ModelViewSet):
     queryset = Chat.objects.all()
     serializer_class = ChatSerializer
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
             
     @action(detail=False, methods=['get'], url_path='my_favorites')
     def my_favorites(self, request):
         """내 즐겨찾기 메시지 목록"""
-        # 세션 디버그 정보 출력
-        print("🔍 my_favorites API 호출 - 세션 정보:")
-        print(f"  - 요청 사용자: {request.user}")
-        print(f"  - 인증 상태: {request.user.is_authenticated}")
-        print(f"  - 세션 키: {request.session.session_key}")
-        print(f"  - 세션 데이터: {dict(request.session)}")
-        print(f"  - 쿠키: {request.COOKIES}")
-        print(f"  - 헤더: {dict(request.headers)}")
-        
         user = request.user
-        if not user.is_authenticated:
-            print("❌ 사용자 인증 실패")
-            return Response({'error': '로그인이 필요합니다.'}, status=401)
-        
-        print("✅ 사용자 인증 성공")
-        
         favorites = MessageFavorite.objects.filter(user=user).select_related('message').order_by('-created_at')
         data = [
             {
@@ -708,8 +672,7 @@ class ChatViewSet(viewsets.ModelViewSet):
                     'imageUrls': image_urls,  # 다중 이미지 URL 배열 추가
                     'reactions': reactions_list,
                     'questioner_username': (msg.question_message.username if msg.sender_type == 'ai' and msg.question_message else None)
-                }
-                
+                }                
                 message_list.append(message_data)
                 
             
@@ -1002,40 +965,7 @@ class UserSettingsView(APIView):
         """사용자 설정 부분 업데이트"""
         try:
             settings, created = UserSettings.objects.get_or_create(user=request.user)
-            
-            # 카메라 관련 설정을 JSON으로 처리
-            data = request.data.copy()
-            camera_related_fields = [
-                'camera_enabled', 'face_tracking_enabled', 'tracking_sensitivity',
-                'tracking_smoothness', 'auto_tracking_enabled', 'tracking_camera_index'
-            ]
-            
-            # 기존 camera_settings 가져오기
-            current_camera_settings = {}
-            if settings.camera_settings:
-                try:
-                    current_camera_settings = json.loads(settings.camera_settings)
-                except (json.JSONDecodeError, TypeError):
-                    current_camera_settings = {}
-            
-            # 카메라 관련 필드들을 JSON으로 통합
-            camera_settings_updated = False
-            for field in camera_related_fields:
-                if field in data:
-                    # 필드명을 JSON 키로 변환
-                    json_key = field
-                    if field == 'camera_enabled':
-                        json_key = 'enabled'
-                    
-                    current_camera_settings[json_key] = data[field]
-                    camera_settings_updated = True
-                    del data[field]  # 원본 데이터에서 제거
-            
-            # camera_settings JSON 업데이트
-            if camera_settings_updated:
-                data['camera_settings'] = json.dumps(current_camera_settings)
-            
-            serializer = UserSettingsSerializer(settings, data=data, partial=True)
+            serializer = UserSettingsSerializer(settings, data=request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()
                 return Response({'settings': serializer.data})

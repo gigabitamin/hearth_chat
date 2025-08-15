@@ -1,0 +1,381 @@
+{% load socialaccount %}
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>소셜 로그인 - Hearth Chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .logo {
+            margin-bottom: 30px;
+        }
+
+        .logo h1 {
+            color: #333;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .logo p {
+            color: #666;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .social-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .social-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .social-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .social-btn:active {
+            transform: translateY(0);
+        }
+
+        .social-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .social-btn:hover::before {
+            left: 100%;
+        }
+
+        .google-btn {
+            background: linear-gradient(135deg, #4285f4 0%, #34a853 50%, #fbbc05 75%, #ea4335 100%);
+        }
+
+        .kakao-btn {
+            background: linear-gradient(135deg, #fee500 0%, #ffd700 100%);
+            color: #333;
+        }
+
+        .naver-btn {
+            background: linear-gradient(135deg, #03c75a 0%, #00c73c 100%);
+        }
+
+        .github-btn {
+            background: linear-gradient(135deg, #333 0%, #24292e 100%);
+        }
+
+        .btn-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 12px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .google-icon {
+            background: white;
+            color: #4285f4;
+        }
+
+        .kakao-icon {
+            background: #fee500;
+            color: #333;
+        }
+
+        .naver-icon {
+            background: white;
+            color: #03c75a;
+        }
+
+        .github-icon {
+            background: white;
+            color: #333;
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 30px 0;
+            color: #999;
+            font-size: 14px;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #e0e0e0;
+        }
+
+        .divider span {
+            padding: 0 15px;
+        }
+
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+            color: #999;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading.show {
+            display: flex;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 30px 20px;
+                margin: 10px;
+            }
+
+            .logo h1 {
+                font-size: 24px;
+            }
+
+            .social-btn {
+                padding: 12px 16px;
+                font-size: 14px;
+            }
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #c62828;
+            display: none;
+        }
+
+        .success-message {
+            background: #e8f5e8;
+            color: #2e7d32;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2e7d32;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+    </div>
+
+    <div class="container">
+        <div class="logo">
+            <h1>🔥 Hearth Chat</h1>
+            <p>소셜 계정으로 간편하게 로그인하세요</p>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+        <div class="success-message" id="successMessage"></div>
+
+        <div class="social-buttons">
+            <button type="button" class="social-btn google-btn" data-provider="google" onclick="openSocialPopup(event)">
+                <div class="btn-icon google-icon">G</div>
+                Google로 계속하기
+            </button>
+
+            <button type="button" class="social-btn kakao-btn" data-provider="kakao" onclick="openSocialPopup(event)">
+                <div class="btn-icon kakao-icon">K</div>
+                카카오로 계속하기
+            </button>
+
+            <button type="button" class="social-btn naver-btn" data-provider="naver" onclick="openSocialPopup(event)">
+                <div class="btn-icon naver-icon">N</div>
+                네이버로 계속하기
+            </button>
+
+            <button type="button" class="social-btn github-btn" data-provider="github" onclick="openSocialPopup(event)">
+                <div class="btn-icon github-icon">G</div>
+                GitHub로 계속하기
+            </button>
+        </div>
+
+        <div class="divider">
+            <span>또는</span>
+        </div>
+
+        <div class="footer">
+            <p>계정이 없으신가요? 소셜 로그인으로 자동으로 계정이 생성됩니다.</p>
+            <p style="margin-top: 10px; font-size: 12px; color: #bbb;">
+                로그인함으로써 <a href="#" style="color: #667eea;">서비스 약관</a>과
+                <a href="#" style="color: #667eea;">개인정보 처리방침</a>에 동의합니다.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        function showLoading() {
+            document.getElementById('loading').classList.add('show');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').classList.remove('show');
+        }
+
+        function showMessage(type, message) {
+            const element = document.getElementById(type + 'Message');
+            element.textContent = message;
+            element.style.display = 'block';
+
+            setTimeout(() => {
+                element.style.display = 'none';
+            }, 5000);
+        }
+
+        // URL 파라미터에서 메시지 확인
+        const urlParams = new URLSearchParams(window.location.search);
+        const error = urlParams.get('error');
+        const success = urlParams.get('success');
+
+        if (error) {
+            showMessage('error', decodeURIComponent(error));
+        }
+
+        if (success) {
+            showMessage('success', decodeURIComponent(success));
+        }
+
+        // 페이지 로드 완료 시 로딩 숨기기
+        window.addEventListener('load', hideLoading);
+
+        // 팝업 창에서 부모 창으로 메시지 전송
+        if (window.opener) {
+            window.opener.postMessage('login_success', '*');
+            setTimeout(() => {
+                window.close();
+            }, 1000);
+        }
+
+        function getProviderLoginUrl(provider) {
+            switch (provider) {
+                case 'google': return "{% provider_login_url 'google' %}";
+                case 'kakao': return "{% provider_login_url 'kakao' %}";
+                case 'naver': return "{% provider_login_url 'naver' %}";
+                case 'github': return "{% provider_login_url 'github' %}";
+                default: return '#';
+            }
+        }
+
+        function openSocialPopup(event) {
+            event.preventDefault();
+            const provider = event.currentTarget.getAttribute('data-provider');
+            const url = getProviderLoginUrl(provider);
+            const popupWidth = 480;
+            const popupHeight = 600;
+            const left = (window.screen.width / 2) - (popupWidth / 2);
+            const top = (window.screen.height / 2) - (popupHeight / 2);
+            window.open(
+                url,
+                'social_login_popup',
+                `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes`
+            );
+            showLoading();
+        }
+    </script>
+    {% if user.is_authenticated %}
+    <script>
+        if (window.opener) {
+            window.opener.postMessage('login_success', '*');
+            setTimeout(() => window.close()0);
+ }
+    </script>
+    {% endif %}
+</body>
+
+</html>

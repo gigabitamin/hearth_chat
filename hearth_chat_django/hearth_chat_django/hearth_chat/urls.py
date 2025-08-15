@@ -13,28 +13,19 @@ from .views import (
     google_login_redirect, google_login_callback, kakao_login_redirect, kakao_login_callback, 
     naver_login_redirect, naver_login_callback, github_login_redirect, github_login_callback,
     google_connect_redirect, google_connect_callback, kakao_connect_redirect, kakao_connect_callback,
-    naver_connect_redirect, naver_connect_callback, github_connect_redirect, github_connect_callback,
-    DebugLoginView
+    naver_connect_redirect, naver_connect_callback, github_connect_redirect, github_connect_callback
 )
 
 urlpatterns = [
     # --- 1. 특정 파일 및 API 경로 정의 ---    
     path("admin/", admin.site.urls),
+    path('accounts/', include('allauth.urls')),
     path('api/chat/', include('chat.urls')),
     path('api/admin/', include('chat.admin_urls')),
     path('health/', lambda r: HttpResponse(b"OK", content_type="text/plain"), name="health_check"),
     path("api/social-connections/", social_connections_api, name="social_connections_api"),
     path("social-redirect/", social_login_redirect_view, name='social_login_redirect'),
     path("api/csrf/", get_csrf_token, name="get_csrf_token"),
-    
-    # 디버그 로그인 뷰 추가
-    path('debug-login/', DebugLoginView.as_view(), name='debug_login'),
-    
-    # allauth 기본 로그인 뷰를 커스텀 뷰로 완전 대체
-    path('accounts/login/', DebugLoginView.as_view(), name='account_login'),
-    
-    # allauth URL을 마지막에 배치 (커스텀 로그인 뷰가 우선)
-    path('accounts/', include('allauth.urls')),
     
     # OAuth 관련 경로들
     path("oauth/google/", google_login_redirect, name="google_oauth_direct"),
