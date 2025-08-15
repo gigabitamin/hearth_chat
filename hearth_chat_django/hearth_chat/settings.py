@@ -181,12 +181,14 @@ SESSION_SAVE_EVERY_REQUEST = True # 세션 문제 해결을 위해 추가해볼 
 # DATABASE 설정
 # ==============================================================================
 if IS_FLY_DEPLOY:
-    # Fly.io 환경에서는 attach로 생성된 DATABASE_URL을 사용합니다.
-    # dj_database_url.config()는 이 URL을 Django 설정으로 변환해줍니다.
-    # DATABASE_URL이 없으면 앱 시작 자체가 실패하여 문제를 즉시 알 수 있습니다.
+    # Fly.io 환경에서는 attach로 생성된 DATABASE_URL을 사용
     print("✅ Fly.io 환경 - DATABASE_URL Secret을 사용하여 DB 설정 시도")
-    DATABASES = {'default': dj_database_url.config(conn_max_age=600)}
-    print("✅ Fly.io DB 설정 완료")
+    
+    # [수정] dj_database_url.config에 ssl_require=False 옵션을 추가
+    # 이것이 SSL SYSCALL 오류를 해결하는 핵심
+    DATABASES = {'default': dj_database_url.config(conn_max_age=600, ssl_require=False)}
+    
+    print("✅ Fly.io DB 설정 완료 (SSL 비활성화)")
 
 elif dj_database_url and dj_database_url.config():
     # 로컬/개발 환경에서 .env 파일에 DATABASE_URL이 있는 경우
@@ -195,7 +197,6 @@ elif dj_database_url and dj_database_url.config():
 
 else:
     # 위 두가지 경우가 모두 실패했을 때의 최후 비상 수단 (로컬 개발용)
-    # 로컬에 .env 파일이 없으면 이 설정이 사용됩니다.
     print("⚠️ DATABASE_URL 없음. 로컬 기본 SQLite로 설정합니다.")
     DATABASES = {
         'default': {
@@ -203,6 +204,7 @@ else:
             'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
+    
 # Gemini API 키
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
