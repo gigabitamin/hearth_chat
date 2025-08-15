@@ -15,7 +15,7 @@ export const getApiBase = () => {
         }
         // 기타 프로덕션 환경에서는 기본 Render URL 사용
         // return 'https://hearthchat-production.up.railway.app';
-        return 'https://hearth-chat-latest.onrender.com';
+        return 'https://hearth-chat.fly.dev';
     }
 
     // 로컬 개발 환경

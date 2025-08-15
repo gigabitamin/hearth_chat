@@ -1,1 +1,0 @@
-# Django management commands를 위한 패키지 

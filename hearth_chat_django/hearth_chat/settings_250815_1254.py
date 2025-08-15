@@ -5,6 +5,12 @@ from dotenv import load_dotenv
 import sys
 from django.core.exceptions import ObjectDoesNotExist
 
+try:
+    import dj_database_url
+except ImportError:
+    print("Warning: dj_database_url not found. Using default database configuration.")
+    dj_database_url = None
+
 # 환경변수 로드 (Fly.io 환경에서는 제한)
 if os.getenv('IS_FLY_DEPLOY', 'false').lower() == 'true':
     # Fly.io 환경에서는 .env 파일 로드하지 않음 (환경변수 충돌 방지)
@@ -270,13 +276,33 @@ if IS_FLY_DEPLOY:
     
     print("✅ Fly.io PostgreSQL 연결 설정 적용됨")
 else:
-    # Fly.io가 아닌 환경에서는 기본 SQLite 설정 사용
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
+    # Fly.io가 아닌 환경에서는 dj_database_url 또는 MySQL 강제 사용
+    if dj_database_url:
+        # dj_database_url이 있으면 사용
+        DATABASES = {
+            "default": dj_database_url.config(
+                conn_max_age=600, 
+                ssl_require=False
+            )
         }
-    }
+        print("✅ dj_database_url을 사용한 데이터베이스 설정")
+    else:
+        # dj_database_url이 없으면 로컬 MySQL 강제 사용
+        DATABASES = {
+            "default": {
+                "ENGINE": "django.db.backends.mysql",
+                "NAME": "hearth_chat",
+                "USER": "root",
+                "PASSWORD": "1234",
+                "HOST": "localhost",
+                "PORT": "3306",
+                "OPTIONS": {
+                    "charset": "utf8mb4",
+                    "init_command": "SET character_set_connection=utf8mb4; SET collation_connection=utf8mb4_unicode_ci;"
+                }
+            }
+        }
+        print("✅ 로컬 MySQL 강제 설정 (dj_database_url 없음)")
 
 # Fly.io 환경에서 PostgreSQL SSL 설정
 if IS_FLY_DEPLOY and DATABASES["default"].get("ENGINE", "").endswith("postgresql"):
