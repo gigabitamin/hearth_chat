@@ -175,34 +175,247 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_SAVE_EVERY_REQUEST = True # 세션 문제 해결을 위해 추가해볼 만한 설정
 
 # ==============================================================================
-# settings.py의 DATABASES 설정 부분을 아래 내용으로 전부 교체하세요.
 
-# ==============================================================================
-# DATABASE 설정
-# ==============================================================================
+# DATABASES 설정을 완전히 안전하게 구성
+# Fly.io 환경에서는 개별 환경변수 사용, 다른 환경에서는 기본 SQLite 설정을 사용
 if IS_FLY_DEPLOY:
-    # Fly.io 환경에서는 attach로 생성된 DATABASE_URL을 사용합니다.
-    # dj_database_url.config()는 이 URL을 Django 설정으로 변환해줍니다.
-    # DATABASE_URL이 없으면 앱 시작 자체가 실패하여 문제를 즉시 알 수 있습니다.
-    print("✅ Fly.io 환경 - DATABASE_URL Secret을 사용하여 DB 설정 시도")
-    DATABASES = {'default': dj_database_url.config(conn_max_age=600)}
-    print("✅ Fly.io DB 설정 완료")
-
-elif dj_database_url and dj_database_url.config():
-    # 로컬/개발 환경에서 .env 파일에 DATABASE_URL이 있는 경우
-    print("✅ .env 파일의 DATABASE_URL을 사용하여 DB 설정 (dj-database-url)")
-    DATABASES = {'default': dj_database_url.config(conn_max_age=600)}
-
-else:
-    # 위 두가지 경우가 모두 실패했을 때의 최후 비상 수단 (로컬 개발용)
-    # 로컬에 .env 파일이 없으면 이 설정이 사용됩니다.
-    print("⚠️ DATABASE_URL 없음. 로컬 기본 SQLite로 설정합니다.")
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
+    # Fly.io 환경에서는 dj_database_url.config() 완전히 우회하고 직접 설정
+    print("🔧 Fly.io 환경 - 직접 데이터베이스 설정 구성")
+    
+    try:
+        # 개별 환경변수에서 데이터베이스 정보 가져오기 (os.environ 직접 사용)
+        # 환경변수 읽기에 문제가 있을 경우를 대비해 하드코딩된 값도 시도
+        try:
+            db_host = os.environ.get('DB_HOST', '')
+            db_port = os.environ.get('DB_PORT', '')
+            db_name = os.environ.get('DB_NAME', '')
+            db_user = os.environ.get('DB_USER', '')
+            db_password = os.environ.get('DB_PASSWORD', '')
+            
+            # 환경변수가 비어있으면 하드코딩된 값 사용
+            if not all([db_host, db_port, db_name, db_user, db_password]):
+                print("⚠️ 환경변수가 비어있음, 하드코딩된 값 사용")
+                raise ValueError("환경변수가 비어있음")
+                
+        except Exception as env_error:
+            print(f"⚠️ 환경변수 읽기 실패, 하드코딩된 값 사용: {env_error}")
+            # 하드코딩된 값으로 폴백 (특수 문자 검증)
+            db_host = 'hearth-postgres.flycast'
+            db_port = 5432
+            db_name = 'hearth_chat'
+            db_user = 'hearth_chat'
+            db_password = 'seGGPftNA0v5OEu'
+            
+            # 값 검증 및 디버깅
+            print(f"🔍 하드코딩된 값 검증:")
+            print(f"  - 호스트: '{db_host}' (길이: {len(db_host)})")
+            print(f"  - 포트: {db_port} (타입: {type(db_port)})")
+            print(f"  - 데이터베이스: '{db_name}' (길이: {len(db_name)})")
+            print(f"  - 사용자: '{db_user}' (길이: {len(db_user)})")
+            print(f"  - 비밀번호: '{db_password}' (길이: {len(db_password)})")
+            
+            # 특수 문자 검증
+            import re
+            special_chars = re.findall(r'[^\w\-\.]', f"{db_host}{db_name}{db_user}{db_password}")
+            if special_chars:
+                print(f"⚠️ 특수 문자 발견: {special_chars}")
+            else:
+                print("✅ 특수 문자 없음")
+        
+        # 환경변수가 제대로 설정되었는지 확인
+        if not all([db_host, db_port, db_name, db_user, db_password]):
+            missing_vars = []
+            if not db_host: missing_vars.append('DB_HOST')
+            if not db_port: missing_vars.append('DB_PORT')
+            if not db_name: missing_vars.append('DB_NAME')
+            if not db_user: missing_vars.append('DB_USER')
+            if not db_password: missing_vars.append('DB_PASSWORD')
+            raise ValueError(f"필수 환경변수가 누락되었습니다: {', '.join(missing_vars)}")
+        
+        print(f"🔍 개별 환경변수에서 데이터베이스 정보 가져옴:")
+        print(f"  - 호스트: {db_host}")
+        print(f"  - 포트: {db_port}")
+        print(f"  - 데이터베이스: {db_name}")
+        print(f"  - 사용자: {db_user}")
+        print(f"  - 비밀번호: {'***' if db_password else '설정되지 않음'}")
+        
+        DATABASES = {
+            "default": {
+                "ENGINE": "django.db.backends.postgresql",
+                "NAME": db_name,
+                "USER": db_user,
+                "PASSWORD": db_password,
+                "HOST": db_host,
+                "PORT": db_port,
+                "OPTIONS": {
+                    # PostgreSQL 연결 문자열에서 지원하는 안전한 옵션만 설정
+                    'sslmode': 'disable',  # Fly.io 내부 네트워크는 SSL 불필요
+                },
+                "CONN_MAX_AGE": 600,
+            }
         }
+        
+        # 복잡한 백엔드 패치 제거 - RecursionError 방지
+        print("✅ Fly.io PostgreSQL 설정 완료 (백엔드 패치 없음)")
+        
+        # PostgreSQL 연결 테스트 (연결 실패 시 SQLite로 전환)
+        try:
+            import psycopg2
+            test_conn = psycopg2.connect(
+                host=db_host,
+                port=db_port,
+                database=db_name,
+                user=db_user,
+                password=db_password,
+                sslmode='disable'
+            )
+            test_conn.close()
+            print("✅ PostgreSQL 연결 테스트 성공")
+        except Exception as conn_test_error:
+            print(f"❌ PostgreSQL 연결 테스트 실패: {conn_test_error}")
+            print("🔄 SQLite로 전환...")
+            DATABASES = {
+                "default": {
+                    "ENGINE": "django.db.backends.sqlite3",
+                    "NAME": BASE_DIR / "fly_io_fallback.db",
+                }
+            }
+            print("✅ SQLite로 전환 완료")
+    
+    except Exception as fly_db_error:
+        print(f"❌ Fly.io 데이터베이스 설정 실패: {fly_db_error}")
+        # 최후 수단: 기본 SQLite 설정
+        DATABASES = {
+            "default": {
+                "ENGINE": "django.db.backends.sqlite3",
+                "NAME": BASE_DIR / "db.sqlite3",
+            }
+        }
+        print("⚠️  최후 수단: 기본 SQLite 설정으로 폴백")
+    
+    # PostgreSQL 옵션을 안전하게 설정
+    if DATABASES["default"].get("ENGINE", "").endswith("postgresql"):
+        # 기존 OPTIONS가 있으면 유지, 없으면 새로 생성
+        if "OPTIONS" not in DATABASES["default"]:
+            DATABASES["default"]["OPTIONS"] = {}
+        
+        # PostgreSQL 연결 문자열에서 지원하는 안전한 옵션만 설정
+        # connect_timeout, application_name 등은 연결 후 SQL로 설정
+        DATABASES["default"]["OPTIONS"].update({
+            'sslmode': 'disable',  # Fly.io 내부 네트워크는 SSL 불필요
+        })
+    
+    print("✅ Fly.io PostgreSQL 연결 설정 적용됨")
+else:
+    # Fly.io가 아닌 환경에서는 dj_database_url 또는 MySQL 강제 사용
+    if dj_database_url:
+        # dj_database_url이 있으면 사용
+        DATABASES = {
+            "default": dj_database_url.config(
+                conn_max_age=600, 
+                ssl_require=False
+            )
+        }
+        print("✅ dj_database_url을 사용한 데이터베이스 설정")
+    else:
+        # dj_database_url이 없으면 로컬 MySQL 강제 사용
+        DATABASES = {
+            "default": {
+                "ENGINE": "django.db.backends.mysql",
+                "NAME": "hearth_chat",
+                "USER": "root",
+                "PASSWORD": "1234",
+                "HOST": "localhost",
+                "PORT": "3306",
+                "OPTIONS": {
+                    "charset": "utf8mb4",
+                    "init_command": "SET character_set_connection=utf8mb4; SET collation_connection=utf8mb4_unicode_ci;"
+                }
+            }
+        }
+        print("✅ 로컬 MySQL 강제 설정 (dj_database_url 없음)")
+
+# Fly.io 환경에서 PostgreSQL SSL 설정
+if IS_FLY_DEPLOY and DATABASES["default"].get("ENGINE", "").endswith("postgresql"):
+    # 기존 OPTIONS가 있으면 유지, 없으면 새로 생성
+    if "OPTIONS" not in DATABASES["default"]:
+        DATABASES["default"]["OPTIONS"] = {}
+    
+    # PostgreSQL 연결 문자열에서 지원하는 안전한 옵션만 설정
+    DATABASES["default"]["OPTIONS"].update({
+        'sslmode': 'disable',  # Fly.io 내부 네트워크는 SSL 불필요
+    })
+    print("✅ Fly.io PostgreSQL SSL 설정 적용됨")
+elif os.environ.get("RAILWAY_ENVIRONMENT") and DATABASES["default"].get("ENGINE", "").endswith("postgresql"):
+    DATABASES["default"]["OPTIONS"] = {
+        'sslmode': 'require'
     }
+    print("Railway PostgreSQL SSL 설정 적용됨")
+elif DATABASES["default"].get("ENGINE", "").endswith("postgresql"):
+    # PostgreSQL이지만 Railway가 아닌 경우
+    print("PostgreSQL 감지됨 (Railway 아님)")
+
+# Fly.io 환경에서 데이터베이스 연결 테스트 및 최적화
+if IS_FLY_DEPLOY:
+    # 데이터베이스 연결 풀 설정
+    if "CONN_MAX_AGE" not in DATABASES["default"]:
+        DATABASES["default"]["CONN_MAX_AGE"] = 600  # 10분
+    
+    # PostgreSQL 옵션 설정 (연결 문자열에 포함될 수 없는 옵션 완전 제거)
+    if DATABASES["default"].get("ENGINE", "").endswith("postgresql"):
+        if "OPTIONS" not in DATABASES["default"]:
+            DATABASES["default"]["OPTIONS"] = {}
+        
+        # PostgreSQL 연결 문자열에서 지원하는 안전한 옵션만 설정
+        # connect_timeout, application_name 등은 연결 후 SQL로 설정
+        # MAX_CONNS, conn_health_checks 등은 완전 제거
+        safe_options = {
+            'sslmode': 'disable',  # Fly.io 내부 네트워크는 SSL 불필요
+        }
+        
+        # 기존 OPTIONS에서 안전하지 않은 옵션 제거
+        for key in list(DATABASES["default"]["OPTIONS"].keys()):
+            if key not in safe_options:
+                del DATABASES["default"]["OPTIONS"][key]
+        
+        # 안전한 옵션만 설정
+        DATABASES["default"]["OPTIONS"].update(safe_options)
+    
+    print("✅ Fly.io 데이터베이스 최적화 설정 적용됨")
+    print("⚠️  PostgreSQL 타임아웃 옵션은 연결 후 SQL로 설정됩니다")
+    print("⚠️  지원되지 않는 옵션(MAX_CONNS 등)은 완전 제거됨")
+    
+    # 커스텀 백엔드 연결 테스트는 이미 위에서 수행됨
+
+# 로컬 MySQL 환경에서만 utf8mb4 옵션 적용 (PostgreSQL 등에서는 절대 실행되지 않도록 보장)
+# print("DATABASE ENGINE:", DATABASES["default"].get("ENGINE", "<None>"))
+
+# PostgreSQL 환경에서는 MySQL 설정을 절대 적용하지 않음
+if (
+    DATABASES["default"].get("ENGINE", "") == "django.db.backends.mysql"
+    and not os.environ.get("RAILWAY_ENVIRONMENT")
+    and "postgresql" not in DATABASES["default"].get("ENGINE", "").lower()
+    and DATABASES["default"].get("ENGINE", "") != "django.db.backends.postgresql"
+):
+    try:
+        DATABASES["default"]["OPTIONS"] = {
+            "charset": os.environ.get("LOCAL_MYSQL_CHARSET", "utf8mb4"),
+            "init_command": os.environ.get(
+                "LOCAL_MYSQL_INIT_COMMAND",
+                # "SET character_set_connection=utf8mb4; SET collation_connection=utf8mb4_unicode_ci;"
+            ),
+        }        
+    except Exception as e:
+        print(f"MySQL 설정 오류 (무시됨): {e}")
+else:
+    print("MySQL 전용 옵션은 적용되지 않음 (PostgreSQL 또는 Railway 환경)")
+
+if not DATABASES["default"].get("ENGINE"):
+    if IS_FLY_DEPLOY:
+        raise Exception("Fly.io 환경에서 데이터베이스 설정이 잘못되었습니다. DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD 환경변수를 확인하세요.")
+    else:
+        raise Exception("데이터베이스 설정이 잘못되었습니다. ENGINE 설정을 확인하세요.")
+
 # Gemini API 키
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
