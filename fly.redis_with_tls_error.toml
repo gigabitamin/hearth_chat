@@ -31,7 +31,7 @@ primary_region = 'nrt'
   REDIS_TCP_KEEPALIVE = '300'
 
 [processes]
-  redis = "redis-server --requirepass ${REDIS_PASSWORD} --port ${REDIS_PORT} --appendonly yes --save 900 1 --save 300 10 --save 60 10000"
+  redis = "redis-server --port 6379 --appendonly yes --save 900 1 --save 300 10 --save 60 10000"
 
 [[services]]
   protocol = 'tcp'
