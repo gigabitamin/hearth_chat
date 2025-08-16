@@ -61,4 +61,3 @@ primary_region = 'nrt'
 
 [machines]
   app = { size = "shared-cpu-2x" }
-  release = { size = "shared-cpu-2x" }
