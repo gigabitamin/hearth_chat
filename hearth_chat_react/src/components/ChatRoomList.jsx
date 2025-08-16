@@ -74,12 +74,6 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
     const retryCountRef = useRef(0);
 
     const connectWebSocket = () => {
-        // 로그인되지 않은 사용자는 웹소켓 연결하지 않음
-        if (!loginUser || !loginUser.username) {
-            console.log('[ChatRoomList] 로그인되지 않은 사용자라 웹소켓 연결을 건너뜁니다.');
-            return;
-        }
-
         try {
             // 환경에 따라 WebSocket URL 설정
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
