@@ -4,6 +4,12 @@
 
 ==========================================
 
+# 250816
+- fly io migrations 완료
+- 메인 앱과 redis 서버는 nrt(도쿄), postgres db 서버는 syd(시드니(호주))
+- fly io 의 postgres 서비스 지역이 정해져 있는 관계로 그나마 가장 가까운 시드니 선택
+- 웹소켓 반응 속도를 고려해 메인앱과 redis 서버는 같은 nrt 에 위치
+
 # 250815 v0.99.2
 - fly io migrations, redis 서버 분리, 4개 서버 각각 환경별 테스트
 - redis tls off test -> success
