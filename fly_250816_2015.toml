@@ -60,5 +60,5 @@ primary_region = 'nrt'
     grace_period = '1s'
 
 [machines]
-  app = { size = "shared-cpu-2x" }
-  release = { size = "shared-cpu-2x" }
+  app = { size = "shared-cpu-1x" }
+  release = { size = "shared-cpu-1x" }
