@@ -1047,7 +1047,7 @@ const ChatBox = ({
             questioner_username: data.questioner_username,
             emotion: null,
             imageUrl: null,
-            imageUrls: data.imageUrls || [],
+            imageUrls: Array.isArray(data.imageUrls) ? data.imageUrls : [],
             pending: false,
           };
 

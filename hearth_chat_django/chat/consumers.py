@@ -273,7 +273,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'questioner_username': (
                     ai_message_obj.question_message.username if ai_message_obj and ai_message_obj.question_message else None
                 ),
-                'imageUrls': image_urls_json
+                'imageUrls': image_urls if image_urls else []
             }
             
             print(f"📤 AI 응답 데이터 그룹 전송 시도: {response_data}")
@@ -291,7 +291,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         'questioner_username': (
                             ai_message_obj.question_message.username if ai_message_obj and ai_message_obj.question_message else None
                         ),
-                        'imageUrls': image_urls_json
+                        'imageUrls': image_urls if image_urls else []
                     }
                 )
                 print(f"✅ AI 메시지 그룹 전송 완료")
@@ -306,7 +306,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'questioner_username': (
                         ai_message_obj.question_message.username if ai_message_obj and ai_message_obj.question_message else None
                     ),
-                    'imageUrls': image_urls_json
+                    'imageUrls': image_urls if image_urls else []
                 }
                 await self.send(text_data=json.dumps(backup_response))
                 print(f"✅ AI 메시지 직접 전송 완료 (백업)")
