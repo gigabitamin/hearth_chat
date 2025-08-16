@@ -2844,16 +2844,59 @@ const ChatBox = ({
                       }
                     }}
                     onLoadMore={(isPrepending) => {
+                      console.log('[DEBUG] onLoadMore 호출됨:', {
+                        isPrepending,
+                        loadingMessages,
+                        hasMore,
+                        selectedRoomId: selectedRoom?.id,
+                        firstItemIndex,
+                        messagesLength: messages.length
+                      });
+
                       if (!loadingMessages && hasMore && selectedRoom && selectedRoom.id) {
                         if (isPrepending) {
                           // 위로 스크롤: 현재 첫 번째 메시지 기준으로 이전 20개 fetch
                           const newOffset = Math.max(0, firstItemIndex - 20);
-                          fetchMessages(selectedRoom.id, newOffset, 20, true, false);
+                          console.log('[DEBUG] 위로 스크롤 - 이전 20개 fetch:', { newOffset, roomId: selectedRoom.id });
+                          fetchMessages(
+                            selectedRoom.id,
+                            newOffset,
+                            20,
+                            true,
+                            false,
+                            null,
+                            setLoadingMessages,
+                            setTotalCount,
+                            messages,
+                            setMessages,
+                            setFirstItemIndex,
+                            setMessageOffset
+                          );
                         } else {
                           // 아래로 스크롤: 현재 마지막 메시지 기준으로 다음 20개 fetch
                           const newOffset = firstItemIndex + messages.length;
-                          fetchMessages(selectedRoom.id, newOffset, 20, false, false);
+                          console.log('[DEBUG] 아래로 스크롤 - 다음 20개 fetch:', { newOffset, roomId: selectedRoom.id });
+                          fetchMessages(
+                            selectedRoom.id,
+                            newOffset,
+                            20,
+                            false,
+                            false,
+                            null,
+                            setLoadingMessages,
+                            setTotalCount,
+                            messages,
+                            setMessages,
+                            setFirstItemIndex,
+                            setMessageOffset
+                          );
                         }
+                      } else {
+                        console.log('[DEBUG] onLoadMore 조건 불만족:', {
+                          loadingMessages,
+                          hasMore,
+                          selectedRoomExists: !!selectedRoom
+                        });
                       }
                     }}
                     hasMore={hasMore}
