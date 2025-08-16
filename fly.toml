@@ -8,6 +8,9 @@ primary_region = 'nrt'
 
 [experimental]
   enable_consul = true
+  cmd = ["daphne", "-b", "0.0.0.0", "-p", "8080", "hearth_chat.asgi:application"]
+  entrypoint = ["/entrypoint.sh"]
+  exec = ["python", "manage.py", "migrate", "--noinput"]  
 
 [build]
   image = 'gigabitamin/hearth-chat:latest'

@@ -33,7 +33,11 @@ export const useWebSocket = (selectedRoom, loginUser) => {
     }, [webSocket]);
 
     useEffect(() => {
-        if (!selectedRoom || !loginUser) return;
+        // 로그인되지 않은 사용자는 웹소켓 연결하지 않음
+        if (!selectedRoom || !loginUser || !loginUser.username) {
+            console.log('[ChatBoxCore] 로그인되지 않은 사용자 또는 선택된 방이 없어 웹소켓 연결을 건너뜁니다.');
+            return;
+        }
 
         const ws = new WebSocket(`ws://${window.location.host}/ws/chat/${selectedRoom.id}/`);
 

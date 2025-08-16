@@ -5,6 +5,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from dotenv import load_dotenv
 from asgiref.sync import sync_to_async
 from openai import OpenAI
+from datetime import datetime
 
 load_dotenv()
 

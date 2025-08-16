@@ -163,9 +163,31 @@ const ChatBox = ({
     }
   }, [selectedRoom]);
 
-  // selectedRoom이 바뀔 때마다 메시지 초기화
+  // selectedRoom이 바뀔 때마다 메시지 초기화 및 초기 로드
   useEffect(() => {
     setMessages([]);
+    setFirstItemIndex(0);
+    setMessageOffset(0);
+    setTotalCount(0);
+    
+    // 방이 선택되었을 때 초기 메시지 로드
+    if (selectedRoom?.id) {
+      console.log('[ChatBox] 방 변경됨, 초기 메시지 로드 시작:', selectedRoom.id);
+      fetchMessages(
+        selectedRoom.id,
+        0,
+        20,
+        false,
+        true,
+        null,
+        setLoadingMessages,
+        setTotalCount,
+        [],
+        setMessages,
+        setFirstItemIndex,
+        setMessageOffset
+      );
+    }
   }, [selectedRoom?.id]);
 
   // selectedRoom 변경 시 WebSocket 연결 상태 리셋
@@ -194,7 +216,11 @@ const ChatBox = ({
 
   // WebSocket 연결/해제 및 join/leave 관리
   useEffect(() => {
-    if (!selectedRoom || !selectedRoom.id) return;
+    // 로그인되지 않은 사용자는 웹소켓 연결하지 않음
+    if (!selectedRoom || !selectedRoom.id || !loginUser || !loginUser.username) {
+      console.log('[WebSocket] 로그인되지 않은 사용자 또는 선택된 방이 없어 웹소켓 연결을 건너뜁니다.');
+      return;
+    }
 
     // 기존 연결 해제
     if (ws.current) {
@@ -259,29 +285,12 @@ const ChatBox = ({
                 console.log('[ChatBox] setInterval pending 메시지 생성:', pendingMessage);
                 console.log('[ChatBox] setInterval 현재 messages 상태:', messages);
 
-                // 테스트: 간단한 메시지 먼저 추가해보기
+                // pending 메시지를 올바른 순서로 추가
                 setMessages(prev => {
-                  const testMessage = {
-                    id: `test_${Date.now()}`,
-                    type: 'send',
-                    text: '테스트 메시지',
-                    date: new Date().toISOString(),
-                    sender: '테스트',
-                    pending: false,
-                  };
-                  const newMessages = [...prev, testMessage];
-                  console.log('[ChatBox] 테스트 메시지 추가 후 messages:', newMessages);
+                  const newMessages = [...prev, pendingMessage];
+                  console.log('[ChatBox] setInterval pending 메시지 추가 후 messages:', newMessages);
                   return newMessages;
                 });
-
-                // 실제 pending 메시지 추가
-                setTimeout(() => {
-                  setMessages(prev => {
-                    const newMessages = [...prev, pendingMessage];
-                    console.log('[ChatBox] setInterval pending 메시지 추가 후 messages:', newMessages);
-                    return newMessages;
-                  });
-                }, 100);
 
                 console.log('[ChatBox] setInterval 자동 메시지 pending 상태로 추가됨:', pendingMessage);
 
@@ -310,7 +319,7 @@ const ChatBox = ({
     }, 500); // 500ms 간격으로 안전하게 처리
 
     ws.current.onopen = () => {
-      console.log('[WebSocket] 연결 성공');
+      console.log('[WebSocket] 연결 성공 - 사용자:', loginUser?.username, '방:', selectedRoom?.name);
 
       // WebSocket을 전역으로 노출 (화상채팅에서 사용)
       window.chatWebSocket = ws.current;
@@ -387,7 +396,12 @@ const ChatBox = ({
     ws.current.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
-        console.log('[WebSocket] 메시지 수신:', data);
+        console.log('[WebSocket] 메시지 수신됨:', {
+          raw: e.data,
+          parsed: data,
+          type: data.type,
+          timestamp: new Date().toISOString()
+        });
 
         if (data.type === 'user_message' && data.message) {
           const isMyMessage = (data.sender === loginUserRef.current?.username) || (data.user_id === loginUserRef.current?.id);
@@ -452,6 +466,14 @@ const ChatBox = ({
           });
 
         } else if (data.type === 'ai_message' && data.message) {
+          console.log('[WebSocket] AI 메시지 수신됨:', {
+            type: data.type,
+            message: data.message,
+            ai_name: data.ai_name,
+            timestamp: data.timestamp,
+            questioner_username: data.questioner_username
+          });
+
           const newMessage = {
             id: data.id || `ai_${data.timestamp}`,
             type: 'ai',
@@ -476,8 +498,17 @@ const ChatBox = ({
             const next = [...prev, newMessage];
             console.log('[WebSocket] AI 메시지 추가됨:', {
               newMessage,
-              totalCount: next.length
+              totalCount: next.length,
+              messageOrder: '마지막에 추가됨',
+              timestamp: data.timestamp,
+              messageIndex: next.length - 1
             });
+            
+            // totalCount 업데이트 (AI 메시지가 추가되었으므로)
+            if (next.length > totalCount) {
+              setTotalCount(next.length);
+            }
+            
             return next;
           });
 
@@ -500,12 +531,55 @@ const ChatBox = ({
 
         } else if (data.type === 'join_room_success') {
           console.log('[WebSocket] 방 입장 성공:', data);
+          console.log('[WebSocket] 방 입장 완료 - 방 ID:', data.roomId, '메시지:', data.message);
 
         } else if (data.type === 'leave_room_success') {
           console.log('[WebSocket] 방 나가기 성공:', data);
 
         } else {
           console.log('[WebSocket] 알 수 없는 메시지 타입:', data.type, data);
+
+                    // 디버깅: AI 응답이 오지 않는 경우 테스트용 응답 생성
+          if (data.type === 'test_ai_response') {
+            console.log('[WebSocket] 테스트 AI 응답 수신:', data);
+            const testMessage = {
+              id: `test_ai_${Date.now()}`,
+              type: 'ai',
+              text: data.message || '테스트 AI 응답입니다.',
+              date: new Date().toISOString(),
+              sender: '테스트 AI',
+              ai_name: '테스트 AI',
+              questioner_username: loginUser?.username,
+              pending: false,
+              imageUrl: null,
+              imageUrls: [],
+            };
+            
+            setMessages(prev => [...prev, testMessage]);
+            setCurrentAiMessage(testMessage.text);
+            setIsAiTalking(true);
+          }
+          
+          // 디버깅: AI 응답이 오지 않는 경우 수동 테스트 버튼 추가
+          if (data.type === 'debug_ai_test') {
+            console.log('[WebSocket] AI 응답 디버그 테스트 수신:', data);
+            const debugMessage = {
+              id: `debug_ai_${Date.now()}`,
+              type: 'ai',
+              text: '디버그 테스트 AI 응답입니다. 웹소켓 연결이 정상적으로 작동하고 있습니다.',
+              date: new Date().toISOString(),
+              sender: '디버그 AI',
+              ai_name: '디버그 AI',
+              questioner_username: loginUser?.username,
+              pending: false,
+              imageUrl: null,
+              imageUrls: [],
+            };
+            
+            setMessages(prev => [...prev, debugMessage]);
+            setCurrentAiMessage(debugMessage.text);
+            setIsAiTalking(true);
+          }
         }
 
       } catch (error) {
@@ -2712,25 +2786,64 @@ const ChatBox = ({
                     favoriteMessages={favoriteMessages}
                     onToggleFavorite={handleToggleFavorite}
                     scrollToMessageId={scrollToMessageId}
-                    onMessageDelete={() => {
-                      if (selectedRoom && selectedRoom.id) {
-                        fetchMessages(selectedRoom.id, 0, 20, false, false);
-                      }
-                    }}
-                    onLoadMore={(isPrepending) => {
-                      if (!loadingMessages && hasMore && selectedRoom && selectedRoom.id) {
-                        if (isPrepending) {
-                          // 위로 스크롤: 현재 첫 번째 메시지 기준으로 이전 20개 fetch
-                          const newOffset = Math.max(0, firstItemIndex - 20);
-                          fetchMessages(selectedRoom.id, newOffset, 20, true, false);
-                        } else {
-                          // 아래로 스크롤: 현재 마지막 메시지 기준으로 다음 20개 fetch
-                          const newOffset = firstItemIndex + messages.length;
-                          fetchMessages(selectedRoom.id, newOffset, 20, false, false);
+                                          onMessageDelete={() => {
+                        if (selectedRoom && selectedRoom.id) {
+                          fetchMessages(
+                            selectedRoom.id, 
+                            0, 
+                            20, 
+                            false, 
+                            false,
+                            null,
+                            setLoadingMessages,
+                            setTotalCount,
+                            messages,
+                            setMessages,
+                            setFirstItemIndex,
+                            setMessageOffset
+                          );
                         }
-                      }
+                      }}
+                    onLoadMore={(isPrepending) => {
+                                              if (!loadingMessages && hasMore && selectedRoom && selectedRoom.id) {
+                          if (isPrepending) {
+                            // 위로 스크롤: 현재 첫 번째 메시지 기준으로 이전 20개 fetch
+                            const newOffset = Math.max(0, firstItemIndex - 20);
+                            fetchMessages(
+                              selectedRoom.id, 
+                              newOffset, 
+                              20, 
+                              true, 
+                              false,
+                              null,
+                              setLoadingMessages,
+                              setTotalCount,
+                              messages,
+                              setMessages,
+                              setFirstItemIndex,
+                              setMessageOffset
+                            );
+                          } else {
+                            // 아래로 스크롤: 현재 마지막 메시지 기준으로 다음 20개 fetch
+                            const newOffset = firstItemIndex + messages.length;
+                            fetchMessages(
+                              selectedRoom.id, 
+                              newOffset, 
+                              20, 
+                              false, 
+                              false,
+                              null,
+                              setLoadingMessages,
+                              setTotalCount,
+                              messages,
+                              setMessages,
+                              setFirstItemIndex,
+                              setMessageOffset
+                            );
+                          }
+                        }
                     }}
-                    hasMore={hasMore}
+                                          hasMore={firstItemIndex > 0 || totalCount > messages.length}
                     selectedRoomId={selectedRoom?.id}
                     loadingMessages={loadingMessages}
                     firstItemIndex={firstItemIndex}

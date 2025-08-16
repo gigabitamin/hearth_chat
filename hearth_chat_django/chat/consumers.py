@@ -1,3 +1,4 @@
+from datetime import datetime
 import json
 import os
 import uuid
@@ -64,6 +65,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             # 인증된 사용자일 경우에만 연결을 수락
             await self.accept()
             print(f"✅ 인증된 사용자 '{user.username}'의 연결을 수락했습니다.")
+            print(f"🔗 WebSocket 채널: {self.channel_name}")
 
             # 세션 ID 생성
             self.session_id = str(uuid.uuid4())
@@ -111,11 +113,23 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if message_type == "join_room":
             room_id = data.get("roomId", "")
             if room_id:
+                user = self.scope.get('user')
+                username = user.username if user and hasattr(user, 'username') else 'Unknown'
+                print(f"🚪 방 입장 요청: {room_id}, 사용자: {username}")
+                
                 # 해당 방의 그룹에 참여
                 await self.channel_layer.group_add(
                     f'chat_room_{room_id}',
                     self.channel_name
-                )                
+                )
+                print(f"✅ 방 {room_id} 그룹 참여 완료: {self.channel_name}")
+                
+                # 입장 성공 메시지 전송
+                await self.send(text_data=json.dumps({
+                    'type': 'join_room_success',
+                    'roomId': room_id,
+                    'message': f'방 {room_id}에 입장했습니다.'
+                }))
             return
         
         # 기존 채팅 메시지 처리
@@ -207,6 +221,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return
 
         try:            
+            print(f"🤖 AI 응답 처리 시작: 사용자 메시지='{user_message[:50]}...', 감정='{user_emotion}'")
+            
             # 모든 이미지 URL을 AI 응답에 전달
             # 클라이언트에서 넘어온 AI 설정이 있으면 우선 적용하도록 전달
             client_ai_settings = {
@@ -218,6 +234,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             # None 값 제거
             client_ai_settings = {k: v for k, v in client_ai_settings.items() if v is not None}
 
+            print(f"🤖 AI 설정: {client_ai_settings}")
+            
             ai_response_result = await self.get_ai_response(
                 user_message,
                 user_emotion,
@@ -232,7 +250,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             ai_name = ai_response_result['ai_name']
             ai_type = ai_response_result['ai_type']
             
-            # print(f"✅ 실제 사용된 API: {actual_provider}, AI 이름: {ai_name}")
+            print(f"✅ AI 응답 결과: API={actual_provider}, AI 이름={ai_name}, 응답 길이={len(ai_response)}")
+            print(f"✅ AI 응답 내용: {ai_response[:200]}...")
             
             # AI 응답을 DB에 저장 (question_message와 image_urls를 명시적으로 전달)
             ai_message_obj = await self.save_ai_message(
@@ -275,19 +294,53 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'imageUrls': image_urls_json
             }
             
-            # 디버그 이벤트 전송 (필요시)
-            # print(f"📤 디버그 이벤트: {debug_event}")
+            print(f"📤 AI 응답 전송 시작: {ai_response[:100]}...")
+            print(f"📤 전송 데이터: {response_data}")
             
+            # AI 응답을 해당 방의 모든 사용자에게 전송 (그룹 전송)
+            print(f"📤 방 {room_id} 그룹으로 AI 응답 전송 시도")
+            await self.channel_layer.group_send(
+                f'chat_room_{room_id}',
+                {
+                    'type': 'ai_message',
+                    'message': ai_response,
+                    'roomId': room_id,
+                    'ai_name': ai_name,
+                    'timestamp': datetime.now().isoformat(),
+                    'questioner_username': (
+                        ai_message_obj.question_message.username if ai_message_obj and ai_message_obj.question_message else None
+                    ),
+                    'imageUrls': image_urls_json
+                }
+            )
+            print(f"✅ AI 메시지 그룹 전송 완료 - 방: {room_id}")
+            
+            # 현재 연결된 사용자에게도 직접 전송 (백업)
             await self.send(text_data=json.dumps(response_data))
-            # print(f"✅ AI 메시지 클라이언트 전송 완료")
+            print(f"✅ AI 메시지 클라이언트 직접 전송 완료 - 채널: {self.channel_name}")
         except Exception as e:            
+            print(f"❌ AI 응답 처리 중 오류 발생: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
             error_message = f"AI 오류: {str(e)}"
             await self.save_ai_message(error_message, room_id, image_urls_json=json.dumps(image_urls) if image_urls else None)
-            await self.send(text_data=json.dumps({
+            
+            # 에러 메시지를 AI 메시지 형태로 전송
+            error_response_data = {
+                'type': 'ai_message',
                 'message': error_message,
-                'roomId': room_id,
-                'type': 'chat_message'
-            }))
+                'ai_name': 'AI (오류)',
+                'timestamp': datetime.now().isoformat(),
+                'questioner_username': None,
+                'imageUrls': []
+            }
+            
+            try:
+                await self.send(text_data=json.dumps(error_response_data))
+                print(f"✅ 에러 메시지 전송 완료")
+            except Exception as send_error:
+                print(f"❌ 에러 메시지 전송 실패: {send_error}")
 
     async def room_list_update(self, event):
         """대화방 목록 업데이트 메시지 처리"""
