@@ -17,7 +17,8 @@ primary_region = 'nrt'
 
 [deploy]
   strategy = 'immediate'
-  release_command = "python manage.py migrate --noinput"
+  # migrate와 collectstatic을 함께 실행하도록 release_command를 정의
+  release_command = "python manage.py migrate --noinput && python manage.py collectstatic --noinput"
   auto_scale = false
   max_memory = 256
   max_cpus = 1
