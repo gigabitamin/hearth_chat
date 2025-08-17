@@ -39,7 +39,7 @@
     "three": "^0.178.0"
   },
   "scripts": {
-    "start": "cross-env BROWSER=none react-scripts start",
+    "start": "cross-env BROWSER=none HOST=0.0.0.0 react-scripts start",
     "build": "CI=false react-scripts build",
     "build:local": "cross-env PUBLIC_URL=./ GENERATE_SOURCEMAP=false react-scripts build",
     "test": "react-scripts test",
@@ -51,7 +51,6 @@
       "react-app/jest"
     ]
   },
-  "proxy": "http://localhost:8000",
   "browserslist": {
     "production": [
       ">0.2%",

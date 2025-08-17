@@ -1157,9 +1157,11 @@ function App() {
     const connect = () => {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const host = window.location.hostname;
-      const wsUrl = (host === 'localhost' || host === '127.0.0.1')
-        ? `${protocol}//${host}:8000/ws/chat/`
-        : `${protocol}//${host}/ws/chat/`;
+      const port = process.env.NODE_ENV === 'production' ? '' : ':8000';
+      const wsUrl = `${protocol}//${host}${port}/ws/chat/`;
+
+      console.log("Attempting to connect to WebSocket:", wsUrl); // 연결 주소 확인용 로그
+
       wsInstance = new window.WebSocket(wsUrl);
       ws.current = wsInstance;
       

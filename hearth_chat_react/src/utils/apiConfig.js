@@ -19,6 +19,7 @@ export const getApiBase = () => {
     }
 
     // 로컬 개발 환경
+    console.log('🔧 API_BASE 환경 감지:', { hostname, isProd, NODE_ENV: process.env.NODE_ENV });
     if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:8000';
     if (hostname === '192.168.44.9') return 'http://192.168.44.9:8000';
 

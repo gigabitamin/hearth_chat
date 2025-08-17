@@ -78,10 +78,8 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
             // 환경에 따라 WebSocket URL 설정
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const host = window.location.hostname;
-            const isLocalhost = host === 'localhost' || host === '127.0.0.1';
-            const wsUrl = isLocalhost
-                ? `${protocol}//${host}:8000/ws/chat/`
-                : `${protocol}//${host}/ws/chat/`;
+            const port = process.env.NODE_ENV === 'production' ? '' : ':8000';
+            const wsUrl = `${protocol}//${host}${port}/ws/chat/`;
 
             const ws = new WebSocket(wsUrl);
             wsRef.current = ws;

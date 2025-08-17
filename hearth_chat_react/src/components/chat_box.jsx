@@ -211,9 +211,9 @@ const ChatBox = ({
     // 새 연결 생성
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.hostname;
-    const isLocalhost = host === 'localhost' || host === '127.0.0.1';
-    // 배포 환경에서는 포트 없이 wss://도메인/ws/chat/로 연결
-    const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}/ws/chat/`;
+    // const isLocalhost = host === 'localhost' || host === '127.0.0.1' || host === '192.168.44.9';
+    const port = process.env.NODE_ENV === 'production' ? '' : ':8000';
+    const wsUrl = `${protocol}//${host}${port}/ws/chat/`;
 
 
     try {
@@ -837,8 +837,8 @@ const ChatBox = ({
     // WebSocket 연결
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.hostname;
-    const isLocalhost = host === 'localhost' || host === '127.0.0.1';
-    const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}/ws/chat/`;
+    const port = process.env.NODE_ENV === 'production' ? '' : ':8000';
+    const wsUrl = `${protocol}//${host}${port}/ws/chat/`;
 
 
     ws.current = new WebSocket(wsUrl);
@@ -906,8 +906,8 @@ const ChatBox = ({
     }
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.hostname;
-    const isLocalhost = host === 'localhost' || host === '127.0.0.1';
-    const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}/ws/chat/`;
+    const port = process.env.NODE_ENV === 'production' ? '' : ':8000';
+    const wsUrl = `${protocol}//${host}${port}/ws/chat/`;
 
     ws.current = new WebSocket(wsUrl);
 
@@ -1949,8 +1949,8 @@ const ChatBox = ({
     // 새 연결 생성
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.hostname;
-    const isLocalhost = host === 'localhost' || host === '127.0.0.1';
-    const wsUrl = isLocalhost ? `${protocol}//${host}:8000/ws/chat/` : `${protocol}//${host}/ws/chat/`;
+    const port = process.env.NODE_ENV === 'production' ? '' : ':8000';
+    const wsUrl = `${protocol}//${host}${port}/ws/chat/`;
 
     try {
       ws.current = new window.WebSocket(wsUrl);
