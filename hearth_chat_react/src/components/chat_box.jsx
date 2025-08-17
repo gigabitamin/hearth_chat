@@ -1003,18 +1003,29 @@ const ChatBox = ({
               console.log('[DEBUG] pending 메시지 제거 후 filteredMessages:', filteredMessages.length);
               console.log('[DEBUG] filteredMessages 내용:', filteredMessages.map(m => ({ id: m.id, type: m.type, text: m.text.substring(0, 20) + '...' })));
 
-              // 사용자 메시지를 AI 메시지 앞에 추가하여 올바른 순서 보장
-              const aiMessages = filteredMessages.filter(msg => msg.type === 'ai');
-              const nonAiMessages = filteredMessages.filter(msg => msg.type !== 'ai');
+              // 시간 순서대로 정렬하되, 첫 번째 AI 메시지가 사용자 메시지 위에 나타나는 경우만 수정
+              const allMessages = [...filteredMessages, newMessage];
+              
+              // 시간 순서대로 정렬
+              next = allMessages.sort((a, b) => {
+                const dateA = new Date(a.date);
+                const dateB = new Date(b.date);
+                return dateA - dateB;
+              });
+              
+              // 첫 번째 AI 메시지가 사용자 메시지 위에 나타나는 경우만 수정
+              // (이는 방 입장 후 자동 메시지 전송 시에만 발생할 수 있는 특수한 상황)
+              if (filteredMessages.length === 1 && filteredMessages[0].type === 'ai' && newMessage.type === 'send') {
+                // AI 메시지가 사용자 메시지보다 먼저 온 경우, 사용자 메시지를 앞으로 이동
+                const aiMessage = filteredMessages[0];
+                if (new Date(aiMessage.date) < new Date(newMessage.date)) {
+                  next = [newMessage, aiMessage];
+                }
+              }
 
-              // 순서: AI가 아닌 메시지 + 새 사용자 메시지 + AI 메시지
-              next = [...nonAiMessages, newMessage, ...aiMessages];
-
-              console.log('[DEBUG] 순서 조정 후 메시지 구성:', {
-                nonAiCount: nonAiMessages.length,
-                newMessage: newMessage.text.substring(0, 20) + '...',
-                aiCount: aiMessages.length,
-                totalCount: next.length
+              console.log('[DEBUG] 시간 순서 정렬 후 메시지 구성:', {
+                totalCount: next.length,
+                messages: next.map(m => ({ type: m.type, text: m.text.substring(0, 20) + '...', date: m.date }))
               });
             } else {
               next = [...prev, newMessage];
@@ -1072,7 +1083,13 @@ const ChatBox = ({
               return prev;
             }
 
-            const newMessages = [...prev, newMessage];
+            // 시간 순서대로 정렬
+            const newMessages = [...prev, newMessage].sort((a, b) => {
+              const dateA = new Date(a.date);
+              const dateB = new Date(b.date);
+              return dateA - dateB;
+            });
+            
             console.log('[DEBUG] AI 메시지 추가 후 messages 상태:', {
               messageCount: newMessages.length,
               messages: newMessages.map(m => ({ id: m.id, type: m.type, text: m.text.substring(0, 20) + '...', date: m.date }))

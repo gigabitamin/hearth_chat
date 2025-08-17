@@ -82,11 +82,11 @@ RUN chmod +x /usr/local/bin/start.sh
 # entrypoint.sh 복사 및 실행 권한 부여
 COPY hearth_chat_django/script/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
-
+RUN python manage.py collectstatic --noinput
 EXPOSE 8080
 
 # Railway에서 entrypoint.sh가 실행되도록 명시적으로 지정
-ENTRYPOINT ["/entrypoint.sh"]
+# ENTRYPOINT ["/entrypoint.sh"]
 
 # 미디어 파일 복사
 # COPY hearth_chat_media/avatar_vrm_test/test.vrm ./hearth_chat_media/avatar_vrm_test/test.vrmOPY hearth_chat_media/avatar_vrm_test/test.vrm ./hearth_chat_media/avatar_vrm_test/test.vrmOPY hearth_chat_media/avatar_vrm_test/test.vrm ./hearth_chat_media/avatar_vrm_test/test.vrmOPY hearth_chat_media/avatar_vrm_test/test.vrm ./hearth_chat_media/avatar_vrm_test/test.vrmOPY hearth_chat_media/avatar_vrm_test/test.vrm ./hearth_chat_media/avatar_vrm_test/test.vrm

@@ -1,40 +1,23 @@
-# fly.toml app configuration file generated for hearth-chat on 2025-08-14T23:40:59+09:00
-#
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
-#
+# fly.toml 최종 버전
 
 app = 'hearth-chat'
 primary_region = 'nrt'
-
-[experimental]
-  enable_consul = true
-  cmd = ["daphne", "-b", "0.0.0.0", "-p", "8080", "hearth_chat.asgi:application"]
-  entrypoint = ["/entrypoint.sh"]
-  exec = ["python", "manage.py", "migrate", "--noinput"]  
 
 [build]
   image = 'gigabitamin/hearth-chat:latest'
 
 [deploy]
+  release_command = "sh -c 'python manage.py migrate --noinput && python manage.py collectstatic --noinput'"
   strategy = 'immediate'
-  # migrate와 collectstatic을 함께 실행하도록 release_command를 정의
-  release_command = "python manage.py migrate --noinput && python manage.py collectstatic --noinput"
-  auto_scale = false
-  max_memory = 256
-  max_cpus = 1
 
 [env]
   DJANGO_SETTINGS_MODULE = 'hearth_chat.settings'
   IS_FLY_DEPLOY = 'true'
   PORT = '8080'
-  FLY_DISABLE_AUTO_SCALE = 'true'
-  FLY_FORCE_1X = 'true'  
-  FLY_MAX_MEMORY = '256'
-  FLY_MAX_CPUS = '1'
-  DJANGO_DISABLE_AUTO_DETECT = 'true'
 
+# [추가] app 프로세스가 실행할 명령어를 명확하게 지정
 [processes]
-  app = ""  
+  app = "/entrypoint.sh" # Dockerfile의 ENTRYPOINT 대신 여기서 직접 지정
 
 [[services]]
   protocol = 'tcp'
