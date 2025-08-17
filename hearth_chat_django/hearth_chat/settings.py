@@ -483,6 +483,13 @@ ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_USERNAME_MIN_LENGTH = 3
 ACCOUNT_PASSWORD_MIN_LENGTH = 6
 
+# 커스텀 어댑터 및 폼 설정
+ACCOUNT_ADAPTER = 'hearth_chat.adapters.CustomAccountAdapter'
+SOCIALACCOUNT_ADAPTER = 'hearth_chat.adapters.CustomSocialAccountAdapter'
+ACCOUNT_FORMS = {
+    'signup': 'hearth_chat.forms.CustomSignupForm',
+}
+
 # 로그인/로그아웃 URL 설정
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/accounts/popup-close/'

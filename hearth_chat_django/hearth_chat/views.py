@@ -25,7 +25,7 @@ from urllib.parse import urlencode
 # 기존 allauth 로그인 뷰 사용 (세션 문제 해결됨)
 
 # allauth 로그인 뷰 오버라이드
-from allauth.account.views import LoginView
+from allauth.account.views import LoginView, SignupView
 from django.contrib.auth import login
 from django.http import HttpResponse
 
@@ -98,101 +98,96 @@ class DebugLoginView(LoginView):
                     # 세션 디버그 정보 출력
                     print("🔍 로그인 후 세션 정보:")
                     print(f"  - 사용자: {request.user}")
-                    print(f"  - 인증 상태: {request.user.is_authenticated}")
                     print(f"  - 세션 키: {request.session.session_key}")
                     print(f"  - 세션 데이터: {dict(request.session)}")
                     
-                    # 성공 응답 생성
-                    from django.http import HttpResponseRedirect
-                    from django.urls import reverse
-                    
-                    try:
-                        response = HttpResponseRedirect(reverse('home'))
-                    except:
-                        # home URL이 없으면 루트로 리다이렉트
-                        response = HttpResponseRedirect('/')
-                    
-                    if request.session.session_key:
-                        response.set_cookie(
-                            'sessionid',
-                            request.session.session_key,
-                            max_age=1209600,  # 14일
-                            httponly=True,
-                            samesite='Lax'
-                        )
-                        print(f"  - 응답에 세션 쿠키 설정됨: {request.session.session_key}")
-                    
-                    return response
+                    # 리다이렉트
+                    return redirect('/accounts/popup-close/')
                 else:
-                    print(f"  - 인증 실패: {username}")
+                    print("  - 사용자 인증 실패")
+                    return super().post(request, *args, **kwargs)
             else:
-                print(f"  - 폼 데이터 누락: username={username}, password={'*' * len(password) if password else 'None'}")
+                print("  - 사용자명 또는 비밀번호 누락")
+                return super().post(request, *args, **kwargs)
                 
         except Exception as e:
-            print(f"❌ DebugLoginView 직접 처리 오류: {e}")
-            import traceback
-            traceback.print_exc()
-        
-        # 기본 allauth 처리로 폴백
-        print("  - 기본 allauth 처리로 폴백")
-        return super().post(request, *args, **kwargs)
+            print(f"❌ 로그인 처리 중 오류: {e}")
+            return super().post(request, *args, **kwargs)
+
+class CustomSignupView(SignupView):
+    """커스텀 회원가입 뷰"""
     
-    def form_valid(self, form):
-        """폼이 유효할 때 세션을 강제로 생성"""
-        print("🔧 DebugLoginView - 로그인 폼 검증 시작")
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        print("🚀 CustomSignupView 인스턴스 생성됨")
+    
+    def get(self, request, *args, **kwargs):
+        print("🔧 CustomSignupView - GET 요청 처리")
+        return super().get(request, *args, **kwargs)
+    
+    def post(self, request, *args, **kwargs):
+        print("🔧 CustomSignupView - POST 요청 처리")
+        print(f"  - POST 데이터: {request.POST}")
         
         try:
-            # 사용자 인증
-            user = form.get_user()
-            print(f"  - 인증된 사용자: {user}")
+            # 폼 데이터 확인
+            username = request.POST.get('username')
+            email = request.POST.get('email')
+            password1 = request.POST.get('password1')
+            password2 = request.POST.get('password2')
             
-            # 로그인 처리
-            login(self.request, user)
-            print(f"  - 로그인 완료: {self.request.user.is_authenticated}")
+            print(f"  - 회원가입 시도:")
+            print(f"    username: {username}")
+            print(f"    email: {email}")
+            print(f"    password1: {'*' * len(password1) if password1 else 'None'}")
+            print(f"    password2: {'*' * len(password2) if password2 else 'None'}")
             
-            # 세션 강제 생성 및 저장
-            if not self.request.session.session_key:
-                print("⚠️ 세션이 없음 - 강제로 세션 생성")
-                self.request.session.create()
-                self.request.session.save()
-                print(f"  - 세션 생성됨: {self.request.session.session_key}")
+            # 기본 폼 검증
+            if not username:
+                print("  - username이 누락됨")
+                return HttpResponse("username이 필요합니다.", status=400)
             
-            # 세션에 사용자 정보 저장
-            self.request.session['user_id'] = user.id
-            self.request.session['username'] = user.username
-            self.request.session['_auth_user_id'] = str(user.id)
-            self.request.session['_auth_user_backend'] = 'django.contrib.auth.backends.ModelBackend'
-            self.request.session.save()
-            print(f"  - 세션에 사용자 정보 저장됨")
+            if not email:
+                print("  - email이 누락됨")
+                return HttpResponse("email이 필요합니다.", status=400)
             
-            # 세션 디버그 정보 출력
-            print("🔍 로그인 후 세션 정보:")
-            print(f"  - 사용자: {self.request.user}")
-            print(f"  - 인증 상태: {self.request.user.is_authenticated}")
-            print(f"  - 세션 키: {self.request.session.session_key}")
-            print(f"  - 세션 데이터: {dict(self.request.session)}")
-            print(f"  - 쿠키: {self.request.COOKIES}")
+            if not password1:
+                print("  - password1이 누락됨")
+                return HttpResponse("password1이 필요합니다.", status=400)
             
-            # 응답에 세션 쿠키 설정
-            response = super().form_valid(form)
-            if self.request.session.session_key:
-                response.set_cookie(
-                    'sessionid',
-                    self.request.session.session_key,
-                    max_age=1209600,  # 14일
-                    httponly=True,
-                    samesite='Lax'
-                )
-                print(f"  - 응답에 세션 쿠키 설정됨: {self.request.session.session_key}")
+            if not password2:
+                print("  - password2가 누락됨")
+                return HttpResponse("password2가 필요합니다.", status=400)
             
-            return response
+            if password1 != password2:
+                print("  - 비밀번호가 일치하지 않음")
+                return HttpResponse("비밀번호가 일치하지 않습니다.", status=400)
             
+            # Django allauth의 기본 회원가입 처리
+            response = super().post(request, *args, **kwargs)
+            
+            if response.status_code == 302:  # 성공적인 리다이렉트
+                print("  - 회원가입 성공")
+                
+                # UserSettings 생성 확인
+                try:
+                    from django.contrib.auth.models import User
+                    from chat.models import UserSettings
+                    
+                    user = User.objects.get(username=username)
+                    UserSettings.objects.get_or_create(user=user)
+                    print(f"  - UserSettings 생성 완료: {user.username}")
+                except Exception as e:
+                    print(f"  - UserSettings 생성 실패: {e}")
+                
+                return response
+            else:
+                print(f"  - 회원가입 실패: {response.status_code}")
+                return response
+                
         except Exception as e:
-            print(f"❌ DebugLoginView 오류: {e}")
-            import traceback
-            traceback.print_exc()
-            # 오류가 발생해도 기본 로그인 진행
-            return super().form_valid(form)
+            print(f"❌ 회원가입 처리 중 오류: {e}")
+            return HttpResponse(f"회원가입 처리 중 오류가 발생했습니다: {e}", status=500)
 
 # 세션 디버그를 위한 미들웨어 추가
 from django.utils.deprecation import MiddlewareMixin

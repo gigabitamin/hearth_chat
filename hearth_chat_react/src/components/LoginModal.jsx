@@ -6,6 +6,7 @@ import { API_BASE, getCookie } from '../utils/apiConfig';
 const LoginModal = ({ isOpen, onClose, onSocialLogin }) => {
     const [tab, setTab] = useState('login'); // 'login' or 'signup'
     const [email, setEmail] = useState('');
+    const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [password2, setPassword2] = useState('');
     const [error, setError] = useState(null);
@@ -15,6 +16,7 @@ const LoginModal = ({ isOpen, onClose, onSocialLogin }) => {
 
     const resetForm = () => {
         setEmail('');
+        setUsername('');
         setPassword('');
         setPassword2('');
         setError(null);
@@ -70,6 +72,7 @@ const LoginModal = ({ isOpen, onClose, onSocialLogin }) => {
             return;
         }
         const form = new FormData();
+        form.append('username', username);
         form.append('email', email);
         form.append('password1', password);
         form.append('password2', password2);
@@ -138,6 +141,15 @@ const LoginModal = ({ isOpen, onClose, onSocialLogin }) => {
                         </form>
                     ) : (
                         <form className="login-modal-form" onSubmit={handleSignup} autoComplete="on">
+                            <input
+                                type="username"
+                                placeholder="아이디"
+                                className="login-modal-input"
+                                value={username}
+                                onChange={e => setUsername(e.target.value)}
+                                required
+                                autoFocus
+                            />
                             <input
                                 type="email"
                                 placeholder="이메일 주소"

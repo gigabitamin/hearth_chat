@@ -14,7 +14,7 @@ from .views import (
     naver_login_redirect, naver_login_callback, github_login_redirect, github_login_callback,
     google_connect_redirect, google_connect_callback, kakao_connect_redirect, kakao_connect_callback,
     naver_connect_redirect, naver_connect_callback, github_connect_redirect, github_connect_callback,
-    DebugLoginView
+    DebugLoginView, CustomSignupView
 )
 
 urlpatterns = [
@@ -30,8 +30,9 @@ urlpatterns = [
     # 디버그 로그인 뷰 추가
     path('debug-login/', DebugLoginView.as_view(), name='debug_login'),
     
-    # allauth 기본 로그인 뷰를 커스텀 뷰로 완전 대체
+    # allauth 기본 로그인/회원가입 뷰를 커스텀 뷰로 완전 대체
     path('accounts/login/', DebugLoginView.as_view(), name='account_login'),
+    path('accounts/signup/', CustomSignupView.as_view(), name='account_signup'),
     
     # allauth URL을 마지막에 배치 (커스텀 로그인 뷰가 우선)
     path('accounts/', include('allauth.urls')),

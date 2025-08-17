@@ -1,10 +1,29 @@
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
+from allauth.account.adapter import DefaultAccountAdapter
 from django.shortcuts import resolve_url
 import uuid
 import logging
 
 # 로거 설정
 logger = logging.getLogger(__name__)
+
+class CustomAccountAdapter(DefaultAccountAdapter):
+    """일반 회원가입 어댑터"""
+    
+    def save_user(self, request, user, form, commit=True):
+        """사용자 저장 후 UserSettings 생성"""
+        user = super().save_user(request, user, form, commit)
+        
+        if commit:
+            try:
+                # UserSettings가 없는 경우 생성
+                from chat.models import UserSettings
+                UserSettings.objects.get_or_create(user=user)
+                logger.info(f'[ACCOUNT_ADAPTER] UserSettings created for user: {user.username}')
+            except Exception as e:
+                logger.error(f'[ACCOUNT_ADAPTER] UserSettings creation failed: {e}')
+        
+        return user
 
 class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
     def get_login_redirect_url(self, request):
@@ -37,6 +56,15 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
         try:
             user = super().save_user(request, sociallogin, form)
             logger.info(f'[ADAPTER] saved user: {user}')
+            
+            # UserSettings 생성
+            try:
+                from chat.models import UserSettings
+                UserSettings.objects.get_or_create(user=user)
+                logger.info(f'[SOCIAL_ADAPTER] UserSettings created for user: {user.username}')
+            except Exception as e:
+                logger.error(f'[SOCIAL_ADAPTER] UserSettings creation failed: {e}')
+            
             return user
         except Exception as e:
             logger.error(f'[ADAPTER] save_user 오류: {e}')
@@ -92,38 +120,4 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
         소셜 로그인을 통한 가입 허용 여부
         """
         logger.info('[ADAPTER] is_open_for_signup called')
-        return True
-    
-    def save_user(self, request, sociallogin, form=None):
-        """
-        소셜 로그인 사용자 저장 시 이메일 검증 상태 설정
-        """
-        logger.info('[ADAPTER] save_user called')
-        logger.info(f'[ADAPTER] sociallogin.is_existing: {sociallogin.is_existing}')
-        logger.info(f'[ADAPTER] sociallogin.user: {sociallogin.user}')
-        
-        try:
-            user = super().save_user(request, sociallogin, form)
-            
-            # 소셜 로그인의 경우 이메일을 자동으로 검증된 상태로 설정
-            if sociallogin.account.provider in ['google', 'kakao', 'naver', 'github']:
-                # 이메일이 있는 경우 검증된 상태로 설정
-                if user.email:
-                    from allauth.account.models import EmailAddress
-                    email_address, created = EmailAddress.objects.get_or_create(
-                        user=user,
-                        email=user.email,
-                        defaults={'verified': True, 'primary': True}
-                    )
-                    if not created:
-                        # 기존 이메일 주소가 있다면 검증 상태로 업데이트
-                        email_address.verified = True
-                        email_address.primary = True
-                        email_address.save()
-                    logger.info(f'[ADAPTER] 이메일 검증 완료: {user.email}')
-            
-            logger.info(f'[ADAPTER] saved user: {user}')
-            return user
-        except Exception as e:
-            logger.error(f'[ADAPTER] save_user 오류: {e}')
-            raise 
+        return True 
