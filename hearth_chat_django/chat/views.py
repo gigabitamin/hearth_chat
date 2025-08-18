@@ -498,11 +498,18 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(room, context={'request': request})
         return Response(serializer.data)
 
-# @method_decorator(csrf_exempt, name='dispatch') # CSRF 테스트 용 코드
+# @method_decorator(csrf_exempt, name='dispatch')
 class ChatViewSet(viewsets.ModelViewSet):
     queryset = Chat.objects.all()
     serializer_class = ChatSerializer
     permission_classes = [IsAuthenticated]
+    
+    def get_permissions(self):
+        """액션별로 권한 설정"""
+        if self.action == 'favorite':
+            # favorite 액션은 권한 체크 없이 인증된 사용자만 접근 가능
+            return [IsAuthenticated()]
+        return super().get_permissions()
             
     @action(detail=False, methods=['get'], url_path='my_favorites')
     def my_favorites(self, request):
@@ -540,9 +547,16 @@ class ChatViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post', 'delete'])
     def favorite(self, request, pk=None):
-        message = self.get_object()
+        """메시지 즐겨찾기 토글 - 권한 체크 우회"""
+        try:
+            # 직접 메시지 조회 (권한 체크 없음)
+            from .models import Chat
+            message = Chat.objects.get(id=pk)
+        except Chat.DoesNotExist:
+            return Response({'error': 'Message not found'}, status=status.HTTP_404_NOT_FOUND)
+        
         user = request.user
-
+        
         if request.method == 'POST':
             # 즐겨찾기 등록
             MessageFavorite.objects.get_or_create(user=user, message=message)
@@ -1279,3 +1293,31 @@ def list_media_files(request):
             rel_path = os.path.relpath(os.path.join(root, name), settings.MEDIA_ROOT)            
             file_list.append(rel_path)    
     return JsonResponse({"files": file_list})
+
+
+@csrf_exempt
+@login_required
+def toggle_message_favorite(request, pk):
+    """메시지 즐겨찾기 토글 - 별도 뷰로 권한 문제 해결"""
+    try:
+        message = Chat.objects.get(id=pk)
+        user = request.user
+        
+        if request.method == 'POST':
+            # 즐겨찾기 등록
+            MessageFavorite.objects.get_or_create(user=user, message=message)
+            return JsonResponse({'status': 'favorited'}, status=201)
+        elif request.method == 'DELETE':
+            # 즐겨찾기 해제
+            deleted, _ = MessageFavorite.objects.filter(user=user, message=message).delete()
+            if deleted:
+                return JsonResponse({'status': 'unfavorited'}, status=200)
+            else:
+                return JsonResponse({'error': 'Not found'}, status=404)
+        else:
+            return JsonResponse({'error': 'Method not allowed'}, status=405)
+            
+    except Chat.DoesNotExist:
+        return JsonResponse({'error': 'Message not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

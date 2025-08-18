@@ -16,9 +16,10 @@ import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import VirtualizedMessageList from './VirtualizedMessageList';
 
 // 새로 생성된 모듈들 import
-import { useWebSocket, useMessageHandling, useMessageFetching, useFavoriteMessages, useMessageDeletion, fetchMyFavoriteMessages, fetchOffsetForMessageId, fetchTotalCountAndFetchLatest, handleRoomSettingsSuccess, getSenderColor, handleToggleFavorite, fetchMessages, handleMessageClick, handleRemoveAttachedImage, handleRemoveAllAttachedImages, LILY_API_URL } from './ChatBoxCore';
+import { useWebSocket, useMessageHandling, useMessageFetching, useFavoriteMessages, useMessageDeletion, fetchMyFavoriteMessages as fetchMyFavoriteMessagesCore, fetchOffsetForMessageId, fetchTotalCountAndFetchLatest, handleRoomSettingsSuccess, getSenderColor, handleToggleFavorite as handleToggleFavoriteCore, fetchMessages, handleMessageClick, handleRemoveAttachedImage, handleRemoveAllAttachedImages, LILY_API_URL } from './ChatBoxCore';
 import { Modal } from './ChatBoxUI';
 import { speakAIMessage, getAIEmotionResponse, initializeTTSService, initializeAvatars, getAiAvatarStyle, getUserAvatarStyle, getCameraStyle, setTTSInterrupted } from './ChatBoxMedia';
+import { getApiBase } from '../utils/apiConfig';
 // Chart.js core 등록 - ChatBoxUI에서 처리됨
 
 
@@ -56,6 +57,11 @@ const ChatBox = ({
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const messageIdFromUrl = searchParams.get('messageId');
+
+  // loginUser에서 username과 userId 추출
+  const username = loginUser?.username;
+  const userId = loginUser?.id;
+
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [userAvatar, setUserAvatar] = useState(null);
@@ -390,7 +396,20 @@ const ChatBox = ({
         console.log('[WebSocket] 메시지 수신:', data);
 
         if (data.type === 'user_message' && data.message) {
-          const isMyMessage = (data.sender === loginUserRef.current?.username) || (data.user_id === loginUserRef.current?.id);
+          console.log('[WebSocket] 사용자 메시지 수신됨:', {
+            type: data.type,
+            id: data.id,  // ID 디버깅 추가
+            message: data.message.substring(0, 50) + '...',
+            sender: data.sender,
+            user_id: data.user_id,
+            timestamp: data.timestamp,
+            roomId: data.roomId,
+            emotion: data.emotion,
+            imageUrl: data.imageUrl,
+            imageUrls: data.imageUrls
+          });
+
+          const isMyMessage = (data.sender === username) || (data.user_id === userId);
 
           console.log('[WebSocket] 사용자 메시지 처리:', {
             isMyMessage,
@@ -401,16 +420,15 @@ const ChatBox = ({
           });
 
           const newMessage = {
-            id: data.id || Date.now(),
+            id: data.id || Math.floor(Math.random() * 1000000) + Date.now(),
             type: isMyMessage ? 'send' : 'recv',
             text: data.message,
             date: data.timestamp,
             sender: data.sender,
-            sender_type: 'user',
             user_id: data.user_id,
             emotion: data.emotion,
-            imageUrl: data.imageUrl || null,      // 단일 이미지(호환성)
-            imageUrls: data.imageUrls || [],       // 다중 이미지 배열 추가
+            imageUrl: data.imageUrl || null,
+            imageUrls: data.imageUrls || [],
             pending: false,
           };
 
@@ -452,10 +470,18 @@ const ChatBox = ({
           });
 
         } else if (data.type === 'ai_message' && data.message) {
-          console.log('[WebSocket] AI 메시지 수신됨:', data);
+          console.log('[WebSocket] AI 메시지 수신됨:', {
+            type: data.type,
+            id: data.id,  // ID 디버깅 추가
+            message: data.message.substring(0, 50) + '...',
+            timestamp: data.timestamp,
+            ai_name: data.ai_name,
+            roomId: data.roomId,
+            questioner_username: data.questioner_username
+          });
 
           const newMessage = {
-            id: data.id || `ai_${data.timestamp}`,
+            id: data.id || Math.floor(Math.random() * 1000000) + Date.now(),
             type: 'ai',
             text: data.message,
             date: data.timestamp,
@@ -1005,14 +1031,14 @@ const ChatBox = ({
 
               // 시간 순서대로 정렬하되, 첫 번째 AI 메시지가 사용자 메시지 위에 나타나는 경우만 수정
               const allMessages = [...filteredMessages, newMessage];
-              
+
               // 시간 순서대로 정렬
               next = allMessages.sort((a, b) => {
                 const dateA = new Date(a.date);
                 const dateB = new Date(b.date);
                 return dateA - dateB;
               });
-              
+
               // 첫 번째 AI 메시지가 사용자 메시지 위에 나타나는 경우만 수정
               // (이는 방 입장 후 자동 메시지 전송 시에만 발생할 수 있는 특수한 상황)
               if (filteredMessages.length === 1 && filteredMessages[0].type === 'ai' && newMessage.type === 'send') {
@@ -1041,6 +1067,7 @@ const ChatBox = ({
         } else if (data.type === 'ai_message' && data.message) {
           console.log('[WebSocket] AI 메시지 수신됨:', {
             type: data.type,
+            id: data.id,  // ID 디버깅 추가
             message: data.message.substring(0, 50) + '...',
             timestamp: data.timestamp,
             ai_name: data.ai_name,
@@ -1049,7 +1076,7 @@ const ChatBox = ({
           });
 
           const newMessage = {
-            id: data.id || `ai_${data.timestamp}`,
+            id: data.id || Math.floor(Math.random() * 1000000) + Date.now(),
             type: 'ai',
             text: data.message,
             date: data.timestamp,
@@ -1089,7 +1116,7 @@ const ChatBox = ({
               const dateB = new Date(b.date);
               return dateA - dateB;
             });
-            
+
             console.log('[DEBUG] AI 메시지 추가 후 messages 상태:', {
               messageCount: newMessages.length,
               messages: newMessages.map(m => ({ id: m.id, type: m.type, text: m.text.substring(0, 20) + '...', date: m.date }))
@@ -1752,8 +1779,89 @@ const ChatBox = ({
   const [favoriteMessages, setFavoriteMessages] = useState([]);
   const [favoriteMessagesLoading, setFavoriteMessagesLoading] = useState(false);
 
+  // 내 즐겨찾기 메시지 목록 fetch - 수정된 버전
+  const fetchMyFavoriteMessages = useCallback(async () => {
+    if (!loginUser) return;
+
+    try {
+      setFavoriteMessagesLoading(true);
+      const response = await fetch(`${getApiBase()}/api/chat/messages/my_favorites/`, {
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // API 응답이 {'results': [...]} 형태이므로 data.results 사용
+        const favoriteIds = data.results ? data.results.map(item => item.id) : [];
+        setFavoriteMessages(favoriteIds);
+        console.log('[즐겨찾기] 즐겨찾기 메시지 로드됨:', favoriteIds.length, favoriteIds);
+      }
+    } catch (error) {
+      console.error('즐겨찾기 메시지 fetch 오류:', error);
+    } finally {
+      setFavoriteMessagesLoading(false);
+    }
+  }, [loginUser]);
+
+  // 즐겨찾기 토글 함수 - 수정된 버전
+  const handleToggleFavorite = useCallback(async (msg) => {
+    if (!loginUser) return;
+
+    const isFavorite = favoriteMessages.includes(msg.id);
+    const method = isFavorite ? 'DELETE' : 'POST';
+
+    console.log('[즐겨찾기 토글] 시작:', {
+      messageId: msg.id,
+      messageIdType: typeof msg.id,
+      favoriteMessages: favoriteMessages,
+      isFavorite: isFavorite,
+      method: method
+    });
+
+    try {
+      const response = await fetch(`${getApiBase()}/api/chat/messages/${msg.id}/favorite/`, {
+        method: method,
+        credentials: 'include'
+      });
+
+      console.log('[즐겨찾기 토글] API 응답:', {
+        status: response.status,
+        ok: response.ok,
+        method: method
+      });
+
+      if (response.ok) {
+        // 즉시 UI 업데이트 (optimistic update)
+        setFavoriteMessages(prev => {
+          console.log('[즐겨찾기 토글] 상태 업데이트:', {
+            prev: prev,
+            messageId: msg.id,
+            isFavorite: isFavorite,
+            willRemove: isFavorite
+          });
+
+          if (isFavorite) {
+            return prev.filter(id => id !== msg.id);
+          } else {
+            return [...prev, msg.id];
+          }
+        });
+
+        // 서버에서 최신 상태 다시 가져오기
+        await fetchMyFavoriteMessages();
+      } else {
+        const errorData = await response.json();
+        console.error('[즐겨찾기 토글] API 오류:', errorData);
+      }
+    } catch (error) {
+      console.error('즐겨찾기 토글 오류:', error);
+      // 오류 발생 시 원래 상태로 되돌리기
+      await fetchMyFavoriteMessages();
+    }
+  }, [loginUser, fetchMyFavoriteMessages, favoriteMessages]);
+
   // 내 즐겨찾기 메시지 목록 fetch - ChatBoxCore에서 import됨
-  useEffect(() => { fetchMyFavoriteMessages(); }, [selectedRoom?.id]);
+  useEffect(() => { fetchMyFavoriteMessages(); }, [selectedRoom?.id, fetchMyFavoriteMessages]);
 
   // selectedRoom 변경 시 메시지 로드 (중복 제거를 위해 통합)
   useEffect(() => {
@@ -2117,7 +2225,7 @@ const ChatBox = ({
 
             // 서버 메시지 추가
             const newMsg = {
-              id: data.id || `${data.sender}_${data.timestamp}`,
+              id: data.id || Math.floor(Math.random() * 1000000) + Date.now(),
               type: isMyMessage ? 'send' : 'recv',
               text: data.message,
               date: data.timestamp,
@@ -2147,7 +2255,7 @@ const ChatBox = ({
             }
 
             const newMsg = {
-              id: data.id || `ai_${data.timestamp}`,
+              id: data.id || Math.floor(Math.random() * 1000000) + Date.now(),
               type: 'ai',
               text: data.message,
               date: data.timestamp,
@@ -2855,8 +2963,13 @@ const ChatBox = ({
                     favoriteMessages={favoriteMessages}
                     onToggleFavorite={handleToggleFavorite}
                     scrollToMessageId={scrollToMessageId}
-                    onMessageDelete={() => {
-                      if (selectedRoom && selectedRoom.id) {
+                    onMessageDelete={(messageId) => {
+                      if (messageId) {
+                        // 삭제된 메시지를 즉시 UI에서 제거
+                        setMessages(prev => prev.filter(msg => msg.id !== messageId));
+                        console.log('[메시지 삭제] UI에서 메시지 제거됨:', messageId);
+                      } else if (selectedRoom && selectedRoom.id) {
+                        // messageId가 없는 경우에만 fetchMessages 호출 (fallback)
                         fetchMessages(selectedRoom.id, 0, 20, false, false);
                       }
                     }}

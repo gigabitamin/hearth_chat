@@ -218,7 +218,17 @@ const VirtualizedMessageList = ({
                             className="favorite-btn"
                             style={{ marginRight: 5, fontSize: 15, color: favoriteMessages.includes(message.id) ? '#1976d2' : '#bbb', background: 'none', border: 'none', cursor: 'pointer' }}
                             title={favoriteMessages.includes(message.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-                            onClick={e => { e.stopPropagation(); onToggleFavorite(message); }}
+                            onClick={e => { 
+                                e.stopPropagation(); 
+                                console.log('[즐겨찾기] 클릭됨:', {
+                                    messageId: message.id,
+                                    messageIdType: typeof message.id,
+                                    favoriteMessages: favoriteMessages,
+                                    favoriteMessagesType: typeof favoriteMessages,
+                                    isFavorite: favoriteMessages.includes(message.id)
+                                });
+                                onToggleFavorite(message); 
+                            }}
                         >
                             {favoriteMessages.includes(message.id) ? '★' : '☆'}
                         </button>
@@ -651,7 +661,7 @@ const VirtualizedMessageList = ({
         }
         if (!window.confirm('정말 이 메시지를 삭제하시겠습니까?')) return;
         try {
-            const res = await csrfFetch(`${getApiBase()}/api/chat/messages/${msg.id}/`, {
+            const res = await csrfFetch(`${getApiBase()}/api/chat/messages/${msg.id}/delete/`, {
                 method: 'DELETE',
                 credentials: 'include',
             });

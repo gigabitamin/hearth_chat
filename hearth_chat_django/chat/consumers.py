@@ -173,6 +173,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             f'chat_room_{room_id}',
             {
                 'type': 'user_message',
+                'id': user_message_obj.id,  # 메시지 ID 추가
                 'message': user_message or '[이미지 첨부]',
                 'roomId': room_id,
                 'sender': (
@@ -284,6 +285,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     f'chat_room_{room_id}',
                     {
                         'type': 'ai_message',
+                        'id': ai_message_obj.id,  # 메시지 ID 추가
                         'message': ai_response,
                         'ai_name': ai_name,
                         'roomId': room_id,  # roomId 추가
@@ -299,6 +301,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 # 추가: 현재 연결된 클라이언트에게도 직접 전송 (백업)
                 backup_response = {
                     'type': 'ai_message',
+                    'id': ai_message_obj.id,  # 메시지 ID 추가
                     'message': ai_response,
                     'ai_name': ai_name,
                     'roomId': room_id,
@@ -326,7 +329,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     f'chat_room_{room_id}',
                     {
                         'type': 'ai_message',
-                        **error_response
+                        'id': f"error_{datetime.now().timestamp()}",  # 에러 메시지용 고유 ID
+                        'message': f"AI 응답 전송 실패: {str(send_error)}",
+                        'ai_name': 'AI',
+                        'timestamp': datetime.now().isoformat(),
+                        'questioner_username': None,
+                        'imageUrls': []
                     }
                 )
         except Exception as e:            
@@ -353,6 +361,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             print(f"[DEBUG][self.send][user_message] event 출력 오류: {e}")
         await self.send(text_data=json.dumps({
             'type': 'user_message',
+            'id': event.get('id'),  # id 필드 추가
             'message': event['message'],
             'roomId': event['roomId'],
             'sender': event['sender'],

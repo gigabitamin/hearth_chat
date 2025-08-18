@@ -25,6 +25,7 @@ urlpatterns = [
     path('logout/', views.logout_api, name='logout_api'),
     path('rooms/user_chat_alt/', views.UserChatCreateAPIView.as_view(), name='user_chat_api'),
     path('messages/<int:pk>/delete/', views.ChatViewSet.as_view({'delete': 'delete_message'}), name='delete_message'),
+    path('messages/<int:pk>/favorite/', views.toggle_message_favorite, name='toggle_message_favorite'),  # 즐겨찾기 별도 뷰
     path('file_exists/', views.file_exists, name='file_exists'),
     path('list_media_files/', views.list_media_files, name='list_media_files'),
 ]
