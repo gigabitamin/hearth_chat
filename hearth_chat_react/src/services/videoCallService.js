@@ -22,10 +22,16 @@ class VideoCallService {
 
             // 로컬 미디어 스트림 획득
             this.localStream = await navigator.mediaDevices.getUserMedia({
-                video: true,
+                video: true, // This requests video to be ON
                 audio: true
             });
             console.log('[VideoCallService] 로컬 스트림 획득 성공:', this.localStream.getTracks().length, '개 트랙');
+
+            // 초기화 시 비디오 트랙을 비활성화하여 카메라 OFF 상태로 시작
+            this.localStream.getVideoTracks().forEach(track => {
+                track.enabled = false;
+                console.log('[VideoCallService] 초기화 시 비디오 트랙 비활성화됨:', track.kind);
+            });
 
             // WebRTC 연결 설정
             this.peerConnection = new RTCPeerConnection({
@@ -281,18 +287,17 @@ class VideoCallService {
                 // 화면공유 스트림 반환
                 return screenStream;
             } else {
-                // 원래 카메라로 복원
-                const cameraStream = await navigator.mediaDevices.getUserMedia({
-                    video: true
-                });
+                // 원래 카메라로 복원 (기존 로컬 스트림 사용)
+                if (this.localStream) {
+                    const videoTrack = this.localStream.getVideoTracks()[0];
+                    const sender = this.peerConnection
+                        .getSenders()
+                        .find(s => s.track && s.track.kind === 'video');
 
-                const videoTrack = cameraStream.getVideoTracks()[0];
-                const sender = this.peerConnection
-                    .getSenders()
-                    .find(s => s.track && s.track.kind === 'video');
-
-                if (sender) {
-                    sender.replaceTrack(videoTrack);
+                    if (sender && videoTrack) {
+                        sender.replaceTrack(videoTrack);
+                        console.log('[VideoCallService] 화면 공유 중지 후 원래 카메라 트랙으로 복원됨');
+                    }
                 }
 
                 // 기존 화면공유 스트림 정리
@@ -303,8 +308,8 @@ class VideoCallService {
 
                 this.isScreenSharing = false;
 
-                // 카메라 스트림 반환
-                return cameraStream;
+                // 기존 로컬 스트림 반환 (새로운 스트림 생성하지 않음)
+                return this.localStream;
             }
         } catch (error) {
             console.error('화면 공유 전환 실패:', error);

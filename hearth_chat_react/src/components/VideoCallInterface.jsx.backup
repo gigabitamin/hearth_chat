@@ -22,7 +22,6 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
     const [isSpeakerEnabled, setIsSpeakerEnabled] = useState(false); // 통화 스피커 활성화 여부
     const [isBluetoothConnected, setIsBluetoothConnected] = useState(false); // 블루투스 이어폰 연결 여부
     const [audioOutput, setAudioOutput] = useState('earpiece'); // 'earpiece' | 'speaker' | 'bluetooth'
-    const [isSpeakerMuted, setIsSpeakerMuted] = useState(false); // 스피커 음소거 상태
 
     const localVideoRef = useRef(null);
     const remoteVideoRef = useRef(null);
@@ -138,10 +137,9 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
     const toggleSpeakerMute = async () => {
         try {
             if (remoteVideoRef.current) {
-                const newMuteState = !isSpeakerMuted;
-                remoteVideoRef.current.muted = newMuteState;
-                setIsSpeakerMuted(newMuteState);
-                console.log('[화상채팅] 스피커 음소거:', newMuteState);
+                const isMuted = remoteVideoRef.current.muted;
+                remoteVideoRef.current.muted = !isMuted;
+                console.log('[화상채팅] 스피커 음소거:', !isMuted);
             }
         } catch (error) {
             console.error('[화상채팅] 스피커 음소거 토글 실패:', error);
@@ -203,106 +201,6 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
             videoCallService.stopVideoCall();
         };
     }, [userId]); // userId가 변경될 때마다 실행
-
-    // 초기화 시 카메라 OFF 상태로 설정
-    const initializeCameraOff = () => {
-        setIsVideoEnabled(false);
-        console.log('[화상채팅] 카메라 OFF 상태로 설정됨');
-
-        // 실제 카메라 스트림도 중지
-        if (localVideoRef.current && localVideoRef.current.srcObject) {
-            const stream = localVideoRef.current.srcObject;
-            if (stream) {
-                stream.getVideoTracks().forEach(track => {
-                    track.enabled = false;
-                    console.log('[화상채팅] 비디오 트랙 비활성화됨:', track.kind);
-                });
-            }
-        }
-
-        // localStream 상태에서도 비디오 트랙 비활성화
-        if (localStream) {
-            localStream.getVideoTracks().forEach(track => {
-                track.enabled = false;
-                console.log('[화상채팅] localStream 비디오 트랙 비활성화됨:', track.kind);
-            });
-        }
-
-        console.log('[화상채팅] 초기화 시 카메라 OFF 상태로 설정됨');
-    };
-
-    // 초기화 시 스피커 음소거 상태 설정
-    const initializeSpeakerMute = () => {
-        if (remoteVideoRef.current) {
-            const actualMutedState = remoteVideoRef.current.muted;
-            setIsSpeakerMuted(actualMutedState);
-            console.log('[화상채팅] 스피커 음소거 상태 초기화:', actualMutedState);
-        }
-    };
-
-    // 컴포넌트 마운트 시 카메라 OFF 상태로 초기화
-    useEffect(() => {
-        if (localStream) {
-            initializeCameraOff();
-        }
-    }, [localStream]);
-
-    // localStream이 변경될 때마다 실제 비디오 트랙 상태와 UI 상태 동기화
-    useEffect(() => {
-        if (localStream) {
-            const videoTracks = localStream.getVideoTracks();
-            if (videoTracks.length > 0) {
-                const isVideoTrackEnabled = videoTracks[0].enabled;
-                if (isVideoTrackEnabled !== isVideoEnabled) {
-                    console.log('[화상채팅] 비디오 트랙 상태와 UI 상태 동기화:', {
-                        trackEnabled: isVideoTrackEnabled,
-                        uiState: isVideoEnabled
-                    });
-                    setIsVideoEnabled(isVideoTrackEnabled);
-                }
-            }
-        }
-    }, [localStream, isVideoEnabled]);
-
-    // remoteVideoRef가 변경될 때마다 실제 스피커 음소거 상태와 UI 상태 동기화
-    useEffect(() => {
-        if (remoteVideoRef.current) {
-            const actualMutedState = remoteVideoRef.current.muted;
-            if (actualMutedState !== isSpeakerMuted) {
-                console.log('[화상채팅] 스피커 음소거 상태와 UI 상태 동기화:', {
-                    actualMuted: actualMutedState,
-                    uiState: isSpeakerMuted
-                });
-                setIsSpeakerMuted(actualMutedState);
-            }
-        }
-    }, [remoteVideoRef.current, isSpeakerMuted]);
-
-    // remoteStream이 변경될 때마다 스피커 음소거 상태 동기화
-    useEffect(() => {
-        if (remoteStream && remoteVideoRef.current) {
-            // 원격 스트림이 설정된 후 약간의 지연을 두고 스피커 음소거 상태 확인
-            const timer = setTimeout(() => {
-                initializeSpeakerMute();
-            }, 200);
-            return () => clearTimeout(timer);
-        }
-    }, [remoteStream]);
-
-    // 화면 공유 상태 변경 시 카메라 상태 동기화
-    useEffect(() => {
-        if (!isScreenSharing && localStream && localVideoRef.current) {
-            // 화면 공유가 중지된 후 카메라 상태 복원
-            const videoTracks = localStream.getVideoTracks();
-            if (videoTracks.length > 0) {
-                const videoTrack = videoTracks[0];
-                if (videoTrack.enabled !== isVideoEnabled) {
-                    videoTrack.enabled = isVideoEnabled;
-                    console.log('[화상채팅] 화면 공유 중지 후 카메라 상태 동기화:', isVideoEnabled);
-                }
-            }
-        }
-    }, [isScreenSharing, localStream, isVideoEnabled]);
 
     // 블루투스 연결 상태 주기적 확인 (모바일 대응)
     useEffect(() => {
@@ -481,8 +379,6 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
                     if (remoteVideoRef.current) {
                         remoteVideoRef.current.srcObject = stream;
                         console.log('[화상채팅] 원격 비디오 요소에 스트림 설정됨');
-                        // 원격 스트림 설정 후 스피커 음소거 상태 초기화
-                        setTimeout(() => initializeSpeakerMute(), 100);
                     }
                 },
                 onConnectionStateChange: (state) => {
@@ -534,7 +430,39 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
         }
     };
 
+    // 초기화 시 카메라 OFF 상태로 설정
+    const initializeCameraOff = () => {
+        setIsVideoEnabled(false);
+        console.log('[화상채팅] 카메라 OFF 상태로 설정됨');
 
+        // 실제 카메라 스트림도 중지
+        if (localVideoRef.current && localVideoRef.current.srcObject) {
+            const stream = localVideoRef.current.srcObject;
+            if (stream) {
+                stream.getVideoTracks().forEach(track => {
+                    track.enabled = false;
+                    console.log('[화상채팅] 비디오 트랙 비활성화됨:', track.kind);
+                });
+            }
+        }
+
+        // localStream 상태에서도 비디오 트랙 비활성화
+        if (localStream) {
+            localStream.getVideoTracks().forEach(track => {
+                track.enabled = false;
+                console.log('[화상채팅] localStream 비디오 트랙 비활성화됨:', track.kind);
+            });
+        }
+
+        console.log('[화상채팅] 초기화 시 카메라 OFF 상태로 설정됨');
+    };
+
+    // 컴포넌트 마운트 시 카메라 OFF 상태로 초기화
+    useEffect(() => {
+        if (localStream) {
+            initializeCameraOff();
+        }
+    }, [localStream]);
 
     const isRoomOwner = () => {
         // 방장 여부 확인 로직 - 먼저 입장한 사용자가 방장
@@ -556,113 +484,34 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
     };
 
     const toggleVideo = () => {
-        if (localStream) {
-            const videoTracks = localStream.getVideoTracks();
-            if (videoTracks.length > 0) {
-                const videoTrack = videoTracks[0];
-                const newVideoState = !videoTrack.enabled;
-
-                // 실제 비디오 트랙 상태 변경
-                videoTrack.enabled = newVideoState;
-
-                // UI 상태 동기화
-                setIsVideoEnabled(newVideoState);
-
-                console.log('[화상채팅] 카메라 토글:', {
-                    newState: newVideoState,
-                    trackEnabled: videoTrack.enabled,
-                    uiState: newVideoState
-                });
-
-                return newVideoState;
-            }
-        }
-
-        // fallback: 기존 방식 사용
         const newVideoState = videoCallService.toggleVideo();
         setIsVideoEnabled(newVideoState);
-        return newVideoState;
     };
 
     const toggleScreenShare = async () => {
         try {
-            if (isScreenSharing) {
-                // 화면 공유 중지
-                console.log('[화상채팅] 화면 공유 중지 시작');
-
-                // videoCallService에서 화면 공유 중지 (WebRTC 트랙 교체)
-                try {
-                    await videoCallService.toggleScreenShare();
-                } catch (error) {
-                    console.error('[화상채팅] videoCallService 화면 공유 중지 실패:', error);
+            const newStream = await videoCallService.toggleScreenShare();
+            if (newStream) {
+                setScreenShareStream(newStream);
+                setIsScreenSharing(true);
+                if (localVideoRef.current) {
+                    localVideoRef.current.srcObject = newStream;
                 }
-
-                // 화면 공유 스트림 정리
-                if (screenShareStream) {
-                    screenShareStream.getTracks().forEach(track => {
-                        track.stop();
-                        console.log('[화상채팅] 화면 공유 트랙 정리됨:', track.kind);
-                    });
-                }
-
-                // 상태 초기화
+            } else {
                 setScreenShareStream(null);
                 setIsScreenSharing(false);
-
-                // 원래 카메라 스트림으로 복원
                 if (localVideoRef.current && localStream) {
                     localVideoRef.current.srcObject = localStream;
-
-                    // 약간의 지연 후 원래 카메라 상태로 복원 (카메라가 OFF였으면 OFF 상태 유지)
-                    setTimeout(() => {
-                        if (localStream) {
-                            const videoTracks = localStream.getVideoTracks();
-                            if (videoTracks.length > 0) {
-                                const videoTrack = videoTracks[0];
-                                videoTrack.enabled = isVideoEnabled;
-                                console.log('[화상채팅] 카메라 상태 복원 완료:', isVideoEnabled);
-                            }
-                        }
-                    }, 100);
-                }
-
-                console.log('[화상채팅] 화면 공유 중지 완료');
-            } else {
-                // 화면 공유 시작
-                console.log('[화상채팅] 화면 공유 시작');
-                const newStream = await videoCallService.toggleScreenShare();
-                if (newStream) {
-                    setScreenShareStream(newStream);
-                    setIsScreenSharing(true);
-                    if (localVideoRef.current) {
-                        localVideoRef.current.srcObject = newStream;
-                    }
-                    console.log('[화상채팅] 화면 공유 시작 완료');
                 }
             }
         } catch (error) {
             console.error('[화상채팅] 화면 공유 토글 실패:', error);
-            // 에러 발생 시 상태 초기화
-            setScreenShareStream(null);
-            setIsScreenSharing(false);
         }
     };
 
     const endCall = () => {
-        // 화면 공유 스트림 정리
-        if (screenShareStream) {
-            screenShareStream.getTracks().forEach(track => {
-                track.stop();
-                console.log('[화상채팅] 통화 종료 시 화면 공유 트랙 정리됨:', track.kind);
-            });
-        }
-
         videoCallService.stopVideoCall();
         setIsCallActive(false);
-        setIsSpeakerMuted(false); // 스피커 음소거 상태 초기화
-        setIsScreenSharing(false); // 화면 공유 상태 초기화
-        setScreenShareStream(null); // 화면 공유 스트림 초기화
-
         if (onCallEnd) {
             onCallEnd();
         }
@@ -762,22 +611,15 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
         <div className="video-call-interface">
 
 
-            <div className="video-controls">
+<div className="video-controls">
 
+                {/* 스피커 음소거 버튼 */}
                 <button
-                    onClick={toggleScreenShare}
-                    className={`control-btn ${isScreenSharing ? 'active' : ''}`}
-                    title={isScreenSharing ? '화면 공유 중지' : '화면 공유'}
+                    onClick={toggleSpeakerMute}
+                    className="control-btn"
+                    title="스피커 음소거 토글"
                 >
-                    {isScreenSharing ? '🖥️' : '🖥️❌'}
-                </button>
-
-                <button
-                    onClick={toggleVideo}
-                    className={`control-btn ${!isVideoEnabled ? 'disabled' : ''}`}
-                    title={isVideoEnabled ? '카메라 끄기' : '카메라 켜기'}
-                >
-                    {isVideoEnabled ? '📷' : '📷❌'}
+                    🔊
                 </button>
 
                 {/* 마이크 음소거 버튼 */}
@@ -787,16 +629,7 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
                     title={isMuted ? '마이크 음소거 해제' : '마이크 음소거'}
                 >
                     {isMuted ? '🎤❌' : '🎤'}
-                </button>
-
-                {/* 스피커 음소거 버튼 */}
-                <button
-                    onClick={toggleSpeakerMute}
-                    className={`control-btn ${isSpeakerMuted ? 'muted' : ''}`}
-                    title={isSpeakerMuted ? '스피커 음소거 해제' : '스피커 음소거'}
-                >
-                    {isSpeakerMuted ? '🔊❌' : '🔊'}
-                </button>
+                </button>                
 
                 {/* 음성 출력 전환 버튼 (이어폰 <-> 통화 스피커) */}
                 {/* <button
@@ -813,6 +646,22 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
                         🎧
                     </div>
                 )}
+
+                <button
+                    onClick={toggleScreenShare}
+                    className={`control-btn ${isScreenSharing ? 'active' : ''}`}
+                    title={isScreenSharing ? '화면 공유 중지' : '화면 공유'}
+                >
+                    {isScreenSharing ? '🖥️' : '💻'}
+                </button>
+
+                <button
+                    onClick={toggleVideo}
+                    className={`control-btn ${!isVideoEnabled ? 'disabled' : ''}`}
+                    title={isVideoEnabled ? '카메라 끄기' : '카메라 켜기'}
+                >
+                    {isVideoEnabled ? '🚫' : '📹'}
+                </button>
 
                 {/* 디버깅용 강제 연결 테스트 버튼 */}
                 {/* <button
@@ -838,7 +687,7 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
                     style={{ background: '#FF9800' }}
                 >
                     🔧
-                </button> */}
+                </button> */} 
 
                 {/* 강제 초기화 버튼 */}
                 {/* <button
@@ -870,7 +719,7 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
                         }
                     }}
                     className="control-btn offer"
-                    title="강제 Offer 생성"
+                    title="강제 Offer 생성"                    
                 >
                     📞
                 </button>
@@ -892,10 +741,6 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
                         autoPlay
                         playsInline
                         className="remote-video"
-                        onLoadedMetadata={() => {
-                            // 비디오 메타데이터가 로드된 후 스피커 음소거 상태 초기화
-                            setTimeout(() => initializeSpeakerMute(), 100);
-                        }}
                     />
                     {!remoteStream && (
                         <div className="waiting-message">

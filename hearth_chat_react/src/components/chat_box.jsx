@@ -316,79 +316,9 @@ const ChatBox = ({
     }, 500); // 500ms 간격으로 안전하게 처리
 
     ws.current.onopen = () => {
-      console.log('[WebSocket] 연결 성공');
-
-      // WebSocket을 전역으로 노출 (화상채팅에서 사용)
+      // WebSocket 연결 성공 시 전역으로 설정 (VideoCallInterface에서 사용)
       window.chatWebSocket = ws.current;
-
-      // WebSocket 연결 완료 상태 설정
-      setWsConnectionReady(true);
-
-      // 연결 후 약간의 지연을 두고 join_room 메시지 전송
-      setTimeout(() => {
-        if (!joinSent && ws.current && ws.current.readyState === 1) {
-          const joinMessage = { type: 'join_room', roomId: selectedRoom.id };
-          if (safeWebSocketSend(joinMessage)) {
-            joinSent = true;
-            console.log('[WebSocket] join_room 메시지 전송 성공');
-
-            // join_room 성공 후 자동 메시지 전송 시도
-            setTimeout(() => {
-              if (!autoMessageSent) {
-                const autoMsg = localStorage.getItem('pending_auto_message');
-                const autoImg = localStorage.getItem('pending_image_url');
-                if (autoMsg || autoImg) {
-                  console.log('[ChatBox] join_room 후 자동 메시지 전송 시도');
-                  const clientId = `${Date.now()}_${Math.random()}`;
-
-                  // 먼저 pending 메시지로 화면에 표시
-                  const pendingMessage = {
-                    id: `pending_${clientId}`,
-                    type: 'send',
-                    text: autoMsg || '[이미지 첨부]',
-                    date: new Date().toISOString(),
-                    sender: loginUser?.username || '사용자',
-                    user_id: loginUser?.id,
-                    pending: true,
-                    client_id: clientId,
-                    imageUrl: autoImg || null,
-                    imageUrls: autoImg ? [autoImg] : [],
-                  };
-
-                  console.log('[ChatBox] pending 메시지 생성:', pendingMessage);
-                  console.log('[ChatBox] 현재 messages 상태:', messages);
-
-                  setMessages(prev => {
-                    const newMessages = [...prev, pendingMessage];
-                    console.log('[ChatBox] pending 메시지 추가 후 messages:', newMessages);
-                    return newMessages;
-                  });
-
-                  console.log('[ChatBox] 자동 메시지 pending 상태로 추가됨:', pendingMessage);
-
-                  const messageData = {
-                    message: autoMsg || '[이미지 첨부]',
-                    imageUrl: autoImg || '',
-                    roomId: selectedRoom.id,
-                    client_id: clientId,
-                    type: 'user_message', // 메시지 타입 명시
-                  };
-
-                  try {
-                    ws.current.send(JSON.stringify(messageData));
-                    console.log('[ChatBox] join_room 후 자동 메시지 전송 성공:', messageData);
-                    localStorage.removeItem('pending_auto_message');
-                    localStorage.removeItem('pending_image_url');
-                    setAutoMessageSent(true);
-                  } catch (error) {
-                    console.error('[ChatBox] join_room 후 자동 메시지 전송 실패:', error);
-                  }
-                }
-              }
-            }, 100); // 100ms 지연으로 빠른 전송
-          }
-        }
-      }, 200); // 100ms에서 200ms로 증가하여 더 안전하게 처리
+      console.log('[ChatBox] WebSocket 재연결됨, 전역 설정 완료');
     };
     ws.current.onmessage = (e) => {
       try {
@@ -1562,6 +1492,8 @@ const ChatBox = ({
   // 아바타 on/off 상태 추가
   const [isUserAvatarOn, setIsUserAvatarOn] = useState(false); // 기본값 off
   const [isAiAvatarOn, setIsAiAvatarOn] = useState(false); // 기본값 off
+  // 화상채팅 토글 상태 추가
+  const [isVideoCallOn, setIsVideoCallOn] = useState(false); // 기본값 off
 
   // 수식과 일반 텍스트를 분리 렌더링하는 함수 - ChatBoxUI에서 import됨
 
@@ -2754,6 +2686,9 @@ const ChatBox = ({
               <button style={{ color: '#fff', background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', padding: 8, textAlign: 'left' }} onClick={() => { setIsCameraActive(v => !v); setIsMenuOpen(false); }}>
                 📷 {isCameraActive ? 'off' : 'on'}
               </button>
+              <button style={{ color: '#fff', background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', padding: 8, textAlign: 'left' }} onClick={() => { setIsVideoCallOn(v => !v); setIsMenuOpen(false); }}>
+                📞 {isVideoCallOn ? 'off' : 'on'}
+              </button>
             </div>
           )}
         </div>
@@ -2765,14 +2700,14 @@ const ChatBox = ({
             onSuccess={handleRoomSettingsSuccess}
           />
         )}
-        {/* 아바타/카메라/햄버거 메뉴 복구 */}
+        {/* 아바타/카메라/화상채팅 컨테이너 */}
         <div
           className="avatar-container"
           style={{
-            display: (!isCameraActive && !isAiAvatarOn && !isUserAvatarOn) ? 'none' : 'flex',
+            display: (!isCameraActive && !isAiAvatarOn && !isUserAvatarOn && !isVideoCallOn) ? 'none' : 'flex',
             flexDirection: 'row',
             width: '100%',
-            height: (!isCameraActive && !isAiAvatarOn && !isUserAvatarOn) ? 0 : '50%',
+            height: (!isCameraActive && !isAiAvatarOn && !isUserAvatarOn && !isVideoCallOn) ? 0 : '50%',
             margin: 0,
             padding: 0,
             position: 'relative',
@@ -2780,149 +2715,172 @@ const ChatBox = ({
             minWidth: 0,
           }}
         >
-          {/* AI 아바타 */}
-          <div style={getAiAvatarStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn)}>
-            <RealisticAvatar3D
-              avatarUrl={aiAvatar}
-              isTalking={isAiTalking}
-              emotion={aiEmotion}
-              mouthTrigger={mouthTrigger}
-              position="left"
-              size="100%"
-              showEmotionIndicator={true}
-              emotionCaptureStatus={emotionCaptureStatus.ai}
-            />
-          </div>
-          {/* 사용자 아바타 */}
-          <div style={getUserAvatarStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn)}>
-            <RealisticAvatar3D
-              avatarUrl={userAvatar}
-              isTalking={isUserTalking}
-              emotion={userEmotion}
-              position="right"
-              size="100%"
-              showEmotionIndicator={true}
-              emotionCaptureStatus={emotionCaptureStatus.user}
-              enableTracking={isTrackingEnabled}
-            />
-            {/* 트래킹 토글 버튼 */}
-            <div style={{
-              position: 'absolute',
-              top: '10px',
-              right: '10px',
-              zIndex: 10
-            }}>
-              <button
-                onClick={toggleTracking}
-                disabled={trackingStatus === 'starting'}
-                style={{
-                  padding: '8px 12px',
-                  backgroundColor: trackingStatus === 'error' ? '#ff9800' :
-                    isTrackingEnabled ? '#4CAF50' : '#f44336',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: trackingStatus === 'starting' ? 'not-allowed' : 'pointer',
-                  fontSize: '11px',
-                  fontWeight: 'bold',
-                  opacity: trackingStatus === 'starting' ? 0.6 : 1,
-                  transition: 'all 0.3s ease',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                  minWidth: '80px'
+          {/* 화상채팅이 활성화된 경우 VideoCallInterface 표시 */}
+          {isVideoCallOn && (
+            <div style={{ flex: 1, width: '100%', height: '100%' }}>
+              <VideoCallInterface
+                roomId={selectedRoom?.id}
+                userId={loginUser?.id}
+                webSocket={ws.current}
+                onCallEnd={() => {
+                  console.log('화상채팅 종료');
+                  setIsVideoCallOn(false);
                 }}
-                title={trackingStatus === 'error' ? '트래킹 오류 - 다시 시도해주세요' :
-                  isTrackingEnabled ? '트래킹 중지' : '트래킹 시작'}
-              >
-                {trackingStatus === 'starting' ? '🔄' :
-                  trackingStatus === 'error' ? '⚠️' :
-                    isTrackingEnabled ? '👁️' : '👁️‍🗨️'}
-                {trackingStatus === 'starting' ? ' 시작중...' :
-                  trackingStatus === 'error' ? ' 오류' :
-                    isTrackingEnabled ? ' 트래킹' : ' 트래킹'}
-              </button>
-
-              {/* 카메라 전환 버튼 (트래킹 중일 때만 표시) */}
-              {isTrackingEnabled && (
-                <button
-                  onClick={async () => {
-                    console.log('[트래킹] 카메라 전환 시도');
-                    const success = await faceTrackingService.switchToNextCamera();
-                    if (success) {
-                      console.log('[트래킹] 카메라 전환 성공');
-                    } else {
-                      console.log('[트래킹] 카메라 전환 실패');
-                    }
-                  }}
-                  style={{
-                    padding: '6px 10px',
-                    backgroundColor: '#2196F3',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '10px',
-                    fontWeight: 'bold',
-                    marginTop: '5px',
-                    width: '100%',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-                  }}
-                  title="다음 카메라로 전환"
-                >
-                  📷 전환
-                </button>
-              )}
-
-              {/* 트래킹 상태 표시 */}
-              {faceDetected && isTrackingEnabled && (
-                <div style={{
-                  position: 'absolute',
-                  top: '40px',
-                  right: '0px',
-                  backgroundColor: '#4CAF50',
-                  color: 'white',
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  fontSize: '10px',
-                  fontWeight: 'bold',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-                }}>
-                  얼굴 감지됨
-                </div>
-              )}
-
-              {/* 트래킹 상태 정보 */}
-              {isTrackingEnabled && (
-                <div style={{
-                  position: 'absolute',
-                  top: '40px',
-                  right: '0px',
-                  backgroundColor: '#2196F3',
-                  color: 'white',
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  fontSize: '10px',
-                  fontWeight: 'bold',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                  display: faceDetected ? 'none' : 'block'
-                }}>
-                  트래킹 중...
-                </div>
-              )}
+              />
             </div>
-          </div>
-          {/* 카메라 */}
-          <div style={getCameraStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn)}>
-            <EmotionCamera
-              isActive={isCameraActive}
-              userAvatar={userAvatar}
-              userEmotion={userEmotion}
-              isUserTalking={isUserTalking}
-              mouthTrigger={mouthTrigger}
-              emotionCaptureStatus={emotionCaptureStatus.user}
-              enableTracking={isUserAvatarOn}
-              showAvatarOverlay={isCameraActive && isUserAvatarOn}
-            />
-          </div>
+          )}
+
+          {/* 화상채팅이 비활성화된 경우 기존 아바타/카메라 표시 */}
+          {!isVideoCallOn && (
+            <>
+              {/* AI 아바타 */}
+              <div style={getAiAvatarStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn)}>
+                <RealisticAvatar3D
+                  avatarUrl={aiAvatar}
+                  isTalking={isAiTalking}
+                  emotion={aiEmotion}
+                  mouthTrigger={mouthTrigger}
+                  position="left"
+                  size="100%"
+                  showEmotionIndicator={true}
+                  emotionCaptureStatus={emotionCaptureStatus.ai}
+                />
+              </div>
+
+              {/* 사용자 아바타 */}
+              <div style={getUserAvatarStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn)}>
+                <RealisticAvatar3D
+                  avatarUrl={userAvatar}
+                  isTalking={isUserTalking}
+                  emotion={userEmotion}
+                  position="right"
+                  size="100%"
+                  showEmotionIndicator={true}
+                  emotionCaptureStatus={emotionCaptureStatus.user}
+                  enableTracking={isTrackingEnabled}
+                />
+
+                {/* 트래킹 토글 버튼 */}
+                <div style={{
+                  position: 'absolute',
+                  top: '10px',
+                  right: '10px',
+                  zIndex: 10
+                }}>
+                  <button
+                    onClick={toggleTracking}
+                    disabled={trackingStatus === 'starting'}
+                    style={{
+                      padding: '8px 12px',
+                      backgroundColor: trackingStatus === 'error' ? '#ff9800' :
+                        isTrackingEnabled ? '#4CAF50' : '#f44336',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: trackingStatus === 'starting' ? 'not-allowed' : 'pointer',
+                      fontSize: '11px',
+                      fontWeight: 'bold',
+                      opacity: trackingStatus === 'starting' ? 0.6 : 1,
+                      transition: 'all 0.3s ease',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                      minWidth: '80px'
+                    }}
+                    title={trackingStatus === 'error' ? '트래킹 오류 - 다시 시도해주세요' :
+                      isTrackingEnabled ? '트래킹 중지' : '트래킹 시작'}
+                  >
+                    {trackingStatus === 'starting' ? '🔄' :
+                      trackingStatus === 'error' ? '⚠️' :
+                        isTrackingEnabled ? '👁️' : '👁️‍🗨️'}
+                    {trackingStatus === 'starting' ? ' 시작중...' :
+                      trackingStatus === 'error' ? ' 오류' :
+                        isTrackingEnabled ? ' 트래킹' : ' 트래킹'}
+                  </button>
+
+                  {/* 카메라 전환 버튼 (트래킹 중일 때만 표시) */}
+                  {isTrackingEnabled && (
+                    <button
+                      onClick={async () => {
+                        console.log('[트래킹] 카메라 전환 시도');
+                        const success = await faceTrackingService.switchToNextCamera();
+                        if (success) {
+                          console.log('[트래킹] 카메라 전환 성공');
+                        } else {
+                          console.log('[트래킹] 카메라 전환 실패');
+                        }
+                      }}
+                      style={{
+                        padding: '6px 10px',
+                        backgroundColor: '#2196F3',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '10px',
+                        fontWeight: 'bold',
+                        marginTop: '5px',
+                        width: '100%',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                      }}
+                      title="다음 카메라로 전환"
+                    >
+                      📷 전환
+                    </button>
+                  )}
+
+                  {/* 트래킹 상태 표시 */}
+                  {faceDetected && isTrackingEnabled && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '40px',
+                      right: '0px',
+                      backgroundColor: '#4CAF50',
+                      color: 'white',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      fontSize: '10px',
+                      fontWeight: 'bold',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                    }}>
+                      얼굴 감지됨
+                    </div>
+                  )}
+
+                  {/* 트래킹 상태 정보 */}
+                  {isTrackingEnabled && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '40px',
+                      right: '0px',
+                      backgroundColor: '#2196F3',
+                      color: 'white',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      fontSize: '10px',
+                      fontWeight: 'bold',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                      display: faceDetected ? 'none' : 'block'
+                    }}>
+                      트래킹 중...
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 카메라 */}
+              <div style={getCameraStyle(isCameraActive, isAiAvatarOn, isUserAvatarOn)}>
+                <EmotionCamera
+                  isActive={isCameraActive}
+                  userAvatar={userAvatar}
+                  userEmotion={userEmotion}
+                  isUserTalking={isUserTalking}
+                  mouthTrigger={mouthTrigger}
+                  emotionCaptureStatus={emotionCaptureStatus.user}
+                  enableTracking={isUserAvatarOn}
+                  showAvatarOverlay={isCameraActive && isUserAvatarOn}
+                />
+              </div>
+            </>
+          )}
         </div>
         <div className="chat-log" style={{ position: 'relative', flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', height: '100%', width: '100%', maxWidth: '100vw', minWidth: 0, boxSizing: 'border-box', overflowX: 'hidden' }}>
           {/* 플로팅 메뉴, 그룹채팅, 아바타 등 기존 상단 UI는 그대로 유지 */}
@@ -2930,200 +2888,184 @@ const ChatBox = ({
           <div className="chat-section" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%', width: '100%', maxWidth: '100vw', minWidth: 0, boxSizing: 'border-box', overflowX: 'hidden' }}>
             <div className="chat-container" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%', width: '100%', maxWidth: '100vw', minWidth: 0, boxSizing: 'border-box', overflowX: 'hidden' }}>
               <div style={{ flex: 1, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
-                {/* 화상채팅 방인 경우 VideoCallInterface 표시 */}
-                {selectedRoom && selectedRoom.room_type === 'video_call' ? (
-                  (() => {
-                    console.log('[ChatBox] VideoCallInterface 렌더링:', {
-                      selectedRoom: selectedRoom,
-                      loginUser: loginUser,
-                      userId: loginUser?.id
+                {/* 메시지 목록 표시 */}
+                <VirtualizedMessageList
+                  messages={messages}
+                  loginUser={loginUser}
+                  highlightMessageId={highlightMessageId}
+                  getSenderColor={getSenderColor}
+                  onReply={msg => setReplyTo(msg)}
+                  // onMessageClick={msg => { }} // 메시지 강조 기능 제거
+                  // onReplyQuoteClick={id => { }} // 메시지 강조 기능 제거
+                  onImageClick={setViewerImage}
+                  favoriteMessages={favoriteMessages}
+                  onToggleFavorite={handleToggleFavorite}
+                  scrollToMessageId={scrollToMessageId}
+                  onMessageDelete={(messageId) => {
+                    if (messageId) {
+                      // 삭제된 메시지를 즉시 UI에서 제거
+                      setMessages(prev => prev.filter(msg => msg.id !== messageId));
+                      console.log('[메시지 삭제] UI에서 메시지 제거됨:', messageId);
+                    } else if (selectedRoom && selectedRoom.id) {
+                      // messageId가 없는 경우에만 fetchMessages 호출 (fallback)
+                      fetchMessages(selectedRoom.id, 0, 20, false, false);
+                    }
+                  }}
+                  onLoadMore={(isPrepending) => {
+                    console.log('[DEBUG] onLoadMore 호출됨:', {
+                      isPrepending,
+                      loadingMessages,
+                      hasMore,
+                      selectedRoomId: selectedRoom?.id,
+                      firstItemIndex,
+                      messagesLength: messages.length
                     });
-                    return (
-                      <VideoCallInterface
-                        roomId={selectedRoom.id}
-                        userId={loginUser?.id}
-                        onCallEnd={() => {
-                          // 화상채팅 종료 시 처리
-                          console.log('화상채팅 종료');
-                        }}
-                      />
-                    );
-                  })()
-                ) : (
-                  /* 일반 채팅 방인 경우 메시지 목록 표시 */
-                  <VirtualizedMessageList
-                    messages={messages}
-                    loginUser={loginUser}
-                    highlightMessageId={highlightMessageId}
-                    getSenderColor={getSenderColor}
-                    onReply={msg => setReplyTo(msg)}
-                    // onMessageClick={msg => { }} // 메시지 강조 기능 제거
-                    // onReplyQuoteClick={id => { }} // 메시지 강조 기능 제거
-                    onImageClick={setViewerImage}
-                    favoriteMessages={favoriteMessages}
-                    onToggleFavorite={handleToggleFavorite}
-                    scrollToMessageId={scrollToMessageId}
-                    onMessageDelete={(messageId) => {
-                      if (messageId) {
-                        // 삭제된 메시지를 즉시 UI에서 제거
-                        setMessages(prev => prev.filter(msg => msg.id !== messageId));
-                        console.log('[메시지 삭제] UI에서 메시지 제거됨:', messageId);
-                      } else if (selectedRoom && selectedRoom.id) {
-                        // messageId가 없는 경우에만 fetchMessages 호출 (fallback)
-                        fetchMessages(selectedRoom.id, 0, 20, false, false);
+
+                    if (!loadingMessages && hasMore && selectedRoom && selectedRoom.id) {
+                      if (isPrepending) {
+                        // 위로 스크롤: 현재 첫 번째 메시지 기준으로 이전 20개 fetch
+                        const newOffset = Math.max(0, firstItemIndex - 20);
+                        console.log('[DEBUG] 위로 스크롤 - 이전 20개 fetch:', { newOffset, roomId: selectedRoom.id });
+                        fetchMessages(
+                          selectedRoom.id,
+                          newOffset,
+                          20,
+                          true,
+                          false,
+                          null,
+                          setLoadingMessages,
+                          setTotalCount,
+                          messages,
+                          setMessages,
+                          setFirstItemIndex,
+                          setMessageOffset
+                        );
+                      } else {
+                        // 아래로 스크롤: 현재 마지막 메시지 기준으로 다음 20개 fetch
+                        const newOffset = firstItemIndex + messages.length;
+                        console.log('[DEBUG] 아래로 스크롤 - 다음 20개 fetch:', { newOffset, roomId: selectedRoom.id });
+                        fetchMessages(
+                          selectedRoom.id,
+                          newOffset,
+                          20,
+                          false,
+                          false,
+                          null,
+                          setLoadingMessages,
+                          setTotalCount,
+                          messages,
+                          setMessages,
+                          setFirstItemIndex,
+                          setMessageOffset
+                        );
                       }
-                    }}
-                    onLoadMore={(isPrepending) => {
-                      console.log('[DEBUG] onLoadMore 호출됨:', {
-                        isPrepending,
+                    } else {
+                      console.log('[DEBUG] onLoadMore 조건 불만족:', {
                         loadingMessages,
                         hasMore,
-                        selectedRoomId: selectedRoom?.id,
-                        firstItemIndex,
-                        messagesLength: messages.length
+                        selectedRoomExists: !!selectedRoom
                       });
-
-                      if (!loadingMessages && hasMore && selectedRoom && selectedRoom.id) {
-                        if (isPrepending) {
-                          // 위로 스크롤: 현재 첫 번째 메시지 기준으로 이전 20개 fetch
-                          const newOffset = Math.max(0, firstItemIndex - 20);
-                          console.log('[DEBUG] 위로 스크롤 - 이전 20개 fetch:', { newOffset, roomId: selectedRoom.id });
-                          fetchMessages(
-                            selectedRoom.id,
-                            newOffset,
-                            20,
-                            true,
-                            false,
-                            null,
-                            setLoadingMessages,
-                            setTotalCount,
-                            messages,
-                            setMessages,
-                            setFirstItemIndex,
-                            setMessageOffset
-                          );
-                        } else {
-                          // 아래로 스크롤: 현재 마지막 메시지 기준으로 다음 20개 fetch
-                          const newOffset = firstItemIndex + messages.length;
-                          console.log('[DEBUG] 아래로 스크롤 - 다음 20개 fetch:', { newOffset, roomId: selectedRoom.id });
-                          fetchMessages(
-                            selectedRoom.id,
-                            newOffset,
-                            20,
-                            false,
-                            false,
-                            null,
-                            setLoadingMessages,
-                            setTotalCount,
-                            messages,
-                            setMessages,
-                            setFirstItemIndex,
-                            setMessageOffset
-                          );
-                        }
-                      } else {
-                        console.log('[DEBUG] onLoadMore 조건 불만족:', {
-                          loadingMessages,
-                          hasMore,
-                          selectedRoomExists: !!selectedRoom
-                        });
-                      }
-                    }}
-                    hasMore={hasMore}
-                    selectedRoomId={selectedRoom?.id}
-                    loadingMessages={loadingMessages}
-                    firstItemIndex={firstItemIndex}
-                    totalCount={totalCount}
-                    onMessageClick={handleMessageClick}
-                    userSettings={userSettings}
-                  />
-                )}
+                    }
+                  }}
+                  hasMore={hasMore}
+                  selectedRoomId={selectedRoom?.id}
+                  loadingMessages={loadingMessages}
+                  firstItemIndex={firstItemIndex}
+                  totalCount={totalCount}
+                  onMessageClick={handleMessageClick}
+                  userSettings={userSettings}
+                />
               </div>
             </div>
           </div>
         </div>
       </div>
+      {/* </div > */}
 
       {/* 입력창 위에 첨부 이미지 미리보기 UI */}
-      {attachedImagePreviews.length > 0 && (
-        <div className="attached-image-preview-box" style={{
-          margin: '8px 0',
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '8px',
-          alignItems: 'center'
-        }}>
-          {attachedImagePreviews.map((preview, index) => (
-            <div key={index} style={{ position: 'relative', display: 'inline-block' }}>
-              <img
-                src={preview}
-                alt={`첨부 이미지 ${index + 1}`}
-                style={{
-                  maxWidth: 120,
-                  maxHeight: 120,
-                  borderRadius: 8,
-                  border: '1px solid #ddd'
-                }}
-              />
+      {
+        attachedImagePreviews.length > 0 && (
+          <div className="attached-image-preview-box" style={{
+            margin: '8px 0',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '8px',
+            alignItems: 'center'
+          }}>
+            {attachedImagePreviews.map((preview, index) => (
+              <div key={index} style={{ position: 'relative', display: 'inline-block' }}>
+                <img
+                  src={preview}
+                  alt={`첨부 이미지 ${index + 1}`}
+                  style={{
+                    maxWidth: 120,
+                    maxHeight: 120,
+                    borderRadius: 8,
+                    border: '1px solid #ddd'
+                  }}
+                />
+                <button
+                  onClick={() => handleRemoveAttachedImage(index)}
+                  style={{
+                    position: 'absolute',
+                    top: '-8px',
+                    right: '-8px',
+                    background: '#ff4444',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '20px',
+                    height: '20px',
+                    fontSize: '12px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            {attachedImagePreviews.length > 1 && (
               <button
-                onClick={() => handleRemoveAttachedImage(index)}
+                onClick={handleRemoveAllAttachedImages}
                 style={{
-                  position: 'absolute',
-                  top: '-8px',
-                  right: '-8px',
-                  background: '#ff4444',
-                  color: 'white',
+                  color: '#f44336',
+                  background: 'none',
                   border: 'none',
-                  borderRadius: '50%',
-                  width: '20px',
-                  height: '20px',
-                  fontSize: '12px',
+                  fontSize: 12,
                   cursor: 'pointer'
                 }}
               >
-                ×
+                모두 제거
               </button>
-            </div>
-          ))}
-          {attachedImagePreviews.length > 1 && (
-            <button
-              onClick={handleRemoveAllAttachedImages}
-              style={{
-                color: '#f44336',
-                background: 'none',
-                border: 'none',
-                fontSize: 12,
-                cursor: 'pointer'
-              }}
-            >
-              모두 제거
-            </button>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )
+      }
 
       {/* 입력창 위에 답장 인용 미리보기 UI */}
-      {replyTo && (
-        <div className="reply-preview-bar" style={{
-          background: 'rgba(33,150,243,0.08)',
-          borderLeft: '3px solid #2196f3',
-          padding: '6px 12px',
-          margin: '4px 0',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          borderRadius: 4,
-          fontSize: 14,
-          color: '#2196f3',
-          maxWidth: '95%',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }} onClick={() => { }}>
-          <b>{replyTo.sender || replyTo.username || '익명'}</b>: {replyTo.text ? replyTo.text.slice(0, 60) : '[첨부/삭제됨]'}
-          <button style={{ marginLeft: 8, color: '#2196f3', background: 'none', border: 'none', cursor: 'pointer', fontSize: 15 }} onClick={() => setReplyTo(null)}>취소</button>
-        </div>
-      )}
+      {
+        replyTo && (
+          <div className="reply-preview-bar" style={{
+            background: 'rgba(33,150,243,0.08)',
+            borderLeft: '3px solid #2196f3',
+            padding: '6px 12px',
+            margin: '4px 0',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            borderRadius: 4,
+            fontSize: 14,
+            color: '#2196f3',
+            maxWidth: '95%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }} onClick={() => { }}>
+            <b>{replyTo.sender || replyTo.username || '익명'}</b>: {replyTo.text ? replyTo.text.slice(0, 60) : '[첨부/삭제됨]'}
+            <button style={{ marginLeft: 8, color: '#2196f3', background: 'none', border: 'none', cursor: 'pointer', fontSize: 15 }} onClick={() => setReplyTo(null)}>취소</button>
+          </div>
+        )
+      }
     </>
   );
 };
