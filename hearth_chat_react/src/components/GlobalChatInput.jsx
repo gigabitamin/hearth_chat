@@ -1,5 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getApiBase, getCookie, csrfFetch, LILY_API_URL } from '../utils/apiConfig';
+import MultiImageUpload from './MultiImageUpload';
+// import MultiDocumentUpload from './MultiDocumentUpload';
+// import './GlobalChatInput.css';
 import Webcam from 'react-webcam';
 import ReactCrop from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
@@ -538,7 +542,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                 const formData = new FormData();
                 formData.append('file', imageFile);
 
-                const response = await fetch('/api/chat/upload_image/', {
+                const response = await fetch(`${getApiBase()}/api/chat/upload_image/`, {
                     method: 'POST',
                     body: formData,
                     credentials: 'include'
@@ -563,24 +567,19 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                 formData.append('file', documentFile);
                 formData.append('user_id', loginUser?.username || 'default_user');
 
-                const response = await fetch(`${LILY_API_URL}/document/upload`, {
+                const response = await fetch(`${getApiBase()}/api/chat/upload_document/`, { // Changed URL to upload_document
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    credentials: 'include'
                 });
 
                 if (response.ok) {
                     const result = await response.json();
-                    if (result.success) {
-                        uploadedDocuments.push({
-                            document_id: result.document_id,
-                            filename: documentFile.name
-                        });
-                        console.log(`✅ 문서 업로드 성공: ${documentFile.name}`);
-                    } else {
-                        console.error(`❌ 문서 업로드 실패: ${documentFile.name}`, result);
+                    if (result.file_url) {
+                        uploadedDocuments.push(result.file_url);
                     }
                 } else {
-                    console.error(`❌ 문서 업로드 HTTP 오류: ${documentFile.name}`, response.status, response.statusText);
+                    console.error('문서 업로드 실패:', response.status, response.statusText);
                     const errorData = await response.json();
                     console.error('에러 상세:', errorData);
                 }

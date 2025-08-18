@@ -981,6 +981,7 @@ function RealisticAvatar3D({
                 <pointLight position={[0, 2, 2]} intensity={0.5} />
 
                 {/* VRM 아바타 모델 또는 테스트 아바타 */}
+                {console.log('avatarUrl 984', avatarUrl)}
                 <Suspense fallback={null}>
                     {avatarUrl && !useFallbackAvatar ? (
                         <VRMAvatar

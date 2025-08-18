@@ -601,8 +601,7 @@ function AppContent(props) {
       <LoginModal
         isOpen={isLoginModalOpen}
         onClose={() => { setIsLoginModalOpen(false); }}
-        onSocialLogin={(url) => {
-          console.log('[DEBUG] 소셜 로그인 시작:', url);
+        onSocialLogin={(url) => {          
           const popupWidth = 480;
           const popupHeight = 600;
           const left = window.screenX + (window.outerWidth - popupWidth) / 2;
@@ -1089,21 +1088,17 @@ function App() {
     checkLoginStatus();
   }, []);
 
-  const checkLoginStatus = async () => {
-    console.log('[DEBUG] checkLoginStatus 시작');
+  const checkLoginStatus = async () => {    
     try {
       const response = await csrfFetch(`${getApiBase()}/api/chat/user/settings/`, {
         credentials: 'include',
         headers: {
           'X-CSRFToken': getCookie('csrftoken'),
         },
-      });
-      console.log('[DEBUG] API 응답 상태:', response.status);
+      });      
 
       if (response.ok) {
         const data = await response.json();
-        console.log('[DEBUG] 로그인된 사용자 정보:', data.user);
-        console.log('[DEBUG] 사용자 설정:', data.settings);
         setLoginUser(data.user);
         setUserSettings(data.settings || null);
       } else {
@@ -1116,8 +1111,7 @@ function App() {
       setLoginUser(null);
       setUserSettings(null);
     } finally {
-      setLoginLoading(false);
-      console.log('[DEBUG] checkLoginStatus 완료');
+      setLoginLoading(false);      
     }
   };
 
@@ -1159,8 +1153,6 @@ function App() {
       const host = window.location.hostname;
       const port = process.env.NODE_ENV === 'production' ? '' : ':8000';
       const wsUrl = `${protocol}//${host}${port}/ws/chat/`;
-
-      console.log("Attempting to connect to WebSocket:", wsUrl); // 연결 주소 확인용 로그
 
       wsInstance = new window.WebSocket(wsUrl);
       ws.current = wsInstance;
