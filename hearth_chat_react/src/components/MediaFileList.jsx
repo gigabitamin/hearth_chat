@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import './MediaFileList.css';
+import { getApiBase } from '../utils/apiConfig';
 
 // 파일 목록 보기 컴포넌트
 function MediaFileList({ API_BASE, onDelete, onDownload, filterValue, onFilterChange, onDeleteMulti }) {
@@ -84,7 +85,7 @@ function MediaFileList({ API_BASE, onDelete, onDownload, filterValue, onFilterCh
       {/* 모달 */}
       {modalImage && (
         <div className="media-modal" onClick={handleModalClose}>
-          <img src={modalImage} className="media-modal-img" alt="미리보기" onClick={() => setModalImage(null)} />
+          <img src={modalImage} className="media-modal-img" alt="미리보기" onClick={() => setModalImage(null)} style={{ cursor: 'pointer' }} />
         </div>
       )}
       {/* 선택 삭제 버튼 */}
@@ -126,13 +127,19 @@ function MediaFileList({ API_BASE, onDelete, onDownload, filterValue, onFilterCh
                 />
               </td>
               <td>{isImageFile(f.name)
-                ? <img src={f.file} className="media-thumb" alt={f.name} onClick={() => setModalImage(f.file)} style={{ cursor: 'pointer' }} />
+                ? (() => {
+                  const src = (f.file && f.file.startsWith('/media/')) ? `${getApiBase()}${f.file}` : f.file;
+                  return <img src={src} className="media-thumb" alt={f.name} onClick={() => setModalImage(src)} style={{ cursor: 'pointer' }} />
+                })()
                 : <span style={{ color: "#aaa" }}>–</span>
               }</td>
               <td>{f.name}</td>
               <td>{formatDate(f.uploaded_at)}</td>
               <td>
-                <button onClick={() => onDownload(f.url, f.name)}>다운로드</button>
+                <button onClick={() => {
+                  const url = (f.file && f.file.startsWith('/media/')) ? `${getApiBase()}${f.file}` : (f.url || f.file);
+                  onDownload(url, f.name);
+                }}>다운로드</button>
                 <button className="danger" onClick={() => onDelete(f.id)}>삭제</button>
               </td>
             </tr>

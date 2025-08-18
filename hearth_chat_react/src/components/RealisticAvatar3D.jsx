@@ -213,8 +213,10 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
         setIdleLoaded(false);
         const loader = new GLTFLoader();
         loader.register((parser) => new VRMLoaderPlugin(parser));
+        // 절대 URL 보정
+        const resolvedUrl = (avatarUrl && avatarUrl.startsWith('/media/')) ? `${getApiBase()}${avatarUrl}` : avatarUrl;
         loader.load(
-            avatarUrl,
+            resolvedUrl,
             (gltf) => {
                 const vrmInstance = gltf.userData.vrm;
                 if (!vrmInstance) {
