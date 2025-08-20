@@ -577,7 +577,7 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
             setMouthOpen(0);
         } else {
             // 고급 립싱크: mouthTrigger 값에 따른 다양한 입모양
-            console.log('[AVATAR] 립싱크 mouthTrigger 값:', mouthTrigger);
+            // console.log('[AVATAR] 립싱크 mouthTrigger 값:', mouthTrigger);
 
             const mouthShapes = {
                 1: { aa: 0.3, ih: 0.2, oh: 0.0, ou: 0.0 },      // closed - 살짝 열림
@@ -588,7 +588,7 @@ function VRMAvatar({ avatarUrl, isTalking, emotion, mouthTrigger, onLoadSuccess,
             };
 
             const currentShape = mouthShapes[mouthTrigger] || mouthShapes[1];
-            console.log('[AVATAR] 선택된 입모양:', currentShape);
+            // console.log('[AVATAR] 선택된 입모양:', currentShape);
 
             // VRM BlendShape 값 설정
             vrm.expressionManager.setValue('aa', currentShape.aa);
@@ -983,7 +983,7 @@ function RealisticAvatar3D({
                 <pointLight position={[0, 2, 2]} intensity={0.5} />
 
                 {/* VRM 아바타 모델 또는 테스트 아바타 */}
-                {console.log('avatarUrl 984', avatarUrl)}
+                {/* {console.log('avatarUrl 984', avatarUrl)} */}
                 <Suspense fallback={null}>
                     {avatarUrl && !useFallbackAvatar ? (
                         <VRMAvatar
