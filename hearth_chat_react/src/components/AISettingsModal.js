@@ -24,7 +24,7 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
         geminiApiKey: '',
         autoRespond: false,
         responseDelay: 1000,
-        maxTokens: 64,
+        maxTokens: 1000,
         temperature: 0.7,
         ...currentSettings
     });
@@ -50,7 +50,7 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
                     geminiApiKey: '',
                     autoRespond: false,
                     responseDelay: 1000,
-                    maxTokens: 64,
+                    maxTokens: 1000,
                     temperature: 0.7,
                     ...currentSettings
                 };

@@ -9,7 +9,8 @@ from openai import OpenAI
 
 load_dotenv()
 
-max_length = 64
+max_length = 2000
+max_new_tokens = 1000
 
 class ChatConsumer(AsyncWebsocketConsumer):
     def __init__(self, *args, **kwargs):
@@ -696,7 +697,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             
                             # Form data 구성 (간결 프롬프트)
                             # max_tokens(=max_length) 동적 적용: 사용자 설정 > 기본값(20) > 상한 128
-                            lily_max_len = max(1, min(int(ai_settings.get('maxTokens', 20)) if ai_settings else 20, 128))
+                            lily_max_len = max(1, min(int(ai_settings.get('maxTokens', 128)) if ai_settings else 128, max_new_tokens))
                             data = {
                                 'prompt': user_message,
                                 'max_length': lily_max_len,
@@ -750,7 +751,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     
                     try:
                         # Form data 구성 (간결 프롬프트, max_tokens 동적 적용)
-                        lily_max_len = max(1, min(int(ai_settings.get('maxTokens', 20)) if ai_settings else 20, 128))
+                        lily_max_len = max(1, min(int(ai_settings.get('maxTokens', 128)) if ai_settings else 128, max_new_tokens))
                         data = {
                             'prompt': user_message,
                             'max_length': lily_max_len,
