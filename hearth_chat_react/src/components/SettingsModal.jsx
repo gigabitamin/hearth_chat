@@ -123,7 +123,7 @@ const SettingsModal = ({
   // Lily API 모델 목록 가져오기
   const fetchLilyModels = async () => {
     try {
-      const response = await fetch(`${aiSettings.lilyApiUrl}/models`);
+      const response = await fetch(`${aiSettings.lilyApiUrl}/api/v2/models`);
       if (response.ok) {
         const data = await response.json();
         setAiSettings(prev => ({ ...prev, availableModels: data.models || [] }));
@@ -427,6 +427,35 @@ const SettingsModal = ({
 
   if (!isOpen) return null;
 
+  // AI 설정에서 특정 값 가져오기
+  const getAiSetting = (key, defaultValue = false) => {
+    try {
+      if (userSettings?.ai_settings) {
+        const aiSettings = JSON.parse(userSettings.ai_settings);
+        if (key === '') {
+          return aiSettings; // 전체 객체 반환
+        }
+        return aiSettings[key] !== undefined ? aiSettings[key] : defaultValue;
+      }
+    } catch (error) {
+      console.error('❌ AI 설정 파싱 오류:', error);
+    }
+    return defaultValue;
+  };
+
+  // AI 설정에 특정 값 저장하기
+  const saveAiSetting = async (key, value) => {
+    try {
+      const currentAiSettings = getAiSetting('', {});
+      const updatedAiSettings = { ...currentAiSettings, [key]: value };
+
+      // ai_settings JSON으로 저장
+      await saveSetting({ ai_settings: JSON.stringify(updatedAiSettings) });
+    } catch (error) {
+      console.error('❌ AI 설정 저장 오류:', error);
+    }
+  };
+
   // 서버에 설정 저장
   const saveSetting = async (patchObj) => {
     console.log('💾 SettingsModal - 설정 저장 시작:', patchObj);
@@ -453,6 +482,7 @@ const SettingsModal = ({
         tracking_sensitivity: 'tracking_sensitivity', // 트래킹 민감도 필드 추가
         tracking_smoothness: 'tracking_smoothness', // 트래킹 부드러움 필드 추가
         tracking_camera_index: 'tracking_camera_index', // 트래킹 카메라 인덱스 필드 추가
+
       };
       // 매핑 적용
       const serverPatch = {};
@@ -1083,6 +1113,25 @@ const SettingsModal = ({
                 </small>
               </div>
 
+              {/* Room 이동 시 메모리 유지 설정 */}
+              <div className="setting-group">
+                <label className="setting-label">
+                  <input
+                    type="checkbox"
+                    checked={getAiSetting('keep_memory_on_room_change', true)}
+                    onChange={(e) => {
+                      console.log('[설정] Room 이동 시 메모리 유지 체크박스 변경:', e.target.checked);
+                      saveAiSetting('keep_memory_on_room_change', e.target.checked);
+                    }}
+                    disabled={saving}
+                  />
+                  Room 이동 시 메모리 유지
+                </label>
+                <small style={{ fontSize: '0.8em', color: '#666', marginLeft: '24px' }}>
+                  체크하면 room을 옮겨도 이전 대화 내용이 유지됩니다. 체크 해제하면 room 이동 시 메모리가 초기화됩니다.
+                </small>
+              </div>
+
               {/* AI 제공자 선택 */}
               <div className="setting-group">
                 <label className="setting-label">AI 제공자:</label>
@@ -1336,7 +1385,7 @@ const SettingsModal = ({
 
                       switch (aiSettings.aiProvider) {
                         case 'lily':
-                          testUrl = `${aiSettings.lilyApiUrl}/health`;
+                          testUrl = `${aiSettings.lilyApiUrl}/api/v2/health`;
                           break;
                         case 'huggingface':
                           testUrl = 'https://gbrabbit-lily-math-rag.hf.space/api/predict';

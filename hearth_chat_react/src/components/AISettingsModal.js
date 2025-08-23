@@ -85,7 +85,7 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
     const fetchLilyModels = async () => {
         try {
             setLoading(true);
-            const response = await fetch(`${settings.lilyApiUrl}/models`);
+            const response = await fetch(`${settings.lilyApiUrl}/api/v2/models`);
             if (response.ok) {
                 const data = await response.json();
                 setAvailableModels(data.models || []);
@@ -131,14 +131,14 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
 
             switch (settings.aiProvider) {
                 case 'lily':
-                    testUrl = `${settings.lilyApiUrl}/health`;
+                    testUrl = `${settings.lilyApiUrl}/api/v2/health`;
                     break;
                 case 'huggingface':
                     testUrl = 'https://gbrabbit-lily-math-rag.hf.space/api/predict';
                     testData = {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json',                            
+                            'Content-Type': 'application/json',
                         },
                         body: JSON.stringify({
                             data: [
@@ -283,7 +283,7 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
                             <option value="lily">Lily Fast Api</option>
                             <option value="gemini">Gemini (Google)</option>
                             {/* <option value="chatgpt">ChatGPT (OpenAI)</option> */}
-                            {/* <option value="huggingface">Lily Gradio</option> */}                                                        
+                            {/* <option value="huggingface">Lily Gradio</option> */}
                         </select>
                     </div>
 
@@ -306,13 +306,13 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
                                     value={settings.lilyModel}
                                     onChange={(e) => handleInputChange('lilyModel', e.target.value)}
                                     disabled={loading}
-                                >                                    
+                                >
                                     {availableModels.map(model => (
                                         <option key={model.model_id} value={model.model_id}>
                                             {model.model_id}
                                         </option>
                                     ))}
-                                    {console.log('availableModels',availableModels)}
+                                    {console.log('availableModels', availableModels)}
                                 </select>
 
                                 {/* 현재 활성화된 모델 정보 표시 */}
@@ -321,8 +321,8 @@ const AISettingsModal = ({ isOpen, onClose, onSave, currentSettings = {}, onActi
                                         <small style={{ color: '#4CAF50', fontWeight: 'bold' }}>
                                             ✅ 현재 활성화된 모델: {currentActiveModel.display_name}
                                         </small>
-                                        {console.log('currentActiveModel',currentActiveModel)}
-                                        {console.log('settings',settings)}
+                                        {console.log('currentActiveModel', currentActiveModel)}
+                                        {console.log('settings', settings)}
                                         {currentActiveModel.display_name !== settings.lilyModel && (
                                             <small style={{ color: '#FF9800', display: 'block', marginTop: '4px' }}>
                                                 ⚠️ 선택된 모델과 서버의 활성 모델이 다릅니다

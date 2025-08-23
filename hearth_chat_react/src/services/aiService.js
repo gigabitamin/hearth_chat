@@ -51,10 +51,10 @@ class AIService {
     // Lily API 응답 생성
     async generateLilyResponse(message, context = '') {
         console.log('🌿 Lily API 호출 시작');
-        console.log('🔗 API URL:', `${this.settings.lilyApiUrl}/generate`);
+        console.log('🔗 API URL:', `${this.settings.lilyApiUrl}/api/v2/generate`);
         console.log('🔧 모델:', this.settings.lilyModel);
-        
-        const url = `${this.settings.lilyApiUrl}/generate`;
+
+        const url = `${this.settings.lilyApiUrl}/api/v2/generate`;
 
         const formData = new FormData();
         formData.append('prompt', message);
@@ -86,7 +86,7 @@ class AIService {
 
         const data = await response.json();
         console.log('✅ Lily API 응답 성공:', data);
-        
+
         return {
             text: data.generated_text,
             model: data.model_name,
@@ -239,7 +239,7 @@ class AIService {
             switch (this.settings.aiProvider) {
                 case 'lily':
                     console.log('🔗 Lily API 연결 테스트 중...');
-                    const response = await fetch(`${this.settings.lilyApiUrl}/health`);
+                    const response = await fetch(`${this.settings.lilyApiUrl}/api/v2/health`);
                     if (!response.ok) {
                         throw new Error(`Lily API 연결 실패: ${response.status}`);
                     }

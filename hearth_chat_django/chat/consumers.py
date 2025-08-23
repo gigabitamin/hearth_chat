@@ -719,7 +719,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             # API 호출
                             # print(f"🔄 멀티모달 요청 전송 (이미지 포함)")
                             response = requests.post(
-                                f"{lily_api_url}/generate",
+                                f"{lily_api_url}/api/v2/generate",
                                 data=data,
                                 files=files,
                                 headers=headers,
@@ -768,7 +768,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         # API 호출
                         # print(f"🔄 텍스트 전용 요청 전송")
                         response = requests.post(
-                            f"{lily_api_url}/generate",
+                            f"{lily_api_url}/api/v2/generate",
                             data=data,
                             headers=headers,
                             timeout=1200

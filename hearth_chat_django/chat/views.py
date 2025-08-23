@@ -1049,6 +1049,22 @@ class UserSettingsView(APIView):
             if camera_settings_updated:
                 data['camera_settings'] = json.dumps(current_camera_settings)
             
+            # ai_settings JSON에서 keep_memory_on_room_change 처리
+            if 'keep_memory_on_room_change' in data:
+                current_ai_settings = {}
+                if settings.ai_settings:
+                    try:
+                        current_ai_settings = json.loads(settings.ai_settings)
+                    except (json.JSONDecodeError, TypeError):
+                        current_ai_settings = {}
+                
+                # keep_memory_on_room_change 설정을 ai_settings JSON에 추가
+                current_ai_settings['keep_memory_on_room_change'] = data['keep_memory_on_room_change']
+                data['ai_settings'] = json.dumps(current_ai_settings)
+                
+                # 개별 필드에서 제거 (JSON에 통합했으므로)
+                del data['keep_memory_on_room_change']
+            
             serializer = UserSettingsSerializer(settings, data=data, partial=True)
             if serializer.is_valid():
                 serializer.save()
