@@ -31,6 +31,10 @@ if [ -n "$DOMAIN_ENV" ]; then
 else
     DOMAIN="port-0-hearth-chat-meq4jsqba77b2805.sel5.cloudtype.app"
 fi
+# 미디어 디렉토리 보장 (쓰기 가능 경로)
+export MEDIA_ROOT=${MEDIA_ROOT:-/tmp/media}
+mkdir -p "$MEDIA_ROOT" || true
+echo "MEDIA_ROOT: $MEDIA_ROOT"
 python manage.py createinitialsite --force --domain "$DOMAIN" || echo "createinitialsite 경고: 계속 진행합니다."
 
 # 슈퍼유저 생성 (이미 있으면 통과)

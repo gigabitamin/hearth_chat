@@ -684,6 +684,10 @@ if IS_PRODUCTION:
     # 프로덕션 환경: 환경변수로 설정하거나 기본값 사용
     # Render 서버에서는 프로젝트 내 media 폴더 사용
     MEDIA_ROOT = os.environ.get('MEDIA_ROOT', os.path.join(BASE_DIR, 'media'))
+    # Cloudtype에서는 기본적으로 읽기/쓰기 가능한 /tmp 사용 권장
+    if IS_CLOUDTYPE_DEPLOY and not os.environ.get('MEDIA_ROOT'):
+        MEDIA_ROOT = '/tmp/media'
+        print(f"🔧 Cloudtype 기본 MEDIA_ROOT 사용: {MEDIA_ROOT}")
     MEDIA_URL = '/media/'
     
     # Render 서버에서 미디어 파일 경로 로깅
@@ -732,6 +736,9 @@ else:
 # ❗️❗️❗️ 서버 오류 해결을 위한 유일한 변경점 ❗️❗️❗️
 
 # 로깅 설정 추가
+# 컨테이너 환경 호환을 위해 기본 로그 파일을 /tmp로 이동
+DJANGO_LOG_FILE = os.environ.get('DJANGO_LOG_FILE', '/tmp/django.log')
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -752,7 +759,7 @@ LOGGING = {
         },
         'file': {
             'class': 'logging.FileHandler',
-            'filename': 'django.log',
+            'filename': DJANGO_LOG_FILE,
             'formatter': 'verbose',
         },
     },
@@ -774,6 +781,20 @@ LOGGING = {
         },
     },
 }
+
+# Cloudtype에서는 파일 로깅 비활성화 또는 /tmp로만 기록
+if IS_CLOUDTYPE_DEPLOY:
+    try:
+        # 파일 핸들러가 /tmp가 아닌 경로를 가리키지 않도록 보장
+        LOGGING['handlers']['file']['filename'] = DJANGO_LOG_FILE
+        # 필요 시 파일 로깅 자체를 제거하려면 아래 주석을 해제하세요.
+        # LOGGING['handlers'].pop('file', None)
+        # LOGGING['loggers']['django']['handlers'] = ['console']
+        # LOGGING['loggers']['allauth']['handlers'] = ['console']
+        # LOGGING['loggers']['hearth_chat.adapters']['handlers'] = ['console']
+        print('✅ Cloudtype 환경 - 로그 파일을 /tmp 경로로 설정')
+    except Exception:
+        pass
 
 if os.environ.get("RAILWAY_ENVIRONMENT"):
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
