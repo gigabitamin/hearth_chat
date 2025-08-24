@@ -11,6 +11,7 @@ load_dotenv()
 
 max_length = 2000
 max_new_tokens = 1000
+image_short_side_limit = 128
 time_limit = 3000
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -227,6 +228,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 user_emotion,
                 image_urls,
                 documents,
+                room_id=room_id,
+                session_id=self.session_id,
                 client_ai_settings=client_ai_settings if client_ai_settings else None,
             )            
             
@@ -535,7 +538,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 "geminiModel": "gemini-1.5-flash"
             }
 
-    async def get_ai_response(self, user_message, user_emotion="neutral", image_urls=None, documents=None, client_ai_settings=None):
+    async def get_ai_response(self, user_message, user_emotion="neutral", image_urls=None, documents=None, room_id=None, session_id=None, client_ai_settings=None):
         import base64
         import requests
         import os
@@ -544,7 +547,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         from openai import OpenAI
 
         @sync_to_async
-        def call_lily_api(user_message, user_emotion, image_urls=None, documents=None):
+        def call_lily_api(user_message, user_emotion, image_urls=None, documents=None, room_id_param=None, session_id_param=None):
             """Lily LLM API 호출"""
             import requests
             try:
@@ -618,6 +621,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             rag_data = {
                                 'query': user_message,
                                 'user_id': user.username if user else 'default_user',
+                                'room_id': (room_id_param or room_id or 'default'),
+                                'session_id': (session_id_param or session_id or ''),
                                 'document_id': document_id,
                                 'max_length': lily_max_len,
                                 'temperature': 0.7
@@ -628,7 +633,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             hf_token = os.getenv('HF_TOKEN') or os.getenv('HUGGING_FACE_TOKEN')
                             headers = {"Authorization": f"Bearer {hf_token}"} if hf_token else {}
                             response = requests.post(
-                                f"{lily_api_url}/rag/generate",
+                                f"{lily_api_url}/api/v2/rag/generate",
                                 data=rag_data,
                                 headers=headers,
                                 timeout=time_limit
@@ -701,6 +706,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             lily_max_len = max(1, min(int(ai_settings.get('maxTokens', 128)) if ai_settings else 128, max_new_tokens))
                             data = {
                                 'prompt': user_message,
+                                'user_id': user.username if user else 'default_user',
+                                'room_id': (room_id_param or room_id or 'default'),
+                                'session_id': (session_id_param or session_id or ''),
                                 'max_length': lily_max_len,
                                 'temperature': 0.7
                             }
@@ -755,8 +763,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         lily_max_len = max(1, min(int(ai_settings.get('maxTokens', 128)) if ai_settings else 128, max_new_tokens))
                         data = {
                             'prompt': user_message,
+                            'user_id': user.username if user else 'default_user',
+                            'room_id': (room_id_param or room_id or 'default'),
+                            'session_id': (session_id_param or session_id or ''),
                             'max_length': lily_max_len,
-                            'temperature': 0.7
+                            'temperature': 0.7,
+                            'use_rag_text': True,  # 텍스트-only에서도 문서 컨텍스트 사용
+                            # 'image_short_side': image_short_side_limit,
                         }
                         
                         # print(f"📤 요청 데이터: {data}")
@@ -770,7 +783,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         # print(f"🔄 텍스트 전용 요청 전송")
                         response = requests.post(
                             f"{lily_api_url}/api/v2/generate",
-                            data=data,
+                            data={**data, 'use_rag_images': True},
                             headers=headers,
                             timeout=time_limit
                         )

@@ -570,7 +570,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                 const response = await fetch(`${LILY_API_URL}/api/v2/document/upload/`, {
                     // const response = await fetch(`${getApiBase()}/api/chat/upload_document/`, {
                     method: 'POST',
-                    body: formData,
+                    body: (() => { formData.append('room_id', String(room?.id || 'default')); return formData; })(),
                     credentials: 'include'
                 });
 

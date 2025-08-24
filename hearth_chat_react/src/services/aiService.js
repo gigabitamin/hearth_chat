@@ -61,8 +61,10 @@ class AIService {
         formData.append('model_id', this.settings.lilyModel);
         formData.append('max_length', this.settings.maxTokens);
         formData.append('temperature', this.settings.temperature);
-        formData.append('top_p', 0.9);
-        formData.append('do_sample', true);
+        // formData.append('top_p', 0.9);
+        // formData.append('do_sample', true);
+        // formData.append('use_rag_text', true);
+        // formData.append('image_short_side', 128);
 
         console.log('📤 요청 데이터:', {
             prompt: message,
