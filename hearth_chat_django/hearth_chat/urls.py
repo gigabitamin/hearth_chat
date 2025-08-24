@@ -14,7 +14,7 @@ from .views import (
     naver_login_redirect, naver_login_callback, github_login_redirect, github_login_callback,
     google_connect_redirect, google_connect_callback, kakao_connect_redirect, kakao_connect_callback,
     naver_connect_redirect, naver_connect_callback, github_connect_redirect, github_connect_callback,
-    DebugLoginView, CustomSignupView
+    DebugLoginView, CustomSignupView, ReactAppView
 )
 
 urlpatterns = [
@@ -99,5 +99,5 @@ urlpatterns.append(re_path(r'^media/(?P<path>.*)$', media_serve, name='media_ser
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 
 # --- 4. React 앱 서빙 (Fallback) - 정적 파일 경로 제외 ---
-urlpatterns.append(re_path(r"^(?!admin|api|accounts|oauth|social-redirect|health|static|media|favicon\.ico|manifest\.json).*", TemplateView.as_view(template_name="index.html")))
+urlpatterns.append(re_path(r"^(?!admin|api|accounts|oauth|social-redirect|health|static|media|favicon\.ico|manifest\.json).*", ReactAppView.as_view()))
 
