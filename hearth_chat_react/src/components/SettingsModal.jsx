@@ -104,6 +104,7 @@ const SettingsModal = ({
     autoRespond: false,
     responseDelay: 1000,
     maxTokens: 1000,
+    inputMaxLength: 2048,
     temperature: 0.7,
     availableModels: [],
     ...(userSettings?.ai_settings ? JSON.parse(userSettings.ai_settings) : {})
@@ -159,6 +160,7 @@ const SettingsModal = ({
         autoRespond: false,
         responseDelay: 1000,
         maxTokens: 1000,
+        inputMaxLength: 2048,
         temperature: 0.7
       };
 
@@ -1347,6 +1349,25 @@ const SettingsModal = ({
                   onChange={(e) => setAiSettings(prev => ({ ...prev, maxTokens: parseInt(e.target.value) }))}
                   min="1"
                   max="4000"
+                  disabled={saving}
+                  style={{
+                    padding: '8px 12px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    fontSize: '0.9em',
+                    width: '100%'
+                  }}
+                />
+              </div>
+
+              <div className="setting-group">
+                <label className="setting-label">입력 최대 길이(토크나이즈 상한):</label>
+                <input
+                  type="number"
+                  value={aiSettings.inputMaxLength}
+                  onChange={(e) => setAiSettings(prev => ({ ...prev, inputMaxLength: parseInt(e.target.value) }))}
+                  min="128"
+                  max="4096"
                   disabled={saving}
                   style={{
                     padding: '8px 12px',

@@ -617,15 +617,23 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             # print(f"[RAG] 쿼리 실행: document_id={document_id}")
                             
                             # RAG API 호출
-                            lily_max_len = max(1, min(int(ai_settings.get('maxTokens', 20)) if ai_settings else 20, 128))
+                            # max_new_tokens: 사용자 설정 > 기본값(128) > 상한 max_new_tokens
+                            lily_max_len = max(1, min(int(ai_settings.get('maxTokens', 128)) if ai_settings else 128, max_new_tokens))
+                            # 입력 최대 길이 전달: 사용자 설정(inputMaxLength) 존재 시만
+                            input_max_len = None
+                            try:
+                                input_max_len = int(ai_settings.get('inputMaxLength')) if ai_settings and ai_settings.get('inputMaxLength') is not None else None
+                            except Exception:
+                                input_max_len = None
                             rag_data = {
                                 'query': user_message,
                                 'user_id': user.username if user else 'default_user',
                                 'room_id': (room_id_param or room_id or 'default'),
                                 'session_id': (session_id_param or session_id or ''),
                                 'document_id': document_id,
-                                'max_length': lily_max_len,
-                                'temperature': 0.7
+                                'max_new_tokens': lily_max_len,
+                                'temperature': 0.7,
+                                **({'input_max_length': input_max_len} if input_max_len else {})
                             }
                             
                             # print(f"[RAG] 요청 데이터: {rag_data}")
@@ -702,15 +710,24 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             # print(f"🚀 Lily API 호출 시작: {lily_api_url}/generate")
                             
                             # Form data 구성 (간결 프롬프트)
-                            # max_tokens(=max_length) 동적 적용: 사용자 설정 > 기본값(20) > 상한 128
+                            # max_new_tokens 동적 적용: 사용자 설정 > 기본값(128) > 상한 max_new_tokens
                             lily_max_len = max(1, min(int(ai_settings.get('maxTokens', 128)) if ai_settings else 128, max_new_tokens))
+                            # 입력 최대 길이: 사용자 설정(inputMaxLength)이 있으면 전달
+                            input_max_len = None
+                            try:
+                                input_max_len = int(ai_settings.get('inputMaxLength')) if ai_settings and ai_settings.get('inputMaxLength') is not None else None
+                            except Exception:
+                                input_max_len = None
                             data = {
                                 'prompt': user_message,
                                 'user_id': user.username if user else 'default_user',
                                 'room_id': (room_id_param or room_id or 'default'),
                                 'session_id': (session_id_param or session_id or ''),
-                                'max_length': lily_max_len,
-                                'temperature': 0.7
+                                'max_new_tokens': lily_max_len,
+                                'temperature': 0.7,
+                                # UX: 이미지가 있으면 자동 멀티모달 허용
+                                'use_rag_images': True,
+                                **({'input_max_length': input_max_len} if input_max_len else {})
                             }
                             
                             # 파일 데이터 구성
@@ -759,17 +776,25 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     # print("📝 텍스트 전용 요청")
                     
                     try:
-                        # Form data 구성 (간결 프롬프트, max_tokens 동적 적용)
+                        # Form data 구성 (간결 프롬프트)
+                        # max_new_tokens 동적 적용: 사용자 설정 > 기본값(128) > 상한 max_new_tokens
                         lily_max_len = max(1, min(int(ai_settings.get('maxTokens', 128)) if ai_settings else 128, max_new_tokens))
+                        # 입력 최대 길이: 사용자 설정(inputMaxLength)이 있으면 전달
+                        input_max_len = None
+                        try:
+                            input_max_len = int(ai_settings.get('inputMaxLength')) if ai_settings and ai_settings.get('inputMaxLength') is not None else None
+                        except Exception:
+                            input_max_len = None
                         data = {
                             'prompt': user_message,
                             'user_id': user.username if user else 'default_user',
                             'room_id': (room_id_param or room_id or 'default'),
                             'session_id': (session_id_param or session_id or ''),
-                            'max_length': lily_max_len,
+                            'max_new_tokens': lily_max_len,
                             'temperature': 0.7,
                             'use_rag_text': True,  # 텍스트-only에서도 문서 컨텍스트 사용
-                            # 'image_short_side': image_short_side_limit,
+                            'use_rag_images': False,  # 텍스트-only 기본: 이미지 복구 비활성화
+                            **({'input_max_length': input_max_len} if input_max_len else {})
                         }
                         
                         # print(f"📤 요청 데이터: {data}")
@@ -783,7 +808,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         # print(f"🔄 텍스트 전용 요청 전송")
                         response = requests.post(
                             f"{lily_api_url}/api/v2/generate",
-                            data={**data, 'use_rag_images': True},
+                            data=data,
                             headers=headers,
                             timeout=time_limit
                         )

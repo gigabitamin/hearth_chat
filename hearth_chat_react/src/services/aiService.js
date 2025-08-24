@@ -17,7 +17,7 @@ class AIService {
     }
 
     // AI 응답 생성
-    async generateResponse(message, context = '') {
+    async generateResponse(message, context = '', options = {}) {
         if (!this.isInitialized || !this.settings?.aiEnabled) {
             throw new Error('AI 서비스가 초기화되지 않았거나 비활성화되어 있습니다.');
         }
@@ -31,7 +31,7 @@ class AIService {
             switch (this.settings.aiProvider) {
                 case 'lily':
                     console.log('🌿 Lily LLM 사용');
-                    return await this.generateLilyResponse(message, context);
+                    return await this.generateLilyResponse(message, context, options);
                 case 'chatgpt':
                     console.log('💬 ChatGPT 사용');
                     return await this.generateChatGPTResponse(message, context);
@@ -49,7 +49,7 @@ class AIService {
     }
 
     // Lily API 응답 생성
-    async generateLilyResponse(message, context = '') {
+    async generateLilyResponse(message, context = '', options = {}) {
         console.log('🌿 Lily API 호출 시작');
         console.log('🔗 API URL:', `${this.settings.lilyApiUrl}/api/v2/generate`);
         console.log('🔧 모델:', this.settings.lilyModel);
@@ -66,11 +66,30 @@ class AIService {
         // formData.append('use_rag_text', true);
         // formData.append('image_short_side', 128);
 
+        // 옵션 전달: use_rag_images / use_rag_text / image_short_side
+        try {
+            const { useRagImages, useRagText, imageShortSide } = options || {};
+            if (typeof useRagImages === 'boolean') {
+                formData.append('use_rag_images', useRagImages ? 'true' : 'false');
+            }
+            if (typeof useRagText === 'boolean') {
+                formData.append('use_rag_text', useRagText ? 'true' : 'false');
+            }
+            if (typeof imageShortSide === 'number') {
+                formData.append('image_short_side', String(imageShortSide));
+            }
+        } catch (e) {
+            console.warn('옵션 전달 중 경고:', e);
+        }
+
         console.log('📤 요청 데이터:', {
             prompt: message,
             model_id: this.settings.lilyModel,
             max_length: this.settings.maxTokens,
-            temperature: this.settings.temperature
+            temperature: this.settings.temperature,
+            ...(options && typeof options.useRagImages === 'boolean' ? { use_rag_images: options.useRagImages } : {}),
+            ...(options && typeof options.useRagText === 'boolean' ? { use_rag_text: options.useRagText } : {}),
+            ...(options && typeof options.imageShortSide === 'number' ? { image_short_side: options.imageShortSide } : {})
         });
 
         const response = await fetch(url, {

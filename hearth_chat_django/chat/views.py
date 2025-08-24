@@ -385,6 +385,22 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         except Exception as e:
             print(f"WebSocket 알림 실패: {e}")
         
+        # 방 입장 시 LLM 서버에 room-change 트리거 전송 (요약/메모리 유지/복구)
+        try:
+            import requests
+            lily_api_url = os.environ.get('LILY_API_URL', 'http://localhost:8001')
+            requests.post(
+                f"{lily_api_url}/api/v2/user/memory/room-change/{request.user.username}",
+                data={'new_room_id': str(room.id)}, timeout=3
+            )
+            # 직전 room 요약 강제 요청(키토픽 포함) - summary 비우면 서버가 자동 추출 시도
+            requests.post(
+                f"{lily_api_url}/api/v2/room/memory/summary/{room.id}",
+                data={'summary': '', 'key_topics': ''}, timeout=3
+            )
+        except Exception as e:
+            print(f"Room change 트리거 실패: {e}")
+        
         return Response({'joined': True, 'room_id': room.id})
 
     @action(detail=True, methods=['post'])
@@ -408,6 +424,17 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
             )
         except Exception as e:
             print(f"WebSocket 알림 실패: {e}")
+        
+        # 방 나가기 시점에도 현재 방 요약 저장 트리거
+        try:
+            import requests
+            lily_api_url = os.environ.get('LILY_API_URL', 'http://localhost:8001')
+            requests.post(
+                f"{lily_api_url}/api/v2/room/memory/summary/{room.id}",
+                data={'summary': '', 'key_topics': ''}, timeout=3
+            )
+        except Exception as e:
+            print(f"Room summary 트리거 실패: {e}")
         
         return Response({'left': True, 'room_id': room.id})
 
