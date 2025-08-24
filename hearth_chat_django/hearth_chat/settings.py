@@ -639,6 +639,9 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build', '
 # collectstatic의 최종 목적지를 Django 프로젝트 폴더 바깥(프로젝트 최상위)으로 변경하여
 # CSS 파일 내의 상대 경로('../media/')로 인한 경로 충돌(SuspiciousFileOperation)을 방지합니다.
 STATIC_ROOT = os.path.join(BASE_DIR.parent, 'staticfiles_collected')
+if IS_PRODUCTION and IS_CLOUDTYPE_DEPLOY and not os.environ.get('STATIC_ROOT'):
+    STATIC_ROOT = '/tmp/staticfiles_collected'
+    print(f"🔧 Cloudtype 기본 STATIC_ROOT 사용: {STATIC_ROOT}")
 
 # WhiteNoise 설정을 단순화하여 경로 충돌 문제 해결
 if IS_PRODUCTION:
@@ -825,41 +828,48 @@ REST_FRAMEWORK = {
 # 실서비스(운영/배포)에서는 반드시 channels_redis.core.RedisChannelLayer만 사용
 # (메모리 채널(InMemoryChannelLayer)은 실시간 채팅, 알림 등에서 서버가 여러 대일 때 절대 동작하지 않음)
 
-# Fly.io 환경에서 Redis URL 동적 구성
+def _is_valid_redis_url(url: str) -> bool:
+    if not url:
+        return False
+    return url.startswith("redis://") or url.startswith("rediss://")
+
+# Redis URL 결정
 if IS_FLY_DEPLOY:
-    # Fly.io 환경에서는 환경변수 REDIS_URL을 우선 사용,
-    # 없으면 자동으로 .flycast 내부 주소로 연결
     default_redis_url = "redis://hearth-redis.flycast:6379"
     REDIS_URL = os.environ.get("REDIS_URL", default_redis_url)
     print(f"✅ Fly.io Redis URL 설정: {REDIS_URL}")
 else:
-    # 로컬/개발 환경에서는 기존 REDIS_URL 환경변수 사용
-    REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
+    REDIS_URL = os.environ.get("REDIS_URL")  # 기본값 없음(없으면 폴백 로직 사용)
 
-# Fly.io 환경에서 Redis 연결 최적화
-if IS_FLY_DEPLOY:
-    # Fly.io Redis 연결 최적화
+DISABLE_REDIS = os.getenv("DISABLE_REDIS", "false").lower() == "true"
+use_inmemory = DISABLE_REDIS or (not _is_valid_redis_url(REDIS_URL))
+
+if use_inmemory:
+    # 단일 인스턴스/테스트/임시 운영 폴백용 (수평확장 불가)
+    from channels.layers import InMemoryChannelLayer  # noqa: F401
     CHANNEL_LAYERS = {
         "default": {
-            "BACKEND": "channels_redis.core.RedisChannelLayer",
-            "CONFIG": {
-                "hosts": [REDIS_URL],
-                "capacity": 1500,  # 채널별 최대 메시지 수
-                "expiry": 3600,    # 메시지 만료 시간 (1시간)
-                "group_expiry": 86400,  # 그룹 만료 시간 (24시간)
-                "symmetric_encryption_keys": [SECRET_KEY[:32]],  # 암호화 키
-            },
-        },
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        }
     }
-    print("✅ Fly.io Redis 연결 최적화 설정 적용됨")
+    reason = "DISABLE_REDIS=true" if DISABLE_REDIS else f"REDIS_URL 무효({REDIS_URL})"
+    print(f"⚠️ Redis 비활성화, InMemoryChannelLayer 사용 ({reason})")
 else:
-    # 일반 Redis 설정
+    # 정상 Redis 사용
+    base_config = {
+        "hosts": [REDIS_URL],
+    }
+    if IS_FLY_DEPLOY:
+        base_config.update({
+            "capacity": 1500,
+            "expiry": 3600,
+            "group_expiry": 86400,
+            "symmetric_encryption_keys": [SECRET_KEY[:32]],
+        })
     CHANNEL_LAYERS = {
         "default": {
             "BACKEND": "channels_redis.core.RedisChannelLayer",
-            "CONFIG": {
-                "hosts": [REDIS_URL],
-            },
+            "CONFIG": base_config,
         },
     }
 

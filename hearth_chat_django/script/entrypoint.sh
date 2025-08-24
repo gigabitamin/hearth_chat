@@ -15,6 +15,9 @@ if [ "$IS_FLY_DEPLOY" != "true" ]; then
     python manage.py migrate --noinput
 
     echo "--- 정적 파일 수집 실행... ---"
+    export STATIC_ROOT=${STATIC_ROOT:-/tmp/staticfiles_collected}
+    mkdir -p "$STATIC_ROOT" || true
+    echo "STATIC_ROOT: $STATIC_ROOT"
     python manage.py safe_collectstatic --noinput --clear || echo "정적 파일 수집 중 오류가 발생했지만 계속 진행합니다."
 
 else
