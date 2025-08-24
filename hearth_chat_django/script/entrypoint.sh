@@ -23,10 +23,25 @@ fi
 # --- [수정] 분기 처리 끝 ---
 
 
-# echo "--- 초기 Site 객체 생성... ---"
-python manage.py createinitialsite ...
-# echo "--- 슈퍼유저 생성... ---"
-python manage.py createinitialsuperuser ...
+# 초기 Site 객체 생성 (도메인 자동 감지)
+echo "--- 초기 Site 객체 생성... ---"
+DOMAIN_ENV=${CLOUDTYPE_APP_HOSTNAME:-$ALLOWED_HOSTS}
+if [ -n "$DOMAIN_ENV" ]; then
+    DOMAIN=$(echo "$DOMAIN_ENV" | cut -d',' -f1)
+else
+    DOMAIN="port-0-hearth-chat-meq4jsqba77b2805.sel5.cloudtype.app"
+fi
+python manage.py createinitialsite --force --domain "$DOMAIN" || echo "createinitialsite 경고: 계속 진행합니다."
+
+# 슈퍼유저 생성 (이미 있으면 통과)
+echo "--- 슈퍼유저 생성... ---"
+python manage.py createinitialsuperuser || echo "createinitialsuperuser 경고: 계속 진행합니다."
+
+# 소셜앱 보장 (있으면 통과)
+if python manage.py help ensure_social_apps > /dev/null 2>&1; then
+    echo "--- 소셜앱 보장... ---"
+    python manage.py ensure_social_apps || echo "ensure_social_apps 경고: 계속 진행합니다."
+fi
 
 
 # echo "--- 로그인 문제 디버깅 정보 수집... ---"
