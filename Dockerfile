@@ -82,7 +82,10 @@ RUN chmod +x /usr/local/bin/start.sh
 # entrypoint.sh 복사 및 실행 권한 부여
 COPY hearth_chat_django/script/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
-RUN python manage.py collectstatic --noinput
+
+# cloudtype 에서는 빌드 시점에 실행하면 안됨 fly io 에서는 실행
+# RUN python manage.py collectstatic --noinput # 주석처리
+
 EXPOSE 8080
 
 # Railway에서 entrypoint.sh가 실행되도록 명시적으로 지정
