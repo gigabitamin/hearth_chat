@@ -11,6 +11,7 @@ load_dotenv()
 
 max_length = 2000
 max_new_tokens = 1000
+time_limit = 3000
 
 class ChatConsumer(AsyncWebsocketConsumer):
     def __init__(self, *args, **kwargs):
@@ -630,7 +631,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                 f"{lily_api_url}/rag/generate",
                                 data=rag_data,
                                 headers=headers,
-                                timeout=1200
+                                timeout=time_limit
                             )
                             
                             if response.status_code == 200:
@@ -673,7 +674,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             # print(f"🌐 이미지 URL {i+1}: {absolute_url}")
                             
                             # HTTP 요청으로 이미지 가져오기
-                            image_response = requests.get(absolute_url, timeout=1200)
+                            image_response = requests.get(absolute_url, timeout=time_limit)
                             if image_response.status_code == 200:
                                 image_bytes = image_response.content
                                 # print(f"✅ 이미지 {i+1} 다운로드 성공: {len(image_bytes)} bytes")
@@ -723,7 +724,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                 data=data,
                                 files=files,
                                 headers=headers,
-                                timeout=1200
+                                timeout=time_limit
                             )
                             
                             if response.status_code == 200:
@@ -771,7 +772,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             f"{lily_api_url}/api/v2/generate",
                             data=data,
                             headers=headers,
-                            timeout=1200
+                            timeout=time_limit
                         )
                         
                         if response.status_code == 200:
@@ -856,7 +857,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     else:
                         absolute_url = first_image_url
                     
-                    image_response = requests.get(absolute_url, timeout=1200)
+                    image_response = requests.get(absolute_url, timeout=time_limit)
                     if image_response.status_code != 200:
                         raise Exception(f"이미지 다운로드 실패: {image_response.status_code}")
                     
