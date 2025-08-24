@@ -21,6 +21,11 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.utils.decorators import method_decorator
 from urllib.parse import urlencode
+from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_protect
+from django.contrib.auth import authenticate, login as django_login
+from django.contrib.auth import get_user_model
+import json
 
 # 기존 allauth 로그인 뷰 사용 (세션 문제 해결됨)
 
@@ -967,6 +972,49 @@ def kakao_connect_callback(request):
         return JsonResponse({'error': 'OAuth API 요청 중 오류가 발생했습니다.'}, status=500 )
     except Exception as e:
         return JsonResponse({'error': 'OAuth 콜백 처리 중 오류가 발생했습니다.'}, status=500 )
+
+@require_POST
+@csrf_protect
+def api_login(request):
+    """SPA용 세션 로그인 API (JSON 또는 폼)
+    요청 본문:
+      - JSON: { login|username|email, password }
+      - 또는 x-www-form-urlencoded 동일 키
+    응답: { status: 'success', user: { id, username, email } }
+    """
+    try:
+        if request.content_type and 'application/json' in request.content_type:
+            try:
+                payload = json.loads(request.body.decode('utf-8') or '{}')
+            except json.JSONDecodeError:
+                payload = {}
+        else:
+            payload = request.POST
+
+        login_field = payload.get('login') or payload.get('username') or payload.get('email')
+        password = payload.get('password')
+        if not login_field or not password:
+            return JsonResponse({'error': 'login/username/email 과 password가 필요합니다.'}, status=400)
+
+        User = get_user_model()
+        username_to_use = None
+        # username 우선, 없으면 email로 조회
+        user_obj = User.objects.filter(username=login_field).first()
+        if not user_obj:
+            user_obj = User.objects.filter(email=login_field).first()
+        if user_obj:
+            username_to_use = user_obj.username
+        else:
+            username_to_use = login_field
+
+        user = authenticate(request, username=username_to_use, password=password)
+        if not user:
+            return JsonResponse({'error': '인증 실패'}, status=401)
+
+        django_login(request, user)
+        return JsonResponse({'status': 'success', 'user': {'id': user.id, 'username': user.username, 'email': user.email}})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
 @login_required
 def naver_connect_redirect(request):

@@ -14,7 +14,7 @@ from .views import (
     naver_login_redirect, naver_login_callback, github_login_redirect, github_login_callback,
     google_connect_redirect, google_connect_callback, kakao_connect_redirect, kakao_connect_callback,
     naver_connect_redirect, naver_connect_callback, github_connect_redirect, github_connect_callback,
-    DebugLoginView, CustomSignupView, ReactAppView
+    DebugLoginView, CustomSignupView, ReactAppView, api_login
 )
 
 urlpatterns = [
@@ -26,6 +26,7 @@ urlpatterns = [
     path("api/social-connections/", social_connections_api, name="social_connections_api"),
     path("social-redirect/", social_login_redirect_view, name='social_login_redirect'),
     path("api/csrf/", get_csrf_token, name="get_csrf_token"),
+    path("api/login/", api_login, name="api_login"),
     
     # 디버그 로그인 뷰 추가
     path('debug-login/', DebugLoginView.as_view(), name='debug_login'),

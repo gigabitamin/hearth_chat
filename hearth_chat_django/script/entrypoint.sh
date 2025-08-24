@@ -27,13 +27,14 @@ fi
 
 
 # 초기 Site 객체 생성 (도메인 자동 감지)
-echo "--- 초기 Site 객체 생성... ---"
-DOMAIN_ENV=${CLOUDTYPE_APP_HOSTNAME:-$ALLOWED_HOSTS}
-if [ -n "$DOMAIN_ENV" ]; then
-    DOMAIN=$(echo "$DOMAIN_ENV" | cut -d',' -f1)
-else
-    DOMAIN="port-0-hearth-chat-meq4jsqba77b2805.sel5.cloudtype.app"
-fi
+# echo "--- 초기 Site 객체 생성... ---"
+# DOMAIN_ENV=${CLOUDTYPE_APP_HOSTNAME:-$ALLOWED_HOSTS}
+# if [ -n "$DOMAIN_ENV" ]; then
+#     DOMAIN=$(echo "$DOMAIN_ENV" | cut -d',' -f1)
+# else
+#     DOMAIN="port-0-hearth-chat-meq4jsqba77b2805.sel5.cloudtype.app"
+# fi
+
 # 미디어 디렉토리 보장 (쓰기 가능 경로)
 export MEDIA_ROOT=${MEDIA_ROOT:-/tmp/media}
 mkdir -p "$MEDIA_ROOT" || true
