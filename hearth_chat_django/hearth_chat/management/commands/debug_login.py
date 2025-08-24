@@ -16,10 +16,12 @@ class Command(BaseCommand):
         self.stdout.write(f'  - IS_RAILWAY_DEPLOY: {"RAILWAY_ENVIRONMENT" in os.environ}')
         self.stdout.write(f'  - IS_RENDER_DEPLOY: {os.environ.get("RENDER") == "true"}')
         self.stdout.write(f'  - IS_FLY_DEPLOY: {os.getenv("IS_FLY_DEPLOY", "false").lower() == "true"}')
+        self.stdout.write(f'  - IS_CLOUDTYPE_DEPLOY: {os.getenv("IS_CLOUDTYPE_DEPLOY", "false").lower() == "true"}')
         self.stdout.write(f'  - SITE_ID: {getattr(settings, "SITE_ID", "Not Set")}')
         self.stdout.write(f'  - ALLOWED_HOSTS: {settings.ALLOWED_HOSTS}')
         self.stdout.write(f'  - CORS_ALLOWED_ORIGINS: {getattr(settings, "CORS_ALLOWED_ORIGINS", [])}')
         self.stdout.write(f'  - CSRF_TRUSTED_ORIGINS: {getattr(settings, "CSRF_TRUSTED_ORIGINS", [])}')
+        self.stdout.write(f'  - CLOUDTYPE_APP_HOSTNAME: {os.getenv("CLOUDTYPE_APP_HOSTNAME", "Not Set")}')
         
         # 2. Site 객체 정보
         self.stdout.write('\n🌐 Site 객체 정보:')

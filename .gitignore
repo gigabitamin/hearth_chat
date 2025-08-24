@@ -21,6 +21,8 @@ chat_profile/
 chat_attach/
 uploads/
 backup_ignore/
+@gbrabbit_hearth_chat_main.yaml
+fly_io_fallback.db
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -36,7 +36,8 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "your-default-secret-key")
 IS_FLY_DEPLOY = os.getenv('IS_FLY_DEPLOY', 'false').lower() == 'true'
 IS_RAILWAY_DEPLOY = 'RAILWAY_ENVIRONMENT' in os.environ
 IS_RENDER_DEPLOY = os.environ.get('RENDER') == 'true'
-IS_PRODUCTION = IS_RAILWAY_DEPLOY or IS_RENDER_DEPLOY or IS_FLY_DEPLOY
+IS_CLOUDTYPE_DEPLOY = os.getenv('IS_CLOUDTYPE_DEPLOY', 'false').lower() == 'true'
+IS_PRODUCTION = IS_RAILWAY_DEPLOY or IS_RENDER_DEPLOY or IS_FLY_DEPLOY or IS_CLOUDTYPE_DEPLOY
 
 # Fly.io 환경에서 추가 정보 출력
 if IS_FLY_DEPLOY:
@@ -99,6 +100,21 @@ if IS_PRODUCTION:
         # ALLOWED_HOSTS.append('hearth-chat.onrender.com')
         ALLOWED_HOSTS.append('hearth-chat-latest.onrender.com')
     
+    # Cloudtype 배포 설정
+    if IS_CLOUDTYPE_DEPLOY:
+        cloudtype_allowed_hosts = os.getenv('ALLOWED_HOSTS', '')
+        if cloudtype_allowed_hosts and cloudtype_allowed_hosts.strip():
+            try:
+                hosts_list = [host.strip() for host in cloudtype_allowed_hosts.split(',') if host.strip()]
+                if hosts_list:
+                    ALLOWED_HOSTS.extend(hosts_list)
+                    print(f"✅ Cloudtype 환경 - ALLOWED_HOSTS 환경변수에서 파싱: {hosts_list}")
+            except Exception as e:
+                print(f"⚠️ Cloudtype ALLOWED_HOSTS 파싱 실패: {e}")
+        else:
+            ALLOWED_HOSTS.append('port-0-hearth-chat-meq4jsqba77b2805.sel5.cloudtype.app')
+            print(f"✅ Cloudtype 환경 - 기본 ALLOWED_HOSTS 사용: {ALLOWED_HOSTS}")
+
     if IS_RAILWAY_DEPLOY:
         ALLOWED_HOSTS.append("hearthchat-production.up.railway.app")
 
@@ -123,6 +139,10 @@ if IS_PRODUCTION:
     # Lily API URL을 CORS와 CSRF에 각각 추가
     CORS_ALLOWED_ORIGIN_REGEXES.append(r"^https://gbrabbit-lily-fast-api\.hf\.space$")
     CSRF_TRUSTED_ORIGINS.append(LILY_API_URL)    
+
+    # Cloudtype 도메인 CORS 허용
+    if IS_CLOUDTYPE_DEPLOY:
+        CORS_ALLOWED_ORIGIN_REGEXES.append(r"^https://port-0-hearth-chat-meq4jsqba77b2805\.sel5\.cloudtype\.app$")
     
     
     # 보안 쿠키 설정
@@ -387,6 +407,57 @@ elif os.environ.get("RENDER") == 'true':
     except Exception as e:
         print(f"Site 패치 적용 중 오류 (무시됨): {e}")
     
+    ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'https'
+    SOCIALACCOUNT_PROVIDERS = {
+        'google': {
+            'SCOPE': ['openid', 'profile', 'email'],
+            'AUTH_PARAMS': {'access_type': 'online'}
+        },
+    }
+
+elif IS_CLOUDTYPE_DEPLOY:
+    SITE_ID = 5  # Cloudtype 전용 SITE_ID
+    print(f"✅ Cloudtype 환경 - SITE_ID 설정: {SITE_ID}")
+    try:
+        from django.contrib.sites.models import Site
+        site = Site.objects.first()
+        if site:
+            print(f"Cloudtype 환경 - 기존 Site 발견: {site.domain}")
+        else:
+            print("Cloudtype 환경 - Site 객체가 없음, SITE_ID=5 사용")
+    except Exception as e:
+        print(f"Site 객체 확인 중 오류 (무시됨): {e}")
+    try:
+        from django.contrib.sites.models import Site
+        from django.contrib.sites.shortcuts import get_current_site
+        def patched_get_current_site_cloudtype(request):
+            try:
+                return Site.objects.get_current(request)
+            except ObjectDoesNotExist:
+                cloudtype_domain = os.getenv('CLOUDTYPE_APP_HOSTNAME', 'port-0-hearth-chat-meq4jsqba77b2805.sel5.cloudtype.app')
+                site, created = Site.objects.get_or_create(
+                    id=5,
+                    defaults={'domain': cloudtype_domain, 'name': 'HearthChat Cloudtype'}
+                )
+                return site
+        import django.contrib.sites.shortcuts
+        django.contrib.sites.shortcuts.get_current_site = patched_get_current_site_cloudtype
+        def patched_get_current_cloudtype(self, request=None):
+            try:
+                return self.get(pk=SITE_ID)
+            except ObjectDoesNotExist:
+                cloudtype_domain = os.getenv('CLOUDTYPE_APP_HOSTNAME', 'port-0-hearth-chat-meq4jsqba77b2805.sel5.cloudtype.app')
+                site, created = Site.objects.get_or_create(
+                    id=SITE_ID,
+                    defaults={'domain': cloudtype_domain, 'name': 'HearthChat Cloudtype'}
+                )
+                return site
+        from django.contrib.sites.models import SiteManager
+        SiteManager.get_current = patched_get_current_cloudtype
+        print("✅ Cloudtype 환경 - Site 객체 자동 생성 패치 완전 적용됨")
+    except Exception as e:
+        print(f"Cloudtype Site 패치 적용 중 오류 (무시됨): {e}")
+
     ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'https'
     SOCIALACCOUNT_PROVIDERS = {
         'google': {

@@ -3,7 +3,7 @@ from django.contrib.sites.models import Site
 import os
 
 class Command(BaseCommand):
-    help = 'Create initial site for Railway/Render/Fly.io deploy'
+    help = 'Create initial site for Railway/Render/Fly.io/Cloudtype deploy'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -22,7 +22,8 @@ class Command(BaseCommand):
         IS_RAILWAY_DEPLOY = 'RAILWAY_ENVIRONMENT' in os.environ
         IS_RENDER_DEPLOY = os.environ.get('RENDER') == 'true'
         IS_FLY_DEPLOY = os.getenv('IS_FLY_DEPLOY', 'false').lower() == 'true'
-        IS_PRODUCTION = IS_RAILWAY_DEPLOY or IS_RENDER_DEPLOY or IS_FLY_DEPLOY
+        IS_CLOUDTYPE_DEPLOY = os.getenv('IS_CLOUDTYPE_DEPLOY', 'false').lower() == 'true'
+        IS_PRODUCTION = IS_RAILWAY_DEPLOY or IS_RENDER_DEPLOY or IS_FLY_DEPLOY or IS_CLOUDTYPE_DEPLOY
 
         if IS_PRODUCTION:    
             if IS_RAILWAY_DEPLOY:
@@ -44,6 +45,15 @@ class Command(BaseCommand):
                     
                 site_id = 4
                 site_name = "HearthChat Fly.io Production"
+            elif IS_CLOUDTYPE_DEPLOY:
+                cloudtype_domain = os.getenv('CLOUDTYPE_APP_HOSTNAME', 'port-0-hearth-chat-meq4jsqba77b2805.sel5.cloudtype.app')
+                cloudtype_allowed_hosts = os.getenv('ALLOWED_HOSTS', '')
+                if cloudtype_allowed_hosts:
+                    domain = cloudtype_allowed_hosts.split(',')[0].strip()
+                else:
+                    domain = cloudtype_domain
+                site_id = 5
+                site_name = "HearthChat Cloudtype Production"
             else:
                 # 기본 프로덕션 도메인 (필요 시 수정)
                 domain = 'hearth-chat.fly.dev'
@@ -56,7 +66,7 @@ class Command(BaseCommand):
         # --- [수정] 로직 이동 끝 ---
 
         self.stdout.write('🚀 Site 초기화 시작...')
-        self.stdout.write(f'🔧 환경 감지: Railway={IS_RAILWAY_DEPLOY}, Render={IS_RENDER_DEPLOY}, Fly.io={IS_FLY_DEPLOY}')
+        self.stdout.write(f'🔧 환경 감지: Railway={IS_RAILWAY_DEPLOY}, Render={IS_RENDER_DEPLOY}, Fly.io={IS_FLY_DEPLOY}, Cloudtype={IS_CLOUDTYPE_DEPLOY}')
         
         # 커맨드 라인에서 도메인 오버라이드
         if options['domain']:
