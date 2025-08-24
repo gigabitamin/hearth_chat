@@ -41,14 +41,14 @@ echo "MEDIA_ROOT: $MEDIA_ROOT"
 python manage.py createinitialsite --force --domain "$DOMAIN" || echo "createinitialsite 경고: 계속 진행합니다."
 
 # 슈퍼유저 생성 (이미 있으면 통과)
-echo "--- 슈퍼유저 생성... ---"
-python manage.py createinitialsuperuser || echo "createinitialsuperuser 경고: 계속 진행합니다."
+# echo "--- 슈퍼유저 생성... ---"
+# python manage.py createinitialsuperuser || echo "createinitialsuperuser 경고: 계속 진행합니다."
 
 # 소셜앱 보장 (있으면 통과)
-if python manage.py help ensure_social_apps > /dev/null 2>&1; then
-    echo "--- 소셜앱 보장... ---"
-    python manage.py ensure_social_apps || echo "ensure_social_apps 경고: 계속 진행합니다."
-fi
+# if python manage.py help ensure_social_apps > /dev/null 2>&1; then
+#     echo "--- 소셜앱 보장... ---"
+#     python manage.py ensure_social_apps || echo "ensure_social_apps 경고: 계속 진행합니다."
+# fi
 
 
 # echo "--- 로그인 문제 디버깅 정보 수집... ---"

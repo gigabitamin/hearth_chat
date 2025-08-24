@@ -266,6 +266,7 @@ def get_csrf_token(request):
     return JsonResponse({'detail': 'CSRF cookie set'})
 
 
+@method_decorator(ensure_csrf_cookie, name='get')
 class ReactAppView(View):
     def get(self, request):
         try:
