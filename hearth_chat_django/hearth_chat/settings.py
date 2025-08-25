@@ -215,6 +215,20 @@ elif dj_database_url and dj_database_url.config():
     print("✅ .env 파일의 DATABASE_URL을 사용하여 DB 설정 (dj-database-url)")
     DATABASES = {'default': dj_database_url.config(conn_max_age=600)}
 
+elif os.getenv('POSTGRES_DB') or os.getenv('PGDATABASE'):
+    # POSTGRES_* / PG* 개별 변수로 로컬 Postgres 구성
+    print("✅ 환경 변수 POSTGRES_* 를 사용하여 DB 설정")
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('POSTGRES_DB') or os.getenv('PGDATABASE'),
+            'USER': os.getenv('POSTGRES_USER') or os.getenv('PGUSER', 'postgres'),
+            'PASSWORD': os.getenv('POSTGRES_PASSWORD') or os.getenv('PGPASSWORD', ''),
+            'HOST': os.getenv('POSTGRES_HOST') or os.getenv('PGHOST', 'localhost'),
+            'PORT': os.getenv('POSTGRES_PORT') or os.getenv('PGPORT', '5432'),
+        }
+    }
+
 else:
     # 위 두가지 경우가 모두 실패했을 때의 최후 비상 수단 (로컬 개발용)
     print("⚠️ DATABASE_URL 없음. 로컬 기본 SQLite로 설정합니다.")
@@ -778,6 +792,14 @@ else:
 # 로깅 설정 추가
 # 컨테이너 환경 호환을 위해 기본 로그 파일을 /tmp로 이동
 DJANGO_LOG_FILE = os.environ.get('DJANGO_LOG_FILE', '/tmp/django.log')
+
+# 로컬(Windows 등)에서 기본 '/tmp/django.log' 경로가 없을 수 있으므로 디렉터리 보장
+try:
+    _log_dir = os.path.dirname(DJANGO_LOG_FILE)
+    if _log_dir and not os.path.exists(_log_dir):
+        os.makedirs(_log_dir, exist_ok=True)
+except Exception:
+    pass
 
 LOGGING = {
     'version': 1,
