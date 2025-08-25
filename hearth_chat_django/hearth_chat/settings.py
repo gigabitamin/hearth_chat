@@ -251,7 +251,17 @@ try:
         opts.setdefault('options', f"-c statement_timeout={stmt_ms} -c lock_timeout={lock_ms}")
 
         DATABASES['default']['OPTIONS'] = opts
-        print(f"✅ DB 연결 최적화 적용: CONN_MAX_AGE={conn_max_age}, connect_timeout={connect_timeout}")
+
+        # Supabase Transaction Pooler(6543) 사용 시 권장: 연결 재사용 비활성화
+        try:
+            port = str(default_db.get('PORT', ''))
+            if port == '6543' or os.getenv('SUPABASE_POOL_MODE', '').lower() == 'transaction':
+                DATABASES['default']['CONN_MAX_AGE'] = 0
+                print("✅ Transaction pooler 감지 → CONN_MAX_AGE=0 강제")
+        except Exception:
+            pass
+
+        print(f"✅ DB 연결 최적화 적용: CONN_MAX_AGE={DATABASES['default']['CONN_MAX_AGE']}, connect_timeout={connect_timeout}")
 except Exception as _db_opt_e:
     print(f"⚠️ DB 연결 최적화 설정 실패: {_db_opt_e}")
 
