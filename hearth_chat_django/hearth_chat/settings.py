@@ -118,6 +118,11 @@ if IS_PRODUCTION:
     if IS_RAILWAY_DEPLOY:
         ALLOWED_HOSTS.append("hearthchat-production.up.railway.app")
 
+    # 추가: 사용자 리다이렉트/서브도메인 허용
+    for _extra_host in ["hearthchat.kozow.com", "courageous-dragon-f7b6c0.netlify.app"]:
+        if _extra_host not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(_extra_host)
+
     BASE_URL = f"https://{ALLOWED_HOSTS[0]}"
     LILY_API_URL = "https://gbrabbit-lily-fast-api.hf.space"
 
@@ -139,6 +144,10 @@ if IS_PRODUCTION:
     # Lily API URL을 CORS와 CSRF에 각각 추가
     CORS_ALLOWED_ORIGIN_REGEXES.append(r"^https://gbrabbit-lily-fast-api\.hf\.space$")
     CSRF_TRUSTED_ORIGINS.append(LILY_API_URL)    
+
+    # 추가: Netlify/FreeDNS 서브도메인 원본 허용
+    CORS_ALLOWED_ORIGIN_REGEXES.append(r"^https://hearthchat\.kozow\.com$")
+    CORS_ALLOWED_ORIGIN_REGEXES.append(r"^https://courageous-dragon-f7b6c0\.netlify\.app$")
 
     # Cloudtype 도메인 CORS 허용
     if IS_CLOUDTYPE_DEPLOY:
