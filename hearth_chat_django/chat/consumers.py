@@ -275,7 +275,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'type': 'ai_message',
                 'message': ai_response,
                 'ai_name': ai_name,
-                'timestamp': datetime.now().isoformat(),
+                'timestamp': ai_message_obj.timestamp.isoformat(),
                 'questioner_username': (
                     ai_message_obj.question_message.username if ai_message_obj and ai_message_obj.question_message else None
                 ),
@@ -294,7 +294,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         'message': ai_response,
                         'ai_name': ai_name,
                         'roomId': room_id,  # roomId 추가
-                        'timestamp': datetime.now().isoformat(),
+                        'timestamp': ai_message_obj.timestamp.isoformat(),
                         'questioner_username': (
                             ai_message_obj.question_message.username if ai_message_obj and ai_message_obj.question_message else None
                         ),
@@ -310,7 +310,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'message': ai_response,
                     'ai_name': ai_name,
                     'roomId': room_id,
-                    'timestamp': datetime.now().isoformat(),
+                    'timestamp': ai_message_obj.timestamp.isoformat(),
                     'questioner_username': (
                         ai_message_obj.question_message.username if ai_message_obj and ai_message_obj.question_message else None
                     ),
