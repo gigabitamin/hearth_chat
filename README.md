@@ -6,6 +6,7 @@
 
 # 250826 v0.99.4
 - cloudtype, supabase migrate 완료
+- 로컬 db postgrsql 추가가
 
 # 250818 v0.99.31
 - media 파일 serve 문제 해결
