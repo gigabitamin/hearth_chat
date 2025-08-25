@@ -721,6 +721,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                 input_max_len = int(ai_settings.get('inputMaxLength')) if ai_settings and ai_settings.get('inputMaxLength') is not None else None
                             except Exception:
                                 input_max_len = None
+                            # 문서가 있으면 해당 문서ID를 함께 전달하여 올바른 이미지/컨텍스트를 고정
+                            doc_id = documents[0].get('document_id') if (documents and len(documents) > 0 and isinstance(documents[0], dict)) else None
                             data = {
                                 'prompt': user_message,
                                 'user_id': user.username if user else 'default_user',
@@ -730,6 +732,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                 'temperature': 0.7,
                                 # UX: 이미지가 있으면 자동 멀티모달 허용
                                 'use_rag_images': True,
+                                **({'document_id': doc_id} if doc_id else {}),
                                 **({'input_max_length': input_max_len} if input_max_len else {})
                             }
                             
@@ -791,6 +794,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             input_max_len = int(ai_settings.get('inputMaxLength')) if ai_settings and ai_settings.get('inputMaxLength') is not None else None
                         except Exception:
                             input_max_len = None
+                        # 문서가 있으면 해당 문서ID를 전달하고, 이미지 복구를 허용하여 멀티모달 분석을 유도
+                        doc_id = documents[0].get('document_id') if (documents and len(documents) > 0 and isinstance(documents[0], dict)) else None
                         data = {
                             'prompt': user_message,
                             'user_id': user.username if user else 'default_user',
@@ -798,8 +803,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             'session_id': (session_id_param or session_id or ''),
                             'max_new_tokens': lily_max_len,
                             'temperature': 0.7,
-                            'use_rag_text': True,  # 텍스트-only에서도 문서 컨텍스트 사용
-                            'use_rag_images': False,  # 텍스트-only 기본: 이미지 복구 비활성화
+                            'use_rag_text': True,
+                            # 문서가 있으면 이미지 복구 허용, 없으면 텍스트-only 유지
+                            'use_rag_images': bool(doc_id),
+                            **({'document_id': doc_id} if doc_id else {}),
                             **({'input_max_length': input_max_len} if input_max_len else {})
                         }
                         
