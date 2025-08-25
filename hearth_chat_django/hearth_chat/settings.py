@@ -639,25 +639,22 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, '..', 'hearth_chat_react', 'build', '
 # collectstatic의 최종 목적지를 Django 프로젝트 폴더 바깥(프로젝트 최상위)으로 변경하여
 # CSS 파일 내의 상대 경로('../media/')로 인한 경로 충돌(SuspiciousFileOperation)을 방지합니다.
 STATIC_ROOT = os.path.join(BASE_DIR.parent, 'staticfiles_collected')
-if IS_PRODUCTION and IS_CLOUDTYPE_DEPLOY and not os.environ.get('STATIC_ROOT'):
+# Cloudtype에서는 무조건 /tmp 를 사용해 권한 문제 제거
+if IS_CLOUDTYPE_DEPLOY:
     STATIC_ROOT = '/tmp/staticfiles_collected'
-    print(f"🔧 Cloudtype 기본 STATIC_ROOT 사용: {STATIC_ROOT}")
+    print(f"🔧 Cloudtype STATIC_ROOT 강제 적용: {STATIC_ROOT}")
 
 # WhiteNoise 설정을 단순화하여 경로 충돌 문제 해결
 if IS_PRODUCTION:
     # 운영 환경에서는 단순한 WhiteNoise 스토리지 사용 (압축만, 해싱 없음)
     STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
     
-    # WhiteNoise 추가 설정
+    # WhiteNoise 추가 설정 (간소화)
     WHITENOISE_USE_FINDERS = True
     WHITENOISE_AUTOREFRESH = False
-    WHITENOISE_MAX_AGE = 31536000  # 1년
-    
-    # 정적 파일 압축 설정
-    WHITENOISE_COMPRESS = True
+    WHITENOISE_MAX_AGE = 0  # 캐시로 인한 오래된 파일 참조 방지
+    WHITENOISE_COMPRESS = False
     WHITENOISE_COMPRESS_LEVEL = 6
-    
-    # 경로 안전성을 위한 추가 설정
     WHITENOISE_ROOT = STATIC_ROOT
     WHITENOISE_INDEX_FILE = True
     
