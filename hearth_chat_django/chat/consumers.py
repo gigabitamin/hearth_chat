@@ -710,8 +710,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             # print(f"🚀 Lily API 호출 시작: {lily_api_url}/generate")
                             
                             # Form data 구성 (간결 프롬프트)
-                            # max_new_tokens 동적 적용: 사용자 설정 > 기본값(128) > 상한 max_new_tokens
-                            lily_max_len = max(1, min(int(ai_settings.get('maxTokens', 128)) if ai_settings else 128, max_new_tokens))
+                            # max_new_tokens: 사용자 설정이 있으면 그대로 사용, 없으면 기본값(128)
+                            try:
+                                lily_max_len = int(ai_settings.get('maxTokens')) if ai_settings and ai_settings.get('maxTokens') is not None else 128
+                            except Exception:
+                                lily_max_len = 128
                             # 입력 최대 길이: 사용자 설정(inputMaxLength)이 있으면 전달
                             input_max_len = None
                             try:
@@ -777,8 +780,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     
                     try:
                         # Form data 구성 (간결 프롬프트)
-                        # max_new_tokens 동적 적용: 사용자 설정 > 기본값(128) > 상한 max_new_tokens
-                        lily_max_len = max(1, min(int(ai_settings.get('maxTokens', 128)) if ai_settings else 128, max_new_tokens))
+                        # max_new_tokens: 사용자 설정이 있으면 그대로 사용, 없으면 기본값(128)
+                        try:
+                            lily_max_len = int(ai_settings.get('maxTokens')) if ai_settings and ai_settings.get('maxTokens') is not None else 128
+                        except Exception:
+                            lily_max_len = 128
                         # 입력 최대 길이: 사용자 설정(inputMaxLength)이 있으면 전달
                         input_max_len = None
                         try:
