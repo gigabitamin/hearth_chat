@@ -46,6 +46,12 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
+
+# Cloudflare Tunnel (cloudflared)
+RUN wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared && \
+    chmod +x /usr/local/bin/cloudflared
+
+
 # 🔁 프론트 빌드 결과물 복사
 COPY --from=frontend /app/build/ /app/hearth_chat_react/build/
 RUN ls -la /app/hearth_chat_react/build/ || echo "build directory not found"

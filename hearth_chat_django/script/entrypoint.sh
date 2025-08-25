@@ -99,5 +99,10 @@ python manage.py createinitialsite --force --domain "$DOMAIN" || echo "createini
 #     cat /tmp/debug_login.log
 # }
 
+
+# cloudflared를 백그라운드에서 실행 (토큰 사용)
+echo "--- cloudflared 실행 ---"
+cloudflared tunnel --no-autoupdate run --token CLOUDFLARED_TUNNEL_TOKEN &
+
 echo "--- 서버 시작... ---"
 exec daphne -b 0.0.0.0 -p 8080 hearth_chat.asgi:application
