@@ -118,6 +118,41 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     f'chat_room_{room_id}',
                     self.channel_name
                 )                
+                # 조인 ACK 전송 (클라이언트는 이 신호로 로딩 해제)
+                try:
+                    await self.send(text_data=json.dumps({
+                        'type': 'join_ack',
+                        'roomId': room_id,
+                        'joined': True
+                    }))
+                except Exception:
+                    pass
+
+                # 최신 AI 메시지 1건 재전송 (초기 진입 시 놓친 첫 응답 보정)
+                try:
+                    last_ai = await self.fetch_last_ai_message_async(room_id)
+                    if last_ai:
+                        await self.send(text_data=json.dumps({
+                            'type': 'ai_message',
+                            'id': last_ai.get('id'),
+                            'message': last_ai.get('message', ''),
+                            'ai_name': last_ai.get('ai_name', 'AI'),
+                            'roomId': room_id,
+                            'timestamp': last_ai.get('timestamp'),
+                            'questioner_username': last_ai.get('questioner_username'),
+                            'imageUrls': last_ai.get('imageUrls', []),
+                            'replay': True
+                        }))
+                except Exception:
+                    pass
+            return
+
+        # 핑/퐁 하트비트 처리
+        if message_type == "ping":
+            try:
+                await self.send(text_data=json.dumps({'type': 'pong', 'ts': datetime.utcnow().isoformat()}))
+            except Exception:
+                pass
             return
         
         # 기존 채팅 메시지 처리
@@ -488,6 +523,32 @@ class ChatConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             print(f"AI 메시지 저장 실패: {e}")
             raise e
+
+    @sync_to_async
+    def fetch_last_ai_message_async(self, room_id):
+        """해당 방의 최신 AI 메시지 1건을 반환 (놓친 첫 응답 재전송 보정용)."""
+        try:
+            from .models import Chat
+            obj = Chat.objects.filter(room_id=room_id, sender_type='ai').order_by('-timestamp').first()
+            if not obj:
+                return None
+            payload = {
+                'id': getattr(obj, 'id', None),
+                'message': getattr(obj, 'message', ''),
+                'ai_name': getattr(obj, 'ai_name', 'AI'),
+                'timestamp': obj.timestamp.isoformat() if hasattr(obj, 'timestamp') else None,
+                'questioner_username': getattr(getattr(obj, 'question_message', None), 'username', None),
+            }
+            # 이미지 URL 배열이 모델에 저장되어 있다면 함께 동봉 (필드명 image_urls 가정)
+            try:
+                if hasattr(obj, 'image_urls') and obj.image_urls:
+                    import json as _json
+                    payload['imageUrls'] = _json.loads(obj.image_urls) if isinstance(obj.image_urls, str) else (obj.image_urls or [])
+            except Exception:
+                payload['imageUrls'] = []
+            return payload
+        except Exception:
+            return None
 
     @sync_to_async
     def get_user_ai_settings(self, user):

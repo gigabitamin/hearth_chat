@@ -225,6 +225,36 @@ else:
         }
     }
     
+# ---- 공통 DB 연결 최적화 (특히 Cloudtype↔Supabase 타임아웃 완화) ----
+try:
+    default_db = DATABASES.get('default', {})
+    engine = default_db.get('ENGINE', '')
+    if engine.endswith('postgresql'):
+        # 연결 재사용으로 핸드셰이크 비용 감소 (기본 60초, 환경변수로 조절)
+        conn_max_age = int(os.getenv('DB_CONN_MAX_AGE', '60'))
+        DATABASES['default']['CONN_MAX_AGE'] = conn_max_age
+
+        # 연결 옵션: 빠른 실패와 죽은 커넥션 감지
+        opts = default_db.get('OPTIONS', {}) or {}
+        connect_timeout = int(os.getenv('DB_CONNECT_TIMEOUT', '10'))  # 초
+        opts.setdefault('connect_timeout', connect_timeout)
+
+        if os.getenv('DB_KEEPALIVES', '1') in ['1', 'true', 'True']:
+            opts.setdefault('keepalives', 1)
+            opts.setdefault('keepalives_idle', int(os.getenv('DB_KEEPALIVES_IDLE', '30')))
+            opts.setdefault('keepalives_interval', int(os.getenv('DB_KEEPALIVES_INTERVAL', '10')))
+            opts.setdefault('keepalives_count', int(os.getenv('DB_KEEPALIVES_COUNT', '5')))
+
+        # 긴 쿼리/락으로 인한 대기 방지 (ms)
+        stmt_ms = os.getenv('DB_STATEMENT_TIMEOUT_MS', '60000')
+        lock_ms = os.getenv('DB_LOCK_TIMEOUT_MS', '5000')
+        opts.setdefault('options', f"-c statement_timeout={stmt_ms} -c lock_timeout={lock_ms}")
+
+        DATABASES['default']['OPTIONS'] = opts
+        print(f"✅ DB 연결 최적화 적용: CONN_MAX_AGE={conn_max_age}, connect_timeout={connect_timeout}")
+except Exception as _db_opt_e:
+    print(f"⚠️ DB 연결 최적화 설정 실패: {_db_opt_e}")
+
 # Gemini API 키
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
