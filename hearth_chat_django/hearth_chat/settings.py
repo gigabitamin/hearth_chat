@@ -873,6 +873,27 @@ else:
         },
     }
 
+# Cloudtype 세션 저장 전략: Redis 우선, 없으면 signed_cookies로 DB 의존 제거
+if IS_CLOUDTYPE_DEPLOY:
+    try:
+        if _is_valid_redis_url(REDIS_URL):
+            CACHES = globals().get('CACHES', {})
+            CACHES['default'] = {
+                'BACKEND': 'django_redis.cache.RedisCache',
+                'LOCATION': REDIS_URL,
+                'OPTIONS': {
+                    'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                },
+            }
+            SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+            SESSION_CACHE_ALIAS = 'default'
+            print('✅ Cloudtype 세션 저장: Redis(cache) 사용')
+        else:
+            SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'
+            print('✅ Cloudtype 세션 저장: signed_cookies 사용 (Redis 미사용)')
+    except Exception as _e:
+        pass
+
 # Fly.io 환경에서 마이그레이션 최적화
 if IS_FLY_DEPLOY:
     # 마이그레이션 타임아웃 설정
