@@ -12,7 +12,37 @@ if [ "$IS_FLY_DEPLOY" != "true" ]; then
     echo "--- Fly.io 환경이 아니므로, entrypoint에서 migrate와 collectstatic을 실행합니다. ---"
 
     echo "--- 데이터베이스 마이그레이션 실행... ---"
-    python manage.py migrate --noinput
+    # Supabase 풀러 타임아웃 대비: 최대 10회 재시도, 실패 시 ALT_DATABASE_URL로 1회 스위치 후 다시 10회
+    try_migrate() {
+        local max_tries=$1
+        local tries=0
+        until python manage.py migrate --noinput; do
+            status=$?
+            tries=$((tries+1))
+            if [ $tries -ge $max_tries ]; then
+                return $status
+            fi
+            echo "[WARN] migrate 실패(code=$status). 10초 후 재시도 ($tries/$max_tries)" >&2
+            sleep 10
+        done
+        return 0
+    }
+
+    if try_migrate 10; then
+        echo "migrate 성공"
+    else
+        if [ -n "$ALT_DATABASE_URL" ]; then
+            echo "[INFO] ALT_DATABASE_URL로 스위치 후 재시도"
+            export DATABASE_URL="$ALT_DATABASE_URL"
+            if ! try_migrate 10; then
+                echo "[FATAL] ALT_DATABASE_URL로도 migrate 실패" >&2
+                exit 1
+            fi
+        else
+            echo "[FATAL] migrate 실패(재시도 10회 초과)" >&2
+            exit 1
+        fi
+    fi
 
     echo "--- 정적 파일 수집 실행... ---"
     export STATIC_ROOT=${STATIC_ROOT:-/tmp/staticfiles_collected}

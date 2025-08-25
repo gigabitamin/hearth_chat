@@ -876,7 +876,11 @@ else:
 # Cloudtype 세션 저장 전략: Redis 우선, 없으면 signed_cookies로 DB 의존 제거
 if IS_CLOUDTYPE_DEPLOY:
     try:
-        if _is_valid_redis_url(REDIS_URL):
+        # django_redis 모듈 존재 여부 확인
+        import importlib.util as _ils
+        _has_django_redis = _ils.find_spec('django_redis') is not None
+
+        if _is_valid_redis_url(REDIS_URL) and _has_django_redis:
             CACHES = globals().get('CACHES', {})
             CACHES['default'] = {
                 'BACKEND': 'django_redis.cache.RedisCache',
@@ -889,10 +893,15 @@ if IS_CLOUDTYPE_DEPLOY:
             SESSION_CACHE_ALIAS = 'default'
             print('✅ Cloudtype 세션 저장: Redis(cache) 사용')
         else:
+            # 모듈 없거나 URL 무효 → DB 의존 제거용 서명쿠키 세션으로 폴백
+            if _is_valid_redis_url(REDIS_URL) and not _has_django_redis:
+                print('⚠️ django-redis 미설치로 Redis 캐시 비활성화, 서명쿠키 세션으로 폴백')
             SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'
             print('✅ Cloudtype 세션 저장: signed_cookies 사용 (Redis 미사용)')
     except Exception as _e:
-        pass
+        # 어떤 오류가 나도 부팅을 막지 않음
+        SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'
+        print('⚠️ 세션 설정 중 예외 발생, 서명쿠키 세션으로 폴백')
 
 # Fly.io 환경에서 마이그레이션 최적화
 if IS_FLY_DEPLOY:
