@@ -280,7 +280,11 @@ class ReactAppView(View):
                 "../hearth_chat_react/build/index.html"
             )
             with open(react_index_path, encoding="utf-8") as f:
-                return HttpResponse(f.read())
+                resp = HttpResponse(f.read())
+                # PC 브라우저 캐시로 인한 빈 화면 방지: 강한 캐시 무효화 헤더 추가
+                resp["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+                resp["Pragma"] = "no-cache"
+                return resp
         except FileNotFoundError:
             return HttpResponse(
                 "React build 파일이 없습니다. 프론트엔드 빌드 후 다시 시도하세요.",
