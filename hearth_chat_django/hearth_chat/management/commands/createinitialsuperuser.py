@@ -10,9 +10,9 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         User = get_user_model()
-        username = 'gigabitamin'
-        email = 'gigabitamin@gmail.com'
-        password = 'password1234!'
+        username = os.getenv('DJANGO_SUPERUSER_USERNAME')
+        email = os.getenv('DJANGO_SUPERUSER_EMAIL')
+        password = os.getenv('DJANGO_SUPERUSER_PASSWORD')
         
         self.stdout.write(f'🔧 슈퍼유저 생성/업데이트 시작...')
         self.stdout.write(f'  - Username: {username}')
