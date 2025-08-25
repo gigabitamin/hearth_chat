@@ -69,6 +69,10 @@ fi
 export MEDIA_ROOT=${MEDIA_ROOT:-/tmp/media}
 mkdir -p "$MEDIA_ROOT" || true
 echo "MEDIA_ROOT: $MEDIA_ROOT"
+# NLTK 데이터 캐시 경로 보장 (docx 처리 시 권한 오류 방지)
+export NLTK_DATA=${NLTK_DATA:-/app/cache/nltk_data}
+mkdir -p "$NLTK_DATA" || true
+echo "NLTK_DATA: $NLTK_DATA"
 python manage.py createinitialsite --force --domain "$DOMAIN" || echo "createinitialsite 경고: 계속 진행합니다."
 
 # 슈퍼유저 생성 (이미 있으면 통과)
