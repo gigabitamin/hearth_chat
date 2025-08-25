@@ -13,6 +13,13 @@ if [ "$IS_FLY_DEPLOY" != "true" ]; then
 
     echo "--- 데이터베이스 마이그레이션 실행... ---"
     # Supabase 풀러 타임아웃 대비: 최대 10회 재시도, 실패 시 ALT_DATABASE_URL로 1회 스위치 후 다시 10회
+    # Supabase 세션 풀러(5432) 실패 시 트랜잭션 풀러(6543)로 자동 스위치
+    if [ -z "$ALT_DATABASE_URL" ] && echo "$DATABASE_URL" | grep -qi "supabase.com"; then
+        ALT_DATABASE_URL=$(echo "$DATABASE_URL" | sed 's/:5432\//:6543\//')
+        export ALT_DATABASE_URL
+        echo "[INFO] Supabase 감지 → ALT_DATABASE_URL(6543) 자동 설정"
+    fi
+
     try_migrate() {
         local max_tries=$1
         local tries=0
