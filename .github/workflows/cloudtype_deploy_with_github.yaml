@@ -30,7 +30,7 @@ jobs:
         uses: cloudtype-github-actions/deploy@v1
         with:
           # GitHub Secrets에 저장해 둔 Cloudtype API 토큰을 사용합니다.
-          token: ${{ secrets.CLOUDTYPE_API_TOKEN }}
+          token: ${{ secrets.CLOUDTYPE_API_KEY }}
           
           # ✅ 모든 배포 관련 인자를 한 줄의 'args'로 전달합니다.
           args: '--project gbrabbit/hearth_chat --service hearth-chat --wait'
