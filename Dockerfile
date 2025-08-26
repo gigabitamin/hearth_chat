@@ -34,12 +34,9 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     default-libmysqlclient-dev \
     postgresql-client \
-    # Pillow 의존성
     libjpeg-dev \
     libpng-dev \
     libfreetype6-dev \
-    # cloudflared 다운로드를 위해 wget 설치
-    # wget \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -47,10 +44,6 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
-
-# Cloudflare Tunnel (cloudflared)
-# RUN wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared && \
-#     chmod +x /usr/local/bin/cloudflared
 
 # 프론트 빌드 결과물 복사
 COPY --from=frontend /app/build/ /app/hearth_chat_react/build/
