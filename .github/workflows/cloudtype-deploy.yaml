@@ -48,17 +48,17 @@ jobs:
                 - name: REDIS_URL
                   value: ${{ secrets.REDIS_URL }}
                 - name: LILY_API_URL
-                  value: ${{ vars.LILY_API_URL || 'https://gbrabbit-lily-fast-api.hf.space' }}
+                  value: ${{ secrets.LILY_API_URL }}
                 - name: ALLOWED_HOSTS
-                  value: ${{ vars.ALLOWED_HOSTS }}
+                  value: ${{ secrets.ALLOWED_HOSTS }}
                 - name: CORS_ALLOWED_ORIGINS
-                  value: ${{ vars.CORS_ALLOWED_ORIGINS }}
+                  value: ${{ secrets.CORS_ALLOWED_ORIGINS }}
                 - name: CLOUDTYPE_APP_HOSTNAME
-                  value: ${{ vars.CLOUDTYPE_APP_HOSTNAME }}
+                  value: ${{ secrets.CLOUDTYPE_APP_HOSTNAME }}
                 - name: DJANGO_SUPERUSER_USERNAME
-                  value: ${{ vars.DJANGO_SUPERUSER_USERNAME }}
+                  value: ${{ secrets.DJANGO_SUPERUSER_USERNAME }}
                 - name: DJANGO_SUPERUSER_EMAIL
-                  value: ${{ vars.DJANGO_SUPERUSER_EMAIL }}
+                  value: ${{ secrets.DJANGO_SUPERUSER_EMAIL }}
                 - name: DJANGO_SUPERUSER_PASSWORD
                   value: ${{ secrets.DJANGO_SUPERUSER_PASSWORD }}
                 - name: OPENAI_API_KEY
