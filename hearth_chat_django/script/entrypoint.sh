@@ -106,15 +106,19 @@ python manage.py createinitialsite --force --domain "$DOMAIN" || echo "createini
 #   echo "오류: CLOUDFLARED_TUNNEL_TOKEN 환경 변수가 설정되지 않았습니다."
 #   exit 1
 # fi
-
+# =============================================================
 # echo "--- Cloudflare Tunnel을 시작합니다... ---"
 # cloudflared tunnel --no-autoupdate run --token $CLOUDFLARED_TUNNEL_TOKEN &
-
 # sleep 5
 # =============================================================
-
+# echo "--- Cloudflare Quick Tunnel을 시작합니다... ---"
+# cloudflared tunnel --url http://localhost:8080 &
+# =============================================================
 echo "--- Cloudflare Quick Tunnel을 시작합니다... ---"
 cloudflared tunnel --url http://localhost:8080 &
+sleep 5
+# =============================================================
+
 
 echo "--- 서버 시작... ---"
 exec daphne -b 0.0.0.0 -p 8080 hearth_chat.asgi:application
