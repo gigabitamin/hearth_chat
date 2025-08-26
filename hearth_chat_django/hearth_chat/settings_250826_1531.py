@@ -118,6 +118,11 @@ if IS_PRODUCTION:
     if IS_RAILWAY_DEPLOY:
         ALLOWED_HOSTS.append("hearthchat-production.up.railway.app")
 
+    # 추가: 사용자 리다이렉트/서브도메인 허용
+    for _extra_host in ["hearthchat.kozow.com", "courageous-dragon-f7b6c0.netlify.app", "animal-sticks-detected-pro.trycloudflare.com"]:
+        if _extra_host not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(_extra_host)
+
     BASE_URL = f"https://{ALLOWED_HOSTS[0]}"
     LILY_API_URL = "https://gbrabbit-lily-fast-api.hf.space"
 
@@ -139,6 +144,16 @@ if IS_PRODUCTION:
     # Lily API URL을 CORS와 CSRF에 각각 추가
     CORS_ALLOWED_ORIGIN_REGEXES.append(r"^https://gbrabbit-lily-fast-api\.hf\.space$")
     CSRF_TRUSTED_ORIGINS.append(LILY_API_URL)    
+
+    # 추가: Netlify/FreeDNS 서브도메인 원본 허용
+    CORS_ALLOWED_ORIGIN_REGEXES.append(r"^https://hearthchat\.kozow\.com$")
+    CORS_ALLOWED_ORIGIN_REGEXES.append(r"^https://courageous-dragon-f7b6c0\.netlify\.app$")
+    CORS_ALLOWED_ORIGIN_REGEXES.append(r"^https://animal-sticks-detected-pro\.trycloudflare\.com$")
+    
+    # CLOUDFLARE TUNNEL 설정, 아래 두 줄을 추가하여 웹소켓 연결을 허용
+    CSRF_TRUSTED_ORIGINS.append("https://hearthchat.kozow.com")
+    CSRF_TRUSTED_ORIGINS.append("https://courageous-dragon-f7b6c0.netlify.app")
+    CSRF_TRUSTED_ORIGINS.append("https://animal-sticks-detected-pro.trycloudflare.com")
 
     # Cloudtype 도메인 CORS 허용
     if IS_CLOUDTYPE_DEPLOY:
@@ -214,6 +229,20 @@ elif dj_database_url and dj_database_url.config():
     # 로컬/개발 환경에서 .env 파일에 DATABASE_URL이 있는 경우
     print("✅ .env 파일의 DATABASE_URL을 사용하여 DB 설정 (dj-database-url)")
     DATABASES = {'default': dj_database_url.config(conn_max_age=600)}
+
+elif os.getenv('POSTGRES_DB') or os.getenv('PGDATABASE'):
+    # POSTGRES_* / PG* 개별 변수로 로컬 Postgres 구성
+    print("✅ 환경 변수 POSTGRES_* 를 사용하여 DB 설정")
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('POSTGRES_DB') or os.getenv('PGDATABASE'),
+            'USER': os.getenv('POSTGRES_USER') or os.getenv('PGUSER', 'postgres'),
+            'PASSWORD': os.getenv('POSTGRES_PASSWORD') or os.getenv('PGPASSWORD', ''),
+            'HOST': os.getenv('POSTGRES_HOST') or os.getenv('PGHOST', 'localhost'),
+            'PORT': os.getenv('POSTGRES_PORT') or os.getenv('PGPORT', '5432'),
+        }
+    }
 
 else:
     # 위 두가지 경우가 모두 실패했을 때의 최후 비상 수단 (로컬 개발용)
@@ -778,6 +807,14 @@ else:
 # 로깅 설정 추가
 # 컨테이너 환경 호환을 위해 기본 로그 파일을 /tmp로 이동
 DJANGO_LOG_FILE = os.environ.get('DJANGO_LOG_FILE', '/tmp/django.log')
+
+# 로컬(Windows 등)에서 기본 '/tmp/django.log' 경로가 없을 수 있으므로 디렉터리 보장
+try:
+    _log_dir = os.path.dirname(DJANGO_LOG_FILE)
+    if _log_dir and not os.path.exists(_log_dir):
+        os.makedirs(_log_dir, exist_ok=True)
+except Exception:
+    pass
 
 LOGGING = {
     'version': 1,
