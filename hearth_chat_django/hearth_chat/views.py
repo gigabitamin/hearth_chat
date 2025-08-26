@@ -273,7 +273,9 @@ def get_csrf_token(request):
       쿠키 속성을 완화하여 내려준다.
     """
     token = get_token(request)
-    resp = JsonResponse({'detail': 'CSRF cookie set'})
+    # HTTPS 여부 판단 (프록시 환경 고려)
+    is_https = bool(getattr(request, 'is_secure', lambda: False)()) or request.headers.get('X-Forwarded-Proto', '').lower() == 'https'
+    resp = JsonResponse({'detail': 'CSRF cookie set', 'token': token})
     origin = request.headers.get('Origin', '') or request.headers.get('Referer', '') or ''
     # 모바일 감지: 쿼리파라미터, 헤더, 오리진으로 감지
     is_capacitor = (
@@ -284,13 +286,13 @@ def get_csrf_token(request):
         request.GET.get('from') == 'app' or
         request.headers.get('X-From-App') == '1'
     )
-    # 모바일(WebView)에서는 Secure=False, SameSite=Lax 로 쿠키 설정
+    # 모바일(WebView) 및 크로스사이트 대응: HTTPS이면 SameSite=None; Secure=True 로 내려야 쿠키가 전송됨
     resp.set_cookie(
         'csrftoken',
         token,
-        secure=False if is_capacitor else getattr(__import__('django.conf').conf.settings, 'CSRF_COOKIE_SECURE', False),
-        httponly=False,  # JS에서 읽을 수 있어야 헤더에 붙일 수 있음
-        samesite='Lax' if is_capacitor else getattr(__import__('django.conf').conf.settings, 'CSRF_COOKIE_SAMESITE', 'None'),
+        secure=True if is_https else False,
+        httponly=False,
+        samesite='None' if is_https else 'Lax',
         path='/'
     )
     return resp
@@ -1043,6 +1045,7 @@ def api_login(request):
         django_login(request, user)
         # 모바일(WebView) 대응: 세션 쿠키를 재설정하여 Secure=False/SameSite=Lax 로 내려줌
         origin = request.headers.get('Origin', '') or request.headers.get('Referer', '') or ''
+        is_https = bool(getattr(request, 'is_secure', lambda: False)()) or request.headers.get('X-Forwarded-Proto', '').lower() == 'https'
         is_capacitor = (
             origin.startswith('capacitor://') or
             origin.startswith('http://localhost') or
@@ -1055,9 +1058,9 @@ def api_login(request):
             resp.set_cookie(
                 getattr(__import__('django.conf').conf.settings, 'SESSION_COOKIE_NAME', 'sessionid'),
                 request.session.session_key,
-                secure=False,
+                secure=True if is_https else False,
                 httponly=True,
-                samesite='Lax',
+                samesite='None' if is_https else 'Lax',
                 path='/'
             )
         return resp

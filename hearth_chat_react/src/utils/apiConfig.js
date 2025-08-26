@@ -115,17 +115,34 @@ export const getWebSocketUrl = (endpointPath = '/ws/chat/') => {
 
 // CSRF 토큰 쿠키 가져오기
 export function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop().split(';').shift();
+    try {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+    } catch { /* ignore */ }
 }
 
 // CSRF 토큰이 포함된 fetch 함수
 export const csrfFetch = async (url, options = {}) => {
-    const csrftoken = getCookie('csrftoken');
+    // 1) 보장: 쿠키에서 토큰 시도
+    let csrftoken = getCookie('csrftoken');
+    // 2) 없으면 /api/csrf/ 호출로 토큰 JSON 확보
+    if (!csrftoken && url.indexOf('/api/csrf/') === -1) {
+        try {
+            const r = await fetch(`${API_BASE}/api/csrf/`, {
+                method: 'GET',
+                credentials: 'include',
+                headers: { 'X-From-App': '1' }
+            });
+            const data = await r.json().catch(() => ({}));
+            csrftoken = data && data.token ? data.token : getCookie('csrftoken');
+        } catch { /* ignore */ }
+    }
+
     const defaultHeaders = {
-        'X-CSRFToken': csrftoken,
+        'X-CSRFToken': csrftoken || '',
         'Content-Type': 'application/json',
+        'X-From-App': '1',
     };
 
     const mergedOptions = {
@@ -138,4 +155,4 @@ export const csrfFetch = async (url, options = {}) => {
     };
 
     return fetch(url, mergedOptions);
-}; 
+};
