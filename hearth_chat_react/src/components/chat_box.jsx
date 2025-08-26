@@ -220,7 +220,7 @@ const ChatBox = ({
     // const host = window.location.hostname;
     // const port = process.env.NODE_ENV === 'production' ? '' : ':8000';
     // const wsUrl = `${protocol}//${host}${port}/ws/chat/`;
-    // 방 ID를 경로에 포함하여 서버가 즉시 해당 방 그룹에 조인할 수 있도록 함
+    // 방 ID를 경로에 포함하여 서버에서 자동 그룹 조인되도록 연결
     const wsUrl = getWebSocketUrl(`/ws/chat/${selectedRoom.id}/`);
 
 
@@ -231,15 +231,14 @@ const ChatBox = ({
       return;
     }
 
-    // 경로 기반 자동 조인 사용 시, 중복 join_room 전송을 피하기 위해 간격 전송 제거
+    // join_room 메시지 전송을 readyState가 1(OPEN)일 때까지 반복 시도
     let joinSent = false;
     const joinInterval = setInterval(() => {
       if (ws.current && ws.current.readyState === 1 && !joinSent) {
-        // 서버가 경로로 이미 조인했으므로 확인용 ping만 전송
-        const ping = { type: 'ping' };
-        if (safeWebSocketSend(ping)) {
+        const joinMessage = { type: 'join_room', roomId: selectedRoom.id };
+        if (safeWebSocketSend(joinMessage)) {
           joinSent = true;
-          console.log('[WebSocket] 경로 기반 자동 조인 완료(ping 확인)');
+          console.log('[WebSocket] join_room 메시지 전송 성공 (setInterval)');
           clearInterval(joinInterval);
 
           // join_room 성공 후 자동 메시지 전송 시도
@@ -327,13 +326,13 @@ const ChatBox = ({
       // WebSocket 연결 완료 상태 설정
       setWsConnectionReady(true);
 
-      // 연결 후 약간의 지연을 두고 서버의 join_ack 수신을 기다림
+      // 연결 후 약간의 지연을 두고 join_room 메시지 전송
       setTimeout(() => {
         if (!joinSent && ws.current && ws.current.readyState === 1) {
-          // 여전히 미확인 시 ping으로 연결만 확인
-          if (safeWebSocketSend({ type: 'ping' })) {
+          const joinMessage = { type: 'join_room', roomId: selectedRoom.id };
+          if (safeWebSocketSend(joinMessage)) {
             joinSent = true;
-            console.log('[WebSocket] 경로 기반 자동 조인 확인(ping)');
+            console.log('[WebSocket] join_room 메시지 전송 성공');
 
             // join_room 성공 후 자동 메시지 전송 시도
             setTimeout(() => {
@@ -397,11 +396,6 @@ const ChatBox = ({
       try {
         const data = JSON.parse(e.data);
         console.log('[WebSocket] 메시지 수신:', data);
-
-        if (data.type === 'join_ack' && data.joined) {
-          console.log('[WebSocket] join_ack 수신:', data);
-          return;
-        }
 
         if (data.type === 'user_message' && data.message) {
           console.log('[WebSocket] 사용자 메시지 수신됨:', {
