@@ -1,6 +1,8 @@
 
 from pathlib import Path
 import os
+import socket
+from urllib.parse import urlparse
 from dotenv import load_dotenv
 import sys
 from django.core.exceptions import ObjectDoesNotExist
@@ -937,6 +939,17 @@ else:
 
 DISABLE_REDIS = os.getenv("DISABLE_REDIS", "false").lower() == "true"
 use_inmemory = DISABLE_REDIS or (not _is_valid_redis_url(REDIS_URL))
+
+# Cloudtype 등에서 REDIS_URL은 있으나 DNS 미해결일 때 안전 폴백
+if not use_inmemory and IS_CLOUDTYPE_DEPLOY:
+    try:
+        parsed = urlparse(REDIS_URL)
+        redis_host = parsed.hostname or ""
+        redis_port = parsed.port or 6379
+        socket.getaddrinfo(redis_host, redis_port)
+    except Exception:
+        print(f"⚠️ Redis 호스트 해석 실패({REDIS_URL}) → InMemoryChannelLayer 폴백")
+        use_inmemory = True
 
 if use_inmemory:
     # 단일 인스턴스/테스트/임시 운영 폴백용 (수평확장 불가)
