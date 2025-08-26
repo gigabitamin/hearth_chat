@@ -63,6 +63,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         # self.scope['user']는 Channels의 AuthMiddlewareStack에 의해 자동으로 채워짐
         user = self.scope['user']
+        # URL path에 room_id가 포함된 경우 자동 그룹 조인용으로 보관
+        try:
+            self.path_room_id = None
+            path_kwargs = getattr(self.scope, 'url_route', {}).get('kwargs', {}) if isinstance(getattr(self.scope, 'url_route', None), dict) else {}
+            self.path_room_id = path_kwargs.get('room_id') if path_kwargs else None
+        except Exception:
+            self.path_room_id = None
 
         # 사용자가 인증되었는지 먼저 확인
         if user.is_authenticated:
@@ -78,6 +85,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'chat_room_list',
                 self.channel_name
             )
+
+            # URL 경로 기반 자동 조인
+            try:
+                if self.path_room_id:
+                    await self.channel_layer.group_add(
+                        f'chat_room_{self.path_room_id}',
+                        self.channel_name
+                    )
+                    await self.send(text_data=json.dumps({
+                        'type': 'join_ack',
+                        'roomId': self.path_room_id,
+                        'joined': True
+                    }))
+            except Exception:
+                pass
 
             # MySQL 연결 설정 (필요 시)
             await self._force_utf8mb4_connection_async()

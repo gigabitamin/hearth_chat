@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import './HeaderBar.css';
 import AboutModal from './AboutModal';
 import { API_BASE, getCookie } from '../utils/apiConfig';
-import DebugDiagnostics from './DebugDiagnostics';
+// import DebugDiagnostics from './DebugDiagnostics';
 
 const CreateRoomButton = ({ onClick }) => (
     <button
@@ -16,7 +16,6 @@ const CreateRoomButton = ({ onClick }) => (
         <span style={{ fontSize: 28, userSelect: 'none', transition: 'transform 0.15s' }} role="img" aria-label="logo">🔥</span>
     </button>
 );
-
 
 export default function HeaderBar({
     activeTab,
@@ -139,8 +138,8 @@ export default function HeaderBar({
                 {/* <CreateRoomButton onClick={onCreateRoomClick} /> */}
             </div>
             <div className="header-center">
-                <div>                    
-                    {title && (                                                                    
+                <div>
+                    {title && (
                         <span
                             className="header-title-text"
                             title={title}
@@ -151,7 +150,7 @@ export default function HeaderBar({
                             onTouchEnd={handleTitleTouchEnd}
                             onTouchCancel={handleTitleTouchCancel}
                             style={{
-                                maxWidth: 140,                                
+                                maxWidth: 140,
                                 fontWeight: 600,
                                 // color: '#888888',
                                 whiteSpace: 'nowrap',
@@ -176,15 +175,15 @@ export default function HeaderBar({
                                     handleFavoriteToggle(room, e);
                                     onToggleFavoriteRoom && onToggleFavoriteRoom();
                                 }}
-                                style={{ marginRight: 6, background: 'none', border: 'none', fontSize: 16, color: '#FFD600', cursor: 'pointer', paddingRight: 10, paddingLeft: 0, display: 'inline-block'}}
+                                style={{ marginRight: 6, background: 'none', border: 'none', fontSize: 16, color: '#FFD600', cursor: 'pointer', paddingRight: 10, paddingLeft: 0, display: 'inline-block' }}
                             >
-                                <div style={{ background: 'none', border: 'none', fontSize: 16, color: '#FFD600', cursor: 'pointer'}}>{isFavoriteRoom ? '★' : '☆'}</div>
-                            </button>                            
+                                <div style={{ background: 'none', border: 'none', fontSize: 16, color: '#FFD600', cursor: 'pointer' }}>{isFavoriteRoom ? '★' : '☆'}</div>
+                            </button>
                             }
-                            {title}                            
-                        </span>                        
+                            {title}
+                        </span>
                     )}
-                {/* 전체 타이틀 팝업 (채팅방 내부) */}
+                    {/* 전체 타이틀 팝업 (채팅방 내부) */}
                     {isInRoom && showTitlePopup && (
                         <div
                             className="header-title-popup"
@@ -264,9 +263,9 @@ export default function HeaderBar({
                 </button>
             </div>
             {/* 모바일 진단 패널 (임시) */}
-            <div style={{ position: 'fixed', bottom: 10, left: 10, right: 10, zIndex: 9999 }}>
+            {/* <div style={{ position: 'fixed', bottom: 10, left: 10, right: 10, zIndex: 9999 }}>
                 <DebugDiagnostics />
-            </div>
+            </div> */}
         </header>
     );
 } 
