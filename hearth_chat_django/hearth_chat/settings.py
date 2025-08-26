@@ -680,6 +680,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "hearth_chat.middleware.MobileCSRFFallbackMiddleware",
     "hearth_chat.middleware.MobileCookieRelaxMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
