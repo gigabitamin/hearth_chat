@@ -1,5 +1,5 @@
 #!/bin/bash
-# set -e: 스크립트 실행 중 오류가 발생하면 즉시 중단합니다.
+# set -e: 스크립트 실행 중 오류가 발생하면 즉시 중단
 set -e
 
 # Django 앱 디렉토리로 이동
@@ -98,6 +98,27 @@ python manage.py createinitialsite --force --domain "$DOMAIN" || echo "createini
 #     echo "[WARNING] Debug login failed. See /tmp/debug_login.log below:"
 #     cat /tmp/debug_login.log
 # }
+
+# =============================================================
+# Cloudflare Tunnel 실행 로직
+# Cloudtype 환경 변수에서 터널 토큰을 가져옴
+# if [ -z "$CLOUDFLARED_TUNNEL_TOKEN" ]; then
+#   echo "오류: CLOUDFLARED_TUNNEL_TOKEN 환경 변수가 설정되지 않았습니다."
+#   exit 1
+# fi
+# =============================================================
+# echo "--- Cloudflare Tunnel을 시작합니다... ---"
+# cloudflared tunnel --no-autoupdate run --token $CLOUDFLARED_TUNNEL_TOKEN &
+# sleep 5
+# =============================================================
+# echo "--- Cloudflare Quick Tunnel을 시작합니다... ---"
+# cloudflared tunnel --url http://localhost:8080 &
+# =============================================================
+# echo "--- Cloudflare Quick Tunnel을 시작합니다... ---"
+# cloudflared tunnel --url http://localhost:8080 &
+# sleep 5
+# =============================================================
+
 
 echo "--- 서버 시작... ---"
 exec daphne -b 0.0.0.0 -p 8080 hearth_chat.asgi:application

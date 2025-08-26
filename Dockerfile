@@ -27,13 +27,14 @@ RUN ls -la /app/build/avatar_vrm/ || echo "avatar_vrm directory not found"
 # ======================
 FROM python:3.11.5-slim
 
-# 시스템 필수 패키지 설치 (pkg-config 추가 및 wget 추가)
+# 시스템 필수 패키지 설치 (pkg-config 추가)
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
     pkg-config \
     default-libmysqlclient-dev \
     postgresql-client \
+    # Pillow 의존성
     libjpeg-dev \
     libpng-dev \
     libfreetype6-dev \
@@ -45,7 +46,7 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# 프론트 빌드 결과물 복사
+# 🔁 프론트 빌드 결과물 복사
 COPY --from=frontend /app/build/ /app/hearth_chat_react/build/
 RUN ls -la /app/hearth_chat_react/build/ || echo "build directory not found"
 RUN ls -la /app/hearth_chat_react/build/static/ || echo "static directory not found"
