@@ -1523,7 +1523,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                             padding: '4px 4px 4px 8px',
                             fontSize: 15,
                             // background: '#181a20',
-                            color: '#fff',
+                            // color: '#fff',
                             resize: 'none',
                             minHeight: '10px',
                             maxHeight: '120px',
