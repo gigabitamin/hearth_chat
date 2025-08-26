@@ -29,7 +29,47 @@ jobs:
           yaml: |
             name: hearth-chat
             app: dockerfile
+            resources:
+              spot: true
+              memory: 0.5
             options:
               git:
                 url: https://github.com/gigabitamin/hearth_chat
                 ref: main
+              ports: "8080"
+              commands: /entrypoint.sh
+              env:
+                - name: IS_CLOUDTYPE_DEPLOY
+                  value: "true"
+                - name: DJANGO_SECRET_KEY
+                  value: ${{ secrets.DJANGO_SECRET_KEY }}
+                - name: DATABASE_URL
+                  value: ${{ secrets.DATABASE_URL }}
+                - name: REDIS_URL
+                  value: ${{ secrets.REDIS_URL }}
+                - name: LILY_API_URL
+                  value: ${{ vars.LILY_API_URL || 'https://gbrabbit-lily-fast-api.hf.space' }}
+                - name: ALLOWED_HOSTS
+                  value: ${{ vars.ALLOWED_HOSTS }}
+                - name: CORS_ALLOWED_ORIGINS
+                  value: ${{ vars.CORS_ALLOWED_ORIGINS }}
+                - name: CLOUDTYPE_APP_HOSTNAME
+                  value: ${{ vars.CLOUDTYPE_APP_HOSTNAME }}
+                - name: DJANGO_SUPERUSER_USERNAME
+                  value: ${{ vars.DJANGO_SUPERUSER_USERNAME }}
+                - name: DJANGO_SUPERUSER_EMAIL
+                  value: ${{ vars.DJANGO_SUPERUSER_EMAIL }}
+                - name: DJANGO_SUPERUSER_PASSWORD
+                  value: ${{ secrets.DJANGO_SUPERUSER_PASSWORD }}
+                - name: OPENAI_API_KEY
+                  value: ${{ secrets.OPENAI_API_KEY }}
+                - name: GEMINI_API_KEY
+                  value: ${{ secrets.GEMINI_API_KEY }}
+                - name: HF_TOKEN
+                  value: ${{ secrets.HF_TOKEN }}
+                - name: GOOGLE_APP_SECRET
+                  value: ${{ secrets.GOOGLE_APP_SECRET }}
+                - name: DOCKERHUB_USERNAME
+                  value: ${{ secrets.DOCKERHUB_USERNAME }}
+                - name: DOCKERHUB_TOKEN
+                  value: ${{ secrets.DOCKERHUB_TOKEN }}
