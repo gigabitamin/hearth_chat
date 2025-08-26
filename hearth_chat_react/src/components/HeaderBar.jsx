@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import './HeaderBar.css';
 import AboutModal from './AboutModal';
 import { API_BASE, getCookie } from '../utils/apiConfig';
-// import DebugDiagnostics from './DebugDiagnostics';
+import DebugDiagnostics from './DebugDiagnostics';
 
 const CreateRoomButton = ({ onClick }) => (
     <button
@@ -263,9 +263,9 @@ export default function HeaderBar({
                 </button>
             </div>
             {/* 모바일 진단 패널 (임시) */}
-            {/* <div style={{ position: 'fixed', bottom: 10, left: 10, right: 10, zIndex: 9999 }}>
+            <div style={{ position: 'fixed', bottom: 10, left: 10, right: 10, zIndex: 9999 }}>
                 <DebugDiagnostics />
-            </div> */}
+            </div>
         </header>
     );
 } 
