@@ -28,7 +28,16 @@ export const getApiBase = () => {
     const isProd = process.env.NODE_ENV === 'production';
 
     // Capacitor(모바일 네이티브) 환경 감지
-    const isNative = !!(window && window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+    const isNative = (() => {
+        try {
+            if (window.location.protocol === 'capacitor:') return true;
+            const C = window.Capacitor;
+            if (!C) return false;
+            if (typeof C.isNativePlatform === 'function') return !!C.isNativePlatform();
+            if (typeof C.getPlatform === 'function') return C.getPlatform() !== 'web';
+            return false;
+        } catch { return false; }
+    })();
 
     if (isNative) {
         // 1순위: 환경변수(REACT_APP_API_BASE)
@@ -57,8 +66,17 @@ export const getLilyApiUrl = () => {
     const hostname = window.location.hostname;
     const isProd = process.env.NODE_ENV === 'production';
 
-    // Capacitor(모바일 네이티브) 환경 감지
-    const isNative = !!(window && window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+    // Capacitor(모바일 네이티브) 환경 감지 (강화)
+    const isNative = (() => {
+        try {
+            if (window.location.protocol === 'capacitor:') return true;
+            const C = window.Capacitor;
+            if (!C) return false;
+            if (typeof C.isNativePlatform === 'function') return !!C.isNativePlatform();
+            if (typeof C.getPlatform === 'function') return C.getPlatform() !== 'web';
+            return false;
+        } catch { return false; }
+    })();
 
     // 1순위: 환경변수(REACT_APP_LILY_API_URL)
     // 2순위: 로컬 스토리지 사용자 설정(LILY_API_URL)
