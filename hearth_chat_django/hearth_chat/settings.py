@@ -202,6 +202,9 @@ else:
 # print(f"  - ALLOWED_HOSTS: {ALLOWED_HOSTS}")
 # print(f"  - CORS_ALLOWED_ORIGINS: {CORS_ALLOWED_ORIGINS}")
 
+# 모바일 테스트
+CORS_ALLOW_ALL_ORIGINS = True
+
 # --- 3. 공통 설정 (환경과 무관) ---
 CSRF_COOKIE_NAME = "csrftoken"
 CSRF_COOKIE_HTTPONLY = False
