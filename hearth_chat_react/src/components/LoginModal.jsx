@@ -35,11 +35,12 @@ const LoginModal = ({ isOpen, onClose, onSocialLogin }) => {
         form.append('login', email);
         form.append('password', password);
         form.append('remember', 'on');
-        const csrftoken = getCookie('csrftoken');
+        let csrftoken = getCookie('csrftoken');
         if (!csrftoken) {
-            setError('CSRF 토큰이 없습니다. 새로고침 후 다시 시도해 주세요.');
-            setLoading(false);
-            return;
+            try {
+                await fetch(`${API_BASE}/api/csrf/`, { credentials: 'include' });
+                csrftoken = getCookie('csrftoken');
+            } catch {}
         }
         try {
             const res = await fetch(`${API_BASE}/accounts/login/`, {
@@ -76,11 +77,12 @@ const LoginModal = ({ isOpen, onClose, onSocialLogin }) => {
         form.append('email', email);
         form.append('password1', password);
         form.append('password2', password2);
-        const csrftoken = getCookie('csrftoken');
+        let csrftoken = getCookie('csrftoken');
         if (!csrftoken) {
-            setError('CSRF 토큰이 없습니다. 새로고침 후 다시 시도해 주세요.');
-            setLoading(false);
-            return;
+            try {
+                await fetch(`${API_BASE}/api/csrf/`, { credentials: 'include' });
+                csrftoken = getCookie('csrftoken');
+            } catch {}
         }
         try {
             const res = await fetch(`${API_BASE}/accounts/signup/`, {

@@ -37,6 +37,7 @@ export const getApiBase = () => {
         const envBase = process.env.REACT_APP_API_BASE;
         const lsBase = (() => { try { return localStorage.getItem('API_BASE'); } catch { return null; } })();
         const fallbackBase = 'https://port-0-hearth-chat-meq4jsqba77b2805.sel5.cloudtype.app';
+        // Capacitor WebView 호환: origin이 capacitor://localhost일 때 쿠키 도메인 일치 위해 절대 URL 사용
         return envBase || lsBase || fallbackBase;
     }
 
