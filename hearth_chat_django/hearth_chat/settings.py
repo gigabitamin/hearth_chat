@@ -148,6 +148,10 @@ if IS_PRODUCTION:
     # 추가: Netlify/FreeDNS 서브도메인 원본 허용
     CORS_ALLOWED_ORIGIN_REGEXES.append(r"^https://hearthchat\.kozow\.com$")
     CORS_ALLOWED_ORIGIN_REGEXES.append(r"^https://courageous-dragon-f7b6c0\.netlify\.app$")
+    
+    # CLOUDFLARE TUNNEL 설정, 아래 두 줄을 추가하여 웹소켓 연결을 허용
+    CSRF_TRUSTED_ORIGINS.append("https://hearthchat.kozow.com")
+    CSRF_TRUSTED_ORIGINS.append("https://courageous-dragon-f7b6c0.netlify.app")
 
     # Cloudtype 도메인 CORS 허용
     if IS_CLOUDTYPE_DEPLOY:
