@@ -776,8 +776,9 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
             }
         } else {
             // 채팅방: chat_box.jsx와 동일하게 WebSocket 전송 및 pending 메시지 추가
-            if (!ws || ws.readyState !== 1) {
-                alert('연결이 끊어졌습니다.');
+            const wsInstance = (ws && ws.readyState === 1) ? ws : (window.chatWebSocket && window.chatWebSocket.readyState === 1 ? window.chatWebSocket : null);
+            if (!wsInstance) {
+                console.warn('[WS] 연결이 일시적으로 닫혀 있습니다. 잠시 후 다시 시도해주세요.');
                 setLoading(false);
                 return;
             }
@@ -803,7 +804,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                 lilyModel: clientAI?.lilyModel,
                 geminiModel: clientAI?.geminiModel,
             };
-            ws.send(JSON.stringify(messageData));
+            wsInstance.send(JSON.stringify(messageData));
             // setRoomMessages 호출 제거 - WebSocket을 통해 받은 메시지가 chat_box.jsx에서 처리됨
         }
         setInput('');
