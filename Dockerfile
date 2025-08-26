@@ -27,7 +27,7 @@ RUN ls -la /app/build/avatar_vrm/ || echo "avatar_vrm directory not found"
 # ======================
 FROM python:3.11.5-slim
 
-# 시스템 필수 패키지 설치 (pkg-config 추가 및 wget 추가)
+# 시스템 필수 패키지 설치 (pkg-config 추가 및 curl 추가)
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
@@ -38,8 +38,8 @@ RUN apt-get update && apt-get install -y \
     libjpeg-dev \
     libpng-dev \
     libfreetype6-dev \
-    # ✅ cloudflared 다운로드를 위해 wget 설치
-    wget \
+    # ✅ cloudflared 다운로드를 위해 curl 설치
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -48,11 +48,11 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Cloudflare Tunnel (cloudflared) 설치
-RUN wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared && \
+# Cloudflare Tunnel (cloudflared) 설치 (curl 사용)
+RUN curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /usr/local/bin/cloudflared && \
     chmod +x /usr/local/bin/cloudflared
 
-# 🔁 프론트 빌드 결과물 복사
+# 프론트 빌드 결과물 복사
 COPY --from=frontend /app/build/ /app/hearth_chat_react/build/
 RUN ls -la /app/hearth_chat_react/build/ || echo "build directory not found"
 RUN ls -la /app/hearth_chat_react/build/static/ || echo "static directory not found"
@@ -63,6 +63,14 @@ COPY hearth_chat_django/ ./hearth_chat_django/
 
 # React 빌드 결과물 복사 (이미 있음)
 COPY --from=frontend /app/build/ /app/hearth_chat_react/build/
+
+# collectstatic은 런타임에 실행하도록 제거 (빌드 시점에는 불필요)
+# ENV DATABASE_URL=sqlite:///tmp/db.sqlite3
+# WORKDIR /app/hearth_chat_django
+# RUN python manage.py collectstatic --noinput || echo "collectstatic failed, continuing..."
+
+# 반드시 장고 앱 복사 이후에 슈퍼유저 자동 생성 (빌드 타임에 실행)
+# RUN python manage.py createinitialsuperuser || echo "Superuser creation skipped during build"
 
 # 작업 디렉토리를 Django 앱으로 변경
 WORKDIR /app/hearth_chat_django
@@ -81,4 +89,13 @@ RUN chmod +x /usr/local/bin/start.sh
 COPY hearth_chat_django/script/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+# cloudtype 에서는 빌드 시점에 실행하면 안됨 fly io 에서는 실행
+# RUN python manage.py collectstatic --noinput # 주석처리
+
 EXPOSE 8080
+
+# Railway에서 entrypoint.sh가 실행되도록 명시적으로 지정
+# ENTRYPOINT ["/entrypoint.sh"]
+
+# 미디어 파일 복사
+# COPY hearth_chat_media/avatar_vrm_test/test.vrm ./hearth_chat_media/avatar_vrm_test/test.vrmOPY hearth_chat_media/avatar_vrm_test/test.vrm ./hearth_chat_media/avatar_vrm_test/test.vrmOPY hearth_chat_media/avatar_vrm_test/test.vrm ./hearth_chat_media/avatar_vrm_test/test.vrmOPY hearth_chat_media/avatar_vrm_test/test.vrm ./hearth_chat_media/avatar_vrm_test/test.vrmOPY hearth_chat_media/avatar_vrm_test/test.vrm ./hearth_chat_media/avatar_vrm_test/test.vrm
