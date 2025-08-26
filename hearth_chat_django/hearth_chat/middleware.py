@@ -12,7 +12,11 @@ class MobileCookieRelaxMiddleware(MiddlewareMixin):
     def process_response(self, request, response):
         try:
             origin = request.headers.get('Origin', '') or request.headers.get('Referer', '') or ''
-            is_mobile_webview = origin.startswith('capacitor://') or origin.startswith('http://localhost')
+            is_mobile_webview = (
+                origin.startswith('capacitor://') or
+                origin.startswith('http://localhost') or
+                origin.startswith('https://localhost')
+            )
             if not is_mobile_webview:
                 return response
 

@@ -139,13 +139,15 @@ if IS_PRODUCTION:
         r"^https://.+\.fly\.dev$", # *.fly.dev 와일드카드에 해당
         # 모바일(WebView/Capacitor/Android WebView)
         r"^capacitor://localhost$",
-        r"^http://localhost$",
+        r"^http://localhost(?::\d+)?$",
+        r"^https://localhost(?::\d+)?$",
     ]
     # CSRF_TRUSTED_ORIGINS는 와일드카드 패턴을 그대로 사용해도 괜찮습니다.
     CSRF_TRUSTED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS]
     # 모바일(WebView/Capacitor/Android WebView) 허용
     CSRF_TRUSTED_ORIGINS.append("capacitor://localhost")
     CSRF_TRUSTED_ORIGINS.append("http://localhost")
+    CSRF_TRUSTED_ORIGINS.append("https://localhost")
     
     # Lily API URL을 CORS와 CSRF에 각각 추가
     CORS_ALLOWED_ORIGIN_REGEXES.append(r"^https://gbrabbit-lily-fast-api\.hf\.space$")
@@ -201,9 +203,6 @@ else:
 # print(f"  - BASE_URL: {BASE_URL}")
 # print(f"  - ALLOWED_HOSTS: {ALLOWED_HOSTS}")
 # print(f"  - CORS_ALLOWED_ORIGINS: {CORS_ALLOWED_ORIGINS}")
-
-# 모바일 테스트
-CORS_ALLOW_ALL_ORIGINS = True
 
 # --- 3. 공통 설정 (환경과 무관) ---
 CSRF_COOKIE_NAME = "csrftoken"
