@@ -19,6 +19,7 @@ from django.shortcuts import render
 from allauth.socialaccount.models import SocialToken, SocialAccount
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import ensure_csrf_cookie
+from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
 from urllib.parse import urlencode
 from django.views.decorators.http import require_POST
@@ -267,8 +268,24 @@ class SessionDebugMiddleware(MiddlewareMixin):
 
 @ensure_csrf_cookie
 def get_csrf_token(request):
-    """CSRF 토큰을 제공하는 엔드포인트"""
-    return JsonResponse({'detail': 'CSRF cookie set'})
+    """CSRF 토큰을 제공하는 엔드포인트 (모바일 WebView 대응)
+    - Capacitor(WebView)처럼 https가 아닌 스킴(capacitor://)에서는 Secure 쿠키를 사용할 수 없어
+      쿠키 속성을 완화하여 내려준다.
+    """
+    token = get_token(request)
+    resp = JsonResponse({'detail': 'CSRF cookie set'})
+    origin = request.headers.get('Origin', '') or request.headers.get('Referer', '') or ''
+    is_capacitor = origin.startswith('capacitor://')
+    # 모바일(WebView)에서는 Secure=False, SameSite=Lax 로 쿠키 설정
+    resp.set_cookie(
+        'csrftoken',
+        token,
+        secure=False if is_capacitor else getattr(__import__('django.conf').conf.settings, 'CSRF_COOKIE_SECURE', False),
+        httponly=False,  # JS에서 읽을 수 있어야 헤더에 붙일 수 있음
+        samesite='Lax' if is_capacitor else getattr(__import__('django.conf').conf.settings, 'CSRF_COOKIE_SAMESITE', 'None'),
+        path='/'
+    )
+    return resp
 
 
 @method_decorator(ensure_csrf_cookie, name='get')
@@ -1016,7 +1033,20 @@ def api_login(request):
             return JsonResponse({'error': '인증 실패'}, status=401)
 
         django_login(request, user)
-        return JsonResponse({'status': 'success', 'user': {'id': user.id, 'username': user.username, 'email': user.email}})
+        # 모바일(WebView) 대응: 세션 쿠키를 재설정하여 Secure=False/SameSite=Lax 로 내려줌
+        origin = request.headers.get('Origin', '') or request.headers.get('Referer', '') or ''
+        is_capacitor = origin.startswith('capacitor://')
+        resp = JsonResponse({'status': 'success', 'user': {'id': user.id, 'username': user.username, 'email': user.email}})
+        if is_capacitor and request.session.session_key:
+            resp.set_cookie(
+                getattr(__import__('django.conf').conf.settings, 'SESSION_COOKIE_NAME', 'sessionid'),
+                request.session.session_key,
+                secure=False,
+                httponly=True,
+                samesite='Lax',
+                path='/'
+            )
+        return resp
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 

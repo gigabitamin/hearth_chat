@@ -1,5 +1,12 @@
 apply plugin: 'com.android.application'
 
+// Load release keystore properties (if present)
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace "com.gbrabbit.hearthchat"
     compileSdk rootProject.ext.compileSdkVersion
@@ -16,10 +23,27 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (keystoreProperties && keystoreProperties['storeFile']) {
+                // If only filename provided, resolve under app module directory
+                def storePath = keystoreProperties['storeFile'] ?: 'hearthchat-release.keystore'
+                storeFile file(storePath)
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // Use release signing config when keystore is provided
+            if (keystoreProperties && keystoreProperties['storeFile']) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
