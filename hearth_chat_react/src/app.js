@@ -1149,6 +1149,9 @@ function App() {
   React.useEffect(() => {
     let wsInstance;
     const connect = () => {
+      if (!loginUser || !loginUser.id) {
+        return; // 로그인 확정 전에는 연결 시도하지 않음
+      }
       // 변경 전: 프로토콜/호스트/포트로 직접 구성
       // const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       // const host = window.location.hostname;

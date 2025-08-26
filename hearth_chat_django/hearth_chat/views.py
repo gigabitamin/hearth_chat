@@ -275,7 +275,8 @@ def get_csrf_token(request):
     token = get_token(request)
     resp = JsonResponse({'detail': 'CSRF cookie set'})
     origin = request.headers.get('Origin', '') or request.headers.get('Referer', '') or ''
-    is_capacitor = origin.startswith('capacitor://')
+    # 모바일 감지: 쿼리파라미터, 헤더, 오리진으로 감지
+    is_capacitor = origin.startswith('capacitor://') or origin.startswith('http://localhost') or request.GET.get('mobile') == '1' or request.GET.get('from') == 'app' or request.headers.get('X-From-App') == '1'
     # 모바일(WebView)에서는 Secure=False, SameSite=Lax 로 쿠키 설정
     resp.set_cookie(
         'csrftoken',
@@ -1035,7 +1036,7 @@ def api_login(request):
         django_login(request, user)
         # 모바일(WebView) 대응: 세션 쿠키를 재설정하여 Secure=False/SameSite=Lax 로 내려줌
         origin = request.headers.get('Origin', '') or request.headers.get('Referer', '') or ''
-        is_capacitor = origin.startswith('capacitor://')
+        is_capacitor = origin.startswith('capacitor://') or origin.startswith('http://localhost') or request.GET.get('mobile') == '1' or request.headers.get('X-From-App') == '1'
         resp = JsonResponse({'status': 'success', 'user': {'id': user.id, 'username': user.username, 'email': user.email}})
         if is_capacitor and request.session.session_key:
             resp.set_cookie(

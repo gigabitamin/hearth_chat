@@ -51,14 +51,17 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
     useEffect(() => {
         fetchRooms();
         fetchPublicRooms();
-        connectWebSocket();
+        // 로그인 성공 이후에만 웹소켓 연결 시도 (세션 확정 전 연결 거절 방지)
+        if (loginUser && loginUser.id) {
+            connectWebSocket();
+        }
         // 중복 호출 방지: 의존성 배열을 []로 유지
         return () => {
             if (wsRef.current) {
                 wsRef.current.close();
             }
         };
-    }, []);
+    }, [loginUser]);
 
 
     const openSocialLoginPopup = (url) => {
