@@ -214,7 +214,8 @@ try:
     CORS_ALLOW_NULL_ORIGIN = True
     # 명시적 헤더 허용 (기본에 포함되지만 안전하게 명시)
     CORS_ALLOW_HEADERS = list(set([
-        'accept', 'accept-encoding', 'authorization', 'content-type', 'dnt', 'origin', 'user-agent', 'x-csrftoken', 'x-requested-with'
+        'accept', 'accept-encoding', 'authorization', 'content-type', 'dnt', 'origin', 'user-agent',
+        'x-csrftoken', 'x-requested-with', 'x-from-app'
     ]))
 except Exception:
     pass
