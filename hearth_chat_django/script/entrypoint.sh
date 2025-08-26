@@ -99,19 +99,22 @@ python manage.py createinitialsite --force --domain "$DOMAIN" || echo "createini
 #     cat /tmp/debug_login.log
 # }
 
-
+# =============================================================
 # Cloudflare Tunnel 실행 로직
 # Cloudtype 환경 변수에서 터널 토큰을 가져옴
-if [ -z "$CLOUDFLARED_TUNNEL_TOKEN" ]; then
-  echo "오류: CLOUDFLARED_TUNNEL_TOKEN 환경 변수가 설정되지 않았습니다."
-  exit 1
-fi
+# if [ -z "$CLOUDFLARED_TUNNEL_TOKEN" ]; then
+#   echo "오류: CLOUDFLARED_TUNNEL_TOKEN 환경 변수가 설정되지 않았습니다."
+#   exit 1
+# fi
 
-echo "--- Cloudflare Tunnel을 시작합니다... ---"
-cloudflared tunnel --no-autoupdate run --token $CLOUDFLARED_TUNNEL_TOKEN &
+# echo "--- Cloudflare Tunnel을 시작합니다... ---"
+# cloudflared tunnel --no-autoupdate run --token $CLOUDFLARED_TUNNEL_TOKEN &
 
-sleep 5
+# sleep 5
 # =============================================================
+
+echo "--- Cloudflare Quick Tunnel을 시작합니다... ---"
+cloudflared tunnel --url http://localhost:8080 &
 
 echo "--- 서버 시작... ---"
 exec daphne -b 0.0.0.0 -p 8080 hearth_chat.asgi:application

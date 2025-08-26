@@ -6,12 +6,12 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from dotenv import load_dotenv
 from asgiref.sync import sync_to_async
 from openai import OpenAI
-import logging
+# import logging
 
 load_dotenv()
 
 # 로거 설정
-logger = logging.getLogger(__name__)
+# logger = logging.getLogger(__name__)
 
 max_length = 2000
 max_new_tokens = 1000
@@ -63,35 +63,35 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """MySQL 연결을 강제로 utf8mb4로 설정 (비동기 안전 버전)"""
         return self._force_utf8mb4_connection()
         
-    async def connect(self):
-        # =============================================================
-        # ✅ 아래 디버깅 코드를 connect 메소드 맨 위에 추가합니다.
-        # =============================================================
-        try:
-            headers = dict(self.scope['headers'])
-            logger.info("--- WebSocket Connection Attempt ---")
-            # 헤더 정보를 보기 쉽게 한 줄씩 출력
-            for key, value in headers.items():
-                logger.info(f"Header: {key.decode('utf-8')} = {value.decode('utf-8')}")
+    # async def connect(self):
+    #     # =============================================================
+    #     # ✅ 아래 디버깅 코드를 connect 메소드 맨 위에 추가합니다.
+    #     # =============================================================
+    #     try:
+    #         headers = dict(self.scope['headers'])
+    #         logger.info("--- WebSocket Connection Attempt ---")
+    #         # 헤더 정보를 보기 쉽게 한 줄씩 출력
+    #         for key, value in headers.items():
+    #             logger.info(f"Header: {key.decode('utf-8')} = {value.decode('utf-8')}")
             
-            # 특히 Origin 헤더를 명시적으로 확인
-            origin = headers.get(b'origin', b'Not Found').decode('utf-8')
-            logger.info(f"Origin Header for WebSocket: {origin}")
-            logger.info("------------------------------------")
-        except Exception as e:
-            logger.error(f"Error logging headers: {e}")
-        # =============================================================
+    #         # 특히 Origin 헤더를 명시적으로 확인
+    #         origin = headers.get(b'origin', b'Not Found').decode('utf-8')
+    #         logger.info(f"Origin Header for WebSocket: {origin}")
+    #         logger.info("------------------------------------")
+    #     except Exception as e:
+    #         logger.error(f"Error logging headers: {e}")
+    #     # =============================================================
 
-        self.room_name = self.scope['url_route']['kwargs']['room_name']
-        self.room_group_name = f'chat_{self.room_name}'
+    #     self.room_name = self.scope['url_route']['kwargs']['room_name']
+    #     self.room_group_name = f'chat_{self.room_name}'
 
-        # Join room group
-        await self.channel_layer.group_add(
-            self.room_group_name,
-            self.channel_name
-        )
+    #     # Join room group
+    #     await self.channel_layer.group_add(
+    #         self.room_group_name,
+    #         self.channel_name
+    #     )
 
-        await self.accept()    
+    #     await self.accept()    
 
     async def connect(self):
         # self.scope['user']는 Channels의 AuthMiddlewareStack에 의해 자동으로 채워짐
