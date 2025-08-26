@@ -1268,14 +1268,18 @@ const ChatBox = ({
     return () => clearTimeout(resetAiEmotionCapture);
   }, [emotionCaptureStatus.ai]);
 
-  // 새로운 메시지가 추가될 때마다 자동으로 스크롤을 맨 아래로 이동
+  // 새로운 메시지 도착 시에만, 사용자가 하단 근처에 있을 때만 자동 스크롤
   useEffect(() => {
-    setTimeout(() => {
-      if (chatScrollRef.current) {
-        chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
-      }
-    }, 0);
-  }, [messages, displayedAiText]);
+    const el = chatScrollRef.current;
+    if (!el) return;
+    if (ttsScrollFreezeRef.current) return; // TTS 중에는 스크롤 고정
+    const nearBottom = (el.scrollHeight - (el.scrollTop + el.clientHeight)) < 80;
+    if (!nearBottom) return; // 사용자가 위를 보고 있으면 스크롤 고정
+    requestAnimationFrame(() => {
+      const current = chatScrollRef.current;
+      if (current) current.scrollTop = current.scrollHeight;
+    });
+  }, [messages]);
 
   // TTS 기반 립싱크를 위한 상태
   const [ttsSpeaking, setTtsSpeaking] = useState(false);
@@ -1284,6 +1288,8 @@ const ChatBox = ({
   const [currentLipSyncIndex, setCurrentLipSyncIndex] = useState(0);
   // 립싱크 마지막 프레임을 기억
   const [lastLipSyncValue, setLastLipSyncValue] = useState(0);
+  // TTS 중에는 자동 스크롤을 멈추기 위한 ref
+  const ttsScrollFreezeRef = useRef(false);
 
   // 타이핑 효과 interval ref 추가
   const typingIntervalRef = useRef(null);
@@ -1298,6 +1304,7 @@ const ChatBox = ({
       // 
       setIsAiTalking(true);
       setTtsSpeaking(true);
+      ttsScrollFreezeRef.current = true;
 
       // 립싱크 시퀀스 저장 및 초기화
       if (lipSyncSequence && lipSyncSequence.length > 0) {
@@ -1331,6 +1338,11 @@ const ChatBox = ({
 
       setIsAiTalking(false);
       setTtsSpeaking(false);
+      requestAnimationFrame(() => {
+        ttsScrollFreezeRef.current = false;
+        const el = chatScrollRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
+      });
       // 립싱크 애니메이션: 1초간 랜덤 입모양 반복 후 닫기 (일시 비활성화)
       /*
       let animCount = 0;
