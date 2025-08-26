@@ -31,23 +31,26 @@ const LoginModal = ({ isOpen, onClose, onSocialLogin }) => {
         e.preventDefault();
         setLoading(true);
         setError(null);
-        const form = new FormData();
-        form.append('login', email);
-        form.append('password', password);
-        form.append('remember', 'on');
+        // CSRF 토큰 확보: 쿠키 → JSON 폴백 순서
         let csrftoken = getCookie('csrftoken');
         if (!csrftoken) {
             try {
-                await fetch(`${API_BASE}/api/csrf/`, { credentials: 'include' });
-                csrftoken = getCookie('csrftoken');
-            } catch { }
+                const r = await fetch(`${API_BASE}/api/csrf/`, { credentials: 'include', headers: { 'X-From-App': '1' } });
+                const data = await r.json().catch(() => ({}));
+                csrftoken = (data && data.token) || getCookie('csrftoken');
+            } catch { /* ignore */ }
         }
         try {
-            const res = await fetch(`${API_BASE}/accounts/login/`, {
+            // JSON API 로그인 사용 (/api/login/)
+            const res = await fetch(`${API_BASE}/api/login/`, {
                 method: 'POST',
                 credentials: 'include',
-                body: form,
-                headers: { 'X-CSRFToken': csrftoken },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken || '',
+                    'X-From-App': '1',
+                },
+                body: JSON.stringify({ login: email, password }),
             });
             if (res.redirected || res.ok) {
                 onClose();
@@ -80,16 +83,17 @@ const LoginModal = ({ isOpen, onClose, onSocialLogin }) => {
         let csrftoken = getCookie('csrftoken');
         if (!csrftoken) {
             try {
-                await fetch(`${API_BASE}/api/csrf/`, { credentials: 'include' });
-                csrftoken = getCookie('csrftoken');
-            } catch { }
+                const r = await fetch(`${API_BASE}/api/csrf/`, { credentials: 'include', headers: { 'X-From-App': '1' } });
+                const data = await r.json().catch(() => ({}));
+                csrftoken = (data && data.token) || getCookie('csrftoken');
+            } catch { /* ignore */ }
         }
         try {
             const res = await fetch(`${API_BASE}/accounts/signup/`, {
                 method: 'POST',
                 credentials: 'include',
                 body: form,
-                headers: { 'X-CSRFToken': csrftoken },
+                headers: { 'X-CSRFToken': csrftoken || '', 'X-From-App': '1' },
             });
             if (res.redirected || res.ok) {
                 onClose();
