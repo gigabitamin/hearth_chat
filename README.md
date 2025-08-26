@@ -4,9 +4,12 @@
 
 ==========================================
 
+# 250827
+- cloudflare, freedns, duckdns, 서브도메인 매핑, netlify-github 연동 reverse proxy 시도
+
 # 250826 v0.99.4 test
-- cloudtype, supabase migrate 완료
-- 로컬 db postgrsql 추가가
+- cloudtype migrate, supabase db 연결 계층적 메모리 테스트
+- 로컬 db postgrsql 추가
 
 # 250818 v0.99.31
 - media 파일 serve 문제 해결

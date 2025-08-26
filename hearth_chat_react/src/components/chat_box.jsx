@@ -19,7 +19,7 @@ import VirtualizedMessageList from './VirtualizedMessageList';
 import { useWebSocket, useMessageHandling, useMessageFetching, useFavoriteMessages, useMessageDeletion, fetchMyFavoriteMessages as fetchMyFavoriteMessagesCore, fetchOffsetForMessageId, fetchTotalCountAndFetchLatest, handleRoomSettingsSuccess, getSenderColor, handleToggleFavorite as handleToggleFavoriteCore, fetchMessages, handleMessageClick, handleRemoveAttachedImage, handleRemoveAllAttachedImages, LILY_API_URL } from './ChatBoxCore';
 import { Modal } from './ChatBoxUI';
 import { speakAIMessage, getAIEmotionResponse, initializeTTSService, initializeAvatars, getAiAvatarStyle, getUserAvatarStyle, getCameraStyle, setTTSInterrupted } from './ChatBoxMedia';
-import { getApiBase } from '../utils/apiConfig';
+import { getApiBase, getWebSocketUrl } from '../utils/apiConfig';
 // Chart.js core 등록 - ChatBoxUI에서 처리됨
 
 
@@ -215,11 +215,12 @@ const ChatBox = ({
     }
 
     // 새 연결 생성
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.hostname;
-    // const isLocalhost = host === 'localhost' || host === '127.0.0.1' || host === '192.168.44.9';
-    const port = process.env.NODE_ENV === 'production' ? '' : ':8000';
-    const wsUrl = `${protocol}//${host}${port}/ws/chat/`;
+    // 변경 전: 프로토콜/호스트/포트로 직접 구성
+    // const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    // const host = window.location.hostname;
+    // const port = process.env.NODE_ENV === 'production' ? '' : ':8000';
+    // const wsUrl = `${protocol}//${host}${port}/ws/chat/`;
+    const wsUrl = getWebSocketUrl('/ws/chat/');
 
 
     try {
@@ -861,10 +862,7 @@ const ChatBox = ({
 
 
     // WebSocket 연결
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.hostname;
-    const port = process.env.NODE_ENV === 'production' ? '' : ':8000';
-    const wsUrl = `${protocol}//${host}${port}/ws/chat/`;
+    const wsUrl = getWebSocketUrl('/ws/chat/');
 
 
     ws.current = new WebSocket(wsUrl);

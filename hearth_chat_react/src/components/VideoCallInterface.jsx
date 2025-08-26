@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import videoCallService from '../services/videoCallService';
+// 참고: 시그널링은 기존 chat_box에서 생성한 WebSocket을 공유합니다.
 import './VideoCallInterface.css';
 
 const VideoCallInterface = ({ roomId, userId, onCallEnd }) => {

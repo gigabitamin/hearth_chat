@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { getApiBase, getCookie, csrfFetch, API_BASE, LILY_API_URL } from '../utils/apiConfig';
+import { getApiBase, getCookie, csrfFetch, API_BASE, LILY_API_URL, getWebSocketUrl } from '../utils/apiConfig';
 import aiService from '../services/aiService';
 import axios from 'axios';
 
@@ -35,7 +35,8 @@ export const useWebSocket = (selectedRoom, loginUser) => {
     useEffect(() => {
         if (!selectedRoom || !loginUser) return;
 
-        const ws = new WebSocket(`ws://${window.location.host}/ws/chat/${selectedRoom.id}/`);
+        // 변경 전: const ws = new WebSocket(`ws://${window.location.host}/ws/chat/${selectedRoom.id}/`);
+        const ws = new WebSocket(getWebSocketUrl(`/ws/chat/${selectedRoom.id}/`));
 
         ws.onopen = () => {
             setIsConnected(true);

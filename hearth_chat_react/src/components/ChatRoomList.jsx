@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import LoginModal from './LoginModal';
 import './ChatRoomList.css';
 import { useNavigate } from 'react-router-dom';
-import { API_BASE, getCookie, } from '../utils/apiConfig';
+import { API_BASE, getCookie, getWebSocketUrl } from '../utils/apiConfig';
 import AiMessageRenderer from './AiMessageRenderer';
 
 const AI_PROVIDERS = [
@@ -75,11 +75,13 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
 
     const connectWebSocket = () => {
         try {
-            // 환경에 따라 WebSocket URL 설정
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const host = window.location.hostname;
-            const port = process.env.NODE_ENV === 'production' ? '' : ':8000';
-            const wsUrl = `${protocol}//${host}${port}/ws/chat/`;
+            // 환경에 따라 WebSocket URL 설정 (헬퍼 사용)
+            // 변경 전:
+            // const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            // const host = window.location.hostname;
+            // const port = process.env.NODE_ENV === 'production' ? '' : ':8000';
+            // const wsUrl = `${protocol}//${host}${port}/ws/chat/`;
+            const wsUrl = getWebSocketUrl('/ws/chat/');
 
             const ws = new WebSocket(wsUrl);
             wsRef.current = ws;

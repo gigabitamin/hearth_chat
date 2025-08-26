@@ -27,7 +27,20 @@ export const getApiBase = () => {
     const origin = window.location.origin; // https://<host>[:port]
     const isProd = process.env.NODE_ENV === 'production';
 
-    // 프로덕션에서는 항상 현재 출처(origin)를 사용해 동일 출처 쿠키/CSRF 보장
+    // Capacitor(모바일 네이티브) 환경 감지
+    const isNative = !!(window && window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+
+    if (isNative) {
+        // 1순위: 환경변수(REACT_APP_API_BASE)
+        // 2순위: 로컬 스토리지 사용자 설정(API_BASE)
+        // 3순위: 기본 운영 도메인(Cloudtype)
+        const envBase = process.env.REACT_APP_API_BASE;
+        const lsBase = (() => { try { return localStorage.getItem('API_BASE'); } catch { return null; } })();
+        const fallbackBase = 'https://port-0-hearth-chat-meq4jsqba77b2805.sel5.cloudtype.app';
+        return envBase || lsBase || fallbackBase;
+    }
+
+    // 프로덕션 웹에서는 항상 현재 출처(origin)를 사용해 동일 출처 쿠키/CSRF 보장
     if (isProd) return origin;
 
     // 로컬 개발 환경
@@ -43,11 +56,17 @@ export const getLilyApiUrl = () => {
     const hostname = window.location.hostname;
     const isProd = process.env.NODE_ENV === 'production';
 
-    // console.log('🔧 LILY_API_URL 환경 감지:', { hostname, isProd, NODE_ENV: process.env.NODE_ENV });
+    // Capacitor(모바일 네이티브) 환경 감지
+    const isNative = !!(window && window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+
+    // 1순위: 환경변수(REACT_APP_LILY_API_URL)
+    // 2순위: 로컬 스토리지 사용자 설정(LILY_API_URL)
+    const envLily = process.env.REACT_APP_LILY_API_URL;
+    const lsLily = (() => { try { return localStorage.getItem('LILY_API_URL'); } catch { return null; } })();
+    if (envLily || lsLily) return envLily || lsLily;
 
     // 프로덕션 환경에서는 허깅페이스 FastAPI 서버 사용
-    if (isProd) {
-        // Render나 Railway 환경에서도 허깅페이스 서버 사용
+    if (isProd || isNative) {
         return 'https://gbrabbit-lily-fast-api.hf.space';
     }
 
@@ -64,6 +83,16 @@ export const API_BASE = getApiBase();
 
 // Lily API URL 상수
 export const LILY_API_URL = getLilyApiUrl();
+
+// 공통 WebSocket URL 생성기 (모바일/웹 환경 모두 대응)
+export const getWebSocketUrl = (endpointPath = '/ws/chat/') => {
+    const base = API_BASE; // e.g., https://example.com or http://localhost:8000
+    const isSecure = /^https:\/\//i.test(base);
+    const wsScheme = isSecure ? 'wss://' : 'ws://';
+    const withoutScheme = base.replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+    const path = endpointPath.startsWith('/') ? endpointPath : `/${endpointPath}`;
+    return `${wsScheme}${withoutScheme}${path}`;
+};
 
 // CSRF 토큰 쿠키 가져오기
 export function getCookie(name) {

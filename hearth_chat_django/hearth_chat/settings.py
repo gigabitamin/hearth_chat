@@ -137,9 +137,13 @@ if IS_PRODUCTION:
     CORS_ALLOWED_ORIGIN_REGEXES = [
         r"^https://hearth-chat\.fly\.dev$",
         r"^https://.+\.fly\.dev$", # *.fly.dev 와일드카드에 해당
+        # 모바일(WebView/Capacitor) 허용
+        r"^capacitor://localhost$",
     ]
     # CSRF_TRUSTED_ORIGINS는 와일드카드 패턴을 그대로 사용해도 괜찮습니다.
     CSRF_TRUSTED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS]
+    # 모바일(WebView/Capacitor) 허용
+    CSRF_TRUSTED_ORIGINS.append("capacitor://localhost")
     
     # Lily API URL을 CORS와 CSRF에 각각 추가
     CORS_ALLOWED_ORIGIN_REGEXES.append(r"^https://gbrabbit-lily-fast-api\.hf\.space$")
