@@ -119,7 +119,7 @@ if IS_PRODUCTION:
         ALLOWED_HOSTS.append("hearthchat-production.up.railway.app")
 
     # 추가: 사용자 리다이렉트/서브도메인 허용
-    for _extra_host in ["hearthchat.kozow.com", "courageous-dragon-f7b6c0.netlify.app"]:
+    for _extra_host in ["hearthchat.kozow.com", "courageous-dragon-f7b6c0.netlify.app", "animal-sticks-detected-pro.trycloudflare.com"]:
         if _extra_host not in ALLOWED_HOSTS:
             ALLOWED_HOSTS.append(_extra_host)
 
@@ -148,10 +148,12 @@ if IS_PRODUCTION:
     # 추가: Netlify/FreeDNS 서브도메인 원본 허용
     CORS_ALLOWED_ORIGIN_REGEXES.append(r"^https://hearthchat\.kozow\.com$")
     CORS_ALLOWED_ORIGIN_REGEXES.append(r"^https://courageous-dragon-f7b6c0\.netlify\.app$")
+    CORS_ALLOWED_ORIGIN_REGEXES.append(r"^https://animal-sticks-detected-pro\.trycloudflare\.com$")
     
     # CLOUDFLARE TUNNEL 설정, 아래 두 줄을 추가하여 웹소켓 연결을 허용
     CSRF_TRUSTED_ORIGINS.append("https://hearthchat.kozow.com")
     CSRF_TRUSTED_ORIGINS.append("https://courageous-dragon-f7b6c0.netlify.app")
+    CSRF_TRUSTED_ORIGINS.append("https://animal-sticks-detected-pro.trycloudflare.com")
 
     # Cloudtype 도메인 CORS 허용
     if IS_CLOUDTYPE_DEPLOY:
