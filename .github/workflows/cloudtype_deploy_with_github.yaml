@@ -1,24 +1,36 @@
 # .github/workflows/cloudtype-deploy.yml
+
+# 워크플로우의 이름을 지정합니다. GitHub Actions 탭에 이 이름이 표시됩니다.
 name: Deploy to Cloudtype
+
+# 워크플로우가 실행될 시점을 지정합니다.
 on:
   push:
     branches:
-      - main    
-    paths:
-      - 'hearth_chat_django/**'
-      - 'hearth_chat_react/**'
-      - 'Dockerfile'
-      - '.github/workflows/cloudtype-deploy.yml'
+      - main  # 'main' 브랜치에 push 이벤트가 발생했을 때만 실행됩니다.
+    # ✅ 문제 진단을 위해 'paths' 필터를 일시적으로 제거했습니다.
+    # 이제 main 브랜치에 push되는 모든 변경사항에 대해 워크플로우가 실행됩니다.
+
+# 워크플로우에서 실행될 작업(job)들을 정의합니다.
 jobs:
   deploy:
-    name: Deploy app    
+    # 작업이 실행될 가상 환경을 지정합니다. 최신 Ubuntu를 사용합니다.
     runs-on: ubuntu-latest
-    steps:      
-      - uses: actions/checkout@v3
-      - uses: cloudtype-github-actions/deploy@v1
-        env:
-          CLOUDTYPE_API_TOKEN: ${{ secrets.CLOUDTYPE_API_TOKEN }}
-        with:          
-          project: gbrabbit/hearth_chat
-          service: hearth-chat
-          wait: true     
+
+    # 작업의 단계(step)들을 정의합니다.
+    steps:
+      # 1. 코드 체크아웃
+      # GitHub 저장소의 코드를 가상 환경으로 가져옵니다.
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. Cloudtype에 배포
+      # Cloudtype이 공식적으로 제공하는 GitHub Action을 사용합니다.
+      - name: Deploy to Cloudtype
+        uses: cloudtype-github-actions/deploy@v1
+        with:
+          # GitHub Secrets에 저장해 둔 Cloudtype API 토큰을 사용합니다.
+          token: ${{ secrets.CLOUDTYPE_API_TOKEN }}
+          
+          # ✅ 모든 배포 관련 인자를 한 줄의 'args'로 전달합니다.
+          args: '--project gbrabbit/hearth_chat --service hearth-chat --wait'
