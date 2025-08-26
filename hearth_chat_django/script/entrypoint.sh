@@ -114,9 +114,9 @@ python manage.py createinitialsite --force --domain "$DOMAIN" || echo "createini
 # echo "--- Cloudflare Quick Tunnel을 시작합니다... ---"
 # cloudflared tunnel --url http://localhost:8080 &
 # =============================================================
-echo "--- Cloudflare Quick Tunnel을 시작합니다... ---"
-cloudflared tunnel --url http://localhost:8080 &
-sleep 5
+# echo "--- Cloudflare Quick Tunnel을 시작합니다... ---"
+# cloudflared tunnel --url http://localhost:8080 &
+# sleep 5
 # =============================================================
 
 
