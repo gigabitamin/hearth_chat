@@ -207,6 +207,15 @@ CSRF_COOKIE_NAME = "csrftoken"
 CSRF_COOKIE_HTTPONLY = False
 CSRF_HEADER_NAME = "HTTP_X_CSRFTOKEN"
 CORS_ALLOW_CREDENTIALS = True
+try:
+    # 모바일 WebView 등 Origin:null 요청 허용
+    CORS_ALLOW_NULL_ORIGIN = True
+    # 명시적 헤더 허용 (기본에 포함되지만 안전하게 명시)
+    CORS_ALLOW_HEADERS = list(set([
+        'accept', 'accept-encoding', 'authorization', 'content-type', 'dnt', 'origin', 'user-agent', 'x-csrftoken', 'x-requested-with'
+    ]))
+except Exception:
+    pass
 
 # --- 4. 공통 세션 설정 ---
 ACCOUNT_SESSION_REMEMBER = True

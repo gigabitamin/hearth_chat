@@ -40,7 +40,7 @@ const LoginModal = ({ isOpen, onClose, onSocialLogin }) => {
             try {
                 await fetch(`${API_BASE}/api/csrf/`, { credentials: 'include' });
                 csrftoken = getCookie('csrftoken');
-            } catch {}
+            } catch { }
         }
         try {
             const res = await fetch(`${API_BASE}/accounts/login/`, {
@@ -82,7 +82,7 @@ const LoginModal = ({ isOpen, onClose, onSocialLogin }) => {
             try {
                 await fetch(`${API_BASE}/api/csrf/`, { credentials: 'include' });
                 csrftoken = getCookie('csrftoken');
-            } catch {}
+            } catch { }
         }
         try {
             const res = await fetch(`${API_BASE}/accounts/signup/`, {
