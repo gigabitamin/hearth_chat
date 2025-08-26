@@ -45,6 +45,8 @@ jobs:
                   value: port-0-hearth-chat-meq4jsqba77b2805.sel5.cloudtype.app,hearthchat.kozow.com,courageous-dragon-f7b6c0.netlify.app
                 - name: CORS_ALLOWED_ORIGINS
                   value: https://port-0-hearth-chat-meq4jsqba77b2805.sel5.cloudtype.app,https://hearthchat.kozow.com,https://courageous-dragon-f7b6c0.netlify.app
+                - name: CSRF_TRUSTED_ORIGINS
+                  value: https://port-0-hearth-chat-meq4jsqba77b2805.sel5.cloudtype.app,https://hearthchat.kozow.com,https://courageous-dragon-f7b6c0.netlify.app
                 - name: CLOUDTYPE_APP_HOSTNAME
                   value: port-0-hearth-chat-meq4jsqba77b2805.sel5.cloudtype.app
                 - name: LILY_API_URL
