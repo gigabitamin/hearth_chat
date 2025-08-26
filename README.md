@@ -4,7 +4,7 @@
 
 ==========================================
 
-# 250826 v0.99.4
+# 250826 v0.99.4 test
 - cloudtype, supabase migrate 완료
 - 로컬 db postgrsql 추가가
 
