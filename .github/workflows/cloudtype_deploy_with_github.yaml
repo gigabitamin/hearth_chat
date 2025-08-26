@@ -39,5 +39,5 @@ jobs:
             app: dockerfile
             options:
               git:
-                url: https://github.com/gbrabbit/hearth_chat
+                url: https://github.com/gigabitamin/hearth_chat
                 ref: main
