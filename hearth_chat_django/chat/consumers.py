@@ -66,8 +66,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         # URL path에 room_id가 포함된 경우 자동 그룹 조인용으로 보관
         try:
             self.path_room_id = None
-            path_kwargs = getattr(self.scope, 'url_route', {}).get('kwargs', {}) if isinstance(getattr(self.scope, 'url_route', None), dict) else {}
-            self.path_room_id = path_kwargs.get('room_id') if path_kwargs else None
+            # scope는 dict이므로 키 접근을 사용해야 함
+            path_kwargs = self.scope.get('url_route', {}).get('kwargs', {})
+            self.path_room_id = path_kwargs.get('room_id') if isinstance(path_kwargs, dict) else None
         except Exception:
             self.path_room_id = None
 
@@ -185,6 +186,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         image_urls = data.get("imageUrls", [])  # 다중 이미지 URL 배열
         documents = data.get("documents", [])  # 문서 정보 배열
         room_id = data.get("roomId", "")  # 대화방 ID 추가
+        client_id = data.get("client_id")
 
         print(f"[DEBUG] WebSocket 메시지 수신:")
         print(f"[DEBUG] user_message: {user_message}")
@@ -246,7 +248,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'timestamp': user_message_obj.timestamp.isoformat(),
                 'emotion': user_emotion,
                 'imageUrl': first_image_url,  # 첫 번째 이미지 URL (호환성 유지)
-                'imageUrls': image_urls  # 다중 이미지 URL 배열 추가
+                'imageUrls': image_urls,  # 다중 이미지 URL 배열 추가
+                'client_id': client_id
             }
         )
 
@@ -262,7 +265,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'timestamp': user_message_obj.timestamp.isoformat(),
                 'emotion': user_emotion,
                 'imageUrl': first_image_url,
-                'imageUrls': image_urls or []
+                'imageUrls': image_urls or [],
+                'client_id': client_id
             }))
         except Exception:
             pass
