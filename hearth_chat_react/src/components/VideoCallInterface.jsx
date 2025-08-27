@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import videoCallService from '../services/videoCallService';
 import './VideoCallInterface.css';
+import { getWebSocketUrl } from '../../utils/apiConfig';
 
 const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
     // React Hooks는 조건문 이전에 호출되어야 함
@@ -60,8 +61,7 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
 
         // 4) 마지막 fallback: 새로운 WebSocket 연결 생성
         try {
-            // apiConfig.js의 getWebSocketUrl 함수 사용하여 올바른 URL 가져오기
-            const { getWebSocketUrl } = require('../../utils/apiConfig');
+            // ES6 import로 가져온 getWebSocketUrl 함수 사용
             const wsUrl = getWebSocketUrl(`/ws/chat/${roomId}/`);
 
             console.log('[화상채팅] 새로운 WebSocket 연결 생성:', wsUrl);
@@ -82,11 +82,9 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
 
             return newWs;
         } catch (e) {
-            console.error('[화상채팅] 새로운 WebSocket 생성 중 오류:', e);
+            console.error('[화상채팅] 새로운 WebSocket 연결 생성 실패:', e);
+            return null;
         }
-
-        console.error('[화상채팅] 사용 가능한 WebSocket이 없음');
-        return null;
     };
 
     // 전역 함수 등록: ChatBox에서 직접 호출하는 방식으로 변경
@@ -515,6 +513,12 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
             });
 
             if (ws) {
+                console.log('[화상채팅] WebSocket 설정 전 상태:', {
+                    ws: ws,
+                    readyState: ws.readyState,
+                    url: ws.url
+                });
+
                 videoCallService.setSignalingSocket(ws);
                 console.log('[화상채팅] WebSocket을 시그널링 소켓으로 설정됨:', ws.readyState);
 
@@ -544,6 +548,21 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
                         readyState: currentSocket?.readyState,
                         url: currentSocket?.url
                     });
+
+                    // WebSocket이 제대로 설정되지 않았다면 다시 시도
+                    if (!currentSocket || currentSocket.readyState === undefined) {
+                        console.warn('[화상채팅] WebSocket 설정 실패, 다시 시도...');
+                        videoCallService.setSignalingSocket(ws);
+
+                        setTimeout(() => {
+                            const retrySocket = videoCallService.getSignalingSocket();
+                            console.log('[화상채팅] 재시도 후 WebSocket 검증:', {
+                                hasSocket: !!retrySocket,
+                                readyState: retrySocket?.readyState,
+                                url: retrySocket?.url
+                            });
+                        }, 100);
+                    }
                 }, 100);
             } else {
                 console.error('[화상채팅] WebSocket을 찾을 수 없음 - 계속 진행');
