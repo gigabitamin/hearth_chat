@@ -37,6 +37,7 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
         // 1) 방 전용 소켓을 최우선으로 사용 (호스트 차이 제거)
         try {
             const roomWs = (typeof window !== 'undefined' && window.roomWebSockets) ? window.roomWebSockets[String(roomId)] : null;
+            console.log('[화상채팅] roomWs 확인:', roomWs);
             if (roomWs && roomWs.readyState === WebSocket.OPEN) {
                 console.log('[화상채팅] roomWebSocket 사용:', roomWs.url);
                 return roomWs;
@@ -51,10 +52,24 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
             return webSocket;
         }
 
-        // 3) fallback: 전역 소켓
-        if (typeof window !== 'undefined' && window.chatWebSocket && window.chatWebSocket.readyState === WebSocket.OPEN) {
-            console.log('[화상채팅] window.chatWebSocket 사용:', window.chatWebSocket.url || window.chatWebSocket.readyState);
-            return window.chatWebSocket;
+        // 3) fallback: 전역 소켓 (CLOSED 상태가 아닌 경우)
+        if (typeof window !== 'undefined' && window.chatWebSocket) {
+            console.log('[화상채팅] window.chatWebSocket 상태:', window.chatWebSocket.readyState);
+            if (window.chatWebSocket.readyState !== WebSocket.CLOSED) {
+                console.log('[화상채팅] window.chatWebSocket 사용:', window.chatWebSocket.url || window.chatWebSocket.readyState);
+                return window.chatWebSocket;
+            }
+        }
+
+        // 4) 마지막 fallback: roomWebSockets에서 readyState와 관계없이 가져오기
+        try {
+            const fallbackRoomWs = (typeof window !== 'undefined' && window.roomWebSockets) ? window.roomWebSockets[String(roomId)] : null;
+            if (fallbackRoomWs) {
+                console.log('[화상채팅] fallback roomWebSocket 사용 (readyState 무시):', fallbackRoomWs.url, fallbackRoomWs.readyState);
+                return fallbackRoomWs;
+            }
+        } catch (e) {
+            console.error('[화상채팅] fallback roomWebSocket 확인 중 오류:', e);
         }
 
         console.error('[화상채팅] 사용 가능한 WebSocket이 없음');

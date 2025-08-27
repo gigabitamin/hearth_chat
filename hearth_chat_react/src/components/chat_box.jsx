@@ -1531,7 +1531,7 @@ const ChatBox = ({
   const [isUserAvatarOn, setIsUserAvatarOn] = useState(false); // 기본값 off
   const [isAiAvatarOn, setIsAiAvatarOn] = useState(false); // 기본값 off
   // 화상채팅 토글 상태 추가
-  const [isVideoCallOn, setIsVideoCallOn] = useState(true); // 기본값 on으로 변경 - 화상채팅 자동 활성화
+  const [isVideoCallOn, setIsVideoCallOn] = useState(false); // 기본값 off로 복원
 
   // 수식과 일반 텍스트를 분리 렌더링하는 함수 - ChatBoxUI에서 import됨
 
@@ -2768,14 +2768,18 @@ const ChatBox = ({
                 userId={loginUser?.id}
                 webSocket={(() => {
                   const roomWs = window.roomWebSockets?.[String(selectedRoom?.id)];
-                  if (roomWs && roomWs.readyState === WebSocket.OPEN) {
-                    console.log('[ChatBox] VideoCallInterface에 roomWebSocket 전달:', roomWs.url);
+                  console.log('[ChatBox] roomWs 확인:', roomWs);
+
+                  if (roomWs) {
+                    console.log('[ChatBox] VideoCallInterface에 roomWebSocket 전달:', roomWs.url, 'readyState:', roomWs.readyState);
                     return roomWs;
                   }
-                  if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-                    console.log('[ChatBox] VideoCallInterface에 current WebSocket 전달:', ws.current.url);
+
+                  if (ws.current) {
+                    console.log('[ChatBox] VideoCallInterface에 current WebSocket 전달:', ws.current.url, 'readyState:', ws.current.readyState);
                     return ws.current;
                   }
+
                   console.error('[ChatBox] 사용 가능한 WebSocket이 없음');
                   return null;
                 })()}
