@@ -1,0 +1,27 @@
+# fly.redis.toml
+
+app = 'hearth-redis'
+primary_region = 'nrt'
+
+[build]
+  image = 'redis:7-alpine'
+
+[env]
+  REDIS_PORT = '6379'
+
+[processes]
+  # --requirepass 부분을 완전히 삭제하여 비밀번호 인증을 사용하지 않습니다.
+  redis = "redis-server --port 6379 --appendonly yes"
+
+[[services]]
+  protocol = 'tcp'
+  internal_port = 6379
+  processes = ['redis']
+
+  [[services.ports]]
+    port = 6379
+
+  [[services.tcp_checks]]
+    interval = '15s'
+    timeout = '2s'
+    grace_period = '1s'

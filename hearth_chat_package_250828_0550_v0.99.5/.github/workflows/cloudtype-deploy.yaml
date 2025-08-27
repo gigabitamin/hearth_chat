@@ -1,0 +1,77 @@
+# .github/workflows/cloudtype-deploy.yml
+
+name: Deploy to Cloudtype
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: cloudtype-deploy-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Deploy to Cloudtype
+        uses: cloudtype-github-actions/deploy@v1
+        with:
+          token: ${{ secrets.CLOUDTYPE_API_KEY }}
+          project: 'gbrabbit/hearth_chat'
+          yaml: |
+            name: hearth-chat
+            app: dockerfile
+            resources:
+              spot: true
+              memory: 0.5
+            options:
+              git:
+                url: https://github.com/gigabitamin/hearth_chat
+                ref: main
+              ports: "8080"
+              commands: /entrypoint.sh
+              env:
+                - name: IS_CLOUDTYPE_DEPLOY
+                  value: "true"
+                - name: ALLOWED_HOSTS
+                  value: port-0-hearth-chat-meq4jsqba77b2805.sel5.cloudtype.app,hearthchat.kozow.com,courageous-dragon-f7b6c0.netlify.app
+                - name: CORS_ALLOWED_ORIGINS
+                  value: https://port-0-hearth-chat-meq4jsqba77b2805.sel5.cloudtype.app,https://hearthchat.kozow.com,https://courageous-dragon-f7b6c0.netlify.app
+                - name: CSRF_TRUSTED_ORIGINS
+                  value: https://port-0-hearth-chat-meq4jsqba77b2805.sel5.cloudtype.app,https://hearthchat.kozow.com,https://courageous-dragon-f7b6c0.netlify.app
+                - name: CLOUDTYPE_APP_HOSTNAME
+                  value: port-0-hearth-chat-meq4jsqba77b2805.sel5.cloudtype.app
+                - name: LILY_API_URL
+                  value: https://gbrabbit-lily-fast-api.hf.space
+                - name: DJANGO_SECRET_KEY
+                  secret: DJANGO_SECRET_KEY
+                - name: DATABASE_URL
+                  secret: DATABASE_URL
+                - name: REDIS_URL
+                  secret: REDIS_URL
+                - name: DJANGO_SUPERUSER_USERNAME
+                  secret: DJANGO_SUPERUSER_USERNAME
+                - name: DJANGO_SUPERUSER_EMAIL
+                  secret: DJANGO_SUPERUSER_EMAIL
+                - name: DJANGO_SUPERUSER_PASSWORD
+                  secret: DJANGO_SUPERUSER_PASSWORD
+                - name: OPENAI_API_KEY
+                  secret: OPENAI_API_KEY
+                - name: GEMINI_API_KEY
+                  secret: GEMINI_API_KEY
+                - name: HF_TOKEN
+                  secret: HF_TOKEN
+                - name: GOOGLE_APP_SECRET
+                  secret: GOOGLE_APP_SECRET
+                - name: DOCKERHUB_USERNAME
+                  secret: DOCKERHUB_USERNAME
+                - name: DOCKERHUB_TOKEN
+                  secret: DOCKERHUB_TOKEN
