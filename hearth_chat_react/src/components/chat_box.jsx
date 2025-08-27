@@ -2770,17 +2770,17 @@ const ChatBox = ({
                   const roomWs = window.roomWebSockets?.[String(selectedRoom?.id)];
                   console.log('[ChatBox] roomWs 확인:', roomWs);
 
-                  if (roomWs) {
+                  if (roomWs && roomWs.readyState === WebSocket.OPEN) {
                     console.log('[ChatBox] VideoCallInterface에 roomWebSocket 전달:', roomWs.url, 'readyState:', roomWs.readyState);
                     return roomWs;
                   }
 
-                  if (ws.current) {
+                  if (ws.current && ws.current.readyState === WebSocket.OPEN) {
                     console.log('[ChatBox] VideoCallInterface에 current WebSocket 전달:', ws.current.url, 'readyState:', ws.current.readyState);
                     return ws.current;
                   }
 
-                  console.error('[ChatBox] 사용 가능한 WebSocket이 없음');
+                  console.error('[ChatBox] 사용 가능한 WebSocket이 없음 (OPEN 상태 아님)');
                   return null;
                 })()}
                 onCallEnd={() => {

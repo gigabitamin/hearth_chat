@@ -34,7 +34,7 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
         console.log('[화상채팅] props webSocket 상태:', webSocket);
         console.log('[화상채팅] window.chatWebSocket 상태:', window.chatWebSocket);
 
-        // 1) 방 전용 소켓을 최우선으로 사용 (호스트 차이 제거)
+        // 1) 방 전용 소켓을 최우선으로 사용 (OPEN 상태만)
         try {
             const roomWs = (typeof window !== 'undefined' && window.roomWebSockets) ? window.roomWebSockets[String(roomId)] : null;
             console.log('[화상채팅] roomWs 확인:', roomWs);
@@ -46,30 +46,44 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
             console.error('[화상채팅] roomWebSocket 확인 중 오류:', e);
         }
 
-        // 2) props로 받은 소켓
+        // 2) props로 받은 소켓 (OPEN 상태만)
         if (webSocket && webSocket.readyState === WebSocket.OPEN) {
             console.log('[화상채팅] props WebSocket 사용:', webSocket.url || webSocket.readyState);
             return webSocket;
         }
 
-        // 3) fallback: 전역 소켓 (CLOSED 상태가 아닌 경우)
-        if (typeof window !== 'undefined' && window.chatWebSocket) {
-            console.log('[화상채팅] window.chatWebSocket 상태:', window.chatWebSocket.readyState);
-            if (window.chatWebSocket.readyState !== WebSocket.CLOSED) {
-                console.log('[화상채팅] window.chatWebSocket 사용:', window.chatWebSocket.url || window.chatWebSocket.readyState);
-                return window.chatWebSocket;
-            }
+        // 3) fallback: 전역 소켓 (OPEN 상태만)
+        if (typeof window !== 'undefined' && window.chatWebSocket && window.chatWebSocket.readyState === WebSocket.OPEN) {
+            console.log('[화상채팅] window.chatWebSocket 사용:', window.chatWebSocket.url || window.chatWebSocket.readyState);
+            return window.chatWebSocket;
         }
 
-        // 4) 마지막 fallback: roomWebSockets에서 readyState와 관계없이 가져오기
+        // 4) 마지막 fallback: 새로운 WebSocket 연결 생성
         try {
-            const fallbackRoomWs = (typeof window !== 'undefined' && window.roomWebSockets) ? window.roomWebSockets[String(roomId)] : null;
-            if (fallbackRoomWs) {
-                console.log('[화상채팅] fallback roomWebSocket 사용 (readyState 무시):', fallbackRoomWs.url, fallbackRoomWs.readyState);
-                return fallbackRoomWs;
-            }
+            const baseUrl = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            // localhost가 아닌 실제 접속 중인 호스트 사용
+            const host = window.location.host;
+            const wsUrl = `${baseUrl}//${host}/ws/chat/${roomId}/`;
+
+            console.log('[화상채팅] 새로운 WebSocket 연결 생성:', wsUrl);
+            const newWs = new WebSocket(wsUrl);
+
+            // 연결 상태 확인
+            newWs.onopen = () => {
+                console.log('[화상채팅] 새로운 WebSocket 연결 성공:', wsUrl);
+            };
+
+            newWs.onerror = (error) => {
+                console.error('[화상채팅] 새로운 WebSocket 연결 오류:', error);
+            };
+
+            newWs.onclose = (event) => {
+                console.log('[화상채팅] 새로운 WebSocket 연결 종료:', event.code, event.reason);
+            };
+
+            return newWs;
         } catch (e) {
-            console.error('[화상채팅] fallback roomWebSocket 확인 중 오류:', e);
+            console.error('[화상채팅] 새로운 WebSocket 생성 중 오류:', e);
         }
 
         console.error('[화상채팅] 사용 가능한 WebSocket이 없음');
