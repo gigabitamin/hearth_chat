@@ -303,12 +303,19 @@ const ChatBox = ({
           flushPendingOnce();
         }
 
-        // WebRTC 시그널링 메시지는 VideoCallInterface로 브릿지 전달
+        // WebRTC 시그널링 메시지는 VideoCallInterface로 직접 전달
         if (['offer', 'answer', 'ice_candidate', 'screen_share_start', 'screen_share_stop'].includes(data.type)) {
           try {
-            const evt = new CustomEvent('webrtc_signal', { detail: data });
-            window.dispatchEvent(evt);
-          } catch (e) { }
+            // CustomEvent 대신 직접 함수 호출 방식 사용
+            if (window.processWebRTCMessage && typeof window.processWebRTCMessage === 'function') {
+              window.processWebRTCMessage(data);
+              console.log('[WebSocket] WebRTC 시그널링 메시지 직접 전달됨:', data.type);
+            } else {
+              console.log('[WebSocket] processWebRTCMessage 함수가 등록되지 않음');
+            }
+          } catch (e) {
+            console.error('[WebSocket] WebRTC 시그널링 처리 실패:', e);
+          }
           return;
         }
 

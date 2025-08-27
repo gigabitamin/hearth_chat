@@ -10,6 +10,15 @@ const config: CapacitorConfig = {
       '*.sel5.cloudtype.app',
       'hearthchat.kozow.com'
     ]
+  },
+  android: {
+    webContentsDebuggingEnabled: true,
+    allowMixedContent: true
+  },
+  plugins: {
+    SplashScreen: {
+      launchShowDuration: 0
+    }
   }
 };
 

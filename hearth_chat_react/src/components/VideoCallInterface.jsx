@@ -53,20 +53,21 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
         return null;
     };
 
-    // 전역 브리지 핸들러 등록: ChatBox에서 전달하는 시그널도 처리
+    // 전역 함수 등록: ChatBox에서 직접 호출하는 방식으로 변경
     useEffect(() => {
-        const bridgeHandler = (evt) => {
-            const data = evt?.detail;
+        // window 객체에 processWebRTCMessage 함수 등록
+        window.processWebRTCMessage = (data) => {
             if (!data || !data.type) return;
             if (String(data.roomId) !== String(roomId)) return;
-            console.log('[화상채팅] 브리지 시그널 수신:', data.type);
+            console.log('[화상채팅] 직접 호출로 시그널 수신:', data.type);
             processWebRTCMessage(data);
         };
-        try {
-            window.addEventListener('webrtc_signal', bridgeHandler);
-        } catch (_) { }
+
         return () => {
-            try { window.removeEventListener('webrtc_signal', bridgeHandler); } catch (_) { }
+            // 컴포넌트 언마운트 시 함수 제거
+            if (window.processWebRTCMessage) {
+                delete window.processWebRTCMessage;
+            }
         };
     }, [roomId]);
 
@@ -433,6 +434,11 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
             console.log('[화상채팅] 초기화 시작 - Room ID:', roomId, 'User ID:', userId);
             console.log('[화상채팅] 초기화 단계 1: VideoCallService 초기화');
 
+            // 모바일 환경 감지
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const isCapacitor = window.Capacitor && window.Capacitor.isNative;
+            console.log('[화상채팅] 환경 정보:', { isMobile, isCapacitor, userAgent: navigator.userAgent });
+
             const stream = await videoCallService.initializeVideoCall(roomId, userId);
             setLocalStream(stream);
             console.log('[화상채팅] 초기화 단계 1 완료: 로컬 스트림 설정됨');
@@ -463,7 +469,8 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
                 readyStateText: ws?.readyState === WebSocket.OPEN ? 'OPEN' :
                     ws?.readyState === WebSocket.CONNECTING ? 'CONNECTING' :
                         ws?.readyState === WebSocket.CLOSING ? 'CLOSING' :
-                            ws?.readyState === WebSocket.CLOSED ? 'CLOSED' : 'UNKNOWN'
+                            ws?.readyState === WebSocket.CLOSED ? 'CLOSED' : 'UNKNOWN',
+                url: ws?.url
             });
 
             if (ws) {

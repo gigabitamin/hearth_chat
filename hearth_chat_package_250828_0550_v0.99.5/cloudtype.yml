@@ -1,8 +1,0 @@
-# cloudtype.yml
-# 이 파일은 Cloudtype에 배포할 서비스의 정보를 정의합니다.
-
-# Cloudtype 대시보드에 있는 서비스 이름과 정확히 일치해야 합니다.
-name: hearth-chat
-
-# 이 서비스가 Dockerfile을 사용하여 빌드된다는 것을 명시합니다.
-app: dockerfile
