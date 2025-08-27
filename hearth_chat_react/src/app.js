@@ -10,7 +10,7 @@ import LoginModal from './components/LoginModal';
 import SettingsModal from './components/SettingsModal';
 import AdminDashboard from './components/AdminDashboard';
 import GlobalChatInput from './components/GlobalChatInput';
-import { getApiBase, csrfFetch, getCookie } from './utils/apiConfig';
+import { getApiBase, csrfFetch, getCookie, getWebSocketUrl } from './utils/apiConfig';
 import './App.css';
 import AiMessageRenderer from './components/AiMessageRenderer';
 import ttsService from './services/ttsService';
@@ -601,7 +601,7 @@ function AppContent(props) {
       <LoginModal
         isOpen={isLoginModalOpen}
         onClose={() => { setIsLoginModalOpen(false); }}
-        onSocialLogin={(url) => {          
+        onSocialLogin={(url) => {
           const popupWidth = 480;
           const popupHeight = 600;
           const left = window.screenX + (window.outerWidth - popupWidth) / 2;
@@ -1088,14 +1088,14 @@ function App() {
     checkLoginStatus();
   }, []);
 
-  const checkLoginStatus = async () => {    
+  const checkLoginStatus = async () => {
     try {
       const response = await csrfFetch(`${getApiBase()}/api/chat/user/settings/`, {
         credentials: 'include',
         headers: {
           'X-CSRFToken': getCookie('csrftoken'),
         },
-      });      
+      });
 
       if (response.ok) {
         const data = await response.json();
@@ -1111,7 +1111,7 @@ function App() {
       setLoginUser(null);
       setUserSettings(null);
     } finally {
-      setLoginLoading(false);      
+      setLoginLoading(false);
     }
   };
 
@@ -1149,17 +1149,14 @@ function App() {
   React.useEffect(() => {
     let wsInstance;
     const connect = () => {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = window.location.hostname;
-      const port = process.env.NODE_ENV === 'production' ? '' : ':8000';
-      const wsUrl = `${protocol}//${host}${port}/ws/chat/`;
+      const wsUrl = getWebSocketUrl('/ws/chat/');
 
       wsInstance = new window.WebSocket(wsUrl);
       ws.current = wsInstance;
-      
+
       wsInstance.onopen = () => {
-          // 연결 성공 시 재시도 횟수 초기화
-          appWsRetryCountRef.current = 0;
+        // 연결 성공 시 재시도 횟수 초기화
+        appWsRetryCountRef.current = 0;
       };
 
       wsInstance.onmessage = (event) => {
@@ -1172,35 +1169,35 @@ function App() {
       };
 
       wsInstance.onclose = () => {
-          // Exponential Backoff 재연결 로직
-          const waitTime = Math.pow(2, appWsRetryCountRef.current) * 1000;
-          const maxWaitTime = 30000;
-          const finalWaitTime = Math.min(waitTime, maxWaitTime);
+        // Exponential Backoff 재연결 로직
+        const waitTime = Math.pow(2, appWsRetryCountRef.current) * 1000;
+        const maxWaitTime = 30000;
+        const finalWaitTime = Math.min(waitTime, maxWaitTime);
 
-          console.log(`[App.js] WebSocket 연결 끊김. ${finalWaitTime / 1000}초 후에 재연결합니다...`);
+        console.log(`[App.js] WebSocket 연결 끊김. ${finalWaitTime / 1000}초 후에 재연결합니다...`);
 
-          setTimeout(() => {
-              appWsRetryCountRef.current += 1;
-              connect();
-          }, finalWaitTime);
+        setTimeout(() => {
+          appWsRetryCountRef.current += 1;
+          connect();
+        }, finalWaitTime);
       };
 
-      wsInstance.onerror = () => { 
+      wsInstance.onerror = () => {
         // onerror 시 바로 onclose가 호출되므로, close만 호출해도 재연결 로직이 실행됩니다.
-        wsInstance.close(); 
+        wsInstance.close();
       };
     };
     connect();
 
-    return () => { 
+    return () => {
       if (wsInstance) {
         // 컴포넌트 언마운트 시 재연결 로직이 실행되지 않도록 onclose를 null로 설정
         wsInstance.onclose = null;
-        wsInstance.close(); 
+        wsInstance.close();
       }
     };
   }, []); // 의존성 배열은 비워두어 한 번만 실행되도록 유지
-  
+
   // 현재 페이지가 /room/:roomId로 시작하면 room 상태를 업데이트하는 useEffect 추가
   useEffect(() => {
     // /room/:roomId 패턴 매칭

@@ -105,7 +105,8 @@ export const LILY_API_URL = getLilyApiUrl();
 
 // 공통 WebSocket URL 생성기 (모바일/웹 환경 모두 대응)
 export const getWebSocketUrl = (endpointPath = '/ws/chat/') => {
-    const base = API_BASE; // e.g., https://example.com or http://localhost:8000
+    // 동적으로 최신 API_BASE를 계산하여 WebView(https://localhost)에서도 올바른 도메인으로 연결
+    const base = getApiBase(); // e.g., https://example.com or http://localhost:8000
     const isSecure = /^https:\/\//i.test(base);
     const wsScheme = isSecure ? 'wss://' : 'ws://';
     const withoutScheme = base.replace(/^https?:\/\//i, '').replace(/\/+$/, '');
