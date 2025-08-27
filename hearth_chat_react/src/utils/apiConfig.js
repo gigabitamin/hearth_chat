@@ -27,26 +27,24 @@ export const getApiBase = () => {
     const origin = window.location.origin; // https://<host>[:port]
     const isProd = process.env.NODE_ENV === 'production';
 
-    // Capacitor(모바일 네이티브) 환경 감지
-    const isNative = (() => {
+    // 모바일 WebView/네이티브 환경 감지 강화
+    const ua = (navigator && navigator.userAgent) ? navigator.userAgent : '';
+    const isAndroidWebView = /; wv\)/i.test(ua) || /Version\/4\.0\s+Chrome\//i.test(ua);
+    const isHttpsLocalhost = origin.startsWith('https://localhost');
+    const isNativeLike = (() => {
         try {
             if (window.location.protocol === 'capacitor:') return true;
             const C = window.Capacitor;
-            if (!C) return false;
-            if (typeof C.isNativePlatform === 'function') return !!C.isNativePlatform();
-            if (typeof C.getPlatform === 'function') return C.getPlatform() !== 'web';
-            return false;
-        } catch { return false; }
+            if (C && typeof C.getPlatform === 'function' && C.getPlatform() !== 'web') return true;
+        } catch { /* ignore */ }
+        return isAndroidWebView || isHttpsLocalhost;
     })();
 
-    if (isNative) {
-        // 1순위: 환경변수(REACT_APP_API_BASE)
-        // 2순위: 로컬 스토리지 사용자 설정(API_BASE)
-        // 3순위: 기본 운영 도메인(Cloudtype)
+    // 네이티브/웹뷰(https://localhost 포함)에서는 고정 도메인 사용
+    if (isNativeLike) {
         const envBase = process.env.REACT_APP_API_BASE;
         const lsBase = (() => { try { return localStorage.getItem('API_BASE'); } catch { return null; } })();
         const fallbackBase = 'https://port-0-hearth-chat-meq4jsqba77b2805.sel5.cloudtype.app';
-        // Capacitor WebView 호환: origin이 capacitor://localhost일 때 쿠키 도메인 일치 위해 절대 URL 사용
         return envBase || lsBase || fallbackBase;
     }
 
