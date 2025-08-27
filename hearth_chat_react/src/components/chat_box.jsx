@@ -2757,10 +2757,28 @@ const ChatBox = ({
           {isVideoCallOn && (
             <div style={{ flex: 1, width: '100%', height: '100%' }}>
               {console.log('[ChatBox] VideoCallInterface 렌더링 시작:', { roomId: selectedRoom?.id, userId: loginUser?.id })}
+              {console.log('[ChatBox] WebSocket 상태 확인:', {
+                roomWebSocket: window.roomWebSockets?.[String(selectedRoom?.id)],
+                currentWs: ws.current,
+                roomWebSocketUrl: window.roomWebSockets?.[String(selectedRoom?.id)]?.url,
+                currentWsUrl: ws.current?.url
+              })}
               <VideoCallInterface
                 roomId={selectedRoom?.id}
                 userId={loginUser?.id}
-                webSocket={(typeof window !== 'undefined' && window.roomWebSockets && selectedRoom?.id && window.roomWebSockets[String(selectedRoom.id)]) ? window.roomWebSockets[String(selectedRoom.id)] : ws.current}
+                webSocket={(() => {
+                  const roomWs = window.roomWebSockets?.[String(selectedRoom?.id)];
+                  if (roomWs && roomWs.readyState === WebSocket.OPEN) {
+                    console.log('[ChatBox] VideoCallInterface에 roomWebSocket 전달:', roomWs.url);
+                    return roomWs;
+                  }
+                  if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+                    console.log('[ChatBox] VideoCallInterface에 current WebSocket 전달:', ws.current.url);
+                    return ws.current;
+                  }
+                  console.error('[ChatBox] 사용 가능한 WebSocket이 없음');
+                  return null;
+                })()}
                 onCallEnd={() => {
                   console.log('화상채팅 종료');
                   setIsVideoCallOn(false);

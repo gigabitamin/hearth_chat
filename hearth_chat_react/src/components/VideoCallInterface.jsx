@@ -29,6 +29,11 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
 
     // WebSocket 참조 가져오기
     const getWebSocket = () => {
+        console.log('[화상채팅] getWebSocket 호출됨, roomId:', roomId);
+        console.log('[화상채팅] window.roomWebSockets 상태:', window.roomWebSockets);
+        console.log('[화상채팅] props webSocket 상태:', webSocket);
+        console.log('[화상채팅] window.chatWebSocket 상태:', window.chatWebSocket);
+
         // 1) 방 전용 소켓을 최우선으로 사용 (호스트 차이 제거)
         try {
             const roomWs = (typeof window !== 'undefined' && window.roomWebSockets) ? window.roomWebSockets[String(roomId)] : null;
@@ -36,13 +41,16 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
                 console.log('[화상채팅] roomWebSocket 사용:', roomWs.url);
                 return roomWs;
             }
-        } catch (_) { }
+        } catch (e) {
+            console.error('[화상채팅] roomWebSocket 확인 중 오류:', e);
+        }
 
         // 2) props로 받은 소켓
         if (webSocket && webSocket.readyState === WebSocket.OPEN) {
             console.log('[화상채팅] props WebSocket 사용:', webSocket.url || webSocket.readyState);
             return webSocket;
         }
+
         // 3) fallback: 전역 소켓
         if (typeof window !== 'undefined' && window.chatWebSocket && window.chatWebSocket.readyState === WebSocket.OPEN) {
             console.log('[화상채팅] window.chatWebSocket 사용:', window.chatWebSocket.url || window.chatWebSocket.readyState);
@@ -499,6 +507,16 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
 
                 ws.addEventListener('message', handleWebRTCMessageEvent);
                 console.log('[화상채팅] WebRTC 시그널링 메시지 리스너 추가됨');
+
+                // 추가 검증: WebSocket이 실제로 설정되었는지 확인
+                setTimeout(() => {
+                    const currentSocket = videoCallService.getSignalingSocket();
+                    console.log('[화상채팅] VideoCallService WebSocket 검증:', {
+                        hasSocket: !!currentSocket,
+                        readyState: currentSocket?.readyState,
+                        url: currentSocket?.url
+                    });
+                }, 100);
             } else {
                 console.error('[화상채팅] WebSocket을 찾을 수 없음 - 계속 진행');
             }
