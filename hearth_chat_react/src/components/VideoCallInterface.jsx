@@ -60,10 +60,9 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
 
         // 4) 마지막 fallback: 새로운 WebSocket 연결 생성
         try {
-            const baseUrl = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            // localhost가 아닌 실제 접속 중인 호스트 사용
-            const host = window.location.host;
-            const wsUrl = `${baseUrl}//${host}/ws/chat/${roomId}/`;
+            // apiConfig.js의 getWebSocketUrl 함수 사용하여 올바른 URL 가져오기
+            const { getWebSocketUrl } = require('../../utils/apiConfig');
+            const wsUrl = getWebSocketUrl(`/ws/chat/${roomId}/`);
 
             console.log('[화상채팅] 새로운 WebSocket 연결 생성:', wsUrl);
             const newWs = new WebSocket(wsUrl);
