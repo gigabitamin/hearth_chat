@@ -306,13 +306,38 @@ const ChatBox = ({
         // WebRTC 시그널링 메시지는 VideoCallInterface로 직접 전달
         if (['offer', 'answer', 'ice_candidate', 'screen_share_start', 'screen_share_stop'].includes(data.type)) {
           try {
-            // CustomEvent 대신 직접 함수 호출 방식 사용
-            if (window.processWebRTCMessage && typeof window.processWebRTCMessage === 'function') {
-              window.processWebRTCMessage(data);
-              console.log('[WebSocket] WebRTC 시그널링 메시지 직접 전달됨:', data.type);
-            } else {
-              console.log('[WebSocket] processWebRTCMessage 함수가 등록되지 않음');
+            // VideoCallInterface가 마운트될 때까지 대기
+            let retryCount = 0;
+            const maxRetries = 50; // 5초 대기
+
+            const tryProcessMessage = () => {
+              if (window.processWebRTCMessage && typeof window.processWebRTCMessage === 'function') {
+                window.processWebRTCMessage(data);
+                console.log('[WebSocket] WebRTC 시그널링 메시지 직접 전달됨:', data.type);
+                return true;
+              }
+              return false;
+            };
+
+            // 즉시 시도
+            if (tryProcessMessage()) {
+              return;
             }
+
+            // 대기 후 재시도
+            const retryInterval = setInterval(() => {
+              retryCount++;
+              if (tryProcessMessage()) {
+                clearInterval(retryInterval);
+                return;
+              }
+
+              if (retryCount >= maxRetries) {
+                clearInterval(retryInterval);
+                console.error('[WebSocket] VideoCallInterface 함수 등록 대기 시간 초과:', data.type);
+              }
+            }, 100);
+
           } catch (e) {
             console.error('[WebSocket] WebRTC 시그널링 처리 실패:', e);
           }
@@ -1506,7 +1531,7 @@ const ChatBox = ({
   const [isUserAvatarOn, setIsUserAvatarOn] = useState(false); // 기본값 off
   const [isAiAvatarOn, setIsAiAvatarOn] = useState(false); // 기본값 off
   // 화상채팅 토글 상태 추가
-  const [isVideoCallOn, setIsVideoCallOn] = useState(false); // 기본값 off
+  const [isVideoCallOn, setIsVideoCallOn] = useState(true); // 기본값 on으로 변경 - 화상채팅 자동 활성화
 
   // 수식과 일반 텍스트를 분리 렌더링하는 함수 - ChatBoxUI에서 import됨
 
@@ -2731,6 +2756,7 @@ const ChatBox = ({
           {/* 화상채팅이 활성화된 경우 VideoCallInterface 표시 */}
           {isVideoCallOn && (
             <div style={{ flex: 1, width: '100%', height: '100%' }}>
+              {console.log('[ChatBox] VideoCallInterface 렌더링 시작:', { roomId: selectedRoom?.id, userId: loginUser?.id })}
               <VideoCallInterface
                 roomId={selectedRoom?.id}
                 userId={loginUser?.id}

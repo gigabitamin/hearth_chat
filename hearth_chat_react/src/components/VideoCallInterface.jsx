@@ -55,6 +55,8 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
 
     // 전역 함수 등록: ChatBox에서 직접 호출하는 방식으로 변경
     useEffect(() => {
+        console.log('[화상채팅] VideoCallInterface 마운트됨, processWebRTCMessage 함수 등록 시작');
+
         // window 객체에 processWebRTCMessage 함수 등록
         window.processWebRTCMessage = (data) => {
             if (!data || !data.type) return;
@@ -63,10 +65,13 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
             processWebRTCMessage(data);
         };
 
+        console.log('[화상채팅] processWebRTCMessage 함수 등록 완료, roomId:', roomId);
+
         return () => {
             // 컴포넌트 언마운트 시 함수 제거
             if (window.processWebRTCMessage) {
                 delete window.processWebRTCMessage;
+                console.log('[화상채팅] processWebRTCMessage 함수 제거됨');
             }
         };
     }, [roomId]);
