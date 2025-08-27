@@ -19,7 +19,7 @@ import VirtualizedMessageList from './VirtualizedMessageList';
 import { useWebSocket, useMessageHandling, useMessageFetching, useFavoriteMessages, useMessageDeletion, fetchMyFavoriteMessages as fetchMyFavoriteMessagesCore, fetchOffsetForMessageId, fetchTotalCountAndFetchLatest, handleRoomSettingsSuccess, getSenderColor, handleToggleFavorite as handleToggleFavoriteCore, fetchMessages, handleMessageClick, handleRemoveAttachedImage, handleRemoveAllAttachedImages, LILY_API_URL } from './ChatBoxCore';
 import { Modal } from './ChatBoxUI';
 import { speakAIMessage, getAIEmotionResponse, initializeTTSService, initializeAvatars, getAiAvatarStyle, getUserAvatarStyle, getCameraStyle, setTTSInterrupted } from './ChatBoxMedia';
-import { getApiBase, getWebSocketUrl } from '../utils/apiConfig';
+import { getApiBase } from '../utils/apiConfig';
 // Chart.js core 등록 - ChatBoxUI에서 처리됨
 
 
@@ -215,13 +215,11 @@ const ChatBox = ({
     }
 
     // 새 연결 생성
-    // 변경 전: 프로토콜/호스트/포트로 직접 구성
-    // const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    // const host = window.location.hostname;
-    // const port = process.env.NODE_ENV === 'production' ? '' : ':8000';
-    // const wsUrl = `${protocol}//${host}${port}/ws/chat/`;
-    // 방 ID를 경로에 포함하여 서버에서 자동 그룹 조인되도록 연결
-    const wsUrl = getWebSocketUrl(`/ws/chat/${selectedRoom.id}/`);
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.hostname;
+    // const isLocalhost = host === 'localhost' || host === '127.0.0.1' || host === '192.168.44.9';
+    const port = process.env.NODE_ENV === 'production' ? '' : ':8000';
+    const wsUrl = `${protocol}//${host}${port}/ws/chat/`;
 
 
     try {
@@ -231,86 +229,101 @@ const ChatBox = ({
       return;
     }
 
-    // 방 경로(`/ws/chat/<id>/`) 사용 시 서버에서 자동 그룹 조인을 수행하므로
-    // 클라이언트에서 반복 join_room 전송 루프를 사용하지 않습니다. (중복 수신 방지)
-    // 필요 시 아래 블록을 다시 활성화하세요.
-    let joinInterval = null; // 비활성화된 상태 유지
-    // let joinSent = false;
-    // joinInterval = setInterval(() => { ... });
+    // join_room 메시지 전송을 readyState가 1(OPEN)일 때까지 반복 시도
+    let joinSent = false;
+    const joinInterval = setInterval(() => {
+      if (ws.current && ws.current.readyState === 1 && !joinSent) {
+        const joinMessage = { type: 'join_room', roomId: selectedRoom.id };
+        if (safeWebSocketSend(joinMessage)) {
+          joinSent = true;
+          console.log('[WebSocket] join_room 메시지 전송 성공 (setInterval)');
+          clearInterval(joinInterval);
 
-    // 대기 중 자동 전송(방 생성 직후) 큐를 1회만 비우는 헬퍼
-    let pendingFlushed = false;
-    const flushPendingOnce = () => {
-      if (pendingFlushed) return;
-      try {
-        const pendingRoomId = localStorage.getItem('pending_room_id');
-        const autoMsg = localStorage.getItem('pending_auto_message');
-        const imageUrlsJson = localStorage.getItem('pending_image_urls');
-        const singleImage = localStorage.getItem('pending_image_url');
-        if (String(selectedRoom.id) === String(pendingRoomId) && (autoMsg || imageUrlsJson || singleImage)) {
-          const clientId = `${Date.now()}_${Math.random()}`;
-          const payload = {
-            type: 'user_message',
-            roomId: selectedRoom.id,
-            message: autoMsg || (singleImage || imageUrlsJson ? '[이미지 첨부]' : ''),
-            client_id: clientId,
-          };
-          if (imageUrlsJson) {
-            try { payload.imageUrls = JSON.parse(imageUrlsJson); } catch (_) { /* ignore */ }
-          }
-          if (singleImage) {
-            payload.imageUrl = singleImage;
-          }
-          if (ws.current && ws.current.readyState === 1) {
-            ws.current.send(JSON.stringify(payload));
-            console.log('[ChatBox] flushPendingOnce 전송:', payload);
-            // 전송 후 큐 정리
-            localStorage.removeItem('pending_auto_message');
-            localStorage.removeItem('pending_image_urls');
-            localStorage.removeItem('pending_image_url');
-            localStorage.removeItem('pending_room_id');
-            pendingFlushed = true;
-          }
+          // join_room 성공 후 자동 메시지 전송 시도
+          setTimeout(() => {
+            if (!autoMessageSent) {
+              const autoMsg = localStorage.getItem('pending_auto_message');
+              const autoImg = localStorage.getItem('pending_image_url');
+              if (autoMsg || autoImg) {
+                console.log('[ChatBox] setInterval join_room 후 자동 메시지 전송 시도');
+                const clientId = `${Date.now()}_${Math.random()}`;
+
+                // 먼저 pending 메시지로 화면에 표시
+                const pendingMessage = {
+                  id: `pending_${clientId}`,
+                  type: 'send',
+                  text: autoMsg || '[이미지 첨부]',
+                  date: new Date().toISOString(),
+                  sender: loginUser?.username || '사용자',
+                  user_id: loginUser?.id,
+                  pending: true,
+                  client_id: clientId,
+                  imageUrl: autoImg || null,
+                  imageUrls: autoImg ? [autoImg] : [],
+                };
+
+                console.log('[ChatBox] setInterval pending 메시지 생성:', pendingMessage);
+                console.log('[ChatBox] setInterval 현재 messages 상태:', messages);
+
+                // 테스트: 간단한 메시지 먼저 추가해보기
+                setMessages(prev => {
+                  const testMessage = {
+                    id: `test_${Date.now()}`,
+                    type: 'send',
+                    text: '테스트 메시지',
+                    date: new Date().toISOString(),
+                    sender: '테스트',
+                    pending: false,
+                  };
+                  const newMessages = [...prev, testMessage];
+                  console.log('[ChatBox] 테스트 메시지 추가 후 messages:', newMessages);
+                  return newMessages;
+                });
+
+                // 실제 pending 메시지 추가
+                setTimeout(() => {
+                  setMessages(prev => {
+                    const newMessages = [...prev, pendingMessage];
+                    console.log('[ChatBox] setInterval pending 메시지 추가 후 messages:', newMessages);
+                    return newMessages;
+                  });
+                }, 100);
+
+                console.log('[ChatBox] setInterval 자동 메시지 pending 상태로 추가됨:', pendingMessage);
+
+                const messageData = {
+                  message: autoMsg || '[이미지 첨부]',
+                  imageUrl: autoImg || '',
+                  roomId: selectedRoom.id,
+                  client_id: clientId,
+                  type: 'user_message',
+                };
+
+                try {
+                  ws.current.send(JSON.stringify(messageData));
+                  console.log('[ChatBox] setInterval join_room 후 자동 메시지 전송 성공:', messageData);
+                  localStorage.removeItem('pending_auto_message');
+                  localStorage.removeItem('pending_image_url');
+                  setAutoMessageSent(true);
+                } catch (error) {
+                  console.error('[ChatBox] setInterval join_room 후 자동 메시지 전송 실패:', error);
+                }
+              }
+            }
+          }, 100);
         }
-      } catch (e) {
-        console.warn('[ChatBox] flushPendingOnce 실패:', e);
       }
-    };
+    }, 500); // 500ms 간격으로 안전하게 처리
 
     ws.current.onopen = () => {
-      // WebSocket 연결 성공 시 전역으로 설정 (VideoCallInterface 등에서 사용)
+      // WebSocket 연결 성공 시 전역으로 설정 (VideoCallInterface에서 사용)
       window.chatWebSocket = ws.current;
-      try {
-        if (!window.roomWebSockets) window.roomWebSockets = {};
-        window.roomWebSockets[String(selectedRoom.id)] = ws.current;
-      } catch (_) { }
       console.log('[ChatBox] WebSocket 재연결됨, 전역 설정 완료');
-      // 경로 기반 자동조인이지만, 누락 방지를 위해 1회 join_room 신호를 보냅니다.
-      try {
-        ws.current.send(JSON.stringify({ type: 'join_room', roomId: selectedRoom.id }));
-      } catch (_) { }
-      // 조인 ACK 지연 대비: onopen 시점에서도 1~2회 대기열 플러시 시도
-      setTimeout(() => { try { flushPendingOnce(); } catch (_) { } }, 50);
-      setTimeout(() => { try { flushPendingOnce(); } catch (_) { } }, 300);
     };
     ws.current.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
         console.log('[WebSocket] 메시지 수신:', data);
-
-        // 서버로부터 조인 확인을 받으면 대기 중 메시지를 1회만 전송
-        if (data.type === 'join_ack' && String(data.roomId) === String(selectedRoom.id)) {
-          flushPendingOnce();
-        }
-
-        // WebRTC 시그널링 메시지는 VideoCallInterface로 브릿지 전달
-        if (['offer', 'answer', 'ice_candidate', 'screen_share_start', 'screen_share_stop'].includes(data.type)) {
-          try {
-            const evt = new CustomEvent('webrtc_signal', { detail: data });
-            window.dispatchEvent(evt);
-          } catch (e) { }
-          return;
-        }
 
         if (data.type === 'user_message' && data.message) {
           console.log('[WebSocket] 사용자 메시지 수신됨:', {
@@ -335,15 +348,6 @@ const ChatBox = ({
             client_id: data.client_id,
             message: data.message
           });
-
-          // 동일 id가 이미 존재하면 중복 추가를 방지
-          if (data.id) {
-            const exists = messages.some(m => m.id === data.id);
-            if (exists) {
-              console.log('[WebSocket] 동일 id 메시지 중복 수신 무시:', data.id);
-              return;
-            }
-          }
 
           const newMessage = {
             id: data.id || Math.floor(Math.random() * 1000000) + Date.now(),
@@ -490,8 +494,7 @@ const ChatBox = ({
     };
     // 방 나갈 때 leave_room 및 연결 해제
     return () => {
-      // joinInterval은 비활성화되었으므로 존재 여부 확인 후만 해제
-      try { if (typeof joinInterval !== 'undefined') clearInterval(joinInterval); } catch (_) { }
+      clearInterval(joinInterval);
       if (ws.current) {
         try {
           if (ws.current.readyState === 1) {
@@ -788,7 +791,10 @@ const ChatBox = ({
 
 
     // WebSocket 연결
-    const wsUrl = getWebSocketUrl('/ws/chat/');
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.hostname;
+    const port = process.env.NODE_ENV === 'production' ? '' : ':8000';
+    const wsUrl = `${protocol}//${host}${port}/ws/chat/`;
 
 
     ws.current = new WebSocket(wsUrl);
@@ -1193,18 +1199,14 @@ const ChatBox = ({
     return () => clearTimeout(resetAiEmotionCapture);
   }, [emotionCaptureStatus.ai]);
 
-  // 새로운 메시지 도착 시에만, 사용자가 하단 근처에 있을 때만 자동 스크롤
+  // 새로운 메시지가 추가될 때마다 자동으로 스크롤을 맨 아래로 이동
   useEffect(() => {
-    const el = chatScrollRef.current;
-    if (!el) return;
-    if (ttsScrollFreezeRef.current) return; // TTS 중에는 스크롤 고정
-    const nearBottom = (el.scrollHeight - (el.scrollTop + el.clientHeight)) < 80;
-    if (!nearBottom) return; // 사용자가 위를 보고 있으면 스크롤 고정
-    requestAnimationFrame(() => {
-      const current = chatScrollRef.current;
-      if (current) current.scrollTop = current.scrollHeight;
-    });
-  }, [messages]);
+    setTimeout(() => {
+      if (chatScrollRef.current) {
+        chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+      }
+    }, 0);
+  }, [messages, displayedAiText]);
 
   // TTS 기반 립싱크를 위한 상태
   const [ttsSpeaking, setTtsSpeaking] = useState(false);
@@ -1213,8 +1215,6 @@ const ChatBox = ({
   const [currentLipSyncIndex, setCurrentLipSyncIndex] = useState(0);
   // 립싱크 마지막 프레임을 기억
   const [lastLipSyncValue, setLastLipSyncValue] = useState(0);
-  // TTS 중에는 자동 스크롤을 멈추기 위한 ref
-  const ttsScrollFreezeRef = useRef(false);
 
   // 타이핑 효과 interval ref 추가
   const typingIntervalRef = useRef(null);
@@ -1229,7 +1229,6 @@ const ChatBox = ({
       // 
       setIsAiTalking(true);
       setTtsSpeaking(true);
-      ttsScrollFreezeRef.current = true;
 
       // 립싱크 시퀀스 저장 및 초기화
       if (lipSyncSequence && lipSyncSequence.length > 0) {
@@ -1263,11 +1262,6 @@ const ChatBox = ({
 
       setIsAiTalking(false);
       setTtsSpeaking(false);
-      requestAnimationFrame(() => {
-        ttsScrollFreezeRef.current = false;
-        const el = chatScrollRef.current;
-        if (el) el.scrollTop = el.scrollHeight;
-      });
       // 립싱크 애니메이션: 1초간 랜덤 입모양 반복 후 닫기 (일시 비활성화)
       /*
       let animCount = 0;
@@ -2727,7 +2721,7 @@ const ChatBox = ({
               <VideoCallInterface
                 roomId={selectedRoom?.id}
                 userId={loginUser?.id}
-                webSocket={(typeof window !== 'undefined' && window.roomWebSockets && selectedRoom?.id && window.roomWebSockets[String(selectedRoom.id)]) ? window.roomWebSockets[String(selectedRoom.id)] : ws.current}
+                webSocket={ws.current}
                 onCallEnd={() => {
                   console.log('화상채팅 종료');
                   setIsVideoCallOn(false);
@@ -2986,87 +2980,92 @@ const ChatBox = ({
           </div>
         </div>
       </div>
+      {/* </div > */}
 
       {/* 입력창 위에 첨부 이미지 미리보기 UI */}
-      {attachedImagePreviews.length > 0 && (
-        <div className="attached-image-preview-box" style={{
-          margin: '8px 0',
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '8px',
-          alignItems: 'center'
-        }}>
-          {attachedImagePreviews.map((preview, index) => (
-            <div key={index} style={{ position: 'relative', display: 'inline-block' }}>
-              <img
-                src={preview}
-                alt={`첨부 이미지 ${index + 1}`}
-                style={{
-                  maxWidth: 120,
-                  maxHeight: 120,
-                  borderRadius: 8,
-                  border: '1px solid #ddd'
-                }}
-              />
+      {
+        attachedImagePreviews.length > 0 && (
+          <div className="attached-image-preview-box" style={{
+            margin: '8px 0',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '8px',
+            alignItems: 'center'
+          }}>
+            {attachedImagePreviews.map((preview, index) => (
+              <div key={index} style={{ position: 'relative', display: 'inline-block' }}>
+                <img
+                  src={preview}
+                  alt={`첨부 이미지 ${index + 1}`}
+                  style={{
+                    maxWidth: 120,
+                    maxHeight: 120,
+                    borderRadius: 8,
+                    border: '1px solid #ddd'
+                  }}
+                />
+                <button
+                  onClick={() => handleRemoveAttachedImage(index)}
+                  style={{
+                    position: 'absolute',
+                    top: '-8px',
+                    right: '-8px',
+                    background: '#ff4444',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '20px',
+                    height: '20px',
+                    fontSize: '12px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            {attachedImagePreviews.length > 1 && (
               <button
-                onClick={() => handleRemoveAttachedImage(index)}
+                onClick={handleRemoveAllAttachedImages}
                 style={{
-                  position: 'absolute',
-                  top: '-8px',
-                  right: '-8px',
-                  background: '#ff4444',
-                  color: 'white',
+                  color: '#f44336',
+                  background: 'none',
                   border: 'none',
-                  borderRadius: '50%',
-                  width: '20px',
-                  height: '20px',
-                  fontSize: '12px',
+                  fontSize: 12,
                   cursor: 'pointer'
                 }}
               >
-                ×
+                모두 제거
               </button>
-            </div>
-          ))}
-          {attachedImagePreviews.length > 1 && (
-            <button
-              onClick={handleRemoveAllAttachedImages}
-              style={{
-                color: '#f44336',
-                background: 'none',
-                border: 'none',
-                fontSize: 12,
-                cursor: 'pointer'
-              }}
-            >
-              모두 제거
-            </button>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )
+      }
 
       {/* 입력창 위에 답장 인용 미리보기 UI */}
-      {replyTo && (
-        <div className="reply-preview-bar" style={{
-          background: 'rgba(33,150,243,0.08)',
-          borderLeft: '3px solid #2196f3',
-          padding: '6px 12px',
-          margin: '4px 0',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          borderRadius: 4,
-          fontSize: 14,
-          color: '#2196f3',
-          maxWidth: '95%',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }} onClick={() => { }}>
-          <b>{replyTo.sender || replyTo.username || '익명'}</b>: {replyTo.text ? replyTo.text.slice(0, 60) : '[첨부/삭제됨]'}
-          <button style={{ marginLeft: 8, color: '#2196f3', background: 'none', border: 'none', cursor: 'pointer', fontSize: 15 }} onClick={() => setReplyTo(null)}>취소</button>
-        </div>
-      )}
+      {
+        replyTo && (
+          <div className="reply-preview-bar" style={{
+            background: 'rgba(33,150,243,0.08)',
+            borderLeft: '3px solid #2196f3',
+            padding: '6px 12px',
+            margin: '4px 0',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            borderRadius: 4,
+            fontSize: 14,
+            color: '#2196f3',
+            maxWidth: '95%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }} onClick={() => { }}>
+            <b>{replyTo.sender || replyTo.username || '익명'}</b>: {replyTo.text ? replyTo.text.slice(0, 60) : '[첨부/삭제됨]'}
+            <button style={{ marginLeft: 8, color: '#2196f3', background: 'none', border: 'none', cursor: 'pointer', fontSize: 15 }} onClick={() => setReplyTo(null)}>취소</button>
+          </div>
+        )
+      }
     </>
   );
 };

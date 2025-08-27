@@ -253,23 +253,24 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }
         )
 
-        # 백업: 그룹 조인 실수 등으로 수신 누락을 방지하기 위해 현재 소켓에도 직접 에코 전송
-        try:
-            await self.send(text_data=json.dumps({
-                'type': 'user_message',
-                'id': user_message_obj.id,
-                'message': user_message or '[이미지 첨부]',
-                'roomId': room_id,
-                'sender': user_message_obj.username if hasattr(user_message_obj, 'username') else 'User',
-                'user_id': user_message_obj.user_id if hasattr(user_message_obj, 'user_id') else None,
-                'timestamp': user_message_obj.timestamp.isoformat(),
-                'emotion': user_emotion,
-                'imageUrl': first_image_url,
-                'imageUrls': image_urls or [],
-                'client_id': client_id
-            }))
-        except Exception:
-            pass
+        # NOTE: 예전에는 그룹 전송 이후 동일 메시지를 현재 소켓으로 한 번 더 에코했습니다.
+        # 이로 인해 동일 메시지가 2번 수신되어 UI에 중복 표시되는 문제가 있어 주석 처리합니다.
+        # try:
+        #     await self.send(text_data=json.dumps({
+        #         'type': 'user_message',
+        #         'id': user_message_obj.id,
+        #         'message': user_message or '[이미지 첨부]',
+        #         'roomId': room_id,
+        #         'sender': user_message_obj.username if hasattr(user_message_obj, 'username') else 'User',
+        #         'user_id': user_message_obj.user_id if hasattr(user_message_obj, 'user_id') else None,
+        #         'timestamp': user_message_obj.timestamp.isoformat(),
+        #         'emotion': user_emotion,
+        #         'imageUrl': first_image_url,
+        #         'imageUrls': image_urls or [],
+        #         'client_id': client_id
+        #     }))
+        # except Exception:
+        #     pass
 
         # AI 응답 ON/OFF 분기 처리
         from asgiref.sync import sync_to_async
@@ -380,7 +381,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         'imageUrls': image_urls if image_urls else []
                     }
                 )
-                print(f"✅ AI 메시지 그룹 전송 완료")
+                print("✅ AI 메시지 그룹 전송 완료")
                 
                 # 추가: 현재 연결된 클라이언트에게도 직접 전송 (백업)
                 backup_response = {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './CreateRoomModal.css';
-import { getApiBase, getCookie } from '../utils/apiConfig';
+import { getApiBase, getCookie, csrfFetch } from '../utils/apiConfig';
 
 const AI_PROVIDERS = [
     { value: 'GEMINI', label: 'Gemini' },
@@ -65,13 +65,8 @@ const CreateRoomModal = ({ open, onClose, onSuccess, defaultMaxMembers = 4 }) =>
                 ai_response_enabled: aiResponseEnabled,
             };
             const csrftoken = getCookie('csrftoken');
-            const response = await fetch(`${getApiBase()}/api/chat/rooms/`, {
+            const response = await csrfFetch(`${getApiBase()}/api/chat/rooms/`, {
                 method: 'POST',
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrftoken,
-                },
                 body: JSON.stringify(body),
             });
             if (!response.ok) {
@@ -82,13 +77,8 @@ const CreateRoomModal = ({ open, onClose, onSuccess, defaultMaxMembers = 4 }) =>
             // 방 생성 후, ai_response_enabled가 true면 사용자 설정도 자동 ON                        
             if (aiResponseEnabled) {
                 try {
-                    await fetch(`${getApiBase()}/api/chat/user/settings/`, {
+                    await csrfFetch(`${getApiBase()}/api/chat/user/settings/`, {
                         method: 'PATCH',
-                        credentials: 'include',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': csrftoken,
-                        },
                         body: JSON.stringify({ ai_response_enabled: true }),
                     });
                 } catch (e) { /* 무시 */ }
@@ -162,8 +152,8 @@ const CreateRoomModal = ({ open, onClose, onSuccess, defaultMaxMembers = 4 }) =>
                             type="text"
                             value={createName}
                             onChange={e => setCreateName(e.target.value)}
-                            placeholder={createType === 'ai' ? `${createAI}와의 대화` : 
-                                       createType === 'video_call' ? '화상채팅방' : '대화방 이름'}
+                            placeholder={createType === 'ai' ? `${createAI}와의 대화` :
+                                createType === 'video_call' ? '화상채팅방' : '대화방 이름'}
                         />
                     </div>
                     <div className="form-group">
@@ -202,8 +192,8 @@ const CreateRoomModal = ({ open, onClose, onSuccess, defaultMaxMembers = 4 }) =>
                             disabled={createType === 'video_call'}
                         />
                         <small>
-                            {createType === 'video_call' 
-                                ? '화상채팅은 2명으로 고정됩니다.' 
+                            {createType === 'video_call'
+                                ? '화상채팅은 2명으로 고정됩니다.'
                                 : '2~20명 사이로 설정 (기본 4명)'
                             }
                         </small>

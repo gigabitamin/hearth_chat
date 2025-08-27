@@ -231,86 +231,171 @@ const ChatBox = ({
       return;
     }
 
-    // 방 경로(`/ws/chat/<id>/`) 사용 시 서버에서 자동 그룹 조인을 수행하므로
-    // 클라이언트에서 반복 join_room 전송 루프를 사용하지 않습니다. (중복 수신 방지)
-    // 필요 시 아래 블록을 다시 활성화하세요.
-    let joinInterval = null; // 비활성화된 상태 유지
-    // let joinSent = false;
-    // joinInterval = setInterval(() => { ... });
+    // join_room 메시지 전송을 readyState가 1(OPEN)일 때까지 반복 시도
+    let joinSent = false;
+    const joinInterval = setInterval(() => {
+      if (ws.current && ws.current.readyState === 1 && !joinSent) {
+        const joinMessage = { type: 'join_room', roomId: selectedRoom.id };
+        if (safeWebSocketSend(joinMessage)) {
+          joinSent = true;
+          console.log('[WebSocket] join_room 메시지 전송 성공 (setInterval)');
+          clearInterval(joinInterval);
 
-    // 대기 중 자동 전송(방 생성 직후) 큐를 1회만 비우는 헬퍼
-    let pendingFlushed = false;
-    const flushPendingOnce = () => {
-      if (pendingFlushed) return;
-      try {
-        const pendingRoomId = localStorage.getItem('pending_room_id');
-        const autoMsg = localStorage.getItem('pending_auto_message');
-        const imageUrlsJson = localStorage.getItem('pending_image_urls');
-        const singleImage = localStorage.getItem('pending_image_url');
-        if (String(selectedRoom.id) === String(pendingRoomId) && (autoMsg || imageUrlsJson || singleImage)) {
-          const clientId = `${Date.now()}_${Math.random()}`;
-          const payload = {
-            type: 'user_message',
-            roomId: selectedRoom.id,
-            message: autoMsg || (singleImage || imageUrlsJson ? '[이미지 첨부]' : ''),
-            client_id: clientId,
-          };
-          if (imageUrlsJson) {
-            try { payload.imageUrls = JSON.parse(imageUrlsJson); } catch (_) { /* ignore */ }
-          }
-          if (singleImage) {
-            payload.imageUrl = singleImage;
-          }
-          if (ws.current && ws.current.readyState === 1) {
-            ws.current.send(JSON.stringify(payload));
-            console.log('[ChatBox] flushPendingOnce 전송:', payload);
-            // 전송 후 큐 정리
-            localStorage.removeItem('pending_auto_message');
-            localStorage.removeItem('pending_image_urls');
-            localStorage.removeItem('pending_image_url');
-            localStorage.removeItem('pending_room_id');
-            pendingFlushed = true;
-          }
+          // join_room 성공 후 자동 메시지 전송 시도
+          setTimeout(() => {
+            if (!autoMessageSent) {
+              const autoMsg = localStorage.getItem('pending_auto_message');
+              const autoImg = localStorage.getItem('pending_image_url');
+              if (autoMsg || autoImg) {
+                console.log('[ChatBox] setInterval join_room 후 자동 메시지 전송 시도');
+                const clientId = `${Date.now()}_${Math.random()}`;
+
+                // 먼저 pending 메시지로 화면에 표시
+                const pendingMessage = {
+                  id: `pending_${clientId}`,
+                  type: 'send',
+                  text: autoMsg || '[이미지 첨부]',
+                  date: new Date().toISOString(),
+                  sender: loginUser?.username || '사용자',
+                  user_id: loginUser?.id,
+                  pending: true,
+                  client_id: clientId,
+                  imageUrl: autoImg || null,
+                  imageUrls: autoImg ? [autoImg] : [],
+                };
+
+                console.log('[ChatBox] setInterval pending 메시지 생성:', pendingMessage);
+                console.log('[ChatBox] setInterval 현재 messages 상태:', messages);
+
+                // 테스트: 간단한 메시지 먼저 추가해보기
+                setMessages(prev => {
+                  const testMessage = {
+                    id: `test_${Date.now()}`,
+                    type: 'send',
+                    text: '테스트 메시지',
+                    date: new Date().toISOString(),
+                    sender: '테스트',
+                    pending: false,
+                  };
+                  const newMessages = [...prev, testMessage];
+                  console.log('[ChatBox] 테스트 메시지 추가 후 messages:', newMessages);
+                  return newMessages;
+                });
+
+                // 실제 pending 메시지 추가
+                setTimeout(() => {
+                  setMessages(prev => {
+                    const newMessages = [...prev, pendingMessage];
+                    console.log('[ChatBox] setInterval pending 메시지 추가 후 messages:', newMessages);
+                    return newMessages;
+                  });
+                }, 100);
+
+                console.log('[ChatBox] setInterval 자동 메시지 pending 상태로 추가됨:', pendingMessage);
+
+                const messageData = {
+                  message: autoMsg || '[이미지 첨부]',
+                  imageUrl: autoImg || '',
+                  roomId: selectedRoom.id,
+                  client_id: clientId,
+                  type: 'user_message',
+                };
+
+                try {
+                  ws.current.send(JSON.stringify(messageData));
+                  console.log('[ChatBox] setInterval join_room 후 자동 메시지 전송 성공:', messageData);
+                  localStorage.removeItem('pending_auto_message');
+                  localStorage.removeItem('pending_image_url');
+                  setAutoMessageSent(true);
+                } catch (error) {
+                  console.error('[ChatBox] setInterval join_room 후 자동 메시지 전송 실패:', error);
+                }
+              }
+            }
+          }, 100);
         }
-      } catch (e) {
-        console.warn('[ChatBox] flushPendingOnce 실패:', e);
       }
-    };
+    }, 500); // 500ms 간격으로 안전하게 처리
 
     ws.current.onopen = () => {
-      // WebSocket 연결 성공 시 전역으로 설정 (VideoCallInterface 등에서 사용)
+      console.log('[WebSocket] 연결 성공');
+
+      // WebSocket을 전역으로 노출 (화상채팅에서 사용)
       window.chatWebSocket = ws.current;
-      try {
-        if (!window.roomWebSockets) window.roomWebSockets = {};
-        window.roomWebSockets[String(selectedRoom.id)] = ws.current;
-      } catch (_) { }
-      console.log('[ChatBox] WebSocket 재연결됨, 전역 설정 완료');
-      // 경로 기반 자동조인이지만, 누락 방지를 위해 1회 join_room 신호를 보냅니다.
-      try {
-        ws.current.send(JSON.stringify({ type: 'join_room', roomId: selectedRoom.id }));
-      } catch (_) { }
-      // 조인 ACK 지연 대비: onopen 시점에서도 1~2회 대기열 플러시 시도
-      setTimeout(() => { try { flushPendingOnce(); } catch (_) { } }, 50);
-      setTimeout(() => { try { flushPendingOnce(); } catch (_) { } }, 300);
+
+      // WebSocket 연결 완료 상태 설정
+      setWsConnectionReady(true);
+
+      // 연결 후 약간의 지연을 두고 join_room 메시지 전송
+      setTimeout(() => {
+        if (!joinSent && ws.current && ws.current.readyState === 1) {
+          const joinMessage = { type: 'join_room', roomId: selectedRoom.id };
+          if (safeWebSocketSend(joinMessage)) {
+            joinSent = true;
+            console.log('[WebSocket] join_room 메시지 전송 성공');
+
+            // join_room 성공 후 자동 메시지 전송 시도
+            setTimeout(() => {
+              if (!autoMessageSent) {
+                const autoMsg = localStorage.getItem('pending_auto_message');
+                const autoImg = localStorage.getItem('pending_image_url');
+                if (autoMsg || autoImg) {
+                  console.log('[ChatBox] join_room 후 자동 메시지 전송 시도');
+                  const clientId = `${Date.now()}_${Math.random()}`;
+
+                  // 먼저 pending 메시지로 화면에 표시
+                  const pendingMessage = {
+                    id: `pending_${clientId}`,
+                    type: 'send',
+                    text: autoMsg || '[이미지 첨부]',
+                    date: new Date().toISOString(),
+                    sender: loginUser?.username || '사용자',
+                    user_id: loginUser?.id,
+                    pending: true,
+                    client_id: clientId,
+                    imageUrl: autoImg || null,
+                    imageUrls: autoImg ? [autoImg] : [],
+                  };
+
+                  console.log('[ChatBox] pending 메시지 생성:', pendingMessage);
+                  console.log('[ChatBox] 현재 messages 상태:', messages);
+
+                  setMessages(prev => {
+                    const newMessages = [...prev, pendingMessage];
+                    console.log('[ChatBox] pending 메시지 추가 후 messages:', newMessages);
+                    return newMessages;
+                  });
+
+                  console.log('[ChatBox] 자동 메시지 pending 상태로 추가됨:', pendingMessage);
+
+                  const messageData = {
+                    message: autoMsg || '[이미지 첨부]',
+                    imageUrl: autoImg || '',
+                    roomId: selectedRoom.id,
+                    client_id: clientId,
+                    type: 'user_message', // 메시지 타입 명시
+                  };
+
+                  try {
+                    ws.current.send(JSON.stringify(messageData));
+                    console.log('[ChatBox] join_room 후 자동 메시지 전송 성공:', messageData);
+                    localStorage.removeItem('pending_auto_message');
+                    localStorage.removeItem('pending_image_url');
+                    setAutoMessageSent(true);
+                  } catch (error) {
+                    console.error('[ChatBox] join_room 후 자동 메시지 전송 실패:', error);
+                  }
+                }
+              }
+            }, 100); // 100ms 지연으로 빠른 전송
+          }
+        }
+      }, 200); // 100ms에서 200ms로 증가하여 더 안전하게 처리
     };
     ws.current.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
         console.log('[WebSocket] 메시지 수신:', data);
-
-        // 서버로부터 조인 확인을 받으면 대기 중 메시지를 1회만 전송
-        if (data.type === 'join_ack' && String(data.roomId) === String(selectedRoom.id)) {
-          flushPendingOnce();
-        }
-
-        // WebRTC 시그널링 메시지는 VideoCallInterface로 브릿지 전달
-        if (['offer', 'answer', 'ice_candidate', 'screen_share_start', 'screen_share_stop'].includes(data.type)) {
-          try {
-            const evt = new CustomEvent('webrtc_signal', { detail: data });
-            window.dispatchEvent(evt);
-          } catch (e) { }
-          return;
-        }
 
         if (data.type === 'user_message' && data.message) {
           console.log('[WebSocket] 사용자 메시지 수신됨:', {
@@ -335,15 +420,6 @@ const ChatBox = ({
             client_id: data.client_id,
             message: data.message
           });
-
-          // 동일 id가 이미 존재하면 중복 추가를 방지
-          if (data.id) {
-            const exists = messages.some(m => m.id === data.id);
-            if (exists) {
-              console.log('[WebSocket] 동일 id 메시지 중복 수신 무시:', data.id);
-              return;
-            }
-          }
 
           const newMessage = {
             id: data.id || Math.floor(Math.random() * 1000000) + Date.now(),
@@ -490,8 +566,7 @@ const ChatBox = ({
     };
     // 방 나갈 때 leave_room 및 연결 해제
     return () => {
-      // joinInterval은 비활성화되었으므로 존재 여부 확인 후만 해제
-      try { if (typeof joinInterval !== 'undefined') clearInterval(joinInterval); } catch (_) { }
+      clearInterval(joinInterval);
       if (ws.current) {
         try {
           if (ws.current.readyState === 1) {
@@ -2694,7 +2769,7 @@ const ChatBox = ({
               </button>
               <button style={{ color: '#fff', background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', padding: 8, textAlign: 'left' }} onClick={() => { setIsVideoCallOn(v => !v); setIsMenuOpen(false); }}>
                 📞 {isVideoCallOn ? 'off' : 'on'}
-              </button>
+              </button>              
             </div>
           )}
         </div>
@@ -2706,7 +2781,7 @@ const ChatBox = ({
             onSuccess={handleRoomSettingsSuccess}
           />
         )}
-        {/* 아바타/카메라/화상채팅 컨테이너 */}
+        {/* 아바타/카메라/햄버거 메뉴 복구 */}
         <div
           className="avatar-container"
           style={{
@@ -2727,7 +2802,7 @@ const ChatBox = ({
               <VideoCallInterface
                 roomId={selectedRoom?.id}
                 userId={loginUser?.id}
-                webSocket={(typeof window !== 'undefined' && window.roomWebSockets && selectedRoom?.id && window.roomWebSockets[String(selectedRoom.id)]) ? window.roomWebSockets[String(selectedRoom.id)] : ws.current}
+                webSocket={ws.current}
                 onCallEnd={() => {
                   console.log('화상채팅 종료');
                   setIsVideoCallOn(false);
@@ -2894,93 +2969,114 @@ const ChatBox = ({
           <div className="chat-section" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%', width: '100%', maxWidth: '100vw', minWidth: 0, boxSizing: 'border-box', overflowX: 'hidden' }}>
             <div className="chat-container" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%', width: '100%', maxWidth: '100vw', minWidth: 0, boxSizing: 'border-box', overflowX: 'hidden' }}>
               <div style={{ flex: 1, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
-                {/* 메시지 목록 표시 */}
-                <VirtualizedMessageList
-                  messages={messages}
-                  loginUser={loginUser}
-                  highlightMessageId={highlightMessageId}
-                  getSenderColor={getSenderColor}
-                  onReply={msg => setReplyTo(msg)}
-                  // onMessageClick={msg => { }} // 메시지 강조 기능 제거
-                  // onReplyQuoteClick={id => { }} // 메시지 강조 기능 제거
-                  onImageClick={setViewerImage}
-                  favoriteMessages={favoriteMessages}
-                  onToggleFavorite={handleToggleFavorite}
-                  scrollToMessageId={scrollToMessageId}
-                  onMessageDelete={(messageId) => {
-                    if (messageId) {
-                      // 삭제된 메시지를 즉시 UI에서 제거
-                      setMessages(prev => prev.filter(msg => msg.id !== messageId));
-                      console.log('[메시지 삭제] UI에서 메시지 제거됨:', messageId);
-                    } else if (selectedRoom && selectedRoom.id) {
-                      // messageId가 없는 경우에만 fetchMessages 호출 (fallback)
-                      fetchMessages(selectedRoom.id, 0, 20, false, false);
-                    }
-                  }}
-                  onLoadMore={(isPrepending) => {
-                    console.log('[DEBUG] onLoadMore 호출됨:', {
-                      isPrepending,
-                      loadingMessages,
-                      hasMore,
-                      selectedRoomId: selectedRoom?.id,
-                      firstItemIndex,
-                      messagesLength: messages.length
+                {/* 화상채팅 방인 경우 VideoCallInterface 표시 */}
+                {selectedRoom && selectedRoom.room_type === 'video_call' ? (
+                  (() => {
+                    console.log('[ChatBox] VideoCallInterface 렌더링:', {
+                      selectedRoom: selectedRoom,
+                      loginUser: loginUser,
+                      userId: loginUser?.id
                     });
-
-                    if (!loadingMessages && hasMore && selectedRoom && selectedRoom.id) {
-                      if (isPrepending) {
-                        // 위로 스크롤: 현재 첫 번째 메시지 기준으로 이전 20개 fetch
-                        const newOffset = Math.max(0, firstItemIndex - 20);
-                        console.log('[DEBUG] 위로 스크롤 - 이전 20개 fetch:', { newOffset, roomId: selectedRoom.id });
-                        fetchMessages(
-                          selectedRoom.id,
-                          newOffset,
-                          20,
-                          true,
-                          false,
-                          null,
-                          setLoadingMessages,
-                          setTotalCount,
-                          messages,
-                          setMessages,
-                          setFirstItemIndex,
-                          setMessageOffset
-                        );
-                      } else {
-                        // 아래로 스크롤: 현재 마지막 메시지 기준으로 다음 20개 fetch
-                        const newOffset = firstItemIndex + messages.length;
-                        console.log('[DEBUG] 아래로 스크롤 - 다음 20개 fetch:', { newOffset, roomId: selectedRoom.id });
-                        fetchMessages(
-                          selectedRoom.id,
-                          newOffset,
-                          20,
-                          false,
-                          false,
-                          null,
-                          setLoadingMessages,
-                          setTotalCount,
-                          messages,
-                          setMessages,
-                          setFirstItemIndex,
-                          setMessageOffset
-                        );
+                    return (
+                      <VideoCallInterface
+                        roomId={selectedRoom.id}
+                        userId={loginUser?.id}
+                        onCallEnd={() => {
+                          // 화상채팅 종료 시 처리
+                          console.log('화상채팅 종료');
+                        }}
+                      />
+                    );
+                  })()
+                ) : (
+                  /* 일반 채팅 방인 경우 메시지 목록 표시 */
+                  <VirtualizedMessageList
+                    messages={messages}
+                    loginUser={loginUser}
+                    highlightMessageId={highlightMessageId}
+                    getSenderColor={getSenderColor}
+                    onReply={msg => setReplyTo(msg)}
+                    // onMessageClick={msg => { }} // 메시지 강조 기능 제거
+                    // onReplyQuoteClick={id => { }} // 메시지 강조 기능 제거
+                    onImageClick={setViewerImage}
+                    favoriteMessages={favoriteMessages}
+                    onToggleFavorite={handleToggleFavorite}
+                    scrollToMessageId={scrollToMessageId}
+                    onMessageDelete={(messageId) => {
+                      if (messageId) {
+                        // 삭제된 메시지를 즉시 UI에서 제거
+                        setMessages(prev => prev.filter(msg => msg.id !== messageId));
+                        console.log('[메시지 삭제] UI에서 메시지 제거됨:', messageId);
+                      } else if (selectedRoom && selectedRoom.id) {
+                        // messageId가 없는 경우에만 fetchMessages 호출 (fallback)
+                        fetchMessages(selectedRoom.id, 0, 20, false, false);
                       }
-                    } else {
-                      console.log('[DEBUG] onLoadMore 조건 불만족:', {
+                    }}
+                    onLoadMore={(isPrepending) => {
+                      console.log('[DEBUG] onLoadMore 호출됨:', {
+                        isPrepending,
                         loadingMessages,
                         hasMore,
-                        selectedRoomExists: !!selectedRoom
+                        selectedRoomId: selectedRoom?.id,
+                        firstItemIndex,
+                        messagesLength: messages.length
                       });
-                    }
-                  }}
-                  hasMore={hasMore}
-                  selectedRoomId={selectedRoom?.id}
-                  loadingMessages={loadingMessages}
-                  firstItemIndex={firstItemIndex}
-                  totalCount={totalCount}
-                  onMessageClick={handleMessageClick}
-                  userSettings={userSettings}
-                />
+
+                      if (!loadingMessages && hasMore && selectedRoom && selectedRoom.id) {
+                        if (isPrepending) {
+                          // 위로 스크롤: 현재 첫 번째 메시지 기준으로 이전 20개 fetch
+                          const newOffset = Math.max(0, firstItemIndex - 20);
+                          console.log('[DEBUG] 위로 스크롤 - 이전 20개 fetch:', { newOffset, roomId: selectedRoom.id });
+                          fetchMessages(
+                            selectedRoom.id,
+                            newOffset,
+                            20,
+                            true,
+                            false,
+                            null,
+                            setLoadingMessages,
+                            setTotalCount,
+                            messages,
+                            setMessages,
+                            setFirstItemIndex,
+                            setMessageOffset
+                          );
+                        } else {
+                          // 아래로 스크롤: 현재 마지막 메시지 기준으로 다음 20개 fetch
+                          const newOffset = firstItemIndex + messages.length;
+                          console.log('[DEBUG] 아래로 스크롤 - 다음 20개 fetch:', { newOffset, roomId: selectedRoom.id });
+                          fetchMessages(
+                            selectedRoom.id,
+                            newOffset,
+                            20,
+                            false,
+                            false,
+                            null,
+                            setLoadingMessages,
+                            setTotalCount,
+                            messages,
+                            setMessages,
+                            setFirstItemIndex,
+                            setMessageOffset
+                          );
+                        }
+                      } else {
+                        console.log('[DEBUG] onLoadMore 조건 불만족:', {
+                          loadingMessages,
+                          hasMore,
+                          selectedRoomExists: !!selectedRoom
+                        });
+                      }
+                    }}
+                    hasMore={hasMore}
+                    selectedRoomId={selectedRoom?.id}
+                    loadingMessages={loadingMessages}
+                    firstItemIndex={firstItemIndex}
+                    totalCount={totalCount}
+                    onMessageClick={handleMessageClick}
+                    userSettings={userSettings}
+                  />
+                )}
               </div>
             </div>
           </div>

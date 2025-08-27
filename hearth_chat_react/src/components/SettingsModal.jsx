@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './SettingsModal.css';
 import VoiceRecognition from './VoiceRecognition';
-import { API_BASE, LILY_API_URL } from '../utils/apiConfig';
+import { API_BASE, LILY_API_URL, csrfFetch } from '../utils/apiConfig';
 
 const ALLAUTH_BASE = `${API_BASE}/accounts`;
 
@@ -187,7 +187,7 @@ const SettingsModal = ({
 
   // 계정 연결 상태 fetch 함수 분리 (JSON API 사용)
   const fetchConnections = () => {
-    fetch(`${API_BASE}/api/social-connections/`, { credentials: 'include' })
+    csrfFetch(`${API_BASE}/api/social-connections/`, { method: 'GET' })
       .then(res => res.json())
       .then(data => {
         setConnections(data.social_accounts || []);
@@ -213,14 +213,8 @@ const SettingsModal = ({
     setDeleteError(null);
 
     try {
-      const csrftoken = getCookie('csrftoken');
-      const res = await fetch(`${API_BASE}/api/chat/user/delete/`, {
+      const res = await csrfFetch(`${API_BASE}/api/chat/user/delete/`, {
         method: 'DELETE',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': csrftoken,
-        },
         body: JSON.stringify({ confirmation: deleteConfirmation }),
       });
 
@@ -246,10 +240,6 @@ const SettingsModal = ({
   const handleDisconnect = async (provider) => {
     setConnMsg(null);
     const csrftoken = getCookie('csrftoken');
-    if (!csrftoken) {
-      setConnMsg('CSRF 토큰이 없습니다. 새로고침 후 다시 시도해 주세요.');
-      return;
-    }
     const form = new FormData();
     form.append('action', 'disconnect');
     form.append('account', provider);
@@ -313,7 +303,7 @@ const SettingsModal = ({
         setError(null);
         setLoading(false);
       } else {
-        fetch(`${API_BASE}/api/chat/user/`, { credentials: 'include' })
+        csrfFetch(`${API_BASE}/api/chat/user/`, { method: 'GET' })
           .then(res => res.json())
           .then(data => {
             if (data.status === 'success') {
@@ -337,21 +327,8 @@ const SettingsModal = ({
 
   const handleLogout = async () => {
     setLogoutLoading(true);
-    const csrftoken = getCookie('csrftoken');
-    if (!csrftoken) {
-      setError('CSRF 토큰이 없습니다. 새로고침 후 다시 시도해 주세요.');
-      setLogoutLoading(false);
-      return;
-    }
     try {
-      const res = await fetch(`${API_BASE}/api/chat/logout/`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'X-CSRFToken': csrftoken,
-          'Content-Type': 'application/json'
-        },
-      });
+      const res = await csrfFetch(`${API_BASE}/api/chat/logout/`, { method: 'POST' });
       if (res.ok) {
         // 로컬 쿠키도 정리
         document.cookie = 'sessionid=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
@@ -496,15 +473,8 @@ const SettingsModal = ({
       console.log('💾 SettingsModal - 서버에 전송할 데이터:', serverPatch);
 
       // CSRF 토큰 추출
-      const csrftoken = document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
-
-      const res = await fetch(`${API_BASE}/api/chat/user/settings/`, {
+      const res = await csrfFetch(`${API_BASE}/api/chat/user/settings/`, {
         method: 'PATCH',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': csrftoken,
-        },
         body: JSON.stringify(serverPatch),
       });
 

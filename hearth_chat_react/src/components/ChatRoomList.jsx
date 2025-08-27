@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import LoginModal from './LoginModal';
 import './ChatRoomList.css';
 import { useNavigate } from 'react-router-dom';
-import { API_BASE, getCookie, getWebSocketUrl } from '../utils/apiConfig';
+import { API_BASE, getCookie, getWebSocketUrl, csrfFetch } from '../utils/apiConfig';
 import AiMessageRenderer from './AiMessageRenderer';
 
 const AI_PROVIDERS = [
@@ -139,12 +139,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
         try {
             setLoading(true);
             // API_BASE 사용
-            const response = await fetch(`${API_BASE}/api/chat/rooms/`, {
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
+            const response = await csrfFetch(`${API_BASE}/api/chat/rooms/`, { method: 'GET' });
             if (!response.ok) {
                 throw new Error('Failed to fetch rooms');
             }
@@ -162,12 +157,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
         try {
             // API_BASE 사용
 
-            const response = await fetch(`${API_BASE}/api/chat/rooms/public/`, {
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
+            const response = await csrfFetch(`${API_BASE}/api/chat/rooms/public/`, { method: 'GET' });
             if (!response.ok) {
                 throw new Error('Failed to fetch public rooms');
             }
@@ -182,10 +172,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
     const fetchMyFavorites = async () => {
         try {
             setLoading(true);
-            const response = await fetch(`${API_BASE}/api/chat/rooms/my_favorites/`, {
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-            });
+            const response = await csrfFetch(`${API_BASE}/api/chat/rooms/my_favorites/`, { method: 'GET' });
             if (!response.ok) throw new Error('Failed to fetch favorite rooms');
             const data = await response.json();
             setFavoriteRooms(data.results || data);
@@ -200,10 +187,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
     const fetchFavoriteMessages = async () => {
         setFavoriteMessagesLoading(true);
         try {
-            const res = await fetch(`${API_BASE}/api/chat/messages/my_favorites/`, {
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-            });
+            const res = await csrfFetch(`${API_BASE}/api/chat/messages/my_favorites/`, { method: 'GET' });
             if (res.ok) {
                 const data = await res.json();
                 setFavoriteMessages(data.results || data);
@@ -233,11 +217,7 @@ const ChatRoomList = ({ onRoomSelect, selectedRoomId, loginUser, loginLoading, c
         const method = isFav ? 'DELETE' : 'POST';
         try {
             const csrftoken = getCookie('csrftoken');
-            await fetch(url, {
-                method,
-                credentials: 'include',
-                headers: { 'X-CSRFToken': csrftoken },
-            });
+            await csrfFetch(url, { method });
             if (sidebarTab === 'favorite') {
                 fetchMyFavorites();
                 fetchFavoriteMessages();

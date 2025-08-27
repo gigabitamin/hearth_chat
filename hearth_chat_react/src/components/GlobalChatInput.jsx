@@ -765,6 +765,8 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
                             body: JSON.stringify({ ai_response_enabled: aiResponseEnabled }),
                         });
                     } catch (e) { /* 무시 */ }
+                    // 방 이동 전에 새 방 id를 보관해 입장 직후 자동 전송을 보장
+                    try { localStorage.setItem('pending_room_id', String(data.id)); } catch (e) { /* ignore */ }
                     setTimeout(() => {
                         window.location.href = `/room/${data.id}`;
                     }, 300);
@@ -925,6 +927,7 @@ const GlobalChatInput = ({ room, loginUser, ws, onOpenCreateRoomModal, onImageCl
             handleRemoveAllAttachedImages();
 
             console.log('[GlobalChatInput] 방 이동 시작:', roomData.id);
+            try { localStorage.setItem('pending_room_id', String(roomData.id)); } catch (e) { /* ignore */ }
             setTimeout(() => {
                 window.location.href = `/room/${roomData.id}`;
             }, 300);

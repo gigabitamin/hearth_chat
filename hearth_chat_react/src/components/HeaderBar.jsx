@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import './HeaderBar.css';
 import AboutModal from './AboutModal';
 import { API_BASE, getCookie } from '../utils/apiConfig';
-import DebugDiagnostics from './DebugDiagnostics';
+// import DebugDiagnostics from './DebugDiagnostics';
 
 const CreateRoomButton = ({ onClick }) => (
     <button
@@ -171,9 +171,11 @@ export default function HeaderBar({
                                 className="favorite-btn"
                                 title={isFavoriteRoom ? '즐겨찾기 해제' : '즐겨찾기 추가'}
                                 onClick={e => {
-                                    // e.stopPropagation();
-                                    handleFavoriteToggle(room, e);
-                                    onToggleFavoriteRoom && onToggleFavoriteRoom();
+                                    e.stopPropagation();
+                                    // 상위에서 전달된 토글 핸들러만 호출하여 단일 경로로 처리
+                                    if (onToggleFavoriteRoom) {
+                                        onToggleFavoriteRoom();
+                                    }
                                 }}
                                 style={{ marginRight: 6, background: 'none', border: 'none', fontSize: 16, color: '#FFD600', cursor: 'pointer', paddingRight: 10, paddingLeft: 0, display: 'inline-block' }}
                             >
@@ -263,9 +265,9 @@ export default function HeaderBar({
                 </button>
             </div>
             {/* 모바일 진단 패널 (임시) */}
-            <div style={{ position: 'fixed', bottom: 10, left: 10, right: 10, zIndex: 9999 }}>
+            {/* <div style={{ position: 'fixed', bottom: 10, left: 10, right: 10, zIndex: 9999 }}>
                 <DebugDiagnostics />
-            </div>
+            </div> */}
         </header>
     );
 } 
