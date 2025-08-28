@@ -19,15 +19,40 @@ class VideoCallService {
 
         try {
             console.log('[VideoCallService] 화상채팅 초기화 시작');
+            console.log('[VideoCallService] 환경 정보:', {
+                hasMediaDevices: !!navigator.mediaDevices,
+                hasGetUserMedia: !!navigator.mediaDevices?.getUserMedia,
+                isSecureContext: window.isSecureContext,
+                protocol: window.location.protocol,
+                hostname: window.location.hostname
+            });
 
             // 로컬 미디어 스트림 획득
-            this.localStream = await navigator.mediaDevices.getUserMedia({
-                video: true,
-                audio: true
+            console.log('[VideoCallService] getUserMedia 호출 시작...');
+            console.log('[VideoCallService] getUserMedia 호출 전 상태:', {
+                mediaDevices: !!navigator.mediaDevices,
+                getUserMedia: !!navigator.mediaDevices?.getUserMedia,
+                constraints: { video: true, audio: true }
             });
-            console.log('[VideoCallService] 로컬 스트림 획득 성공:', this.localStream.getTracks().length, '개 트랙');
+
+            try {
+                this.localStream = await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: true
+                });
+                console.log('[VideoCallService] 로컬 스트림 획득 성공:', this.localStream.getTracks().length, '개 트랙');
+            } catch (getUserMediaError) {
+                console.error('[VideoCallService] getUserMedia 실패:', getUserMediaError);
+                console.error('[VideoCallService] getUserMedia 오류 상세:', {
+                    name: getUserMediaError.name,
+                    message: getUserMediaError.message,
+                    stack: getUserMediaError.stack
+                });
+                throw getUserMediaError;
+            }
 
             // WebRTC 연결 설정
+            console.log('[VideoCallService] RTCPeerConnection 생성 시작...');
             this.peerConnection = new RTCPeerConnection({
                 iceServers: [
                     { urls: 'stun:stun.l.google.com:19302' },
@@ -37,6 +62,7 @@ class VideoCallService {
             console.log('[VideoCallService] RTCPeerConnection 생성됨');
 
             // 로컬 스트림 추가
+            console.log('[VideoCallService] 로컬 스트림 트랙 추가 시작...');
             this.localStream.getTracks().forEach(track => {
                 this.peerConnection.addTrack(track, this.localStream);
                 console.log('[VideoCallService] 트랙 추가됨:', track.kind);
@@ -93,6 +119,23 @@ class VideoCallService {
             return this.localStream;
         } catch (error) {
             console.error('[VideoCallService] 화상채팅 초기화 실패:', error);
+            console.error('[VideoCallService] 오류 상세 정보:', {
+                name: error.name,
+                message: error.message,
+                stack: error.stack
+            });
+
+            // 추가 디버깅 정보
+            if (error.name === 'NotAllowedError') {
+                console.error('[VideoCallService] 카메라/마이크 권한이 거부됨');
+            } else if (error.name === 'NotFoundError') {
+                console.error('[VideoCallService] 카메라/마이크 장치를 찾을 수 없음');
+            } else if (error.name === 'NotReadableError') {
+                console.error('[VideoCallService] 카메라/마이크 장치에 접근할 수 없음');
+            } else if (error.name === 'OverconstrainedError') {
+                console.error('[VideoCallService] 요청한 미디어 제약 조건을 만족할 수 없음');
+            }
+
             throw error;
         }
     }
@@ -126,13 +169,22 @@ class VideoCallService {
         try {
             console.log('[VideoCallService] Offer 처리 시작:', remoteUserId);
             console.log('[VideoCallService] Offer SDP:', offer.sdp.substring(0, 100) + '...');
+            console.log('[VideoCallService] peerConnection 상태 확인:', {
+                hasPeerConnection: !!this.peerConnection,
+                connectionState: this.peerConnection?.connectionState,
+                iceConnectionState: this.peerConnection?.iceConnectionState,
+                signalingState: this.peerConnection?.signalingState
+            });
 
+            console.log('[VideoCallService] setRemoteDescription 시작...');
             await this.peerConnection.setRemoteDescription(offer);
             console.log('[VideoCallService] 원격 설명 설정 완료');
 
+            console.log('[VideoCallService] createAnswer 시작...');
             const answer = await this.peerConnection.createAnswer();
             console.log('[VideoCallService] Answer 생성됨:', answer.type);
 
+            console.log('[VideoCallService] setLocalDescription 시작...');
             await this.peerConnection.setLocalDescription(answer);
             console.log('[VideoCallService] 로컬 Answer 설명 설정 완료');
 
@@ -150,6 +202,11 @@ class VideoCallService {
 
         } catch (error) {
             console.error('[VideoCallService] Offer 처리 실패:', error);
+            console.error('[VideoCallService] 오류 상세 정보:', {
+                name: error.name,
+                message: error.message,
+                stack: error.stack
+            });
             throw error;
         }
     }
@@ -209,6 +266,10 @@ class VideoCallService {
 
     setSignalingSocket(socket) {
         this.signalingSocket = socket;
+    }
+
+    getSignalingSocket() {
+        return this.signalingSocket;
     }
 
     setCallbacks(callbacks) {

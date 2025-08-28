@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import videoCallService from '../services/videoCallService';
 import './VideoCallInterface.css';
-import { getWebSocketUrl } from '../../utils/apiConfig';
+import { getWebSocketUrl } from '../utils/apiConfig';
 
 const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
     // React Hooks는 조건문 이전에 호출되어야 함
@@ -478,7 +478,10 @@ const VideoCallInterface = ({ roomId, userId, onCallEnd, webSocket }) => {
             const isCapacitor = window.Capacitor && window.Capacitor.isNative;
             console.log('[화상채팅] 환경 정보:', { isMobile, isCapacitor, userAgent: navigator.userAgent });
 
+            console.log('[화상채팅] videoCallService.initializeVideoCall 호출 시작...');
             const stream = await videoCallService.initializeVideoCall(roomId, userId);
+            console.log('[화상채팅] videoCallService.initializeVideoCall 성공, stream:', stream);
+
             setLocalStream(stream);
             console.log('[화상채팅] 초기화 단계 1 완료: 로컬 스트림 설정됨');
 

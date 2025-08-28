@@ -4,9 +4,10 @@
 
 ==========================================
 
-# 250828 v0.99.5
+# 250828 v0.99.51
 - android apk package build complete
 - adb 연결, deubg & release virsion test
+- websocket connection fix
 
 # 250827
 - cloudflare, freedns, duckdns, 서브도메인 매핑, netlify-github 연동 reverse proxy 시도
