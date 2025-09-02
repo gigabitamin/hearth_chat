@@ -18,53 +18,55 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        # --- [수정] 모든 환경 감지 및 도메인 설정 로직을 handle 메소드 안으로 이동 ---
+        # --- 환경 감지 및 도메인 설정 로직 ---
+        # <<< [추가] 최상위 커스텀 도메인 환경변수 ---
+        PRIMARY_DOMAIN = os.getenv('PRIMARY_DOMAIN')
+        # ---
         IS_RAILWAY_DEPLOY = 'RAILWAY_ENVIRONMENT' in os.environ
         IS_RENDER_DEPLOY = os.environ.get('RENDER') == 'true'
         IS_FLY_DEPLOY = os.getenv('IS_FLY_DEPLOY', 'false').lower() == 'true'
         IS_CLOUDTYPE_DEPLOY = os.getenv('IS_CLOUDTYPE_DEPLOY', 'false').lower() == 'true'
         IS_PRODUCTION = IS_RAILWAY_DEPLOY or IS_RENDER_DEPLOY or IS_FLY_DEPLOY or IS_CLOUDTYPE_DEPLOY
 
-        if IS_PRODUCTION:    
-            if IS_RAILWAY_DEPLOY:
+        # <<< [수정] 프로덕션 환경에서 도메인과 Site ID 결정 로직 ---
+        if IS_PRODUCTION:
+            if PRIMARY_DOMAIN:
+                # 1순위: 커스텀 도메인 환경변수가 있으면 사용
+                domain = PRIMARY_DOMAIN
+                site_id = 6  # 커스텀 도메인을 위한 새 ID
+                site_name = "HearthChat Custom Domain"
+            elif IS_RAILWAY_DEPLOY:
                 domain = "hearthchat-production.up.railway.app"
                 site_id = 1
                 site_name = "HearthChat Railway Production"
             elif IS_RENDER_DEPLOY:
                 domain = 'hearth-chat-latest.onrender.com'
-                site_id = 2
+                site_id = 2 # Render ID를 2로 유지
                 site_name = "HearthChat Render Production"
             elif IS_FLY_DEPLOY:
+                # ... (기존 fly.io 로직) ...
                 fly_domain = os.getenv('FLY_APP_HOSTNAME', 'hearth-chat.fly.dev')
                 fly_allowed_hosts = os.getenv('ALLOWED_HOSTS', '')
-                
-                if fly_allowed_hosts:
-                    domain = fly_allowed_hosts.split(',')[0].strip()
-                else:
-                    domain = fly_domain
-                    
+                domain = fly_allowed_hosts.split(',')[0].strip() if fly_allowed_hosts else fly_domain
                 site_id = 4
                 site_name = "HearthChat Fly.io Production"
             elif IS_CLOUDTYPE_DEPLOY:
+                # ... (기존 cloudtype 로직) ...
                 cloudtype_domain = os.getenv('CLOUDTYPE_APP_HOSTNAME', 'port-0-hearth-chat-meq4jsqba77b2805.sel5.cloudtype.app')
                 cloudtype_allowed_hosts = os.getenv('ALLOWED_HOSTS', '')
-                if cloudtype_allowed_hosts:
-                    domain = cloudtype_allowed_hosts.split(',')[0].strip()
-                else:
-                    domain = cloudtype_domain
+                domain = cloudtype_allowed_hosts.split(',')[0].strip() if cloudtype_allowed_hosts else cloudtype_domain
                 site_id = 5
                 site_name = "HearthChat Cloudtype Production"
             else:
-                # 기본 프로덕션 도메인 (필요 시 수정)
                 domain = 'hearth-chat.fly.dev'
-                site_id = 4 
+                site_id = 4
                 site_name = "HearthChat Production"
         else:
             domain = 'localhost:8000'
-            site_id = 2
+            site_id = 2 # 로컬 개발 ID를 2로 유지
             site_name = "HearthChat Local Development"
-        # --- [수정] 로직 이동 끝 ---
-
+        # ---
+        
         self.stdout.write('🚀 Site 초기화 시작...')
         self.stdout.write(f'🔧 환경 감지: Railway={IS_RAILWAY_DEPLOY}, Render={IS_RENDER_DEPLOY}, Fly.io={IS_FLY_DEPLOY}, Cloudtype={IS_CLOUDTYPE_DEPLOY}')
         

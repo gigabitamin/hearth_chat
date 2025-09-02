@@ -51,6 +51,10 @@ jobs:
                   value: port-0-hearth-chat-meq4jsqba77b2805.sel5.cloudtype.app
                 - name: LILY_API_URL
                   value: https://gbrabbit-lily-fast-api.hf.space
+                - name: PRIMARY_DOMAIN
+                  value: hearthchat.app
+                - name: SITE_ID
+                  value: 6
                 - name: DJANGO_SECRET_KEY
                   secret: DJANGO_SECRET_KEY
                 - name: DATABASE_URL

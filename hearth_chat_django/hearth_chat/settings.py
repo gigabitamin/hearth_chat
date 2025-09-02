@@ -34,7 +34,9 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "your-default-secret-key")
 # ==============================================================================
 
 # --- 1. 환경 변수 및 플랫폼 감지 ---
-# Fly.io 환경 감지 개선
+# <<< [추가] 최상위 커스텀 도메인 환경변수 ---
+PRIMARY_DOMAIN = os.getenv('PRIMARY_DOMAIN')
+# ---
 IS_FLY_DEPLOY = os.getenv('IS_FLY_DEPLOY', 'false').lower() == 'true'
 IS_RAILWAY_DEPLOY = 'RAILWAY_ENVIRONMENT' in os.environ
 IS_RENDER_DEPLOY = os.environ.get('RENDER') == 'true'
@@ -54,6 +56,14 @@ if IS_PRODUCTION:
     # print("✅ 운영 환경(Production) 설정을 시작합니다.")
     DEBUG = False
     ALLOWED_HOSTS = []
+    
+
+    # <<< [추가] 환경변수로 받은 커스텀 도메인을 최우선으로 추가 ---
+    if PRIMARY_DOMAIN:
+        ALLOWED_HOSTS.append(PRIMARY_DOMAIN)
+        ALLOWED_HOSTS.append(f"www.{PRIMARY_DOMAIN}")
+        print(f"✅ 커스텀 도메인(PRIMARY_DOMAIN)을 ALLOWED_HOSTS에 추가: {PRIMARY_DOMAIN}")
+    # ---    
 
    # [추가] Fly.io 프록시를 신뢰하도록 설정
     # Fly.io의 프록시가 보내주는 X-Forwarded-Proto 헤더를 보고
@@ -138,37 +148,56 @@ if IS_PRODUCTION:
     # 와일드카드를 지원하는 정규표현식(Regex) 방식으로 변경
     CORS_ALLOWED_ORIGIN_REGEXES = [
         r"^https://hearth-chat\.fly\.dev$",
-        r"^https://.+\.fly\.dev$", # *.fly.dev 와일드카드에 해당
-        # 모바일(WebView/Capacitor/Android WebView)
+        r"^https://.+\.fly\.dev$",
         r"^capacitor://localhost$",
         r"^http://localhost(?::\d+)?$",
         r"^https://localhost(?::\d+)?$",
+        r"^https://gbrabbit-lily-fast-api\.hf\.space$",
+        r"^https://hearthchat\.kozow\.com$",
+        r"^https://courageous-dragon-f7b6c0\.netlify\.app$",
+        r"^https://animal-sticks-detected-pro\.trycloudflare\.com$",
+        r"^https://port-0-hearth-chat-meq4jsqba77b2805\.sel5\.cloudtype\.app$",
+        r"^https://hearthchat\.app$",
+        r"^https://www\.hearthchat\.app$",
+        r"^https://\.hearthchat\.app$",
+        r"^https://www\.\.hearthchat\.app$",
+        r"^https://\.hearthchat\.app$",
     ]
-    # CSRF_TRUSTED_ORIGINS는 와일드카드 패턴을 그대로 사용해도 괜찮습니다.
-    CSRF_TRUSTED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS]
-    # 모바일(WebView/Capacitor/Android WebView) 허용
-    CSRF_TRUSTED_ORIGINS.append("capacitor://localhost")
-    CSRF_TRUSTED_ORIGINS.append("http://localhost")
-    CSRF_TRUSTED_ORIGINS.append("https://localhost")
-    
-    # Lily API URL을 CORS와 CSRF에 각각 추가
-    CORS_ALLOWED_ORIGIN_REGEXES.append(r"^https://gbrabbit-lily-fast-api\.hf\.space$")
-    CSRF_TRUSTED_ORIGINS.append(LILY_API_URL)    
 
-    # 추가: Netlify/FreeDNS 서브도메인 원본 허용
-    CORS_ALLOWED_ORIGIN_REGEXES.append(r"^https://hearthchat\.kozow\.com$")
-    CORS_ALLOWED_ORIGIN_REGEXES.append(r"^https://courageous-dragon-f7b6c0\.netlify\.app$")
-    CORS_ALLOWED_ORIGIN_REGEXES.append(r"^https://animal-sticks-detected-pro\.trycloudflare\.com$")
-    
-    # CLOUDFLARE TUNNEL 설정, 아래 두 줄을 추가하여 웹소켓 연결을 허용
-    CSRF_TRUSTED_ORIGINS.append("https://hearthchat.kozow.com")
-    CSRF_TRUSTED_ORIGINS.append("https://courageous-dragon-f7b6c0.netlify.app")
-    CSRF_TRUSTED_ORIGINS.append("https://animal-sticks-detected-pro.trycloudflare.com")
+    # CSRF (Cross-Site Request Forgery) 신뢰할 수 있는 출처
+    CSRF_TRUSTED_ORIGINS = [
+        "https://hearth-chat.fly.dev", # fly.dev 배포용
+        "capacitor://localhost",
+        "http://localhost",
+        "https://localhost",
+        "https://gbrabbit-lily-fast-api.hf.space",
+        "https://hearthchat.kozow.com",
+        "https://courageous-dragon-f7b6c0.netlify.app",
+        "https://animal-sticks-detected-pro.trycloudflare.com",
+        "https://port-0-hearth-chat-meq4jsqba77b2805.sel5.cloudtype.app",
+        "https://hearthchat.app",
+        "https://www.hearthchat.app",
+        "https://.hearthchat.app",
+        "https://www..hearthchat.app",
+        "https://.hearthchat.app",
+    ]
 
-    # Cloudtype 도메인 CORS 허용
+    # Cloudtype 도메인 자동 추가
     if IS_CLOUDTYPE_DEPLOY:
-        CORS_ALLOWED_ORIGIN_REGEXES.append(r"^https://port-0-hearth-chat-meq4jsqba77b2805\.sel5\.cloudtype\.app$")
-    
+        cloudtype_domain = os.getenv('CLOUDTYPE_APP_HOSTNAME', 'port-0-hearth-chat-meq4jsqba77b2805.sel5.cloudtype.app')
+        CORS_ALLOWED_ORIGIN_REGEXES.append(fr"^https://{cloudtype_domain}$")
+        CSRF_TRUSTED_ORIGINS.append(f"https://{cloudtype_domain}")
+
+    # <<< [추가] 환경변수로 받은 커스텀 도메인을 CORS와 CSRF에 추가 ---
+    if PRIMARY_DOMAIN:
+        # CORS에는 정규식으로 추가
+        CORS_ALLOWED_ORIGIN_REGEXES.append(fr"^https://{PRIMARY_DOMAIN}$")
+        CORS_ALLOWED_ORIGIN_REGEXES.append(fr"^https://www\.{PRIMARY_DOMAIN}$")
+        # CSRF에는 URL 문자열로 추가
+        CSRF_TRUSTED_ORIGINS.append(f"https://{PRIMARY_DOMAIN}")
+        CSRF_TRUSTED_ORIGINS.append(f"https://www.{PRIMARY_DOMAIN}")
+        print(f"✅ 커스텀 도메인을 CORS/CSRF 허용 목록에 추가: {PRIMARY_DOMAIN}")
+    # ---
     
     # 보안 쿠키 설정
     SESSION_COOKIE_SECURE = True
