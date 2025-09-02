@@ -22,6 +22,7 @@
 // };
 */
 
+// 환경에 따라 API_BASE 자동 설정 함수
 export const getApiBase = () => {
     const hostname = window.location.hostname;
     const origin = window.location.origin; // https://<host>[:port]
@@ -44,7 +45,12 @@ export const getApiBase = () => {
     if (isNativeLike) {
         const envBase = process.env.REACT_APP_API_BASE;
         const lsBase = (() => { try { return localStorage.getItem('API_BASE'); } catch { return null; } })();
-        const fallbackBase = 'https://port-0-hearth-chat-meq4jsqba77b2805.sel5.cloudtype.app';
+        
+        // --- [수정된 부분] ---
+        // 모바일 앱(APK)이 바라볼 기본 서버 주소를 커스텀 도메인으로 변경
+        const fallbackBase = 'https://hearthchat.app';
+        // ---
+        
         return envBase || lsBase || fallbackBase;
     }
 
